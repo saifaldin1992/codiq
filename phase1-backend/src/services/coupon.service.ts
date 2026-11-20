@@ -60,6 +60,7 @@ async function assertCouponUsageWithinLimits(
   tx: Prisma.TransactionClient | typeof prisma,
   coupon: { id: string; storeId: string; maxUsesTotal: number | null; maxUsesPerCustomer: number | null },
   customerId: string | undefined,
+  recipientPhone?: string,
 ) {
   // Owner policy: cancelled/rejected orders never shipped, so their redemptions
   // do not consume uses (rows stay append-only; counting is status-filtered).
@@ -70,7 +71,27 @@ async function assertCouponUsageWithinLimits(
     if (total >= coupon.maxUsesTotal) throw new HttpError(422, "COUPON_EXHAUSTED", "This coupon has reached its total usage limit.");
   }
   if (coupon.maxUsesPerCustomer !== null && customerId) {
-    const used = await tx.couponRedemption.count({ where: { storeId: coupon.storeId, couponId: coupon.id, customerId, order: consumingOrder } });
+    // «PER CUSTOMER» MEANS PER PERSON, AND THE ROW IS NOT THE PERSON.
+    //
+    // A customer row is one phone number at this store, and a guest checkout
+    // mints a new row for every new number typed. So «one use per customer»
+    // was one use per number a shopper was willing to type: a «first order»
+    // coupon, used again and again under made-up numbers.
+    //
+    // The number a cash-on-delivery order cannot fake is the one the courier
+    // CALLS — the delivery phone, stamped on the order as `recipientPhone`. A
+    // redemption counts against this checkout when it is this customer's, OR
+    // when its order was delivered to the same phone. Someone who changes the
+    // delivery number as well is ordering to a different person's phone, which
+    // is a cost the coupon's limit can live with.
+    const used = await tx.couponRedemption.count({
+      where: {
+        storeId: coupon.storeId,
+        couponId: coupon.id,
+        order: consumingOrder,
+        ...(recipientPhone ? { OR: [{ customerId }, { order: { recipientPhone } }] } : { customerId }),
+      },
+    });
     if (used >= coupon.maxUsesPerCustomer) throw new HttpError(422, "COUPON_CUSTOMER_LIMIT_REACHED", "This customer has reached the coupon usage limit.");
   }
 }
@@ -89,7 +110,7 @@ async function assertCouponUsageWithinLimits(
  * no ORDER BY, and a perfectly valid coupon is refused with 422 on the payment
  * path — intermittently, which is the worst way to fail.
  */
-export async function lockCouponForCheckout(tx: Prisma.TransactionClient, storeId: string, customerId: string, codeNormalized: string): Promise<CouponRow> {
+export async function lockCouponForCheckout(tx: Prisma.TransactionClient, storeId: string, customerId: string, codeNormalized: string, recipientPhone?: string): Promise<CouponRow> {
   const rows = await tx.$queryRaw<Array<{ id: string; code: string; kind: string; percent_off: number | null; amount_off_iqd: number | null; min_subtotal_iqd: number; max_uses_total: number | null; max_uses_per_customer: number | null; starts_at: Date | null; ends_at: Date | null; is_active: boolean }>>(Prisma.sql`
     SELECT id, code, kind, percent_off, amount_off_iqd, min_subtotal_iqd, max_uses_total, max_uses_per_customer, starts_at, ends_at, is_active
     FROM coupons
@@ -109,7 +130,7 @@ export async function lockCouponForCheckout(tx: Prisma.TransactionClient, storeI
     maxUsesTotal: row.max_uses_total,
     maxUsesPerCustomer: row.max_uses_per_customer,
   };
-  await assertCouponUsageWithinLimits(tx, { id: coupon.id, storeId, maxUsesTotal: coupon.maxUsesTotal, maxUsesPerCustomer: coupon.maxUsesPerCustomer }, customerId);
+  await assertCouponUsageWithinLimits(tx, { id: coupon.id, storeId, maxUsesTotal: coupon.maxUsesTotal, maxUsesPerCustomer: coupon.maxUsesPerCustomer }, customerId, recipientPhone);
   return coupon;
 }
 

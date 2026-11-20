@@ -235,6 +235,32 @@ try {
   assert.equal(noPassword.status, 401, "a row with no password admits nobody — the same answer as a wrong password, so the door leaks nothing");
   summary.guestLoginRefused = 401;
 
+  // ── 9. «one per customer» is one per person, not one per typed number ────
+  // A guest mints a new customer row for every new number he types, so the
+  // per-customer limit counted rows. It now also counts by the number the
+  // courier calls: a second guest identity delivering to the same phone is
+  // the same shopper using the same coupon twice.
+  await prisma.coupon.create({ data: { storeId: store.id, code: "FIRSTBUY", codeNormalized: "FIRSTBUY", kind: "fixed", amountOffIqd: 2000, maxUsesPerCustomer: 1 } });
+  const couponProduct = await prisma.product.create({ data: { storeId: store.id, sku: "GUEST-CPN", name: "هدية الطلب الأول", priceIqd: 10000, stockQuantity: 10, lowStockThreshold: 0 } });
+  async function guestWithCoupon(tag, identityPhone, deliveryPhone) {
+    const shopper = browser();
+    const cart = await shopper.request(`/store/${slug}/cart/items`, { method: "POST", body: { productId: couponProduct.id, quantity: 1 } });
+    assert.equal(cart.status, 200, JSON.stringify(cart.payload));
+    return shopper.request(`/store/${slug}/checkout/guest`, {
+      method: "POST", headers: { "idempotency-key": `${testId}-cpn-${tag}` },
+      body: { cartVersion: cart.payload.cart.version, fullName: `ضيف ${tag}`, phone: identityPhone, address: address(`ضيف ${tag}`, deliveryPhone), paymentMethodCode: "cod", couponCode: "firstbuy" },
+    });
+  }
+  const firstUse = await guestWithCoupon("a", "07811100001", "07900000001");
+  assert.equal(firstUse.status, 201, JSON.stringify(firstUse.payload));
+  assert.equal(firstUse.payload.order.discountIqd, 2000, "the first use is honoured");
+  const sameDoor = await guestWithCoupon("b", "07811100002", "07900000001");
+  assert.equal(sameDoor.status, 422, `a new guest identity delivering to the SAME phone is the same shopper · ${JSON.stringify(sameDoor.payload)}`);
+  assert.equal(sameDoor.payload.error.code, "COUPON_CUSTOMER_LIMIT_REACHED");
+  const otherShopper = await guestWithCoupon("c", "07811100003", "07900000003");
+  assert.equal(otherShopper.status, 201, `a different person at a different phone still gets his own use · ${JSON.stringify(otherShopper.payload)}`);
+  summary.couponPerPerson = { first: firstUse.status, sameDeliveryPhone: sameDoor.payload.error.code, otherShopper: otherShopper.status };
+
   console.log(JSON.stringify({ suite: "guest-checkout", status: "passed", summary }, null, 2));
 } finally {
   await new Promise((resolve) => server.close(resolve));

@@ -890,7 +890,9 @@ export async function checkout(storeId: string, customerId: string, input: Check
     // to a clean re-read); the row lock alone would NOT be enough — do not
     // lower the isolation level. No coupon sent → this line is a no-op and
     // the transaction is byte-identical to 20A.
-    const coupon = couponCodeNormalized ? await lockCouponForCheckout(tx, storeId, customerId, couponCodeNormalized) : null;
+    // The delivery phone rides along: the per-customer limit counts by the
+    // number the courier calls, not only by the customer row (coupon.service).
+    const coupon = couponCodeNormalized ? await lockCouponForCheckout(tx, storeId, customerId, couponCodeNormalized, address.phoneContactNormalized ?? undefined) : null;
     // Phase 20A: stock, price, and the FOR UPDATE lock live on the variant. The
     // JOIN locks the variant AND its parent product together (FOR UPDATE OF v, p)
     // so the parent's is_active is a lock-fresh read — a concurrent deactivation
