@@ -9,6 +9,7 @@ import { awardLoyaltyPoints, reverseLoyaltyForReturn } from "./loyalty.service.j
 import { enqueueCourierDispatched, enqueueOrderStatusChanged } from "../notifications/notification-outbox.service.js";
 import { recordOrderCompletion, recordOrderReturn } from "./finance.service.js";
 import { settleStorefrontReservations } from "./storefront.service.js";
+import { restockPosReturn } from "./pos.service.js";
 import { domainEvents } from "../events/domain-events.js";
 
 export const ORDER_STATUSES = ["new", "processing", "preparation", "out_for_delivery", "completed", "cancelled", "rejected", "returned"] as const;
@@ -333,6 +334,8 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
         subtotalIqd: current.subtotalIqd - current.discountIqd - current.loyaltyDiscountIqd,
       });
     } else if (toStatus === "returned") {
+      // A counter sale comes back to the counter: its units return to the shelf now.
+      if (current.source === "pos") await restockPosReturn(tx, storeId, orderId);
       await recordOrderReturn(tx, { storeId, orderId });
       // CD-5: both sides. Without the clawback, buy → return prints points;
       // without the refund, points spent on a returned order are simply kept.

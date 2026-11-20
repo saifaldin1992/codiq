@@ -461,6 +461,59 @@ export async function ingestPosTicket(storeId: string, actor: { kind: "merchant"
   }
 }
 
+// ---------------------------------------------------------------- returns
+
+/**
+ * A POS SALE RETURNED IS STOCK BACK ON THE SHELF — at once, no inspection.
+ *
+ * The customer is standing at the counter with the goods; the cashier can see
+ * them. So unlike a storefront return (refused at the door, inspected later),
+ * the units go straight back — the owner's decision. Before this, `completed →
+ * returned` on a POS order touched no stock at all (`settleStorefrontReservations`
+ * steps aside for anything that is not a storefront order), so every counter
+ * return was a silent loss of inventory.
+ *
+ * EXACTLY WHAT THE SALE TOOK, NOT WHAT IT SOLD. A sale that oversold the shelf
+ * clamped at zero and recorded the gap as a shortfall; it decremented only
+ * `soldQty − shortfallQty`. Giving back the full sold quantity would mint the
+ * shortfall as stock nobody ever counted. The shortfall queue stays the ONE
+ * place that gap is reconciled, so this returns the sale's own decrement and
+ * the recorded stock nets to zero, as if the sale had not happened.
+ *
+ * A variant in the trash bin is refused, the inspection queue's rule
+ * (`return-inspection.service.ts`): restoring onto a trashed variant is restoring
+ * onto a row soft-delete owns. The merchant restores it first, then returns.
+ *
+ * Called inside the transition's own transaction, so the stock and the status
+ * commit together; `returned` is terminal, so it runs once per order.
+ */
+export async function restockPosReturn(tx: Prisma.TransactionClient, storeId: string, orderId: string) {
+  const items = await tx.orderItem.findMany({ where: { orderId, order: { storeId } }, select: { productId: true, variantId: true, quantity: true } });
+  const ticket = await tx.posTicket.findFirst({ where: { storeId, orderId }, select: { shortfalls: { select: { variantId: true, shortfallQty: true } } } });
+  const taken = new Map<string, { productId: string; quantity: number }>();
+  for (const item of items) {
+    if (!item.variantId || !item.productId) continue;
+    const entry = taken.get(item.variantId) ?? { productId: item.productId, quantity: 0 };
+    entry.quantity += item.quantity;
+    taken.set(item.variantId, entry);
+  }
+  for (const shortfall of ticket?.shortfalls ?? []) {
+    const entry = taken.get(shortfall.variantId);
+    if (entry) entry.quantity -= shortfall.shortfallQty;
+  }
+  // Sorted, the lock order every other stock writer uses.
+  for (const variantId of Array.from(taken.keys()).sort()) {
+    const { productId, quantity } = taken.get(variantId)!;
+    if (quantity <= 0) continue;
+    const restored = await tx.productVariant.updateMany({
+      where: { id: variantId, storeId, deletedAt: null },
+      data: { stockQuantity: { increment: quantity } },
+    });
+    if (restored.count !== 1) throw new HttpError(409, "VARIANT_TRASHED", "أحد أصناف هذه البيعة في سلة المحذوفات — استرجعه أولاً ثم أرجِع البيعة.");
+    await tx.inventoryMovement.create({ data: { storeId, productId, variantId, delta: quantity, reason: "pos_returned_restored" } });
+  }
+}
+
 // ---------------------------------------------------------------- price deviations
 
 /**

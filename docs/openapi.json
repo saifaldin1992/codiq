@@ -33598,7 +33598,7 @@
             ]
           },
           "409": {
-            "description": "`ORDER_VERSION_CONFLICT`",
+            "description": "`ORDER_VERSION_CONFLICT` · `VARIANT_TRASHED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -33607,7 +33607,8 @@
               }
             },
             "x-codiq-error-codes": [
-              "ORDER_VERSION_CONFLICT"
+              "ORDER_VERSION_CONFLICT",
+              "VARIANT_TRASHED"
             ]
           },
           "413": {
@@ -44703,6 +44704,7 @@
         409
       ],
       "messages": [
+        "أحد أصناف هذه البيعة في سلة المحذوفات — استرجعه أولاً ثم أرجِع البيعة.",
         "الصنف في سلة المحذوفات — استرجعه أولاً ثم أرجِع مخزونه."
       ]
     },

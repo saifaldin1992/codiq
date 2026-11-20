@@ -238,11 +238,18 @@ try {
 
   // ---------------------------------------------------------------- 10: returns
   // completed → returned is the EXISTING lifecycle edge; a POS sale must ride it.
+  const stockBeforeReturn = (await prisma.productVariant.findUniqueOrThrow({ where: { id: variant.id }, select: { stockQuantity: true } })).stockQuantity;
   const returned = await request(`/merchant/stores/${storeA.slug}/orders/${order.id}/status`, {
     method: "POST", token: tokenA,
     body: { toStatus: "returned", expectedVersion: 1 },
   });
   assert.equal(returned.status, 200, `ق-132: the return machinery accepts a POS sale untouched — ${JSON.stringify(returned.payload)}`);
+  // The goods are back at the counter, so they are back on the shelf — at once.
+  const stockAfterReturn = (await prisma.productVariant.findUniqueOrThrow({ where: { id: variant.id }, select: { stockQuantity: true } })).stockQuantity;
+  assert.equal(stockAfterReturn, stockBeforeReturn + 3, "a returned counter sale puts its 3 units straight back into stock");
+  const restoreMovement = await prisma.inventoryMovement.findFirstOrThrow({ where: { storeId: storeA.id, variantId: variant.id, reason: "pos_returned_restored" } });
+  assert.equal(restoreMovement.delta, 3, "…with a movement that says why");
+  summary.posReturns = { restored: 3 };
   // Ledger stays empty even after the return: there was no completion entry to
   // reverse, and a reversal row here would subtract from revenue the ledger
   // never added (the exact trap the sign guard documents).
@@ -565,6 +572,30 @@ try {
   assert.equal((await request(`${posBase}/price-deviations/${belowRow.id}/review`, { method: "POST", token: tokenA })).status, 204);
   assert.ok(!(await request(`${posBase}/price-deviations`, { token: tokenA })).payload.deviations.some((row) => row.id === belowRow.id), "reviewed leaves the open queue");
   summary.priceDeviations = { rows: deviationRows.map((row) => row.kind), replayRows: 3, cashierRead: 403 };
+
+  // ------------------------------------------------- 16: an oversold sale returned
+  // An OVERSOLD sale took only what the shelf had (2 of 5, the rest a
+  // shortfall). Its return gives back those 2 — not 5, which would mint the
+  // 3-unit gap as stock nobody counted. Its own product, so the suite's later
+  // takings figures are untouched.
+  const returnProduct = await prisma.product.create({ data: { storeId: storeA.id, sku: "POS-RETURN", name: "صنف المرتجع", priceIqd: 1500, isActive: true } });
+  const returnVariant = await prisma.productVariant.findFirstOrThrow({ where: { productId: returnProduct.id, isDefault: true } });
+  await prisma.productVariant.update({ where: { id: returnVariant.id }, data: { stockQuantity: 2, lowStockThreshold: 0 } });
+  const returnTill = (await request(`${posBase}/devices`, { method: "POST", token: tokenA, body: { label: "كاشير المرتجعات" } })).payload.device;
+  const overReturnSale = await request(`${posBase}/tickets`, {
+    method: "POST", token: tokenA,
+    body: { deviceId: returnTill.id, ticketId: randomUUID(), lines: [{ variantId: returnVariant.id, quantity: 5, unitPriceIqd: 1500 }], discountIqd: 0, totalIqd: 7500, deviceReportedAt: new Date().toISOString() },
+  });
+  assert.equal(overReturnSale.status, 201, JSON.stringify(overReturnSale.payload));
+  assert.equal(overReturnSale.payload.shortfalls[0].shortfallQty, 3);
+  const oversellReturned = await request(`/merchant/stores/${storeA.slug}/orders/${overReturnSale.payload.order.id}/status`, {
+    method: "POST", token: tokenA,
+    body: { toStatus: "returned", expectedVersion: 1 },
+  });
+  assert.equal(oversellReturned.status, 200, JSON.stringify(oversellReturned.payload));
+  const stockAfterOversellReturn = (await prisma.productVariant.findUniqueOrThrow({ where: { id: returnVariant.id }, select: { stockQuantity: true } })).stockQuantity;
+  assert.equal(stockAfterOversellReturn, 2, "an oversold sale's return restores what it actually took (2), never the shortfall");
+  summary.posReturns = { ...summary.posReturns, oversoldRestored: 2 };
 
   console.log(JSON.stringify({ pos: summary }, null, 2));
   console.log("pos OK");
