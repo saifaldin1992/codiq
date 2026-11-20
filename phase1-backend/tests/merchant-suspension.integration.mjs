@@ -30,6 +30,7 @@
  * Run: pnpm suspension:test
  */
 import assert from "node:assert/strict";
+import { ownStaffPassword } from "./helpers/own-staff-password.js";
 
 process.env.SESSION_JWT_SECRET = process.env.SESSION_JWT_SECRET ?? "merchant-suspension-test-secret-only";
 process.env.CODIQ_ALLOW_OWNER_REGISTRATION = "true";
@@ -92,6 +93,7 @@ try {
 
   const staffCreated = await request(`/merchant/stores/${storeSlug}/team`, { method: "POST", headers: bearer(tokenMerchant), body: JSON.stringify({ email: "staff.suspension@codiq.test", displayName: "موظفة الإيقاف", temporaryPassword: "StaffSuspension!2026", roleCode: "store_staff" }) });
   assert.equal(staffCreated.status, 201, JSON.stringify(staffCreated.body));
+  await ownStaffPassword(base, storeSlug, "staff.suspension@codiq.test", "StaffSuspension!2026"); // audit 14-ب
   const staffLogin = await request(`/auth/staff/stores/${storeSlug}/login`, { method: "POST", body: JSON.stringify({ email: "staff.suspension@codiq.test", password: "StaffSuspension!2026" }) });
   assert.equal(staffLogin.status, 200, JSON.stringify(staffLogin.body));
   const tokenStaff = staffLogin.body.accessToken;

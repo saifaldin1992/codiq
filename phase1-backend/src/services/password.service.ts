@@ -112,6 +112,10 @@ export async function changeOwnPassword(
     if (claims.identityKind === "merchant") {
       await tx.merchant.update({ where: { id: claims.subjectId }, data: { passwordSetByProvisionerAt: null } });
     }
+    // Audit 14-ب: the same for a store employee whose first password the merchant chose.
+    if (claims.identityKind === "staff") {
+      await tx.staff.update({ where: { id: claims.subjectId }, data: { passwordSetByProvisionerAt: null } });
+    }
     // PR-1: every outstanding RESET LINK dies here too, in the same transaction
     // as the hash. Without this line a person who asked for a link, then
     // remembered his password and changed it from inside the dashboard, would

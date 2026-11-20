@@ -30,6 +30,7 @@
  *     automated pipeline.
  */
 import assert from "node:assert/strict";
+import { ownStaffPassword } from "./helpers/own-staff-password.js";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
 import { Client } from "pg";
 
@@ -102,6 +103,7 @@ try {
   // Staff member in store A (default store_staff holds orders.view + orders.update).
   const staffCreated = await request(`/merchant/stores/${storeA.slug}/team`, { method: "POST", token: tokenA, body: { email: `${testId}.staff@codiq.test`, displayName: "موظف واتساب", temporaryPassword: "wa1-staff-temp-password", roleCode: "store_staff" } });
   assert.equal(staffCreated.status, 201, JSON.stringify(staffCreated.payload));
+  await ownStaffPassword(base, storeA.slug, `${testId}.staff@codiq.test`, "wa1-staff-temp-password"); // audit 14-ب
   const staffMembershipId = staffCreated.payload.membership.id;
   let tokenStaff = (await request(`/auth/staff/stores/${storeA.slug}/login`, { method: "POST", body: { email: `${testId}.staff@codiq.test`, password: "wa1-staff-temp-password" } })).payload.accessToken;
   const setOverrides = async (overrides) => {

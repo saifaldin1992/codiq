@@ -17,9 +17,11 @@ import {
   CreditCard,
   Layers3,
   Megaphone,
+  MonitorSmartphone,
   PackageSearch,
   ScrollText,
   Settings2,
+  ShieldCheck,
   ShoppingBag,
   Store,
   Trash2,
@@ -374,6 +376,11 @@ export const staffNavEntries: StaffNavEntry[] = [
   { id: "activity", label: "سجل النشاط", icon: ScrollText, segment: "activity", permission: "catalog.audit.view", status: "implemented" },
   { id: "team", label: "فريق المتجر", icon: UsersRound, segment: "team", permission: "team.manage", status: "implemented" },
   { id: "settings", label: "الإشعارات والإعدادات", icon: Settings2, segment: "settings", permission: "settings.manage", status: "implemented" },
+  // Audit 14-ب: the employee's own password and sessions. Every other shell had
+  // «الأمان»; the staff shell did not, so the password the merchant typed could
+  // never be replaced from inside the dashboard.
+  { id: "security", label: "الأمان", icon: ShieldCheck, segment: "security", permission: null, status: "implemented" },
+  { id: "sessions", label: "الجلسات والأجهزة", icon: MonitorSmartphone, segment: "sessions", permission: null, status: "implemented" },
 ];
 
 export function staffDashboardBase(storeSlug: string): string {

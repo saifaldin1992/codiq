@@ -78,11 +78,11 @@ async function readError(response: Response): Promise<string> {
   return body?.error?.message ?? `فشل الطلب (${response.status})`;
 }
 
-export function AccountSecurityPanel({ view }: { view: "password" | "sessions" }) {
-  return view === "password" ? <ChangePasswordCard /> : <SessionsCard />;
+export function AccountSecurityPanel({ view, onPasswordChanged }: { view: "password" | "sessions"; onPasswordChanged?: () => void }) {
+  return view === "password" ? <ChangePasswordCard onChanged={onPasswordChanged} /> : <SessionsCard />;
 }
 
-function ChangePasswordCard() {
+function ChangePasswordCard({ onChanged }: { onChanged?: () => void } = {}) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -112,6 +112,7 @@ function ChangePasswordCard() {
       if (!response.ok) throw new Error(await readError(response));
       const body = await response.json();
       setDone(body.otherSessionsEnded ?? 0);
+      onChanged?.();
       // Cleared on success, never on failure: retyping a long password because
       // the CURRENT one was mistyped is its own small punishment.
       setCurrentPassword("");

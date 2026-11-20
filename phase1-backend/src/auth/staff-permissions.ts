@@ -82,6 +82,8 @@ export interface StoreStaffContext {
   claims: SessionClaims;
   store: { id: string; slug: string; merchantId: string };
   staff: { id: string; email: string; displayName: string };
+  /** Audit 14-ب: true only when the caller opted in with `allowPasswordChangePending`. */
+  mustChangePassword: boolean;
   membership: { id: string; roleCode: string; permissionVersion: number };
   permissions: Set<PermissionCode>;
 }
@@ -158,7 +160,12 @@ async function resolveStoreBySlug(storeSlug: string) {
  * D14-07 live gate: a valid staff session is not enough — the staff record and the exact
  * membership bound to the session must still be active on every request.
  */
-export async function requireStoreStaff(request: Request): Promise<StoreStaffContext> {
+/**
+ * Audit 14-ب: `allowPasswordChangePending` is for the ONE caller that must still
+ * answer while the employee holds a merchant-chosen password — the session probe,
+ * so the dashboard can load and send him to «الأمان». Every other surface refuses.
+ */
+export async function requireStoreStaff(request: Request, options: { allowPasswordChangePending?: boolean } = {}): Promise<StoreStaffContext> {
   const claims = await verifyTypedSession(bearerTokenFromRequest(request), "staff");
   const store = await resolveStoreBySlug(request.params.storeSlug);
   if (store.id !== claims.storeId) {
@@ -172,12 +179,16 @@ export async function requireStoreStaff(request: Request): Promise<StoreStaffCon
       roleCode: true,
       isActive: true,
       permissionVersion: true,
-      staff: { select: { id: true, email: true, displayName: true, isActive: true } },
+      staff: { select: { id: true, email: true, displayName: true, isActive: true, passwordSetByProvisionerAt: true } },
       permissionOverrides: { select: { permissionCode: true, effect: true } },
     },
   });
   if (!membership || !membership.isActive || !membership.staff.isActive) {
     throw new HttpError(401, "STAFF_ACCESS_REVOKED", "This staff membership is disabled and the session is no longer usable.");
+  }
+  const mustChangePassword = Boolean(membership.staff.passwordSetByProvisionerAt);
+  if (mustChangePassword && !options.allowPasswordChangePending) {
+    throw new HttpError(403, "PASSWORD_CHANGE_REQUIRED", "كلمة المرور الحالية اختارها التاجر عند إضافتك. غيّرها من «الأمان» لتتابع — بعدها لا يعرفها غيرك.");
   }
   // ق-192: a staff member works FOR a merchant, so a disabled merchant revokes
   // his people too. Without this, disabling a merchant left every one of his
@@ -196,6 +207,7 @@ export async function requireStoreStaff(request: Request): Promise<StoreStaffCon
     claims,
     store,
     staff: { id: membership.staff.id, email: membership.staff.email, displayName: membership.staff.displayName },
+    mustChangePassword,
     membership: { id: membership.id, roleCode: membership.roleCode, permissionVersion: membership.permissionVersion },
     permissions: resolvePermissionSet(membership.roleCode, membership.permissionOverrides),
   };

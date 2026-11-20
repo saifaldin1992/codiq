@@ -11,6 +11,7 @@
  *  - order status events recording the true staff actor.
  */
 import assert from "node:assert/strict";
+import { ownStaffPassword } from "./helpers/own-staff-password.js";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
 import { createServer } from "node:http";
 import { Client } from "pg";
@@ -84,6 +85,7 @@ try {
   assert.equal(basicCreated.status, 201);
   const lifecycleCreated = await request(teamUrl("phase14-a-one"), { method: "POST", headers: bearer(tokenMerchantA1), body: JSON.stringify({ email: "staff.lifecycle.phase14@codiq.test", displayName: "موظف الدورة", temporaryPassword: "cycle-temp-password-14", roleCode: "store_staff" }) });
   assert.equal(lifecycleCreated.status, 201);
+  for (const [email, password] of [["staff.manager.phase14@codiq.test", "manager-temp-password-14"], ["staff.basic.phase14@codiq.test", "basic-temp-password-14"], ["staff.lifecycle.phase14@codiq.test", "cycle-temp-password-14"]]) await ownStaffPassword(base, "phase14-a-one", email, password); // audit 14-ب
   const managerMembershipId: string = managerCreated.body.membership.id;
   const basicMembershipId: string = basicCreated.body.membership.id;
   const lifecycleMembershipId: string = lifecycleCreated.body.membership.id;
@@ -345,6 +347,7 @@ try {
   const leaverEmail = "staff.leaver.phase14@codiq.test";
   const leaverCreated = await request(teamUrl("phase14-a-one"), { method: "POST", headers: bearer(tokenMerchantA1), body: JSON.stringify({ email: leaverEmail, displayName: "موظّف مغادر", temporaryPassword: "leaver-temp-password-14", roleCode: "store_staff" }) });
   assert.equal(leaverCreated.status, 201, JSON.stringify(leaverCreated.body));
+  await ownStaffPassword(base, "phase14-a-one", leaverEmail, "leaver-temp-password-14"); // audit 14-ب
   const leaverMembershipId: string = leaverCreated.body.membership.id;
   const leaverStaffId: string = leaverCreated.body.membership.staff.id;
   // While he is employed the address is claimed, exactly as before.

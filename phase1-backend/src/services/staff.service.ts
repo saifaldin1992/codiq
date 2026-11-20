@@ -144,7 +144,9 @@ export async function createStoreStaff(storeId: string, input: { email: unknown;
   }
   const passwordHash = await createPasswordHash(input.temporaryPassword);
   const membership = await prisma.$transaction(async (tx) => {
-    const staff = await tx.staff.create({ data: { email, passwordHash, displayName: (input.displayName as string).trim() }, select: { id: true } });
+    // Audit 14-ب: the merchant typed this password, so it is provisional until
+    // the employee replaces it (staff counterpart of ق-218).
+    const staff = await tx.staff.create({ data: { email, passwordHash, displayName: (input.displayName as string).trim(), passwordSetByProvisionerAt: new Date() }, select: { id: true } });
     return tx.storeStaffMembership.create({ data: { staffId: staff.id, storeId, roleCode }, select: membershipSelect });
   });
   return { created: "staff" as const, membership: membershipPayload(membership) };

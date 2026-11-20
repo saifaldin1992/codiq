@@ -24642,7 +24642,7 @@
             ]
           },
           "403": {
-            "description": "`IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PASSWORD_CHANGE_REQUIRED` · `STORE_BOUNDARY_DENIED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -24653,6 +24653,7 @@
             "x-codiq-error-codes": [
               "IDENTITY_BOUNDARY_DENIED",
               "MERCHANT_DISABLED",
+              "PASSWORD_CHANGE_REQUIRED",
               "STORE_BOUNDARY_DENIED"
             ]
           },
@@ -24737,7 +24738,8 @@
                     "store": {},
                     "membership": {},
                     "permissions": {}
-                  }
+                  },
+                  "description": "يحمل أيضاً مفاتيح من نشرٍ (`...…`) لم يتيسّر تتبّعها من المسار — المفاتيح أعلاه مؤكَّدة، والقائمة ليست حصرية."
                 }
               }
             }
@@ -24771,7 +24773,7 @@
             ]
           },
           "403": {
-            "description": "`IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PASSWORD_CHANGE_REQUIRED` · `STORE_BOUNDARY_DENIED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -24782,6 +24784,7 @@
             "x-codiq-error-codes": [
               "IDENTITY_BOUNDARY_DENIED",
               "MERCHANT_DISABLED",
+              "PASSWORD_CHANGE_REQUIRED",
               "STORE_BOUNDARY_DENIED"
             ]
           },
@@ -43780,6 +43783,7 @@
         403
       ],
       "messages": [
+        "كلمة المرور الحالية اختارها التاجر عند إضافتك. غيّرها من «الأمان» لتتابع — بعدها لا يعرفها غيرك.",
         "كلمة المرور الحالية اختارها من أنشأ حسابك. غيّرها من «الأمان» لتتابع — بعدها لا يعرفها غيرك."
       ]
     },

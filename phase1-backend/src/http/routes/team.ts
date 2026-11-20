@@ -8,9 +8,12 @@ import { asyncRoute, requireTrustedWriteOrigin } from "../shared.js";
 
 export function registerTeamRoutes(app: Express) {
   app.get("/staff/stores/:storeSlug/session", asyncRoute(async (request, response) => {
-    const context = await requireStoreStaff(request);
+    // Audit 14-ب: the probe answers even while the password is the merchant's
+    // choice, so the dashboard can load and send the employee to «الأمان».
+    const context = await requireStoreStaff(request, { allowPasswordChangePending: true });
     response.status(200).json({
       staff: context.staff,
+      ...(context.mustChangePassword ? { mustChangePassword: true } : {}),
       store: { slug: context.store.slug },
       membership: { id: context.membership.id, roleCode: context.membership.roleCode, permissionVersion: context.membership.permissionVersion },
       permissions: Array.from(context.permissions).sort(),

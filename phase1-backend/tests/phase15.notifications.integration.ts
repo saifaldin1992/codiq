@@ -7,6 +7,7 @@
  * has HTTP endpoints), and secret-free responses.
  */
 import assert from "node:assert/strict";
+import { ownStaffPassword } from "./helpers/own-staff-password.js";
 import { createServer } from "node:http";
 import { createTypedSession } from "../src/auth/identity.js";
 import { prisma } from "../src/db/prisma.js";
@@ -109,6 +110,7 @@ try {
   // ---------- status change: authorized enqueues, unauthorized leaves nothing ----------
   const staffCreate = await request("/merchant/stores/phase15-a-one/team", { method: "POST", headers: bearer(tokenMerchantA), body: JSON.stringify({ email: "staff.phase15@codiq.test", displayName: "موظفة 15", temporaryPassword: "phase15-staff-pass-01", roleCode: "store_staff" }) });
   assert.equal(staffCreate.status, 201);
+  await ownStaffPassword(base, "phase15-a-one", "staff.phase15@codiq.test", "phase15-staff-pass-01"); // audit 14-ب
   const staffLogin = await request("/auth/staff/stores/phase15-a-one/login", { method: "POST", body: JSON.stringify({ email: "staff.phase15@codiq.test", password: "phase15-staff-pass-01" }) });
   assert.equal(staffLogin.status, 200);
   const tokenStaff: string = staffLogin.body.accessToken;

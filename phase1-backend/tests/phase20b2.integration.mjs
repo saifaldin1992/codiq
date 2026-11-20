@@ -29,6 +29,7 @@
  * 12. the worker renders and delivers the Arabic cart.abandoned message.
  */
 import assert from "node:assert/strict";
+import { ownStaffPassword } from "./helpers/own-staff-password.js";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
 import { Client } from "pg";
 
@@ -271,6 +272,7 @@ try {
   assert.equal(customerDenied.status, 403);
   const staffCreate = await request(`/merchant/stores/${storeA.slug}/team`, { method: "POST", token: tokenA, body: { email: `${testId}.staff@codiq.test`, displayName: "موظفة 20B2", temporaryPassword: "phase20b2-staff-pass", roleCode: "store_staff" } });
   assert.equal(staffCreate.status, 201, JSON.stringify(staffCreate.payload));
+  await ownStaffPassword(base, storeA.slug, `${testId}.staff@codiq.test`, "phase20b2-staff-pass"); // audit 14-ب
   const staffLogin = await request(`/auth/staff/stores/${storeA.slug}/login`, { method: "POST", body: { email: `${testId}.staff@codiq.test`, password: "phase20b2-staff-pass" } });
   assert.equal(staffLogin.status, 200);
   const tokenStaff = staffLogin.payload.accessToken;

@@ -37,6 +37,7 @@
  * not just the HTTP shape.
  */
 import assert from "node:assert/strict";
+import { ownStaffPassword } from "./helpers/own-staff-password.js";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -147,6 +148,7 @@ try {
   // permission-denial probe for the search endpoint.
   const staffCreated = await request(`/merchant/stores/${storeA.slug}/team`, { method: "POST", token: tokenA, body: { email: `${testId}.staff@codiq.test`, displayName: "موظفة MD1", temporaryPassword: "md1-staff-temp-password", roleCode: "store_staff" } });
   assert.equal(staffCreated.status, 201, JSON.stringify(staffCreated.payload));
+  await ownStaffPassword(base, storeA.slug, `${testId}.staff@codiq.test`, "md1-staff-temp-password"); // audit 14-ب
   const staffMembershipId = staffCreated.payload.membership.id;
   const staffLogin = await request(`/auth/staff/stores/${storeA.slug}/login`, { method: "POST", body: { email: `${testId}.staff@codiq.test`, password: "md1-staff-temp-password" } });
   assert.equal(staffLogin.status, 200, JSON.stringify(staffLogin.payload));

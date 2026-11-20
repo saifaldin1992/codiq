@@ -3,7 +3,8 @@
  * code before its fix.
  *
  *   1. Audit 16-ب — re-activating a suspended staff member spends `max_staff`.
- *   2. Audit 14-أ — the merchant-wide wallet is not served to store staff.
+ *   2. Audit 14-أ — the merchant-wide wallet is not served to store staff,
+ *      and audit 14-ب — a staff password the merchant typed must be replaced first.
  *   3. SCALE      — the visit counter batches in memory and flushes correctly,
  *                   including the live-product filter for views.
  *   4. Audit 17-أ — the owner's overview nets a returned order to zero instead
@@ -44,6 +45,7 @@ async function call(path, { method = "GET", token, body } = {}) {
 }
 
 const summary = {};
+let createdPlanId = null;
 try {
   const merchant = await registerMerchantDirect({ ownerName: "مراجعة", businessName: "متجر المراجعة", phone: `+96475${suffix}`, email: `${testId}@codiq.test`, password: "ReviewMerchant!2026" });
   assert.equal(merchant.status, 201, JSON.stringify(merchant.payload));
@@ -59,6 +61,7 @@ try {
     { featureCode: "max_monthly_orders", limitValue: 100 },
     { featureCode: "max_image_storage_mb", limitValue: 10 },
   ] } } } });
+  createdPlanId = plan.id;
   await prisma.merchantSubscription.updateMany({ where: { merchantId, status: "active" }, data: { status: "cancelled", endsAt: new Date() } });
   await prisma.merchantSubscription.create({ data: { merchantId, planId: plan.id, status: "active" } });
 
@@ -78,9 +81,26 @@ try {
   assert.equal(stillSuspended.isActive, false, "…and the refusal rolled the write back");
   summary.reactivationGated = 403;
 
-  // ── 2. the wallet is the merchant's only ──────────────────────────────────
-  const secondMembership = await prisma.storeStaffMembership.findUniqueOrThrow({ where: { id: second.payload.membership.id }, select: { id: true, staffId: true } });
-  const staffToken = await createTypedSession("staff", secondMembership.staffId, store.id, secondMembership.id);
+  // ── 2a. the merchant-chosen password is temporary (audit 14-ب) ─────────────
+  const staffEmail = `${testId}.b@codiq.test`;
+  const login = await call(`/auth/staff/stores/${store.slug}/login`, { method: "POST", body: { email: staffEmail, password: "review-staff-pass-b" } });
+  assert.equal(login.status, 200, JSON.stringify(login.payload));
+  assert.equal(login.payload.mustChangePassword, true, "14-ب: the login says the password must change");
+  assert.match(login.payload.redirectTo, /\/dashboard\/security$/, "…and sends him to «الأمان»");
+  const staffToken = login.payload.accessToken;
+  const gated = await call(`/merchant/stores/${store.slug}/dashboard/home`, { token: staffToken });
+  assert.equal(gated.status, 403, "14-ب: every staff store surface is refused while the merchant's password stands");
+  assert.equal(gated.payload.error.code, "PASSWORD_CHANGE_REQUIRED");
+  const probe = await call(`/staff/stores/${store.slug}/session`, { token: staffToken });
+  assert.equal(probe.status, 200, "the session probe still answers, so the dashboard can load");
+  assert.equal(probe.payload.mustChangePassword, true);
+  const changed = await call("/auth/password", { method: "POST", token: staffToken, body: { currentPassword: "review-staff-pass-b", newPassword: "ReviewStaffOwn!2026" } });
+  assert.equal(changed.status, 200, JSON.stringify(changed.payload));
+  const probeAfter = await call(`/staff/stores/${store.slug}/session`, { token: staffToken });
+  assert.equal(probeAfter.payload.mustChangePassword, undefined, "changing it clears the mark");
+  summary.staffPasswordGate = { before: 403, after: "cleared" };
+
+  // ── 2b. the wallet is the merchant's only (audit 14-أ) ─────────────────────
   const staffHome = await call(`/merchant/stores/${store.slug}/dashboard/home`, { token: staffToken });
   assert.equal(staffHome.status, 200, JSON.stringify(staffHome.payload));
   assert.equal(staffHome.payload.home.wallet, null, "14-أ: a store_staff member holding orders.view must not read the merchant-wide balance");
@@ -121,6 +141,13 @@ try {
 
   console.log(JSON.stringify({ suite: "review-fixes", ok: true, summary }, null, 2));
 } finally {
+  // Other suites assert the exact plan catalogue (phase16: free, growth, pro);
+  // the one-seat plan must not outlive this suite.
+  if (createdPlanId) {
+    await prisma.merchantSubscription.deleteMany({ where: { planId: createdPlanId } }).catch(() => undefined);
+    await prisma.planFeature.deleteMany({ where: { planId: createdPlanId } }).catch(() => undefined);
+    await prisma.plan.delete({ where: { id: createdPlanId } }).catch((error) => console.error("review-fixes cleanup:", error.message));
+  }
   server.close();
   await prisma.$disconnect();
 }

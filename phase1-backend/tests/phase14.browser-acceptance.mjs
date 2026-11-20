@@ -124,6 +124,20 @@ try {
   await staffPage.locator('input[name="email"]').fill(staffEmail);
   await staffPage.locator('input[name="password"]').fill(staffPassword);
   await staffPage.getByRole("button", { name: "تسجيل الدخول" }).click();
+  // Audit 14-ب: the merchant typed this password, so the first stop is «الأمان».
+  await staffPage.waitForURL(`**/staff/stores/${storeSlug}/dashboard/security`);
+  await staffPage.getByTestId("staff-must-change-password").waitFor();
+  const gatedCall = await staffPage.evaluate(async (slug) => (await fetch(`/api/merchant/stores/${slug}/orders`, { credentials: "same-origin" })).status, storeSlug);
+  assert.equal(gatedCall, 403, "14-ب: store surfaces refuse until the employee owns his password");
+  await staffPage.screenshot({ path: `${artifactsDir}/phase14-staff-must-change-password.png`, fullPage: true });
+  const ownedPassword = `${staffPassword}-Own`;
+  await staffPage.getByTestId("current-password").fill(staffPassword);
+  await staffPage.getByTestId("new-password").fill(ownedPassword);
+  await staffPage.getByTestId("confirm-password").fill(ownedPassword);
+  await staffPage.getByTestId("password-change-submit").click();
+  await staffPage.getByTestId("password-change-done").waitFor();
+  await staffPage.waitForFunction(() => !document.querySelector('[data-testid="staff-must-change-password"]'));
+  await staffPage.goto(`${base}/staff/stores/${storeSlug}/dashboard`);
   await staffPage.waitForURL(`**/staff/stores/${storeSlug}/dashboard`);
   // The staff shell renders desktop and mobile sidebars, so testids appear twice; target the first.
   await staffPage.getByTestId("staff-display-name").first().waitFor();

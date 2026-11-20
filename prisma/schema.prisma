@@ -993,6 +993,9 @@ model Staff {
   passwordHash String                 @map("password_hash") @db.Text
   displayName  String                 @map("display_name") @db.Text
   isActive     Boolean                @default(true) @map("is_active")
+  /// Audit 14-ب (staff ق-218): set while the password is one the merchant chose;
+  /// cleared when the employee sets his own. Staff store surfaces are refused meanwhile.
+  passwordSetByProvisionerAt DateTime? @map("password_set_by_provisioner_at") @db.Timestamptz(6)
   /// ق-227: set when the identity's LAST live membership is removed — the store
   /// never deletes the person, but a person no shop employs must not keep his
   /// address hostage. Cleared when a membership is restored.

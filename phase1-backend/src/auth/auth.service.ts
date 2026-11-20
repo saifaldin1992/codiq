@@ -244,9 +244,13 @@ export async function loginStaff(input: { email: unknown; password: unknown; sto
     select: { id: true, storeId: true, store: { select: { slug: true } } },
   });
   if (!membership) throw new HttpError(404, "STAFF_STORE_CONTEXT_NOT_FOUND", "This staff account has no active membership in the requested store.");
+  // Audit 14-ب: like ق-218 for merchants — the session is real, but the only door
+  // open while the password is the merchant's choice is «change my password».
+  const mustChangePassword = Boolean(staff.passwordSetByProvisionerAt);
   return {
     accessToken: await createTypedSession("staff", staff.id, membership.storeId, membership.id),
-    redirectTo: staffStoreDashboardPath(membership.store.slug),
+    redirectTo: mustChangePassword ? `${staffStoreDashboardPath(membership.store.slug)}/security` : staffStoreDashboardPath(membership.store.slug),
+    ...(mustChangePassword ? { mustChangePassword: true } : {}),
   };
 }
 

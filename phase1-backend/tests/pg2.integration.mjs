@@ -25,6 +25,7 @@
  * ledger's foreign keys, not at delete time by a 409.
  */
 import assert from "node:assert/strict";
+import { ownStaffPassword } from "./helpers/own-staff-password.js";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
@@ -344,6 +345,7 @@ try {
   const teamUrl = `/merchant/stores/${slug}/team`;
   const created = await request(teamUrl, { method: "POST", token, body: { email: staffEmail, displayName: "سارة", temporaryPassword: "Pg2StaffPass!", roleCode: "store_manager" } });
   assert.equal(created.status, 201, JSON.stringify(created.payload));
+  await ownStaffPassword(base, slug, staffEmail, "Pg2StaffPass!"); // audit 14-ب
   const membershipId = created.payload.membership.id;
   // A second manager, so the «last team manager» guard does not fire on T12.
   const second = await request(teamUrl, { method: "POST", token, body: { email: `${testId}.staff2@codiq.test`, displayName: "علي", temporaryPassword: "Pg2StaffPass!", roleCode: "store_manager" } });
@@ -427,6 +429,7 @@ try {
   const t16Email = `${testId}.staff3@codiq.test`;
   const t16 = await request(teamUrl, { method: "POST", token, body: { email: t16Email, displayName: "نور", temporaryPassword: "Pg2StaffPass!", roleCode: "store_staff" } });
   assert.equal(t16.status, 201, JSON.stringify(t16.payload));
+  await ownStaffPassword(base, slug, t16Email, "Pg2StaffPass!"); // audit 14-ب
   const t16Membership = t16.payload.membership.id;
   const t16Login = await request(`/auth/staff/stores/${slug}/login`, { method: "POST", body: { email: t16Email, password: "Pg2StaffPass!" } });
   assert.equal(t16Login.status, 200, JSON.stringify(t16Login.payload));
@@ -843,6 +846,7 @@ try {
   const gateEmail = `${testId}.gate@codiq.test`;
   const gateMember = await request(teamUrl, { method: "POST", token, body: { email: gateEmail, displayName: "حارس السلة", temporaryPassword: "Pg2StaffPass!", roleCode: "store_staff" } });
   assert.equal(gateMember.status, 201, JSON.stringify(gateMember.payload));
+  await ownStaffPassword(base, slug, gateEmail, "Pg2StaffPass!"); // audit 14-ب
   const gateOverrides = (codes) => request(`${teamUrl}/${gateMember.payload.membership.id}/overrides`, { method: "PUT", token, body: { overrides: codes.map((permissionCode) => ({ permissionCode, effect: "allow" })) } });
   const gateLogin = async () => {
     const signed = await request(`/auth/staff/stores/${slug}/login`, { method: "POST", body: { email: gateEmail, password: "Pg2StaffPass!" } });
@@ -1006,6 +1010,7 @@ try {
   const keeperEmail = `${testId}.keeper@codiq.test`;
   const keeper = await request(teamUrl, { method: "POST", token, body: { email: keeperEmail, displayName: "أمين المخزن", temporaryPassword: "Pg2StaffPass!", roleCode: "store_staff" } });
   assert.equal(keeper.status, 201, JSON.stringify(keeper.payload));
+  await ownStaffPassword(base, slug, keeperEmail, "Pg2StaffPass!"); // audit 14-ب
   assert.equal((await request(`${teamUrl}/${keeper.payload.membership.id}/overrides`, { method: "PUT", token, body: { overrides: [
     { permissionCode: "catalog.products.delete", effect: "allow" },
     { permissionCode: "orders.view", effect: "deny" },
@@ -1031,6 +1036,7 @@ try {
   const sessionEmail = `${testId}.sessions@codiq.test`;
   const sessionMember = await request(teamUrl, { method: "POST", token, body: { email: sessionEmail, displayName: "موظف الجلسات", temporaryPassword: "Pg2StaffPass!", roleCode: "store_staff" } });
   assert.equal(sessionMember.status, 201, JSON.stringify(sessionMember.payload));
+  await ownStaffPassword(base, slug, sessionEmail, "Pg2StaffPass!"); // audit 14-ب
   const sessionMembershipId = sessionMember.payload.membership.id;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     assert.equal((await request(`/auth/staff/stores/${slug}/login`, { method: "POST", body: { email: sessionEmail, password: "Pg2StaffPass!" } })).status, 200);
@@ -1043,7 +1049,7 @@ try {
   // `staff_sessions_expiry` is a CHECK that expires_at > created_at, so the row
   // has to be aged as a whole — which is also the truthful shape of the bug: an
   // eight-hour session created nine hours ago.
-  await sql.query("UPDATE staff_sessions SET created_at = now() - interval '9 hours', expires_at = now() - interval '1 hour' WHERE id IN (SELECT id FROM staff_sessions WHERE membership_id = $1 LIMIT 2)", [sessionMembershipId]);
+  await sql.query("UPDATE staff_sessions SET created_at = now() - interval '9 hours', expires_at = now() - interval '1 hour' WHERE id IN (SELECT id FROM staff_sessions WHERE membership_id = $1 AND revoked_at IS NULL LIMIT 2)", [sessionMembershipId]);
   const afterExpiry = (await request(`/merchant/stores/${slug}/trash/preview/staff_membership/${sessionMembershipId}`, { token })).payload.preview.effects.openSessions;
   assert.equal(afterExpiry, 1, "و-4: an expired session is not an open door — the sheet counted sign-ins, not doors");
 

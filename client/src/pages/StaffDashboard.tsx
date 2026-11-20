@@ -15,6 +15,7 @@ import { ProductCatalogManager } from "@/components/ProductCatalogManager";
 import { StoreTeamManager } from "@/components/StoreTeamManager";
 import { TrashBin } from "@/components/TrashBin";
 import { ActivityLog } from "@/components/ActivityLog";
+import { AccountSecurityPanel } from "@/components/AccountSecurityPanel";
 import { staffDashboardBase, staffEntryPath, visibleStaffEntries, type StaffNavEntry } from "@/config/navigation";
 
 type StaffSession = {
@@ -22,6 +23,8 @@ type StaffSession = {
   store: { slug: string };
   membership: { id: string; roleCode: "store_manager" | "store_staff"; permissionVersion: number };
   permissions: string[];
+  /** Audit 14-ب: the password is still the one the merchant typed; only «الأمان» works until it changes. */
+  mustChangePassword?: boolean;
 };
 
 const ROLE_LABELS = { store_manager: "مدير متجر", store_staff: "موظف متجر" } as const;
@@ -109,6 +112,12 @@ export default function StaffDashboard() {
 
   useEffect(() => { void loadSession(); }, [loadSession]);
 
+  // Audit 14-ب: every other surface answers PASSWORD_CHANGE_REQUIRED meanwhile,
+  // so the dashboard sends him to the one screen that clears it.
+  useEffect(() => {
+    if (session?.mustChangePassword && storeSlug && location !== `${base}/security`) navigate(`${base}/security`);
+  }, [session, storeSlug, location, base, navigate]);
+
   if (failure) {
     return <main dir="rtl" className="grid min-h-screen place-items-center bg-[var(--codiq-canvas)] p-5"><p className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-danger-soft)] px-5 py-4 text-sm font-semibold text-[var(--codiq-danger)]"><CircleAlert className="h-4 w-4" /> {failure}</p></main>;
   }
@@ -139,7 +148,16 @@ export default function StaffDashboard() {
   }
 
   let content: React.ReactNode;
-  if (orderMode && session.permissions.includes("orders.view")) {
+  if (section === "security") {
+    content = (
+      <div className="space-y-4">
+        {session.mustChangePassword ? <p data-testid="staff-must-change-password" className="max-w-[760px] rounded-2xl bg-[var(--codiq-danger-soft)] px-5 py-4 text-sm font-semibold leading-7 text-[var(--codiq-danger)]">كلمة المرور الحالية اختارها التاجر عند إضافتك. غيّرها هنا لتفتح بقية اللوحة — بعدها لا يعرفها غيرك.</p> : null}
+        <AccountSecurityPanel view="password" onPasswordChanged={() => void loadSession()} />
+      </div>
+    );
+  } else if (section === "sessions") {
+    content = <AccountSecurityPanel view="sessions" />;
+  } else if (orderMode && session.permissions.includes("orders.view")) {
     content = <OrderWorkspace key={location} scope={{ kind: "merchant", storeSlug, dashboardBase: base }} mode={orderMode} navigate={navigate} />;
   } else if (section === "products" && session.permissions.includes("catalog.products.view")) {
     content = <ProductCatalogManager storeSlug={storeSlug} mode="list" />;
