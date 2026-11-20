@@ -131,6 +131,8 @@ export const ownerNavGroups: NavGroup[] = [
       { label: "إعدادات المنصة", path: "/platform/dashboard/platform-settings", status: "implemented" },
       // ق-249 (المرحلة 29): what the platform offers, whether it is on, and for whom.
       { label: "الخدمات والإتاحة", path: "/platform/dashboard/services", status: "implemented" },
+      // The platform's modules and the domain events each one listens to (modules/registry.ts).
+      { label: "الوحدات", path: "/platform/dashboard/modules", status: "implemented" },
       { label: "طاقم المنصة", path: "/platform/dashboard/platform-staff", status: "implemented" },
       { label: "النطاقات والروابط", path: "/platform/dashboard/domains-links", status: { phase: "24" } },
       { label: "التكاملات", path: "/platform/dashboard/integrations", status: { phase: "24" } },

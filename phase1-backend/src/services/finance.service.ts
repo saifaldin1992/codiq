@@ -13,6 +13,7 @@ import { activePlanForMerchant } from "./entitlement.service.js";
 import type { PlatformActor } from "../auth/platform-permissions.js";
 import { platformActorLabelFor, recordPlatformAuditEvent } from "./platform-audit.service.js";
 import type { Prisma } from "@prisma/client";
+import { domainEvents } from "../events/domain-events.js";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -408,7 +409,7 @@ export async function createSettlement(actor: PlatformActor, body: Record<string
   const merchant = await prisma.merchant.findUnique({ where: { id: body.merchantId }, select: { id: true, businessName: true, email: true } });
   if (!merchant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "التاجر غير موجود.");
   const note = typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 500) : null;
-  return prisma.$transaction(async (tx) => {
+  const settlement = await prisma.$transaction(async (tx) => {
     const { totals, netPayoutIqd } = await draftSettlement(tx, merchant, from, to);
     // Audit 17-ب: the operator confirms an AMOUNT, not a date range. If the
     // ledger moved between the preview he read and this write (a completion or
@@ -443,4 +444,6 @@ export async function createSettlement(actor: PlatformActor, body: Record<string
     });
     return settlement;
   });
+  domainEvents.emit("settlement.created", { merchantId: merchant.id, settlementId: settlement.id, netPayoutIqd: settlement.netPayoutIqd ?? 0 });
+  return settlement;
 }

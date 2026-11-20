@@ -15,6 +15,7 @@ import { recordPlatformAuditEvent } from "./platform-audit.service.js";
 import { DEFAULT_PLAN_CODE, subscribeMerchantToDefaultPlan } from "./entitlement.service.js";
 import { assertStoreSlugNotReserved, isReservedStoreSlug } from "./reserved-slugs.js";
 import { createStoreFoundation } from "./store-bootstrap.service.js";
+import { domainEvents } from "../events/domain-events.js";
 
 const STORE_SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])?$/;
 export const SELF_REGISTRATION_MODE_KEY = "merchant_self_registration_mode";
@@ -95,9 +96,11 @@ export async function registerMerchantWithStore(input: { businessName: unknown; 
     await subscribeMerchantToDefaultPlan(tx, merchant.id);
     const store = await createStoreFoundation({ merchantId: merchant.id, name: storeName, slug, defaultSubdomain: slug }, tx);
     if (!approved) await tx.store.update({ where: { id: store.id }, data: { isActive: false } });
-    return { merchant, store: { slug: store.slug, name: store.name } };
+    return { merchant, store: { id: store.id, slug: store.slug, name: store.name } };
   });
-  return { ...result, approvalStatus: approved ? "approved" : "pending", mode };
+  domainEvents.emit("merchant.registered", { merchantId: result.merchant.id, storeId: result.store.id, via: "self" });
+  const { id: _storeId, ...store } = result.store;
+  return { ...result, store, approvalStatus: approved ? "approved" : "pending", mode };
 }
 
 /** The cursor's list kind. One per list, so a cursor cannot cross lists. */

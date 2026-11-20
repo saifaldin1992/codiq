@@ -23,6 +23,7 @@ import { GOVERNORATE_KEYS, governorateLabel, toGovernorateKey } from "./governor
 import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor, type ListCursor } from "./list-page.js";
 import { searchEngine } from "./search/index.js";
 import { LIVE } from "./soft-delete/constants.js";
+import { domainEvents } from "../events/domain-events.js";
 
 const GUEST_CART_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CART_QUANTITY = 99;
@@ -1016,7 +1017,11 @@ export async function checkout(storeId: string, customerId: string, input: Check
     // Phase 15: the notification row commits or rolls back with the order itself.
     await enqueueOrderCreated(tx, { storeId, orderId: order.id, orderNumber: order.orderNumber, totalIqd: order.totalIqd, customerName: order.customerName, customerEmail: order.customerEmail });
         return { replayed: false, order };
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then((result) => {
+        // After commit, and only for a NEW order — an idempotent replay announces nothing.
+        if (!result.replayed) domainEvents.emit("order.created", { storeId, orderId: result.order.id, orderNumber: result.order.orderNumber, source: "storefront", totalIqd: result.order.totalIqd });
+        return result;
+      });
     } catch (error) {
       lastError = error;
       // 19-د: a price that moved is not a busy server, so it never enters the

@@ -12,6 +12,7 @@ import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor }
 import type { PlatformActor } from "../auth/platform-permissions.js";
 import { platformActorLabelFor, recordPlatformAuditEvent } from "./platform-audit.service.js";
 import { LIVE } from "./soft-delete/constants.js";
+import { domainEvents } from "../events/domain-events.js";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -421,6 +422,7 @@ export async function updatePlan(planId: string, actor: PlatformActor, body: Rec
       metadata: { changed: Object.keys(body), ...(publishedVersion ? { publishedVersion } : {}) },
     });
   });
+  if (publishedVersion) domainEvents.emit("plan.version_published", { planId, version: publishedVersion });
   const updated = await prisma.plan.findUnique({ where: { id: planId }, include: planInclude });
   return { ...planSummary(updated!), isActive: updated!.isActive, isRecommended: updated!.isRecommended, sortOrder: updated!.sortOrder, ...(publishedVersion ? { publishedVersion } : {}) };
 }

@@ -124,6 +124,7 @@
 | `logging` | `pnpm logging:guard` | السجلّ المُهيكل مؤكَّدٌ لا موصوف (D-41) |
 | `login-counter` | `pnpm login:counter:guard` | حزمةٌ تفرّغ الجداول تُفرّغ عدّاد الدخول أيضاً |
 | `ledger-sign` | `pnpm ledger:sign` | قاعدة إشارة الدفتر — والّلغم تحتها |
+| `merchant-screens` | `pnpm screens:guard` | كلّ عنصرٍ «implemented» في قائمة التاجر يفتح شاشةً حقيقيّة من `client/src/dashboard/merchant-screens.tsx` — لا طريقاً مسدوداً إلى «قريباً» |
 | `backup-recovery` | `pnpm backup:guard` | أدوات التعافي من الكارثة (٢٤-ج) |
 | `public-bytes-cache` | `pnpm imagecache:guard` | كلّ مسارٍ عامّ يبثّ بايتاتٍ مخزَّنة يسمّي سياسة تخزين (ق-238) |
 | `worker-timers` | `pnpm workertimers:guard` | مؤقّتٌ دوريٌّ واحدٌ في الباكيند، وهو نبضة المجدول (ق-239) |

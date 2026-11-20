@@ -6,6 +6,7 @@ import { subscribeMerchantToDefaultPlan } from "../services/entitlement.service.
 import { HttpError } from "./auth.errors.js";
 import { ABSENT_IDENTITY_HASH, createPasswordHash, createTypedSession, normalizeEmail, normalizeOptionalEmail, normalizePhone, verifyPassword, normalizeIraqiMobile, normalizeOwnerName, toE164 } from "./identity.js";
 import { merchantStoreDashboardPath, platformOwnerDashboardPath, staffStoreDashboardPath } from "./redirects.js";
+import { domainEvents } from "../events/domain-events.js";
 
 export async function registerPlatformOwner(input: { email: unknown; password: unknown; displayName: unknown }) {
   if (typeof input.displayName !== "string" || input.displayName.trim().length < 2) {
@@ -286,7 +287,9 @@ export async function registerCustomer(input: { storeSlug: string; email?: unkno
       ? "هذا الرقم اشترى من هنا سابقاً. لحماية طلباته لا نفتح حساباً عليه بالرقم وحده — استعمل «نسيت كلمة المرور» بالبريد المسجّل لديك، أو اطلب من المتجر ربط حسابك."
       : "هذا الرقم اشترى من هنا سابقاً. لحماية طلباته لا نفتح حساباً عليه بالرقم وحده — اطلب من المتجر ربط حسابك.");
   }
-  return prisma.customer.create({ data: { storeId: store.id, ...data, phoneNormalized }, select });
+  const customer = await prisma.customer.create({ data: { storeId: store.id, ...data, phoneNormalized }, select });
+  domainEvents.emit("customer.registered", { storeId: store.id, customerId: customer.id });
+  return customer;
 }
 
 /**

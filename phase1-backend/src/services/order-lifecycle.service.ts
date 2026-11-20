@@ -8,6 +8,7 @@ import { awardLoyaltyPoints, reverseLoyaltyForReturn } from "./loyalty.service.j
 import { enqueueCourierDispatched, enqueueOrderStatusChanged } from "../notifications/notification-outbox.service.js";
 import { recordOrderCompletion, recordOrderReturn } from "./finance.service.js";
 import { settleStorefrontReservations } from "./storefront.service.js";
+import { domainEvents } from "../events/domain-events.js";
 
 export const ORDER_STATUSES = ["new", "processing", "preparation", "out_for_delivery", "completed", "cancelled", "rejected", "returned"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
@@ -251,11 +252,13 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
   const expectedVersion = Number(input.expectedVersion);
   if (!Number.isInteger(expectedVersion) || expectedVersion < 1) throw new HttpError(400, "INVALID_ORDER_VERSION", "expectedVersion must be a positive integer.");
   const note = orderTransitionNote(input.note);
-  return prisma.$transaction(async (tx) => {
+  let fromStatusForEvent = "";
+  const payload = await prisma.$transaction(async (tx) => {
     const current = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, status: true, version: true, source: true, orderNumber: true, customerEmail: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, prescriptionStatus: true, customerId: true, loyaltyDiscountIqd: true } });
     if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
     if (current.version !== expectedVersion) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "The order was changed by another request.");
     const fromStatus = orderStatus(current.status);
+    fromStatusForEvent = fromStatus;
     if (!transitions[fromStatus].includes(toStatus)) throw new HttpError(422, "INVALID_ORDER_TRANSITION", `${fromStatus} cannot transition to ${toStatus}.`);
     // Phase 20B-1: prescription gate — sits EXACTLY after edge validation. Only
     // the new→processing edge is blocked until the prescription is approved;
@@ -347,6 +350,9 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
     if (!updated) throw new HttpError(500, "ORDER_TRANSITION_FAILED", "Order transition could not be completed.");
     return orderPayload(updated);
   });
+  // After commit: extension modules react without the state machine knowing them.
+  domainEvents.emit("order.status_changed", { storeId, orderId, orderNumber: payload.orderNumber, from: fromStatusForEvent, to: toStatus, actorKind: actor.kind });
+  return payload;
 }
 
 export async function listPlatformOrders(query: Record<string, unknown>) {

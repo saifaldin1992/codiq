@@ -6,6 +6,7 @@ import type { PlatformActor } from "../auth/platform-permissions.js";
 import { recordPlatformAuditEvent } from "./platform-audit.service.js";
 import { subscribeMerchantToDefaultPlan } from "./entitlement.service.js";
 import { createStoreFoundation } from "./store-bootstrap.service.js";
+import { domainEvents } from "../events/domain-events.js";
 
 function requiredText(value: unknown, code: string, label: string): string {
   if (typeof value !== "string" || value.trim().length < 2) {
@@ -27,7 +28,7 @@ export async function createManualMerchant(actor: PlatformActor, input: { busine
   await assertPhoneIsFree(phone);
   const passwordHash = await createPasswordHash(input.temporaryPassword);
 
-  return prisma.$transaction(async (transaction) => {
+  const created = await prisma.$transaction(async (transaction) => {
     const existingOwner = await transaction.platformOwner.findUnique({ where: { email }, select: { id: true } });
     if (existingOwner) {
       throw new HttpError(409, "EMAIL_RESERVED_FOR_PLATFORM_OWNER", "This email already belongs to a platform owner and cannot be registered as a merchant.");
@@ -65,6 +66,8 @@ export async function createManualMerchant(actor: PlatformActor, input: { busine
 
     return { merchant, store: { id: store.id, merchantId: store.merchantId, name: store.name, slug: store.slug, isActive: store.isActive } };
   });
+  domainEvents.emit("merchant.registered", { merchantId: created.merchant.id, storeId: created.store.id, via: "manual" });
+  return created;
 }
 
 /**

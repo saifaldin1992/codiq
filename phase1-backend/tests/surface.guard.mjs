@@ -80,6 +80,7 @@
 import { readdirSync, readFileSync, statSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { routeFileLabel, routeSourceFiles } from "../source-layout.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const ROUTES_DIR = path.join(repoRoot, "phase1-backend/src/http/routes");
@@ -137,7 +138,7 @@ const star = (text) => text.replace(/\$\{[^}]*\}/g, "*");
 
 // ── server side ──────────────────────────────────────────────────────────────
 const routes = [];
-for (const file of sourceFiles(ROUTES_DIR)) {
+for (const file of routeSourceFiles()) {
   const source = readFileSync(file, "utf8");
   for (const m of source.matchAll(/\bapp\.(get|post|put|patch|delete)\(\s*"([^"]+)"/g)) {
     routes.push({ method: m[1].toUpperCase(), route: m[2], file: path.relative(repoRoot, file).replace(/\\/g, "/"), canon: canonicalServer(m[2]) });

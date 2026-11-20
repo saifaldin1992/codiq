@@ -40,6 +40,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { routeFileLabel, routeSourceFiles } from "../source-layout.mjs";
 
 const BACKEND = fileURLToPath(new URL("../src", import.meta.url));
 const ROUTES = path.join(BACKEND, "http", "routes");
@@ -144,7 +145,8 @@ function indexFunctions(source, into) {
 
 const bodies = new Map();
 for (const file of walk(path.join(BACKEND, "services"))) indexFunctions(readFileSync(file, "utf8"), bodies);
-for (const file of walk(ROUTES)) indexFunctions(readFileSync(file, "utf8"), bodies);
+for (const file of routeSourceFiles()) indexFunctions(readFileSync(file, "utf8"), bodies);
+for (const file of walk(path.join(BACKEND, "modules"))) indexFunctions(readFileSync(file, "utf8"), bodies);
 // The soft-delete audit/trash lists and the notification log live beside the
 // services; nothing else outside `services/` produces a collection today.
 
@@ -210,9 +212,8 @@ let unpaginated = 0;
 let handRolled = 0;
 let missingSlug = 0;
 
-for (const entry of readdirSync(ROUTES)) {
-  const full = path.join(ROUTES, entry);
-  if (statSync(full).isDirectory() || !entry.endsWith(".ts")) continue;
+for (const full of routeSourceFiles()) {
+  const entry = routeFileLabel(full);
   const source = readFileSync(full, "utf8");
   const seenUnpaginated = new Set();
   const seenHandRolled = new Set();

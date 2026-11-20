@@ -76,6 +76,7 @@ import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { CORE_SCHEMAS_DIR, routeSourceFiles, schemaSourceFiles } from "../source-layout.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..", "..");
@@ -473,11 +474,22 @@ function allTsFiles(dir) {
  * `parseOrThrow(registerMerchantSchema, …)` means in `auth.ts` is whatever
  * `auth.ts` imported under that name.
  */
+/**
+ * Core schema files keep the bare qualifier every existing reference uses
+ * («catalog»); a module's schema is qualified by its path («modules/<id>/schema»)
+ * so two modules' `schema.ts` never collide.
+ */
+function schemaQualifier(file) {
+  if (path.dirname(file) === CORE_SCHEMAS_DIR) return path.basename(file).replace(/\.schema\.ts$|\.ts$/, "");
+  return path.relative(SRC, file).replace(/\\/g, "/").replace(/\.ts$/, "");
+}
+const SCHEMA_FILES = new Set(schemaSourceFiles());
+
 async function loadSchemaModules() {
   const byQualifiedName = new Map();
-  for (const entry of readdirSync(SCHEMAS_DIR).filter((name) => name.endsWith(".ts"))) {
-    const moduleBase = entry.replace(/\.schema\.ts$|\.ts$/, "");
-    const module = await import(new URL(`file://${path.join(SCHEMAS_DIR, entry).replace(/\\/g, "/")}`).href);
+  for (const file of SCHEMA_FILES) {
+    const moduleBase = schemaQualifier(file);
+    const module = await import(new URL(`file://${file.replace(/\\/g, "/")}`).href);
     for (const [name, value] of Object.entries(module)) {
       if (!value || typeof value !== "object" || typeof value.safeParse !== "function") continue;
       byQualifiedName.set(`${moduleBase}.${name}`, value);
@@ -487,13 +499,14 @@ async function loadSchemaModules() {
 }
 
 /** local import name → `module.exportName`, for one route file. */
-function schemaImportsOf(source) {
+function schemaImportsOf(source, file) {
   const bindings = new Map();
   for (const match of source.matchAll(/import\s*\{([\s\S]*?)\}\s*from\s*["']([^"']+)["']/g)) {
     const specifier = match[2];
-    const schemaModule = /\/schemas\/([\w.-]+)\.js$/.exec(specifier);
-    if (!schemaModule) continue;
-    const moduleBase = schemaModule[1].replace(/\.schema$/, "");
+    if (!specifier.startsWith(".")) continue;
+    const resolved = path.resolve(path.dirname(file), specifier.replace(/\.js$/, ".ts"));
+    if (!SCHEMA_FILES.has(resolved)) continue;
+    const moduleBase = schemaQualifier(resolved);
     for (const clause of match[1].split(",")) {
       const parts = clause.trim().split(/\s+as\s+/);
       const exported = parts[0].trim();
@@ -726,7 +739,8 @@ export async function buildOpenApiDocument() {
   const indexed = [
     ...allTsFiles(path.join(SRC, "services")),
     ...allTsFiles(path.join(SRC, "auth")),
-    ...allTsFiles(ROUTES_DIR),
+    ...routeSourceFiles(),
+    ...allTsFiles(path.join(SRC, "modules")),
     path.join(SRC, "http", "shared.ts"),
   ];
   for (const file of indexed) {
@@ -736,11 +750,12 @@ export async function buildOpenApiDocument() {
   }
 
   const staticRoutes = new Map();
-  const sourceFiles = [APP_FILE, ...readdirSync(ROUTES_DIR).filter((name) => name.endsWith(".ts")).sort().map((name) => path.join(ROUTES_DIR, name))];
+  const sourceFiles = [APP_FILE, ...routeSourceFiles()];
   for (const file of sourceFiles) {
     const source = readFileSync(file, "utf8");
-    const tag = path.basename(file, ".ts");
-    const schemaImports = schemaImportsOf(source);
+    // A module's routes are tagged by the module id, not «routes».
+    const tag = file.includes(`${path.sep}modules${path.sep}`) ? path.basename(path.dirname(file)) : path.basename(file, ".ts");
+    const schemaImports = schemaImportsOf(source, file);
     for (const registration of routeRegistrations(source)) {
       const key = `${registration.method} ${registration.expressPath}`;
       if (staticRoutes.has(key)) throw new Error(`two registrations of ${key} — Express would silently use the first`);

@@ -65,6 +65,7 @@ import { prisma } from "../db/prisma.js";
 import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
 import { enqueueLowStockIfCrossed } from "../notifications/notification-outbox.service.js";
 import { LIVE } from "./soft-delete/constants.js";
+import { domainEvents } from "../events/domain-events.js";
 
 const hash = (value: string) => crypto.createHash("sha256").update(value).digest("hex");
 
@@ -428,7 +429,11 @@ export async function ingestPosTicket(storeId: string, actor: { kind: "merchant"
         await tx.posTicket.update({ where: { id: ticket.id }, data: { status: "succeeded", orderId: order.id } });
 
         return { order, replayed: false, shortfalls };
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then((result) => {
+        // After commit; a replayed offline ticket announces nothing.
+        if (!result.replayed && result.order) domainEvents.emit("order.pos_sale_recorded", { storeId, orderId: result.order.id, orderNumber: result.order.orderNumber, totalIqd: result.order.totalIqd });
+        return result;
+      });
     } catch (error) {
       // ق-132's principle decides this line: the till must not refuse. Six
       // jittered attempts instead of three instant ones, and P2028 (transaction

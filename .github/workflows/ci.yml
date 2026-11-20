@@ -361,6 +361,15 @@ jobs:
       - name: Integration — 2026-11 review fixes (staff seat on reactivation, wallet scope, batched visits)
         run: pnpm review:fixes
 
+      - name: Unit — module registry (core mount order pinned, extensions appended)
+        run: pnpm modules:unit
+
+      - name: Integration — domain events (after commit, isolated, once)
+        run: pnpm events:test
+
+      - name: Guard — every implemented merchant menu entry has a screen
+        run: pnpm screens:guard
+
       # ق-199. «واجهة المتجر»: every merchant field has a screen that sends it, a
       # public key that carries it, and a storefront component that draws it.
       - name: "Guard — the storefront's merchant fields and public payload agree (ق-199)"

@@ -18,6 +18,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { routeFileLabel, routeSourceFiles } from "../source-layout.mjs";
 
 const ROUTES = fileURLToPath(new URL("../src/http/routes", import.meta.url));
 const LEGACY = JSON.parse(readFileSync(new URL("./validation-adoption.legacy.json", import.meta.url), "utf8"));
@@ -65,9 +66,8 @@ const failures = [];
 const improved = [];
 let remaining = 0;
 
-for (const entry of readdirSync(ROUTES)) {
-  const full = path.join(ROUTES, entry);
-  if (statSync(full).isDirectory() || !entry.endsWith(".ts")) continue;
+for (const full of routeSourceFiles()) {
+  const entry = routeFileLabel(full);
   const routes = unvalidated(readFileSync(full, "utf8"));
   const allowed = LEGACY[entry];
   remaining += routes.length;

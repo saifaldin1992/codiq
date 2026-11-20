@@ -1,10 +1,5 @@
 import express from "express";
-import { registerStoreBannerRoutes } from "./routes/store-banners.js";
-import { registerStorefrontConfigRoutes } from "./routes/storefront-config.js";
-import { registerPaymentMethodRoutes } from "./routes/payment-methods.js";
-import { registerStoreTrafficRoutes } from "./routes/store-traffic.js";
-import { registerMerchantHomeRoutes } from "./routes/merchant-home.js";
-import { registerWebhookRoutes } from "./routes/webhooks.js";
+import { installModuleSubscriptions, registerModuleRoutes } from "../modules/registry.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { config } from "../config.js";
 import { readinessSummary } from "../config/environment-report.js";
@@ -15,28 +10,6 @@ import { API_MOUNT_V1, isStorefrontPath } from "./api-version.js";
 import { correlationMiddleware } from "./correlation.js";
 import { errorHandler } from "./errors.js";
 import { securityHeaders } from "./security-headers.js";
-import { registerAuthRoutes } from "./routes/auth.js";
-import { registerSessionRoutes } from "./routes/sessions.js";
-import { registerOwnerSecurityRoutes } from "./routes/owner-security.js";
-import { registerAccountSecurityRoutes } from "./routes/account-security.js";
-import { registerPosRoutes } from "./routes/pos.js";
-import { registerCatalogRoutes } from "./routes/catalog.js";
-import { registerCustomerDelightRoutes } from "./routes/customer-delight.js";
-import { registerReviewAndWishlistRoutes } from "./routes/reviews-wishlist.js";
-import { registerReturnRoutes } from "./routes/returns.js";
-import { registerReturnInspectionRoutes } from "./routes/return-inspection.js";
-import { registerMarketingRoutes } from "./routes/marketing.js";
-import { registerMerchantRoutes } from "./routes/merchant.js";
-import { registerNotificationRoutes } from "./routes/notifications.js";
-import { registerOpenApiRoutes } from "./routes/openapi.js";
-import { registerOrderRoutes } from "./routes/orders.js";
-import { registerPlatformRoutes } from "./routes/platform.js";
-import { registerPublicRoutes } from "./routes/public.js";
-import { registerStorefrontRoutes } from "./routes/storefront.js";
-import { registerTeamRoutes } from "./routes/team.js";
-import { registerPlatformStaffRoutes } from "./routes/platform-staff.js";
-import { registerPlatformServicesRoutes } from "./routes/platform-services.js";
-import { registerTrashRoutes } from "./routes/trash.js";
 import { searchEngine } from "../services/search/index.js";
 import { asyncRoute } from "./shared.js";
 
@@ -175,64 +148,12 @@ export function createApp() {
   // every genuine delivery. `verify` runs before parsing and keeps the bytes.
   app.use(express.json({ limit: "1mb", verify: (request, _response, buffer) => { (request as typeof request & { rawBody?: Buffer }).rawBody = buffer; } }));
 
-  // Express matches routes in registration order. The call sequence below, and
-  // the route order inside each module, reproduce the exact global registration
-  // order of the pre-split app.ts. Do not reorder these calls.
-  registerAuthRoutes(app);
-  registerSessionRoutes(app);
-  registerOwnerSecurityRoutes(app);
-  registerAccountSecurityRoutes(app);
-  registerPosRoutes(app);
-  // RI-1: appended beside POS (both are physical-stock reconciliation);
-  // /inventory/returns shares no pattern with any pre-existing route.
-  registerReturnInspectionRoutes(app);
-  registerStorefrontRoutes(app);
-  // ق-198: registered AFTER the storefront so its /store/:storeSlug/... paths sit
-  // beside the rest of the shopper surface, and after the catalog so the merchant
-  // paths keep the established order.
-  registerStoreBannerRoutes(app);
-  registerPlatformRoutes(app);
-  registerPublicRoutes(app);
-  registerWebhookRoutes(app);
-  registerMerchantRoutes(app);
-  registerTeamRoutes(app);
-  registerNotificationRoutes(app);
-  registerOrderRoutes(app);
-  registerCatalogRoutes(app);
-  // Phase 20B-1: new module registered AFTER every pre-existing one, so the
-  // legacy global registration order above stays untouched.
-  registerMarketingRoutes(app);
-  // CD-1: appended last for the same reason — the pre-existing registration
-  // order above stays byte-for-byte the pre-split order.
-  registerCustomerDelightRoutes(app);
-  registerReviewAndWishlistRoutes(app);
-  registerReturnRoutes(app);
-  // PG-2: appended last for the same reason — every pre-existing registration
-  // above keeps its exact order, and `…/trash…` / `…/audit-events` share no
-  // pattern with any route already registered.
-  registerTrashRoutes(app);
-  // 19-ب: appended LAST for the same reason — `/platform/staff/*` and
-  // `/platform/audit-events` share no pattern with any route above.
-  registerPlatformStaffRoutes(app);
-  // المرحلة 20-4: appended LAST for the same reason as every module above —
-  // `/openapi.json` shares no pattern with any route already registered, so the
-  // legacy matching order is untouched.
-  registerOpenApiRoutes(app);
-  // ق-249 (المرحلة 29): appended last for the same reason — `/platform/services`,
-  // `/platform/availability/*`, `/platform/feature-flags/*` and `/platform/stores/:slug/status`
-  // share no pattern with any route already registered.
-  registerPlatformServicesRoutes(app);
-  // ق-199: appended after everything above for the same reason — «واجهة
-  // المتجر» (`…/storefront`, `/store/:slug/logo`, `/store/:slug/policies/:kind`)
-  // shares no pattern with any route already registered.
-  registerStorefrontConfigRoutes(app);
-  // ق-209: the merchant's payment switches — `…/payment-methods`, a pattern
-  // no earlier module registers.
-  registerPaymentMethodRoutes(app);
-  // ق-202: the visit beacon and the merchant's home aggregate — `…/visit` and
-  // `…/dashboard/home` share no pattern with anything above.
-  registerStoreTrafficRoutes(app);
-  registerMerchantHomeRoutes(app);
+  // Express matches routes in registration order. The order — the 28 core
+  // modules exactly as they were registered here before, then the extension
+  // modules — lives in `modules/registry.ts`, and `module-registry.unit.mjs`
+  // pins it. Add features there, not here.
+  registerModuleRoutes(app);
+  installModuleSubscriptions();
   // 20-2 gate: an unmatched API path is a 404, and it is answered HERE.
   //
   // This app is mounted at `/api` inside a composite server whose last route is

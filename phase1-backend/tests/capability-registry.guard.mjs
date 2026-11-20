@@ -35,6 +35,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { routeFileLabel, routeSourceFiles } from "../source-layout.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
@@ -56,8 +57,9 @@ const DOMAINS = [
 
 // ── the routes as the server registers them, with their handler text ──────
 const routes = [];
-for (const file of readdirSync(ROUTES).filter((f) => f.endsWith(".ts")).sort()) {
-  const source = readFileSync(path.join(ROUTES, file), "utf8");
+for (const fullPath of routeSourceFiles()) {
+  const file = routeFileLabel(fullPath);
+  const source = readFileSync(fullPath, "utf8");
   const re = /app\.(get|post|put|patch|delete)\(\s*"([^"]+)"/g;
   const starts = [];
   let m;

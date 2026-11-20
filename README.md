@@ -67,13 +67,18 @@ pnpm review:fixes                       # تراجعيّات مراجعة 2026-1
 
 ```
 client/             واجهة React (المتجر + لوحة التاجر + لوحة المالك)
-phase1-backend/     الخادم: src/http (المسارات والمخطّطات) · src/services · src/auth · src/notifications · tests
+phase1-backend/     الخادم: src/modules (الوحدات وسجلّها) · src/events (أحداث المجال) · src/http · src/services · src/auth · tests
 server/             نقطة الدخول المركّبة: تخدم الواجهة و/api وتطلق عامل الإشعارات
 prisma/             المخطّط والهجرات (مصدر الحقيقة للقاعدة؛ كثير من القيود موجود في SQL فقط)
 shared/             ما تتقاسمه الواجهة والخادم
 docs/               البنية · القرارات · التشغيل · الاسترداد · openapi.json
 docs/history/       تقارير المراحل والتدقيقات السابقة (أرشيف)
 ```
+
+## إضافة ميزة
+
+المنصّة مقسّمة إلى وحدات: **مجلّد جديد في `phase1-backend/src/modules/` + سطر في `registry.ts`**، وتستطيع الاستماع إلى أحداث
+المنصّة (طلب جديد، تغيّر حالة، تاجر جديد…) دون لمس شيفرتها. الدليل الكامل: [`phase1-backend/src/modules/README.md`](phase1-backend/src/modules/README.md).
 
 ## وثائق يجب قراءتها قبل التعديل
 

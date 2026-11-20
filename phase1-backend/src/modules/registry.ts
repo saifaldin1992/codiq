@@ -1,0 +1,40 @@
+/**
+ * THE MODULE REGISTRY — the one list of everything the platform mounts.
+ *
+ * To add a feature: create `src/modules/<id>/index.ts` exporting a
+ * `defineModule({...})`, then add it to `EXTENSION_MODULES` below. That is the
+ * whole integration. See `src/modules/README.md`.
+ */
+import type { Express } from "express";
+import { CORE_MODULES } from "./core-modules.js";
+import type { PlatformModule } from "./platform-module.js";
+import { domainEvents, type DomainEventBus } from "../events/domain-events.js";
+import { platformModulesModule } from "./platform-modules/index.js";
+
+/** New modules, appended after the core so the core's matching order never moves. */
+export const EXTENSION_MODULES: readonly PlatformModule[] = [
+  platformModulesModule,
+];
+
+export const PLATFORM_MODULES: readonly PlatformModule[] = [...CORE_MODULES, ...EXTENSION_MODULES];
+
+export function registerModuleRoutes(app: Express, modules: readonly PlatformModule[] = PLATFORM_MODULES): void {
+  const seen = new Set<string>();
+  for (const module of modules) {
+    if (seen.has(module.id)) throw new Error(`module registered twice: ${module.id}`);
+    seen.add(module.id);
+    module.register(app);
+  }
+}
+
+const subscribedBuses = new WeakSet<DomainEventBus>();
+/**
+ * Subscribes every module to the bus ONCE per process. `createApp()` runs many
+ * times in the test suites; subscribing on each call would deliver every event
+ * to every handler N times.
+ */
+export function installModuleSubscriptions(bus: DomainEventBus = domainEvents, modules: readonly PlatformModule[] = PLATFORM_MODULES): void {
+  if (subscribedBuses.has(bus)) return;
+  subscribedBuses.add(bus);
+  for (const module of modules) module.subscribe?.(bus);
+}

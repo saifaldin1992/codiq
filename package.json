@@ -180,7 +180,10 @@
     "payments:methods": "node --import tsx phase1-backend/tests/payment-methods.integration.mjs",
     "merchant:home": "node --import tsx phase1-backend/tests/merchant-home.integration.mjs",
     "storefront:guard": "node phase1-backend/tests/storefront-config.guard.mjs",
-    "review:fixes": "node --import tsx phase1-backend/tests/review-fixes.integration.mjs"
+    "review:fixes": "node --import tsx phase1-backend/tests/review-fixes.integration.mjs",
+    "modules:unit": "node --import tsx phase1-backend/tests/module-registry.unit.mjs",
+    "events:test": "node --import tsx phase1-backend/tests/domain-events.integration.mjs",
+    "screens:guard": "node phase1-backend/tests/merchant-screens.guard.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.787.0",

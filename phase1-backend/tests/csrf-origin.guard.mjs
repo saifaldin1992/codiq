@@ -20,6 +20,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { routeFileLabel, routeSourceFiles } from "../source-layout.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const routesDir = resolve(here, "..", "src", "http", "routes");
@@ -38,8 +39,9 @@ const WRITE = /app\.(post|put|patch|delete)\(\s*"([^"]+)"/g;
 const violations = [];
 const suppressed = [];
 
-for (const file of readdirSync(routesDir).filter((name) => name.endsWith(".ts"))) {
-  const source = readFileSync(join(routesDir, file), "utf8");
+for (const fullPath of routeSourceFiles()) {
+  const file = routeFileLabel(fullPath);
+  const source = readFileSync(fullPath, "utf8");
   let match;
   while ((match = WRITE.exec(source))) {
     const key = `${file}:${match[1].toUpperCase()} ${match[2]}`;
