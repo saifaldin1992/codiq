@@ -185,6 +185,8 @@
     "storefront:guard": "node phase1-backend/tests/storefront-config.guard.mjs",
     "review:fixes": "node --import tsx phase1-backend/tests/review-fixes.integration.mjs",
     "modules:unit": "node --import tsx phase1-backend/tests/module-registry.unit.mjs",
+    "market:foundation": "tsx phase1-backend/tests/market-foundation.integration.mjs",
+    "market:shell:browser": "pnpm build && node --import tsx phase1-backend/tests/market-shell.browser-acceptance.mjs",
     "events:test": "node --import tsx phase1-backend/tests/domain-events.integration.mjs",
     "screens:guard": "node phase1-backend/tests/merchant-screens.guard.mjs"
   },

@@ -301,5 +301,14 @@
       }
     ],
     "missingStoreSlug": []
+  },
+  "modules/market-geo/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/geo",
+        "reason": "BOUNDED — the eighteen governorates and their districts (about 150 rows, a seed the owner extends rarely). A location picker needs the whole tree at once, and the answer is the same for every visitor, so it is cached for an hour."
+      }
+    ],
+    "missingStoreSlug": []
   }
 }

@@ -375,6 +375,9 @@ jobs:
       - name: Integration — domain events (after commit, isolated, once)
         run: pnpm events:test
 
+      - name: Integration — marketplace M0 (districts, store location, opening hours, /market/geo)
+        run: pnpm market:foundation
+
       - name: Guard — every implemented merchant menu entry has a screen
         run: pnpm screens:guard
 
@@ -984,6 +987,9 @@ jobs:
 
       - name: Browser — phase 20B unified growth acceptance
         run: pnpm phase20b:browser
+
+      - name: Browser — marketplace shell (tabs, delivery location, search)
+        run: node --import tsx phase1-backend/tests/market-shell.browser-acceptance.mjs
 
       # PG-2: the sheet's ق-10 promise («the movement count comes from the
       # server or is not shown») and the no-silent-rename rule are UI contracts,

@@ -71,7 +71,8 @@ assert.deepEqual(
 // The screen must actually be reachable. A card nobody can open is the defect
 // this whole decision exists to close, and it would otherwise pass silently.
 const navigation = read("client/src/config/navigation.ts");
-const dashboard = read("client/src/pages/MerchantDashboard.tsx");
+// The merchant screens are mounted from the screen registry, not from MerchantDashboard.tsx itself.
+const dashboard = read("client/src/dashboard/merchant-screens.tsx");
 assert.ok(navigation.includes("/merchant/dashboard/settings/loyalty"), "the loyalty screen must have a navigation entry — CD-5 shipped everything except one");
 assert.ok(dashboard.includes("LoyaltySettingsCard"), "…and the dashboard must actually mount it");
 

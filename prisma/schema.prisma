@@ -243,6 +243,19 @@ model Store {
   verifiedByOwnerId    String?   @map("verified_by_owner_id") @db.Uuid
   verificationNote     String?   @map("verification_note") @db.Text
   verifiedByOwner      PlatformOwner? @relation("StoreVerifiedByOwner", fields: [verifiedByOwnerId], references: [id], onDelete: Restrict)
+  /// Marketplace M0 (migration 20261121090000): what the market directory shows.
+  /// `district` must lie inside `governorateKey` — a composite FK, not a promise.
+  businessType         String?   @map("business_type") @db.Text
+  coverObjectKey       String?   @unique @map("cover_object_key") @db.Text
+  coverContentType     String?   @map("cover_content_type") @db.Text
+  coverByteSize        Int?      @map("cover_byte_size")
+  governorateKey       String?   @map("governorate_key") @db.Text
+  districtId           Int?      @map("district_id")
+  latitude             Float?
+  longitude            Float?
+  pickupEnabled        Boolean   @default(false) @map("pickup_enabled")
+  district             District? @relation(fields: [districtId, governorateKey], references: [id, governorateKey], onDelete: Restrict, map: "stores_district_in_governorate")
+  openingHours         StoreOpeningHour[]
   merchant             Merchant              @relation(fields: [merchantId], references: [id], onDelete: Restrict)
   customers            Customer[]
   paymentMethods       PaymentMethod[]
@@ -281,6 +294,7 @@ model Store {
   @@index([merchantId])
   // 20-3: the platform store directory pages (createdAt, id) desc across all tenants.
   @@index([createdAt(sort: Desc), id(sort: Desc)], map: "stores_created_id_idx")
+  @@index([governorateKey, districtId], map: "stores_market_location_idx")
   @@map("stores")
   productReviews ProductReview[]
   wishlistItems  WishlistItem[]
@@ -2021,4 +2035,32 @@ model MerchantSetting {
 
   @@id([merchantId, code])
   @@map("merchant_settings")
+}
+
+/// Marketplace M0: an area inside a governorate (القضاء / المنطقة).
+model District {
+  id             Int      @id @default(autoincrement())
+  governorateKey String   @map("governorate_key") @db.Text
+  nameAr         String   @map("name_ar") @db.Text
+  sortOrder      Int      @default(0) @map("sort_order")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  stores         Store[]
+
+  @@unique([governorateKey, nameAr], map: "districts_governorate_name_key")
+  @@unique([id, governorateKey], map: "districts_id_governorate_key")
+  @@map("districts")
+}
+
+/// Marketplace M0: one row per open weekday (0 = Sunday). No row = closed that day.
+/// `closesAt` earlier than `opensAt` means the shift crosses midnight.
+model StoreOpeningHour {
+  storeId  String   @map("store_id") @db.Uuid
+  weekday  Int      @db.SmallInt
+  opensAt  DateTime @map("opens_at") @db.Time(0)
+  closesAt DateTime @map("closes_at") @db.Time(0)
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([storeId, weekday])
+  @@map("store_opening_hours")
 }

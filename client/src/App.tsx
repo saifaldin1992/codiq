@@ -37,6 +37,8 @@ const PasswordResetRequest = lazy(() => import("./pages/PasswordResetRequest"));
 const PasswordResetConsume = lazy(() => import("./pages/PasswordResetConsume"));
 const EngineeringArchitectureDashboard = lazy(() => import("./pages/EngineeringArchitectureDashboard"));
 const StorefrontWrapper = lazy(() => import("./pages/StorefrontWrapper"));
+/* Marketplace (docs/MARKETPLACE_PLAN.md): the shopper app, its own chunk. */
+const MarketApp = lazy(() => import("./market/MarketApp"));
 
 /**
  * Phase 17: a store subdomain or custom domain lands directly in its storefront.
@@ -85,6 +87,7 @@ const ROUTE_TITLES: [RegExp, string][] = [
   [/^\/merchant(\/|$)/, "Codiq — لوحة التاجر"],
   [/^\/staff(\/|$)/, "Codiq — لوحة الموظف"],
   [/^\/engineering(\/|$)/, "Codiq — لوحة الهندسة"],
+  [/^\/market(\/|$)/, "Codiq ماركت — كل المتاجر في مكان واحد"],
 ];
 const DEFAULT_TITLE = "Codiq — منصة المتاجر الإلكترونية بالدفع عند الاستلام في العراق";
 
@@ -177,6 +180,7 @@ function Router() {
       <Route path={"/platform/dashboard/:section/:subsection"}>{() => <HiddenInDemo><OwnerDashboard /></HiddenInDemo>}</Route>
       <Route path={"/platform/dashboard/:section"}>{() => <HiddenInDemo><OwnerDashboard /></HiddenInDemo>}</Route>
       <Route path={"/platform/dashboard"}>{() => <HiddenInDemo><OwnerDashboard /></HiddenInDemo>}</Route>
+      <Route path={"/market"} nest component={MarketApp} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
