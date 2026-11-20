@@ -9,6 +9,9 @@
  *                   including the live-product filter for views.
  *   4. Audit 17-أ — the owner's overview nets a returned order to zero instead
  *                   of counting it twice.
+ *   5. Audit 17-ب — a settlement states its amount before it is confirmed, the
+ *                   amount equals the merchant's wallet, is stored, and a
+ *                   stale amount is refused.
  */
 import assert from "node:assert/strict";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
@@ -24,6 +27,7 @@ const { prisma } = await import("../src/db/prisma.ts");
 const { createTypedSession } = await import("../src/auth/identity.ts");
 const { baghdadDay, recordVisit, flushVisits } = await import("../src/services/store-traffic.service.ts");
 const { platformOverview } = await import("../src/services/platform-overview.service.ts");
+const { merchantWallet } = await import("../src/services/merchant-wallet.service.ts");
 
 const testId = `rvw-${Date.now()}`;
 const suffix = String(Date.now()).slice(-8);
@@ -138,6 +142,29 @@ try {
   assert.equal(after17.commerce.sales.current - before17.commerce.sales.current, 0, "17-أ: completed then returned is zero sales, not double");
   assert.equal(after17.commerce.commission.current - before17.commerce.commission.current, 0, "17-أ: …and zero commission");
   summary.returnNetsToZero = true;
+
+  // ── 5. the settlement says how much, and that is what is recorded ─────────
+  const ownerEmail = `${testId}.owner@codiq.test`;
+  assert.equal((await call("/auth/platform/register", { method: "POST", body: { email: ownerEmail, password: "ReviewOwner!2026", displayName: "مالك المراجعة" } })).status, 201);
+  const ownerToken = (await call("/auth/platform/login", { method: "POST", body: { email: ownerEmail, password: "ReviewOwner!2026" } })).payload.accessToken;
+  const paid = await prisma.storeOrder.create({ data: { storeId: store.id, orderNumber: `${testId}-o2`, status: "completed", source: "storefront", customerName: "زبون", paymentMethodCode: "cod", subtotalIqd: 50000, deliveryFeeIqd: 5000, totalIqd: 52000 } });
+  await prisma.ledgerEntry.create({ data: { storeId: store.id, orderId: paid.id, entryType: "order_completed", subtotalIqd: 50000, deliveryFeeIqd: 5000, loyaltyDiscountIqd: 3000, commissionIqd: 1000, commissionBps: 200, planCode: plan.code } });
+  const wallet = await merchantWallet(merchantId);
+  const period = new URLSearchParams({ periodFrom: "2026-01-01T00:00:00Z", periodTo: new Date().toISOString() });
+  const preview = await call(`/platform/finance/settlements/${merchantId}/preview?${period}`, { token: ownerToken });
+  assert.equal(preview.status, 200, JSON.stringify(preview.payload));
+  assert.equal(preview.payload.preview.netPayoutIqd, 51000, "17-ب: 50,000 + 5,000 delivery − 3,000 points − 1,000 commission (the returned pair nets to zero)");
+  assert.equal(preview.payload.preview.netPayoutIqd, wallet.pending.netPayoutIqd, "17-ب: what the owner is shown is exactly what the merchant's wallet says he is owed");
+  const settleBody = { merchantId, periodFrom: preview.payload.preview.periodFrom, periodTo: preview.payload.preview.periodTo, note: "مراجعة" };
+  const stale = await call("/platform/finance/settlements", { method: "POST", token: ownerToken, body: { ...settleBody, expectedNetPayoutIqd: 54000 } });
+  assert.equal(stale.status, 409, "17-ب: an amount the ledger no longer supports is refused");
+  assert.equal(stale.payload.error.code, "SETTLEMENT_AMOUNT_CHANGED");
+  const settled = await call("/platform/finance/settlements", { method: "POST", token: ownerToken, body: { ...settleBody, expectedNetPayoutIqd: 51000 } });
+  assert.equal(settled.status, 201, JSON.stringify(settled.payload));
+  assert.equal(settled.payload.settlement.netPayoutIqd, 51000, "17-ب: the transferred amount is stored on the settlement");
+  const history = await call("/merchant/finance/settlements", { token });
+  assert.equal(history.payload.settlements[0].netPayoutIqd, 51000, "…and the merchant's history shows the money he received");
+  summary.settlementAmount = { previewed: 51000, staleRefused: 409, stored: 51000 };
 
   console.log(JSON.stringify({ suite: "review-fixes", ok: true, summary }, null, 2));
 } finally {

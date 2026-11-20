@@ -8,10 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadMoreButton } from "@/components/LoadMoreButton";
 
-type Totals = { completedOrders: number; reversedOrders: number; subtotalIqd: number; deliveryFeeIqd: number; commissionIqd: number };
+type Totals = { completedOrders: number; reversedOrders: number; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number; commissionIqd: number };
 type MerchantRow = { merchantId: string; email: string; businessName: string; totals: Totals; deliveryToSubtotalBps: number | null };
 type Report = { period: { from: string; to: string }; totals: Totals; merchants: MerchantRow[] };
-type Settlement = { id: string; periodFrom: string; periodTo: string; ordersCount: number; commissionIqd: number; subtotalIqd: number; note: string | null; createdAt: string };
+type Settlement = { id: string; periodFrom: string; periodTo: string; ordersCount: number; commissionIqd: number; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number | null; netPayoutIqd: number | null; note: string | null; createdAt: string };
+type SettlementPreview = { periodFrom: string; periodTo: string; ordersCount: number; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number; commissionIqd: number; netPayoutIqd: number };
+
+/**
+ * Audit 17-ب: what the platform owes — the same formula as the merchant's wallet
+ * (`netPayout` in merchant-wallet.service.ts). The four cards alone invited
+ * «sales + delivery − commission», which overstates it by the redeemed points.
+ */
+const netDue = (totals: Totals) => totals.subtotalIqd + totals.deliveryFeeIqd - totals.loyaltyDiscountIqd - totals.commissionIqd;
 
 const money = new Intl.NumberFormat("ar-IQ");
 const dateOnly = (value: string | Date) => new Date(value).toISOString().slice(0, 10);
@@ -28,10 +36,12 @@ function TotalsCards({ totals }: { totals: Totals }) {
     { label: "طلبات مكتملة (صافي)", value: money.format(totals.completedOrders - totals.reversedOrders) },
     { label: "مبيعات (صافي)", value: `${money.format(totals.subtotalIqd)} د.ع` },
     { label: "توصيل", value: `${money.format(totals.deliveryFeeIqd)} د.ع` },
+    { label: "نقاط ولاء مستردة", value: `${money.format(totals.loyaltyDiscountIqd)} د.ع` },
     { label: "عمولات المنصة", value: `${money.format(totals.commissionIqd)} د.ع` },
+    { label: "المستحق للتجار (صافي)", value: `${money.format(netDue(totals))} د.ع` },
   ];
   return (
-    <div className="grid gap-3 sm:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {cards.map((card) => (
         <div key={card.label} className="rounded-2xl bg-[var(--codiq-surface)] px-4 py-3.5 shadow-sm">
           <p className="text-[11px] font-semibold text-[#8A96A9]">{card.label}</p>
@@ -51,6 +61,7 @@ export function FinanceCenter() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [settleFor, setSettleFor] = useState<MerchantRow | null>(null);
+  const [preview, setPreview] = useState<SettlementPreview | null>(null);
   // 20-2: a merchant's settlement history is a keyset page, not a fixed 100.
   const [history, setHistory] = useState<{ merchant: MerchantRow; rows: Settlement[]; nextCursor: string | null } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -82,17 +93,38 @@ export function FinanceCenter() {
     return result.settlements[0]?.periodTo ?? null;
   }
 
-  async function settle(merchant: MerchantRow, note: string) {
-    setBusy(true);
-    setNotice(null);
+  /**
+   * Audit 17-ب: the form states the amount BEFORE the button. The preview runs
+   * the server's own settlement computation over the exact period the confirm
+   * will send (anchored at his previous settlement, clamped to now), so the
+   * figure read here is the figure recorded — or the confirm is refused.
+   */
+  async function openSettle(merchant: MerchantRow) {
+    setSettleFor(merchant);
+    setPreview(null);
+    setFailure(null);
     try {
       // His first settlement has no anchor, so the chosen start stands; every
       // one after it continues exactly where the previous stopped.
       const anchor = await settlementAnchor(merchant);
-      const periodFrom = anchor ?? `${from}T00:00:00Z`;
-      await api("/api/platform/finance/settlements", { method: "POST", body: JSON.stringify({ merchantId: merchant.merchantId, periodFrom, periodTo: `${to}T23:59:59Z`, note }) });
-      setNotice(`سُجلت تسوية «${merchant.businessName}» من ${anchor ? "نهاية تسويته السابقة" : "بداية الفترة المحددة"} حتى ${to} — سجل غير قابل للتعديل.`);
+      const query = new URLSearchParams({ periodFrom: anchor ?? `${from}T00:00:00Z`, periodTo: `${to}T23:59:59Z` });
+      const result = await api<{ preview: SettlementPreview }>(`/api/platform/finance/settlements/${merchant.merchantId}/preview?${query.toString()}`);
+      setPreview(result.preview);
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
       setSettleFor(null);
+    }
+  }
+
+  async function settle(merchant: MerchantRow, note: string) {
+    if (!preview) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      await api("/api/platform/finance/settlements", { method: "POST", body: JSON.stringify({ merchantId: merchant.merchantId, periodFrom: preview.periodFrom, periodTo: preview.periodTo, expectedNetPayoutIqd: preview.netPayoutIqd, note }) });
+      setNotice(`سُجلت تسوية «${merchant.businessName}» بمبلغ ${money.format(preview.netPayoutIqd)} د.ع حتى ${dateOnly(preview.periodTo)} — سجل غير قابل للتعديل.`);
+      setSettleFor(null);
+      setPreview(null);
     } catch (error) {
       setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
     } finally {
@@ -172,14 +204,25 @@ export function FinanceCenter() {
                       </span>
                     )}
                     <Button size="sm" variant="outline" className="rounded-xl border-[var(--codiq-border-strong)]" onClick={() => void openHistory(merchant)}>التسويات</Button>
-                    <Button data-testid={`finance-settle-${merchant.email}`} size="sm" disabled={busy} className="rounded-xl bg-[var(--codiq-accent)] text-white hover:bg-[var(--codiq-accent-hover)]" onClick={() => setSettleFor(merchant)}>تسوية الفترة</Button>
+                    <Button data-testid={`finance-settle-${merchant.email}`} size="sm" disabled={busy} className="rounded-xl bg-[var(--codiq-accent)] text-white hover:bg-[var(--codiq-accent-hover)]" onClick={() => void openSettle(merchant)}>تسوية الفترة</Button>
                   </div>
                 </div>
                 {settleFor?.merchantId === merchant.merchantId ? (
-                  <form className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-[var(--codiq-surface-sunken)] p-3" onSubmit={(event) => { event.preventDefault(); void settle(merchant, String(new FormData(event.currentTarget).get("note") ?? "")); }}>
-                    <Input name="note" placeholder="ملاحظة (مثال: حُوّلت عبر زين كاش)" className="h-9 flex-1" />
-                    <Button data-testid="finance-settle-confirm" size="sm" disabled={busy} className="rounded-xl bg-[var(--codiq-success)] text-white hover:bg-[#1F5C41]">تأكيد التسوية</Button>
-                    <Button size="sm" type="button" variant="ghost" className="rounded-xl" onClick={() => setSettleFor(null)}>إلغاء</Button>
+                  <form className="mt-3 space-y-2 rounded-xl bg-[var(--codiq-surface-sunken)] p-3" onSubmit={(event) => { event.preventDefault(); void settle(merchant, String(new FormData(event.currentTarget).get("note") ?? "")); }}>
+                    {preview ? (
+                      <div data-testid="finance-settle-preview" className="rounded-xl bg-[var(--codiq-surface)] px-4 py-3 shadow-sm">
+                        <p className="text-[11px] font-semibold text-[var(--codiq-text-muted)]">المبلغ الذي ستحوّله للتاجر عن الفترة <span dir="ltr">{dateOnly(preview.periodFrom)} → {dateOnly(preview.periodTo)}</span></p>
+                        <p data-testid="finance-settle-amount" className="mt-1 text-2xl font-black tabular-nums text-[var(--codiq-text)]">{money.format(preview.netPayoutIqd)} د.ع</p>
+                        <p className="mt-1 text-[11px] leading-6 text-[var(--codiq-text-muted)]">
+                          مبيعات {money.format(preview.subtotalIqd)} + توصيل {money.format(preview.deliveryFeeIqd)} − نقاط {money.format(preview.loyaltyDiscountIqd)} − عمولة {money.format(preview.commissionIqd)} · {money.format(preview.ordersCount)} طلب
+                        </p>
+                      </div>
+                    ) : <p className="text-xs text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ حساب المبلغ…</p>}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input name="note" placeholder="ملاحظة (مثال: حُوّلت عبر زين كاش)" className="h-9 flex-1" />
+                      <Button data-testid="finance-settle-confirm" size="sm" disabled={busy || !preview} className="rounded-xl bg-[var(--codiq-success)] text-white hover:bg-[#1F5C41]">تأكيد التسوية</Button>
+                      <Button size="sm" type="button" variant="ghost" className="rounded-xl" onClick={() => { setSettleFor(null); setPreview(null); }}>إلغاء</Button>
+                    </div>
                   </form>
                 ) : null}
                 {history?.merchant.merchantId === merchant.merchantId ? (
@@ -188,7 +231,7 @@ export function FinanceCenter() {
                     {history.rows.map((row) => (
                       <p key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--codiq-surface)] px-3 py-2 text-xs text-[#44526A] shadow-sm">
                         <span dir="ltr">{dateOnly(row.periodFrom)} → {dateOnly(row.periodTo)}</span>
-                        <span>طلبات: {row.ordersCount} · عمولة: {money.format(row.commissionIqd)} د.ع{row.note ? ` · ${row.note}` : ""}</span>
+                        <span><b className="text-[var(--codiq-text)]">المحوَّل: {money.format(row.netPayoutIqd ?? 0)} د.ع</b> · طلبات: {row.ordersCount} · عمولة: {money.format(row.commissionIqd)} د.ع{row.note ? ` · ${row.note}` : ""}</span>
                       </p>
                     ))}
                     <LoadMoreButton cursor={history.nextCursor} busy={loadingMore} onLoad={(cursor) => void openHistory(merchant, cursor)} testId="platform-settlements-more" />

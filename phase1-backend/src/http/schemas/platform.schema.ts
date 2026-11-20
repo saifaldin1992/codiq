@@ -121,6 +121,14 @@ export const createSettlementSchema = z.object({
   periodFrom: z.string("periodFrom مطلوب."),
   periodTo: z.string("periodTo مطلوب."),
   note: z.unknown(),
+  /** Audit 17-ب: the payout the operator saw in the preview; a different live amount is refused (409). */
+  expectedNetPayoutIqd: z.number().int("expectedNetPayoutIqd عدد صحيح.").optional(),
+});
+
+/** Audit 17-ب: the exact settlement a confirm would record — same period rules, read only. */
+export const settlementPreviewQuerySchema = z.object({
+  periodFrom: z.string("periodFrom مطلوب."),
+  periodTo: z.string("periodTo مطلوب."),
 });
 
 /** The manual reversal of a late return — real money, so the id is asserted before anything is read. */

@@ -7,7 +7,7 @@ import { HttpError } from "../../auth/auth.errors.js";
 import { verifyTypedSession } from "../../auth/identity.js";
 import { requirePlatformActor } from "../../auth/platform-permissions.js";
 import { assignMerchantSubscription, createPlan, createUpgradeRequest, decideUpgradeRequest, listMerchantsWithPlans, listPlans, listUpgradeRequests, merchantEntitlementsView, setPlanArchived, updatePlan } from "../../services/entitlement.service.js";
-import { createManualReturnAdjustment, createSettlement, merchantFinanceReport, merchantSettlements, platformFinanceReport } from "../../services/finance.service.js";
+import { createManualReturnAdjustment, createSettlement, merchantFinanceReport, merchantSettlements, platformFinanceReport, previewSettlement } from "../../services/finance.service.js";
 import { merchantWallet } from "../../services/merchant-wallet.service.js";
 import { createManualMerchant } from "../../services/manual-provisioning.service.js";
 import { setMerchantSuspension } from "../../services/merchant-suspension.service.js";
@@ -25,6 +25,7 @@ import {
   createPlanSchema,
   createReturnAdjustmentSchema,
   createSettlementSchema,
+  settlementPreviewQuerySchema,
   createUpgradeRequestSchema,
   decideMerchantApprovalSchema,
   setMerchantSuspensionSchema,
@@ -208,6 +209,14 @@ export function registerPlatformRoutes(app: Express) {
     requireTrustedWriteOrigin(request);
     const { actor } = await requirePlatformActor(request, "finance.settle");
     response.status(201).json({ settlement: await createSettlement(actor, parseOrThrow(createSettlementSchema, request.body ?? {})) });
+  }));
+  // Audit 17-ب: the amount is shown BEFORE the operator confirms, from the same
+  // computation the write uses. `finance.settle`, not `.view`: this is the
+  // settle form's own read, and it states the money about to be transferred.
+  app.get("/platform/finance/settlements/:merchantId/preview", asyncRoute(async (request, response) => {
+    await requirePlatformActor(request, "finance.settle");
+    const query = parseOrThrow(settlementPreviewQuerySchema, request.query);
+    response.status(200).json({ preview: await previewSettlement({ merchantId: request.params.merchantId, ...query }) });
   }));
   app.get("/platform/finance/settlements/:merchantId", asyncRoute(async (request, response) => {
     await requirePlatformActor(request, "finance.view");

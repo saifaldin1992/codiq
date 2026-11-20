@@ -11,7 +11,7 @@ import { LoadMoreButton } from "@/components/LoadMoreButton";
 
 type Totals = { completedOrders: number; reversedOrders: number; subtotalIqd: number; deliveryFeeIqd: number; commissionIqd: number };
 type Entry = { id: string; entryType: string; subtotalIqd: number; deliveryFeeIqd: number; commissionIqd: number; planCode: string; createdAt: string; store: { slug: string; name: string }; order: { orderNumber: string } };
-type Settlement = { id: string; periodFrom: string; periodTo: string; ordersCount: number; commissionIqd: number; note: string | null; createdAt: string };
+type Settlement = { id: string; periodFrom: string; periodTo: string; ordersCount: number; commissionIqd: number; netPayoutIqd: number | null; note: string | null; createdAt: string };
 
 const money = new Intl.NumberFormat("ar-IQ");
 const dateOnly = (value: string | Date) => new Date(value).toISOString().slice(0, 10);
@@ -121,7 +121,8 @@ export function MerchantFinancePanel() {
               {settlements?.map((settlement) => (
                 <p key={settlement.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--codiq-surface)] px-3 py-2 text-xs text-[#44526A] shadow-sm">
                   <span dir="ltr">{dateOnly(settlement.periodFrom)} → {dateOnly(settlement.periodTo)}</span>
-                  <span>طلبات: {settlement.ordersCount} · عمولة: {money.format(settlement.commissionIqd)} د.ع{settlement.note ? ` · ${settlement.note}` : ""}</span>
+                  {/* Audit 17-ب: the money he RECEIVED leads the row — it used to print only the commission he lost. */}
+                  <span><b data-testid="merchant-settlement-net" className="text-[var(--codiq-text)]">استلمت: {money.format(settlement.netPayoutIqd ?? 0)} د.ع</b> · طلبات: {settlement.ordersCount} · عمولة: {money.format(settlement.commissionIqd)} د.ع{settlement.note ? ` · ${settlement.note}` : ""}</span>
                 </p>
               ))}
             </div>

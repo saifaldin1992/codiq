@@ -18,7 +18,7 @@
  * (`order_returned`, a manual adjustment) subtracts.
  *
  * That rule is currently implemented FOUR times across the codebase —
- * `totalsFromGroups` and `totalsFromEntries` in finance.service.ts, an inline
+ * `totalsFromGroups` and `draftSettlement` in finance.service.ts, an inline
  * copy in analytics.service.ts, and `signedTotals` below — because none of them
  * is exported. They agree today, and the finance suite pins the wallet against a
  * settlement computed by a different one of them, so a divergence fails a test

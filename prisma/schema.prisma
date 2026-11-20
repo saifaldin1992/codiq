@@ -1355,6 +1355,9 @@ model Settlement {
   /// still add up to the money actually transferred.
   loyaltyDiscountIqd Int?        @default(0) @map("loyalty_discount_iqd")
   commissionIqd   Int            @map("commission_iqd")
+  /// Audit 17-ب: GENERATED in the database (subtotal + delivery − points − commission) —
+  /// the amount actually transferred. Never written by the application.
+  netPayoutIqd    Int?           @default(dbgenerated()) @map("net_payout_iqd")
   note            String?        @db.Text
   createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   merchant        Merchant       @relation(fields: [merchantId], references: [id], onDelete: Restrict)
