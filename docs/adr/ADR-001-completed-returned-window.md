@@ -24,4 +24,4 @@
 
 - `phase1-backend/src/services/storefront.service.ts` — تسوية حجوزات Storefront عند `returned`.
 - `prisma/schema.prisma` — حقول `inventory_reservations.return_disposition` و`returned_at`.
-- `reports/PHASE9A_REPORT.md` — القرار المحافظ واختبارات الحجز.
+- `docs/history/reports/PHASE9A_REPORT.md` — القرار المحافظ واختبارات الحجز.

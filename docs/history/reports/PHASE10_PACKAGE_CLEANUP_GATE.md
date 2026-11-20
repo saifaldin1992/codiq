@@ -4,7 +4,7 @@
 
 ## منهج التدقيق
 
-تم البحث في كود التشغيل وملفات البناء فقط: `client/src/` و`phase1-backend/` و`server/` و`shared/` و`vite.config.ts` و`client/index.css`. لم تُعد النصوص التاريخية في `docs/` و`reports/` و`template.json` دليلاً على استيراد فعلي.
+تم البحث في كود التشغيل وملفات البناء فقط: `client/src/` و`phase1-backend/` و`server/` و`shared/` و`vite.config.ts` و`client/index.css`. لم تُعد النصوص التاريخية في `docs/` و`docs/history/reports/` و`template.json` دليلاً على استيراد فعلي.
 
 ## حزم طلبت مراجعتها وكانت غائبة مسبقاً
 

@@ -56,7 +56,7 @@
 
 ## 7. البوابات
 
-ثلاث خطوات CI **حاجبة** جديدة (`phase20b1/2/3:test`) + `phase20b.browser-acceptance.mjs` موحد في job المتصفح؛ بوابة كل دفعة: typecheck + الانحدار الكامل 1→20A + الجديد؛ ثم `reports/PHASE20B_REPORT.md`.
+ثلاث خطوات CI **حاجبة** جديدة (`phase20b1/2/3:test`) + `phase20b.browser-acceptance.mjs` موحد في job المتصفح؛ بوابة كل دفعة: typecheck + الانحدار الكامل 1→20A + الجديد؛ ثم `docs/history/reports/PHASE20B_REPORT.md`.
 
 ## 8. القرارات — حُسمت باعتماد المالك (2026-08-26)
 

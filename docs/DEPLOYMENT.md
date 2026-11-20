@@ -181,7 +181,7 @@ pnpm mail:probe -- --to your-address@example.com
 [3]: ./BACKLOG.md "B-15: تثبيت اختبارات المتصفح في GitHub Actions"
 [4]: ../phase1-backend/src/config.ts "إعدادات تشغيل CODIQ"
 [5]: ./CODIQ_FULL_PLAN_26_PHASES.md "خطة CODIQ الرسمية — المرحلة 11B"
-[6]: ../reports/RAILWAY_ACCESS_FINDINGS.md "أدلة فحص Railway staging والنشر الأول"
+[6]: ../docs/history/reports/RAILWAY_ACCESS_FINDINGS.md "أدلة فحص Railway staging والنشر الأول"
 
 ## النطاقات (المرحلة 17)
 

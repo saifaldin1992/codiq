@@ -60,8 +60,8 @@
 |---|---|
 | `.github/workflows/ci.yml` | فحص endpoint staging بعد التكامل وبشكل غير حاجب مؤقتاً |
 | `docs/DEPLOYMENT.md` | توثيق مسار Railway staging الفعلي وحدود production |
-| `reports/RAILWAY_ACCESS_FINDINGS.md` | أدلة الوصول والإعداد والنشر والتحقق الخارجي |
-| `reports/PHASE11B_REPORT.md` | هذا التقرير |
+| `docs/history/reports/RAILWAY_ACCESS_FINDINGS.md` | أدلة الوصول والإعداد والنشر والتحقق الخارجي |
+| `docs/history/reports/PHASE11B_REPORT.md` | هذا التقرير |
 | `phase1-backend/tests/engineering-roadmap-data.test.ts` | تصحيح امتداد استيراد متوافق مع NodeNext لاستعادة `phase1:typecheck` |
 | `todo.md` | سجل متابعة 11B |
 

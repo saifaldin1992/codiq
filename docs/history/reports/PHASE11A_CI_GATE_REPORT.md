@@ -60,7 +60,7 @@
 
 ## 6. ما لم ينفذ بعد
 
-لم تُفعّل Branch Protection على `main`، ولم تُنشأ `docs/DEPLOYMENT.md` أو `reports/PHASE11A_REPORT.md`، ولم يُدمج PR #1. كما لم يبدأ 11B ولم يُنشأ فرع Neon باسم `staging` ولم يحدث أي نشر تلقائي أو يدوي.
+لم تُفعّل Branch Protection على `main`، ولم تُنشأ `docs/DEPLOYMENT.md` أو `docs/history/reports/PHASE11A_REPORT.md`، ولم يُدمج PR #1. كما لم يبدأ 11B ولم يُنشأ فرع Neon باسم `staging` ولم يحدث أي نشر تلقائي أو يدوي.
 
 ## المراجع
 

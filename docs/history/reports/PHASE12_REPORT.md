@@ -73,7 +73,7 @@
 | `client/src/pages/StorefrontProductPage.tsx` | حالة التوفر وتعطيل الإضافة عند النفاد |
 | `phase1-backend/tests/phase9a.storefront.integration.mjs` | اختبارات API والعزل والتوفر |
 | `phase1-backend/tests/phase9b.browser-acceptance.mjs` | UI-12 واختبار متغيرات CSS والتوفر |
-| `reports/PHASE12_REPORT.md` | هذا التقرير |
+| `docs/history/reports/PHASE12_REPORT.md` | هذا التقرير |
 | `todo.md` | سجل التنفيذ والبوابات |
 
 ## البوابة التالية

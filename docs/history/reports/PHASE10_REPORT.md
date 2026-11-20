@@ -11,7 +11,7 @@
 
 | مجال البوابة | النتيجة |
 |---|---|
-| حوكمة الوثائق | **Passed** — أودعت الخطة الرسمية وBacklog في `docs/`، ونقلت تقارير وبوابات الجذر إلى `reports/`. |
+| حوكمة الوثائق | **Passed** — أودعت الخطة الرسمية وBacklog في `docs/`، ونقلت تقارير وبوابات الجذر إلى `docs/history/reports/`. |
 | تغطية اختبارات 9A | **Passed** — وُجدت التغطية؛ أضيفت الاختبارات الناقصة فقط ثم مرّت على `development`. |
 | تنظيف الحزم | **Passed بشـرط موثق** — أزيلت الحزم غير المستوردة وتحذير `pnpm` المهيأ؛ بقي تحذير `tar` غير المباشر المسموح بتوثيقه. |
 | قالب الخادم | **Passed** — لا يوجد `server/_core` ولا tRPC/OAuth/StorageProxy في main أو مسار الإنتاج. |
@@ -22,7 +22,7 @@
 
 أصبح المصدر الرسمي للخطة في `docs/CODIQ_FULL_PLAN_26_PHASES.md`، ويثبت أن **المرحلة 10 هي الحالية والمرحلة 11 هي CI/CD**. أودع `docs/BACKLOG.md` مع بقاء تعليماته ملزمة: السجل ليس أمر تنفيذ. أضيف B-12 بالحالة **📋** لتقييم ترقية Tailwind لمعالجة `tar` في المرحلة 21، من دون ترقية في المرحلة الحالية.
 
-نُقلت تقارير المراحل ووثائق البوابات من الجذر إلى `reports/`، ومنها `PHASE8A_REPORT.md` و`PHASE8B_REPORT.md` و`PHASE9A_REPORT.md` و`PHASE9B_REPORT.md` و`HANDOFF_REPORT.md` وملفات بوابات 9B و10. لم تُعثر بعد النقل على مراجع Markdown داخلية تشير إلى المواقع القديمة.
+نُقلت تقارير المراحل ووثائق البوابات من الجذر إلى `docs/history/reports/`، ومنها `PHASE8A_REPORT.md` و`PHASE8B_REPORT.md` و`PHASE9A_REPORT.md` و`PHASE9B_REPORT.md` و`HANDOFF_REPORT.md` وملفات بوابات 9B و10. لم تُعثر بعد النقل على مراجع Markdown داخلية تشير إلى المواقع القديمة.
 
 ## 2. تحقق الاختبارات المنجزة سابقاً
 
@@ -106,8 +106,8 @@
 
 - `docs/CODIQ_FULL_PLAN_26_PHASES.md`
 - `docs/BACKLOG.md`
-- `reports/PHASE10_PACKAGE_CLEANUP_GATE.md`
-- `reports/PHASE10_SERVER_TEMPLATE_GATE.md`
+- `docs/history/reports/PHASE10_PACKAGE_CLEANUP_GATE.md`
+- `docs/history/reports/PHASE10_SERVER_TEMPLATE_GATE.md`
 - `phase1-backend/tests/phase9a.storefront.integration.mjs`
 - `phase1-backend/tests/phase9b.browser-acceptance.mjs`
 - `phase1-backend/tests/phase10.composite-server.runtime.mjs`

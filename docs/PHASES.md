@@ -9,20 +9,20 @@
 | المرحلة | الحالة | المرجع |
 |---:|---|---|
 | 1–9B | ✅ مكتملة ومندمجة | تقارير المراحل و`main` |
-| 10 | ✅ مكتملة ومندمجة | `reports/PHASE10_REPORT.md` |
-| 11A | ✅ مكتملة ومندمجة | `reports/PHASE11A_REPORT.md` |
-| 11B | ✅ مكتملة ومندمجة؛ staging مستقلة وproduction يدوية النشر | `reports/PHASE11B_REPORT.md` |
-| 12 | ✅ مكتملة ومندمجة | `reports/PHASE12_REPORT.md` |
-| 13 | ✅ مكتملة ومندمجة عبر PR #5 | `reports/PHASE13_REPORT.md` و`reports/POST_PHASE13_VERIFICATION_REPORT.md` |
-| 14 | ✅ مكتملة ومندمجة عبر PR #7 (2026-08-25) | `reports/PHASE14_REPORT.md` و`docs/adr/ADR-003-staff-identity-permissions-navigation.md` |
-| 15 | ✅ مكتملة ومندمجة عبر PR #8 (2026-08-25) | `reports/PHASE15_REPORT.md` و`docs/adr/ADR-004-notification-outbox-and-provider.md` |
-| 16 | ✅ مكتملة ومندمجة عبر PR #9 (2026-08-25) | `reports/PHASE16_REPORT.md` و`docs/adr/ADR-005-plans-and-entitlements.md` |
-| 17 | ✅ مكتملة ومندمجة عبر PR #10 (2026-08-25) — خاتمة القسم الثاني: «المنصة تعمل تجارياً» | `reports/PHASE17_REPORT.md` و`docs/adr/ADR-006-finance-ledger-and-registration-policy.md` |
+| 10 | ✅ مكتملة ومندمجة | `docs/history/reports/PHASE10_REPORT.md` |
+| 11A | ✅ مكتملة ومندمجة | `docs/history/reports/PHASE11A_REPORT.md` |
+| 11B | ✅ مكتملة ومندمجة؛ staging مستقلة وproduction يدوية النشر | `docs/history/reports/PHASE11B_REPORT.md` |
+| 12 | ✅ مكتملة ومندمجة | `docs/history/reports/PHASE12_REPORT.md` |
+| 13 | ✅ مكتملة ومندمجة عبر PR #5 | `docs/history/reports/PHASE13_REPORT.md` و`docs/history/reports/POST_PHASE13_VERIFICATION_REPORT.md` |
+| 14 | ✅ مكتملة ومندمجة عبر PR #7 (2026-08-25) | `docs/history/reports/PHASE14_REPORT.md` و`docs/adr/ADR-003-staff-identity-permissions-navigation.md` |
+| 15 | ✅ مكتملة ومندمجة عبر PR #8 (2026-08-25) | `docs/history/reports/PHASE15_REPORT.md` و`docs/adr/ADR-004-notification-outbox-and-provider.md` |
+| 16 | ✅ مكتملة ومندمجة عبر PR #9 (2026-08-25) | `docs/history/reports/PHASE16_REPORT.md` و`docs/adr/ADR-005-plans-and-entitlements.md` |
+| 17 | ✅ مكتملة ومندمجة عبر PR #10 (2026-08-25) — خاتمة القسم الثاني: «المنصة تعمل تجارياً» | `docs/history/reports/PHASE17_REPORT.md` و`docs/adr/ADR-006-finance-ledger-and-registration-policy.md` |
 | ما بعد 17 | ✅ PR #11 (توثيق هجرات staging) وPR #12 (إصلاح إدارة أسعار التوصيل — إغلاق الحلقة التجارية) | سجل commits على `main` |
-| 18 | ✅ مكتملة: تقريرا التدقيق وسجل الدين (PR #14) + حزمة التحصين الفوري (PR #13) + تفكيك طبقة HTTP (PR #17) | `reports/PHASE18_ARCHITECTURE_AUDIT.md` و`reports/PHASE18_DEBT_REGISTER.md` (بقسم «حالة التنفيذ حتى 2026-08-27») |
-| 20A | ✅ **مكتملة ومدموجة** (PR #21 خلفية + PR #25 واجهة، 2026-08-26) — متغيرات المنتج من القاعدة حتى الزبون، بمراجعات عدائية واختباري تكامل ومتصفح حاجبين | `reports/PHASE20A_PLAN.md` و`reports/PHASE20A_REPORT.md` |
+| 18 | ✅ مكتملة: تقريرا التدقيق وسجل الدين (PR #14) + حزمة التحصين الفوري (PR #13) + تفكيك طبقة HTTP (PR #17) | `docs/history/reports/PHASE18_ARCHITECTURE_AUDIT.md` و`docs/history/reports/PHASE18_DEBT_REGISTER.md` (بقسم «حالة التنفيذ حتى 2026-08-27») |
+| 20A | ✅ **مكتملة ومدموجة** (PR #21 خلفية + PR #25 واجهة، 2026-08-26) — متغيرات المنتج من القاعدة حتى الزبون، بمراجعات عدائية واختباري تكامل ومتصفح حاجبين | `docs/history/reports/PHASE20A_PLAN.md` و`docs/history/reports/PHASE20A_REPORT.md` |
 | إضافات معتمدة منفذة | ✅ التصنيفات المتشعبة (PR #24) · إكمال القوائم Pass A بشارات الحالة (PR #22) · الهوية البصرية CODIQ + BrandMark ‏SVG (PR #18) · صمود عامل الإشعارات (PR #20) | سجل commits على `main` |
-| 20B | ✅ **مكتملة ومدموجة** (2026-08-26/27): 20B-1 الكوبونات ومنتج الوصفة (PR #30) · 20B-2 التحليلات والسلات المتروكة (PR #32) · 20B-3 ‏CSV والبكسلات والقبول الموحد (PR #33) · التوثيق الختامي (PR #34) — بستة أبعاد وبوابة متصفح موحدة خضراء | `reports/PHASE20B_PLAN.md` و`reports/PHASE20B_REPORT.md` |
+| 20B | ✅ **مكتملة ومدموجة** (2026-08-26/27): 20B-1 الكوبونات ومنتج الوصفة (PR #30) · 20B-2 التحليلات والسلات المتروكة (PR #32) · 20B-3 ‏CSV والبكسلات والقبول الموحد (PR #33) · التوثيق الختامي (PR #34) — بستة أبعاد وبوابة متصفح موحدة خضراء | `docs/history/reports/PHASE20B_PLAN.md` و`docs/history/reports/PHASE20B_REPORT.md` |
 | إدارة الخطط | ✅ مكتملة ومدموجة (PR #27): إنشاء/أرشفة الخطط بحماية الافتراضية، طابور طلبات الترقية، CTA أسعار واعٍ بالجلسة | سجل commits على `main` |
 | تخطيط الحزم | ✅ مدموج: حزم النمو (PR #19) · تدليل الزبون (PR #29) · تدليل التاجر (PR #31) · فجوات المنصة PG-1..9 (PR #36) · فتح المرحلة 27 (PR #37) وP27-4..8 (PR #38) · فرز الجاهزية وفتح المرحلة 28 (PR #39) | `docs/PHASE_27_BACKLOG.md` والخطة الرسمية |
 | CD-1 | ✅ **مكتملة ومدموجة** (PR #35، 2026-08-27): تتبع الطلب العام بلا تسجيل (404 موحّد لكل إخفاق فلا يكشف وجود طلب، rate-limited) + رسالة «مندوبك في الطريق» بdedupe داخل معاملة الانتقال + «اطلبه مجدداً» | سجل commits على `main` |

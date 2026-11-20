@@ -78,4 +78,4 @@
 [4]: ../docs/BACKLOG.md "B-15 وتبعيات المتصفح غير الحاجبة"
 [5]: ../.manus-logs/browserConsole.log "أثر OrderWorkspace التاريخي"
 [6]: ../package.json "أمر البناء"
-[7]: ../reports/RAILWAY_ACCESS_FINDINGS.md "إعداد staging وفحص الصحة"
+[7]: ../docs/history/reports/RAILWAY_ACCESS_FINDINGS.md "إعداد staging وفحص الصحة"

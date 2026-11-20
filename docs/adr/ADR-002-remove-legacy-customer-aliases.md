@@ -27,4 +27,4 @@
 - `phase1-backend/src/http/app.ts` — مسارات Storefront وحذف aliases.
 - `phase1-backend/src/auth/auth.service.ts` — فرض الهاتف في خدمة العميل.
 - `phase1-backend/tests/phase1.integration.ts` — إثبات `404` للمسارات المحذوفة.
-- `reports/PHASE9B_REPORT.md` — قرار بوابة aliases ونتائج الاختبار.
+- `docs/history/reports/PHASE9B_REPORT.md` — قرار بوابة aliases ونتائج الاختبار.

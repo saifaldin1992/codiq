@@ -3,7 +3,7 @@
  *
  * Follows the phase20b1/phase7 harness (real HTTP app + a raw pg client + the
  * moto S3 emulator) and proves the five acceptance criteria of
- * reports/PG2_SOFT_DELETE_PLAN.md §5 against a real PostgreSQL:
+ * docs/history/reports/PG2_SOFT_DELETE_PLAN.md §5 against a real PostgreSQL:
  *
  *  1. instant disappearance (T1–T4) — every merchant AND public surface, in the
  *     same request, with no job in between;

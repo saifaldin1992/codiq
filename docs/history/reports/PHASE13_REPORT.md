@@ -79,7 +79,7 @@
 | `phase1-backend/tests/phase13.store-switcher.integration.ts` | S13-01 إلى S13-08 |
 | `phase1-backend/tests/phase13.browser-flow.mjs` | S13-09 على سطح المكتب والجوال |
 | `.github/workflows/ci.yml` و`package.json` | أوامر الاختبار وإدراجها في CI |
-| `todo.md` و`reports/PHASE13_REPORT.md` | توثيق التنفيذ والبوابات |
+| `todo.md` و`docs/history/reports/PHASE13_REPORT.md` | توثيق التنفيذ والبوابات |
 
 ## البنود المتعمدة خارج النطاق
 

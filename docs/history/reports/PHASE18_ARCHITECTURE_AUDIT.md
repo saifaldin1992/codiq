@@ -21,7 +21,7 @@
 | قاعدة البيانات | `prisma/schema.prisma` (34 موديل) + جميع ملفات `migrations/` الاثني عشر |
 | الواجهة الأمامية | `client/src` كاملاً (37 ملف تطبيق + 54 مكوّن `components/ui`) + `client/index.html` + `vite.config.ts` |
 | الاختبارات وCI | `phase1-backend/tests/` (28 ملفاً) + `.github/workflows/ci.yml` + `vitest.backend.config.ts` |
-| التشغيل والبنية | `docs/DEPLOYMENT.md`، `docs/BACKLOG.md`، `reports/RAILWAY_ACCESS_FINDINGS.md`، سكربتات `package.json` |
+| التشغيل والبنية | `docs/DEPLOYMENT.md`، `docs/BACKLOG.md`، `docs/history/reports/RAILWAY_ACCESS_FINDINGS.md`، سكربتات `package.json` |
 
 ## 1.2 الأبعاد الستة
 
@@ -93,7 +93,7 @@
 | # | النتيجة | الدليل | الخطورة | الجهد |
 |---|---|---|---|---|
 | FE-1 | **أصول صور مكسورة في الإنتاج**: 6 مراجع `/manus-storage/*` تعمل فقط عبر plugin تطويري (`vitePluginStorageProxy`) غير موجود في خادم الإنتاج | `Home.tsx:120`، `OwnerDashboard.tsx:67,174,193`، `MerchantDashboard.tsx:85`، `StaffDashboard.tsx:38`، `vite.config.ts:151-202`، `server/index.ts:35-45` | High | S |
-| FE-2 | **صفر code splitting → حزمة 842KB**: 13 صفحة مستوردة statically بما فيها لوحة الهندسة (23KB) التي تُشحن لكل زائر متجر؛ `Toaster` مركّب بلا أي استدعاء `toast()` | `App.tsx:9-23,113`، `vite.config.ts:217-220`، `reports/HANDOFF_REPORT.md:274` | High | M |
+| FE-2 | **صفر code splitting → حزمة 842KB**: 13 صفحة مستوردة statically بما فيها لوحة الهندسة (23KB) التي تُشحن لكل زائر متجر؛ `Toaster` مركّب بلا أي استدعاء `toast()` | `App.tsx:9-23,113`، `vite.config.ts:217-220`، `docs/history/reports/HANDOFF_REPORT.md:274` | High | M |
 | FE-3 | **1,095 لوناً صلباً** (1,035 hex + 60 rgba) خارج نظام التوكنز؛ لا block `.dark` رغم `@custom-variant dark`؛ نظامان للثيم لا يتخاطبان (next-themes في `ui/sonner.tsx` مقابل `ThemeContext`) — **يحجب الوضع الليلي (مرحلة 21)** | `index.css:5,33-54`، `EngineeringArchitectureDashboard.tsx` (69)، `Home.tsx` (47)، `OrderWorkspace.tsx:21-30`، `StorefrontShell.tsx:17-25` | High | L |
 | FE-4 | **~1,275 نصاً عربياً صلباً** (946 literal + ~329 عقدة JSX) بلا أي مكتبة i18n؛ `dir="rtl"` مكرر 43 مرة؛ تنسيقات مثبتة على `ar-IQ` — **يحجب i18n الثلاثي ar/en/ckb (مرحلة 22)** | `package.json` (لا i18n)، `config/navigation.ts` (181 تسمية)، `storefront-api.ts:88-109`، `index.html:2` | High | L |
 | FE-5 | **6 نسخ متطابقة من `api<T>` + 12 موضع fetch خام** مقابل عميل typed واحد ممتاز — سلوك 401/429 غير موحّد | `OrderWorkspace.tsx:50`، `ProductCatalogManager.tsx:21`، `StoreTeamManager.tsx:42`، `NotificationCenter.tsx:42`، `FinanceCenter.tsx:18`، `DeliveryRatesManager.tsx:24` | Medium | M |
@@ -179,7 +179,7 @@
 
 | # | النتيجة | الدليل | الخطورة | الجهد |
 |---|---|---|---|---|
-| JB-1 | **العامل child process بلا respawn**: موته = توقف صامت لكل إشعارات المنصة حتى النشر التالي؛ غياب `dist/worker.js` يعود بصمت تام | `server/index.ts:15-25,18,20`، `reports/RAILWAY_ACCESS_FINDINGS.md:49` | High | M |
+| JB-1 | **العامل child process بلا respawn**: موته = توقف صامت لكل إشعارات المنصة حتى النشر التالي؛ غياب `dist/worker.js` يعود بصمت تام | `server/index.ts:15-25,18,20`، `docs/history/reports/RAILWAY_ACCESS_FINDINGS.md:49` | High | M |
 | JB-2 | **صفوف `processing` لا تُستعاد أبداً بعد موت العامل أثناء دفعة**: `CLAIMABLE_STATUSES` لا تشمل `processing` ولا يوجد sweep على `claimedAt`؛ كل نشر (وstaging تنشر عند كل دمج) قد يحرق حتى 20 إشعاراً نهائياً | `outbox-worker.ts:14`، `worker-entry.ts:15-20`، `server/index.ts:23` | High | S |
 | JB-3 | **حالة `skipped` نهائية غير قابلة للاسترجاع** عند غياب مزود SMTP — كل إشعار وُلد قبل ضبط SMTP محروق للأبد | `outbox-worker.ts:80` | Medium | S |
 | JB-4 | **لا يوجد أي job تنظيف/صيانة** (sessions، rate-limits، سلال منتهية، outbox مرسَل، حجوزات راكدة) رغم أن بنية العامل الموجودة تصلح لاستضافته | = DB-4، DB-5 | Medium | M |

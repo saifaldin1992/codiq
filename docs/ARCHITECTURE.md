@@ -5,7 +5,7 @@
 
 > كُتبت 2026-09-09 من **قراءة الشيفرة**، لا من الذاكرة. كلّ ادّعاءٍ هنا وراءه ملفٌّ وسطر.
 > **للحالة الجارية:** [`PROJECT_STATE.md`](./PROJECT_STATE.md) · **للقرارات:** [`DECISIONS_LEDGER.md`](./DECISIONS_LEDGER.md) · **لحرّاس CI:** [`GUARDS_AND_RATCHETS.md`](./GUARDS_AND_RATCHETS.md)
-> `reports/PHASE18_ARCHITECTURE_AUDIT.md` **تدقيقٌ مؤرَّخ 2026-08-25 ثلثاه أُغلق** — لا يُقرأ كوصفٍ للحاضر (ق-189).
+> `docs/history/reports/PHASE18_ARCHITECTURE_AUDIT.md` **تدقيقٌ مؤرَّخ 2026-08-25 ثلثاه أُغلق** — لا يُقرأ كوصفٍ للحاضر (ق-189).
 
 ---
 

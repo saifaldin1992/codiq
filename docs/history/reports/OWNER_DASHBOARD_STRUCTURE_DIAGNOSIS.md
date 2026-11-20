@@ -57,7 +57,7 @@
 
 ### إجراءات توثيقية فورية — منجزة
 
-يوثق هذا التقرير الفرق بين ما هو هيكلي وما هو تشغيلي، ويمنع تفسير صفحة المرحلة 2 على أنها لوحة إنتاج. كما أن `reports/PHASE10_REPORT.md` يوثق اجتياز البوابة الخلفية والخادم المركب، ولا يدعي اكتمال صفحات اشتراكات أو مالية أو CMS.[^phase10]
+يوثق هذا التقرير الفرق بين ما هو هيكلي وما هو تشغيلي، ويمنع تفسير صفحة المرحلة 2 على أنها لوحة إنتاج. كما أن `docs/history/reports/PHASE10_REPORT.md` يوثق اجتياز البوابة الخلفية والخادم المركب، ولا يدعي اكتمال صفحات اشتراكات أو مالية أو CMS.[^phase10]
 
 ### قبل أي إطلاق لمالك منصة حقيقي
 
@@ -81,5 +81,5 @@
 
 [^app-routes]: `client/src/App.tsx`، تعريف المسارات `/` و`/platform/dashboard` و`/merchant/dashboard` و`/store/:storeSlug`.
 [^owner-dashboard]: `client/src/pages/OwnerDashboard.tsx`، التعليق الافتتاحي والأسطر التي تعرض محتوى Placeholder والفروع التشغيلية `ManualMerchantForm` و`OrderWorkspace`.
-[^phase10]: `reports/PHASE10_REPORT.md`، بوابة الاختبارات وحالة المرحلة 10.
+[^phase10]: `docs/history/reports/PHASE10_REPORT.md`، بوابة الاختبارات وحالة المرحلة 10.
 [^plan]: `docs/CODIQ_FULL_PLAN_26_PHASES.md`، تسلسل المراحل الرسمي بعد المرحلة 10.

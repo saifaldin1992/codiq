@@ -11,6 +11,7 @@
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
+    "rebrand": "node scripts/rebrand.mjs",
     "phase1:db:generate": "prisma generate --schema prisma/schema.prisma",
     "phase1:db:migrate": "node --import tsx phase1-backend/scripts/migrate-deploy.ts && pnpm secrets:encrypt",
     "secrets:encrypt": "tsx phase1-backend/scripts/encrypt-secrets-at-rest.ts",
