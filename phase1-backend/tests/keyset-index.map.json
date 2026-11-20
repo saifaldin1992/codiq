@@ -138,6 +138,12 @@
       "index": "pos_ticket_shortfalls_open_created_id_idx"
     },
     {
+      "key": "services/pos.service.ts#listPosPriceDeviations",
+      "model": "PosPriceDeviation",
+      "column": "created_at",
+      "index": "pos_price_deviations_open_created_id_idx"
+    },
+    {
       "key": "services/product-catalog.service.ts#listProducts",
       "model": "Product",
       "column": "created_at",

@@ -286,7 +286,7 @@ export async function ingestPosTicket(storeId: string, actor: { kind: "merchant"
           // LIVE: a variant sitting in the trash bin must not be sellable from
           // the till — PG-2's leak guard is what caught this query without it.
           where: { id: { in: variantIds }, storeId, ...LIVE, product: { is: LIVE } },
-          select: { id: true, productId: true, sku: true, name: true, isDefault: true, stockQuantity: true, lowStockThreshold: true, product: { select: { name: true, isActive: true } } },
+          select: { id: true, productId: true, sku: true, name: true, isDefault: true, priceIqd: true, stockQuantity: true, lowStockThreshold: true, product: { select: { name: true, isActive: true } } },
         });
         const variantById = new Map(variants.map((variant) => [variant.id, variant]));
         for (const line of input.lines) {
@@ -424,6 +424,11 @@ export async function ingestPosTicket(storeId: string, actor: { kind: "merchant"
           shortfalls.push({ variantId, shortfallQty: quantity - available });
         }
 
+        // ---- price deviations: the till's prices beside the catalog's ----
+        await tx.posPriceDeviation.createMany({
+          data: priceDeviationsFor(input.lines, variantById, discountIqd, subtotalIqd).map((row) => ({ ...row, storeId, posTicketId: ticket.id })),
+        });
+
         // NO LEDGER ENTRY — deliberate, load-bearing, ق-135. See the header.
 
         await tx.posTicket.update({ where: { id: ticket.id }, data: { status: "succeeded", orderId: order.id } });
@@ -453,6 +458,111 @@ export async function ingestPosTicket(storeId: string, actor: { kind: "merchant"
       // sales in parallel burned its whole retry budget on telemetry.
       void prisma.posDevice.updateMany({ where: { id: deviceId, storeId }, data: { lastSeenAt: new Date() } }).catch(() => {});
     }
+  }
+}
+
+// ---------------------------------------------------------------- price deviations
+
+/**
+ * WHAT THE TILL CHARGED, BESIDE WHAT THE CATALOG SAYS.
+ *
+ * The till is trusted with its own prices — an offline sale rung at
+ * yesterday's price is a real sale, and the server never re-prices it (see
+ * `ingestPosTicket`). That trust had no one checking it: a cashier could ring a
+ * line at 0, or discount a ticket to nothing, and keep the cash, and the order
+ * recorded it faithfully where no screen ever compared it to anything.
+ *
+ * So every line whose unit price differs from the variant's CURRENT catalog
+ * price is written down, in either direction, and so is every ticket-level
+ * discount. Recorded, never refused — the shortfall queue's rule, applied to
+ * money. A deviation is a question for the owner, not an accusation: the
+ * catalog may have changed after an offline sale was rung, and the screen says
+ * so.
+ *
+ * `amountIqd` is the size of the gap. The money columns are INT4 and a line can
+ * be sold at 0 against a catalog price × quantity past that ceiling, so it is
+ * capped at the column's maximum rather than failing the sale.
+ */
+const INT4_MAX = 2_147_483_647;
+type DeviationRow = { variantId: string | null; kind: "price_below_catalog" | "price_above_catalog" | "ticket_discount"; quantity: number; soldUnitPriceIqd: number; catalogUnitPriceIqd: number; amountIqd: number };
+
+export function priceDeviationsFor(lines: TicketLineInput[], variantById: Map<string, { priceIqd: number }>, discountIqd: number, subtotalIqd: number): DeviationRow[] {
+  const rows: DeviationRow[] = [];
+  for (const line of lines) {
+    const catalog = variantById.get(line.variantId)?.priceIqd;
+    if (catalog === undefined || catalog === line.unitPriceIqd) continue;
+    rows.push({
+      variantId: line.variantId,
+      kind: line.unitPriceIqd < catalog ? "price_below_catalog" : "price_above_catalog",
+      quantity: line.quantity,
+      soldUnitPriceIqd: line.unitPriceIqd,
+      catalogUnitPriceIqd: catalog,
+      amountIqd: Math.min(INT4_MAX, Math.abs(catalog - line.unitPriceIqd) * line.quantity),
+    });
+  }
+  if (discountIqd > 0) {
+    rows.push({ variantId: null, kind: "ticket_discount", quantity: 1, soldUnitPriceIqd: subtotalIqd - discountIqd, catalogUnitPriceIqd: subtotalIqd, amountIqd: discountIqd });
+  }
+  return rows;
+}
+
+/** The cursor's list kind. One per list, so a cursor cannot cross lists. */
+const PRICE_DEVIATIONS_KIND = "merchant.pos.price_deviations";
+
+/** The open queue, newest first, with the sale each row came from. */
+export async function listPosPriceDeviations(storeId: string, rawLimit?: unknown, rawCursor?: unknown) {
+  const limit = parseListLimit(rawLimit);
+  const cursor = await readListCursor(PRICE_DEVIATIONS_KIND, rawCursor);
+  const rows = await prisma.posPriceDeviation.findMany({
+    where: { storeId, reviewedAt: null, ...keysetWhere("createdAt", "desc", cursor) },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    select: {
+      id: true, kind: true, quantity: true, soldUnitPriceIqd: true, catalogUnitPriceIqd: true, amountIqd: true, createdAt: true,
+      variant: { select: { sku: true, name: true, product: { select: { name: true } } } },
+      ticket: { select: { order: { select: { orderNumber: true, soldAt: true, statusEvents: { select: { actorKind: true, actorId: true }, orderBy: { createdAt: "asc" }, take: 1 } } }, device: { select: { label: true } } } },
+    },
+  });
+  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(PRICE_DEVIATIONS_KIND, last.createdAt, last.id));
+  // Who rang it: the actor on the sale's birth event. A name, not an id — the
+  // owner reading this queue is asking «which of my people», and a staff row
+  // keeps its name after the membership ends.
+  const sellerOf = (row: (typeof page)[number]) => row.ticket.order?.statusEvents[0] ?? null;
+  const staffIds = Array.from(new Set(page.map(sellerOf).filter((seller) => seller?.actorKind === "staff" && seller.actorId).map((seller) => seller!.actorId!)));
+  const staffNames = new Map((staffIds.length ? await prisma.staff.findMany({ where: { id: { in: staffIds } }, select: { id: true, displayName: true } }) : []).map((staff) => [staff.id, staff.displayName]));
+  return {
+    deviations: page.map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      quantity: row.quantity,
+      soldUnitPriceIqd: row.soldUnitPriceIqd,
+      catalogUnitPriceIqd: row.catalogUnitPriceIqd,
+      amountIqd: row.amountIqd,
+      createdAt: row.createdAt,
+      productName: row.variant?.product.name ?? null,
+      variantName: row.variant?.name ?? null,
+      sku: row.variant?.sku ?? null,
+      orderNumber: row.ticket.order?.orderNumber ?? null,
+      soldAt: row.ticket.order?.soldAt ?? null,
+      deviceLabel: row.ticket.device?.label ?? null,
+      soldBy: (() => {
+        const seller = sellerOf(row);
+        if (!seller) return null;
+        return { kind: seller.actorKind, name: seller.actorKind === "staff" ? staffNames.get(seller.actorId ?? "") ?? null : null };
+      })(),
+    })),
+    nextCursor,
+  };
+}
+
+export async function reviewPosPriceDeviation(storeId: string, deviationId: string) {
+  const result = await prisma.posPriceDeviation.updateMany({
+    where: { id: deviationId, storeId, reviewedAt: null },
+    data: { reviewedAt: new Date() },
+  });
+  if (result.count === 0) {
+    const exists = await prisma.posPriceDeviation.findFirst({ where: { id: deviationId, storeId }, select: { id: true } });
+    if (!exists) throw new HttpError(404, "RESOURCE_NOT_FOUND", "السجل غير موجود.");
   }
 }
 
