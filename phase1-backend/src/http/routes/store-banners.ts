@@ -13,7 +13,7 @@
  */
 import multer from "multer";
 import type { Express as ExpressApp } from "express";
-import { asyncRoute, authenticatedUpload, limitUpload, uploadLimits, requireTrustedWriteOrigin, resolveStorefrontStore } from "../shared.js";
+import { asyncRoute, authenticatedUpload, limitUpload, uploadLimits, requireTrustedWriteOrigin, resolveStorefrontStore, cachePublicStorefront } from "../shared.js";
 import { requireStoreActor } from "../../auth/staff-permissions.js";
 import { parseOrThrow } from "../validate.js";
 import { createStoreBannerSchema, updateStoreBannerSchema } from "../schemas/store-banner.schema.js";
@@ -71,6 +71,7 @@ export function registerStoreBannerRoutes(app: ExpressApp) {
   // whose merchant is disabled, must vanish here exactly as its products do.
   app.get("/store/:storeSlug/banners", asyncRoute(async (request, response) => {
     const store = await resolveStorefrontStore(request.params.storeSlug);
+    cachePublicStorefront(response);
     response.status(200).json({ storeSlug: store.slug, banners: await publicStoreBanners(store.id, store.slug) });
   }));
 

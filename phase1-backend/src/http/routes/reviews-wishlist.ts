@@ -14,7 +14,7 @@
  */
 import type { Express } from "express";
 import { assertCapabilityAvailable } from "../../services/availability.service.js";
-import { asyncRoute, customerToken, limitStorefrontWrite, requireStorefrontCustomer, requireTrustedWriteOrigin, resolveStorefrontStore } from "../shared.js";
+import { asyncRoute, customerToken, limitStorefrontWrite, requireStorefrontCustomer, requireTrustedWriteOrigin, resolveStorefrontStore, cachePublicStorefront } from "../shared.js";
 import { verifyTypedSession } from "../../auth/identity.js";
 import { requireStoreActor } from "../../auth/staff-permissions.js";
 import { parseOrThrow } from "../validate.js";
@@ -57,17 +57,20 @@ export function registerReviewAndWishlistRoutes(app: Express) {
   // account yet, and «يُشترى معه عادة» is part of that decision.
   app.get("/store/:storeSlug/products/:productId/recommendations", asyncRoute(async (request, response) => {
     const store = await resolveStorefrontStore(request.params.storeSlug);
+    cachePublicStorefront(response);
     response.status(200).json({ storeSlug: store.slug, ...(await boughtTogether(store.id, request.params.productId, { limit: Number(request.query.limit) || undefined })) });
   }));
   // ق-200: same-category siblings — «عناصر قد تعجبك», a separate rail that
   // claims no evidence, for the product page that would otherwise just end.
   app.get("/store/:storeSlug/products/:productId/related", asyncRoute(async (request, response) => {
     const store = await resolveStorefrontStore(request.params.storeSlug);
+    cachePublicStorefront(response);
     response.status(200).json({ storeSlug: store.slug, ...(await relatedByCategory(store.id, request.params.productId, { limit: Number(request.query.limit) || undefined })) });
   }));
   // ق-200: the front page's «آراء العملاء» — store-wide, shopper-visible rows only.
   app.get("/store/:storeSlug/reviews", asyncRoute(async (request, response) => {
     const store = await resolveStorefrontStore(request.params.storeSlug);
+    cachePublicStorefront(response);
     response.status(200).json({ storeSlug: store.slug, ...(await publicStoreReviews(store.id, request.query.limit)) });
   }));
 

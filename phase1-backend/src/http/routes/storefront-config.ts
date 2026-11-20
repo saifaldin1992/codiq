@@ -13,7 +13,7 @@
  */
 import multer from "multer";
 import type { Express as ExpressApp, Request } from "express";
-import { asyncRoute, authenticatedUpload, limitUpload, uploadLimits, requireTrustedWriteOrigin, resolveStorefrontStore } from "../shared.js";
+import { asyncRoute, authenticatedUpload, limitUpload, uploadLimits, requireTrustedWriteOrigin, resolveStorefrontStore, cachePublicStorefront } from "../shared.js";
 import { requireStoreActor } from "../../auth/staff-permissions.js";
 import { parseOrThrow } from "../validate.js";
 import { updateStorefrontSettingsSchema } from "../schemas/storefront-config.schema.js";
@@ -69,6 +69,7 @@ export function registerStorefrontConfigRoutes(app: ExpressApp) {
 
   app.get("/store/:storeSlug/policies/:kind", asyncRoute(async (request, response) => {
     const store = await resolveStorefrontStore(request.params.storeSlug);
+    cachePublicStorefront(response);
     response.status(200).json({ storeSlug: store.slug, policy: await storePolicy(store.id, request.params.kind) });
   }));
 
@@ -77,6 +78,7 @@ export function registerStorefrontConfigRoutes(app: ExpressApp) {
   // and these are whatever this shop needed to say.
   app.get("/store/:storeSlug/pages/:pageSlug", asyncRoute(async (request, response) => {
     const store = await resolveStorefrontStore(request.params.storeSlug);
+    cachePublicStorefront(response);
     response.status(200).json({ storeSlug: store.slug, page: await storeCustomPage(store.id, request.params.pageSlug) });
   }));
 }

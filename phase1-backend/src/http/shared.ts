@@ -343,3 +343,23 @@ export const requireCustomerStoreAccess = asyncRoute(async (request, response) =
   }
   response.status(200).json({ area: "customer", storeSlug: customer.store.slug, subjectId: claims.subjectId });
 });
+
+/**
+ * SCALE — the storefront's public reads, cacheable at the edge.
+ *
+ * These answers depend on the store and the URL only, never on who asks, so a
+ * CDN (Cloudflare) may serve one copy to every shopper. Without it every page
+ * view of every shop reached the database: `public-config` alone is seven
+ * queries. Browsers keep it for `browserSeconds`, the edge for `edgeSeconds`,
+ * and the edge may serve a stale copy for five minutes while it refreshes.
+ *
+ * Staleness is bounded and harmless by construction: stock, price, vacation
+ * mode and maintenance are all re-checked by the server at checkout. A merchant
+ * edit becomes visible to shoppers within `edgeSeconds`.
+ *
+ * NEVER use this on a route that reads a session — the reviews list marks the
+ * viewer's own row, so it is deliberately not on this list.
+ */
+export function cachePublicStorefront(response: Response, edgeSeconds = 60, browserSeconds = 15) {
+  response.setHeader("cache-control", `public, max-age=${browserSeconds}, s-maxage=${edgeSeconds}, stale-while-revalidate=300`);
+}

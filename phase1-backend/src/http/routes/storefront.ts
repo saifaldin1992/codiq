@@ -25,8 +25,9 @@ import { requestCustomerPasswordResetSchema } from "../schemas/password-reset.sc
 import { reviewSummary } from "../../services/product-review.service.js";
 import { requestPasswordReset } from "../../services/password-reset.service.js";
 import { parseOrThrow } from "../validate.js";
-import { asyncRoute, authenticatedUpload, clearGuestCartCookie, customerCookieName, guestCartToken, limitStorefrontWrite, limitStorefrontWriteWithAddressCeiling, limitUpload, uploadLimits, refundStorefrontWriteWithAddressCeiling, requireStorefrontCustomer, requireTrustedWriteOrigin, resolveStorefrontStore, setCustomerSession, setGuestCartCookie, storefrontCookiePath } from "../shared.js";
-
+import { asyncRoute, authenticatedUpload, clearGuestCartCookie, customerCookieName, guestCartToken, limitStorefrontWrite, limitStorefrontWriteWithAddressCeiling, limitUpload, uploadLimits, refundStorefrontWriteWithAddressCeiling, requireStorefrontCustomer, requireTrustedWriteOrigin, resolveStorefrontStore, setCustomerSession, setGuestCartCookie, storefrontCookiePath, cachePublicStorefront } from "../shared.js";
+
+
 import { clientIp } from "../client-ip.js";
 import { customerPreferencesView } from "../../services/config.service.js";
 // Phase 20B-1: prescription uploads reuse the product-image constraints (same
@@ -52,17 +53,20 @@ async function guardPrescriptionUpload(request: import("express").Request) {
 export function registerStorefrontRoutes(app: Express) {
   app.get("/store/:storeSlug/categories", asyncRoute(async (request, response) => {
     const store = await resolveStorefrontStore(request.params.storeSlug);
+    cachePublicStorefront(response);
     response.status(200).json({ storeSlug: store.slug, categories: await publicCategories(store.id) });
   }));
   // ق-162: which governorates this store delivers to, and for how much. No
   // session — a shopper decides where before he decides who he is.
   app.get("/store/:storeSlug/delivery-areas", asyncRoute(async (request, response) => {
     const store = await resolveStorefrontStore(request.params.storeSlug);
+    cachePublicStorefront(response);
     response.status(200).json({ storeSlug: store.slug, areas: await publicDeliveryAreas(store.id) });
   }));
   app.get("/store/:storeSlug/products", asyncRoute(async (request, response) => {
     const store = await resolveStorefrontStore(request.params.storeSlug);
     // ق-200: `sort` picks a rail — newest (default), best_selling, top_rated.
+    cachePublicStorefront(response);
     response.status(200).json({ storeSlug: store.slug, ...(await publicProducts(store.id, request.query.limit, request.query.cursor, request.query.categoryId, request.query.q, request.query.sort)) });
   }));
   app.get("/store/:storeSlug/products/:productId", asyncRoute(async (request, response) => {
@@ -70,6 +74,7 @@ export function registerStorefrontRoutes(app: Express) {
     // ق-200: the star row under the product's name needs the summary on THIS
     // fetch — a second round trip above the fold is a visible flash of nothing.
     const [product, rating] = await Promise.all([publicProduct(store.id, request.params.productId), reviewSummary(store.id, request.params.productId)]);
+    cachePublicStorefront(response);
     response.status(200).json({ storeSlug: store.slug, product: { ...product, rating: { average: rating.average, count: rating.count } } });
   }));
   /**

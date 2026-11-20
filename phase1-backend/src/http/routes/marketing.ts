@@ -43,7 +43,7 @@ import {
 } from "../schemas/marketing.schema.js";
 import { parseOrThrow } from "../validate.js";
 import { paginationQuerySchema } from "../schemas/list.schema.js";
-import { asyncRoute, guestCartToken, limitStorefrontWrite, limitStorefrontWriteWithAddressCeiling, requireStorefrontCustomer, requireTrustedWriteOrigin, resolveStorefrontStore } from "../shared.js";
+import { asyncRoute, guestCartToken, limitStorefrontWrite, limitStorefrontWriteWithAddressCeiling, requireStorefrontCustomer, requireTrustedWriteOrigin, resolveStorefrontStore, cachePublicStorefront } from "../shared.js";
 
 import { clientIp } from "../client-ip.js";
 export function registerMarketingRoutes(app: Express) {
@@ -215,6 +215,8 @@ export function registerMarketingRoutes(app: Express) {
     const storefront = await publicStorefrontConfig(store.id);
     // ق-251: the shopper's «buy without an account» is the hierarchy's answer, not the store column alone.
     const guestCheckout = (await resolveSetting("checkout.guest_allowed", { merchantId: store.merchantId, storeId: store.id })).value === true;
+    // Maintenance and vacation ride this payload: a shorter edge window, and checkout re-checks both.
+    cachePublicStorefront(response, 30, 10);
     response.status(200).json({ storeSlug: store.slug, availability, ...(pixels ? { pixels } : {}), ...(vacation ? { vacation } : {}), ...(verified ? { verified } : {}), ...storefront, guestCheckout });
   }));
 }
