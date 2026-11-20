@@ -2,7 +2,8 @@
  * CD-3 «بوابة إرجاع ذاتية» — the shopper asks, the merchant answers.
  *
  * THE ONE RULE THIS FILE EXISTS TO KEEP: approving a return does not return an
- * order. It calls `transitionOrderStatus(..., "returned")`, the same path a
+ * order. It calls `transitionOrderStatus(..., "returned")` — inside the SAME
+ * transaction that records the decision — the same path a
  * merchant uses from his orders screen, which fires `recordOrderReturn` and the
  * ledger reversal. Nothing here writes a ledger entry, and nothing here sets
  * `storeOrder.status` directly.
@@ -25,7 +26,7 @@ import { prisma } from "../db/prisma.js";
 import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
 import type { StoreActor } from "../auth/staff-permissions.js";
 import { RETURN_REVERSAL_WINDOW_DAYS } from "./finance.service.js";
-import { transitionOrderStatus } from "./order-lifecycle.service.js";
+import { announceOrderTransition, transitionOrderStatus } from "./order-lifecycle.service.js";
 import { recordAuditEvent } from "./soft-delete/audit-log.service.js";
 
 const PAGE_SIZE = 20;
@@ -193,21 +194,18 @@ export async function decideReturnRequest(
   if (!request) throw new HttpError(404, "RESOURCE_NOT_FOUND", "طلب الإرجاع غير موجود.");
   if (request.status !== "requested") throw new HttpError(409, "RETURN_ALREADY_DECIDED", "أُجيب على هذا الطلب مسبقاً.");
 
-  if (input.approve) {
-    // The one path to the money. If the order has already been moved elsewhere,
-    // this raises the state machine's own error and the request stays open —
-    // which is right: the merchant should see why, not find a request marked
-    // approved beside an order that never returned.
-    await transitionOrderStatus(storeId, { kind: actor.kind, id: actor.id }, request.orderId, {
-      toStatus: "returned",
-      expectedVersion: request.order.version,
-      note: `إرجاع بموافقة على طلب الزبون (${request.id})`,
-    });
-  }
-
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.returnRequest.update({
-      where: { id: request.id },
+  // ONE transaction for the decision and the order it moves. They used to be
+  // two: the order went to `returned` (ledger reversal, points, stock queue)
+  // and THEN the request was marked — so a failure between them left a returned
+  // order beside a request still «open», which no later click could clear
+  // (`returned → returned` is not an edge). Now both commit or neither does.
+  const actorRef = { kind: actor.kind, id: actor.id };
+  const { updated, transition } = await prisma.$transaction(async (tx) => {
+    // The guarded flip is the first write, so two decisions racing on the same
+    // request resolve to one: the loser matches nothing and is refused before
+    // it can touch the order.
+    const flipped = await tx.returnRequest.updateMany({
+      where: { id: request.id, storeId, status: "requested" },
       data: {
         status: input.approve ? "approved" : "rejected",
         decisionNote: note,
@@ -215,6 +213,21 @@ export async function decideReturnRequest(
         decidedByKind: actor.kind,
         decidedById: actor.id,
       },
+    });
+    if (flipped.count !== 1) throw new HttpError(409, "RETURN_ALREADY_DECIDED", "أُجيب على هذا الطلب مسبقاً.");
+    // The one path to the money. If the order has already been moved elsewhere,
+    // this raises the state machine's own error and the flip above rolls back,
+    // so the request stays open — the merchant sees why, rather than a request
+    // marked approved beside an order that never returned.
+    const transition = input.approve
+      ? await transitionOrderStatus(storeId, actorRef, request.orderId, {
+          toStatus: "returned",
+          expectedVersion: request.order.version,
+          note: `إرجاع بموافقة على طلب الزبون (${request.id})`,
+        }, tx)
+      : null;
+    const updated = await tx.returnRequest.findUniqueOrThrow({
+      where: { id: request.id },
       select: { id: true, status: true, decisionNote: true, decidedAt: true },
     });
     await recordAuditEvent(tx, {
@@ -226,6 +239,10 @@ export async function decideReturnRequest(
       actor,
       metadata: note ? { note } : {},
     });
-    return updated;
+    return { updated, transition };
   });
+  // The version check inside the transition guarantees the order was still in
+  // the status read above, so that is the edge it left.
+  if (transition) announceOrderTransition(storeId, actorRef, transition, request.order.status);
+  return updated;
 }
