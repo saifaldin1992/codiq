@@ -58,7 +58,13 @@ function optionalText(max: number) {
 }
 
 /** `nonNegativeInteger`: `Number(value)`, then integer and at least zero. */
-const nonNegativeInteger = z.coerce.number().int().min(0);
+/**
+ * ASVS 5.0 V1.4.2: prices, stock and thresholds are 32-bit integer columns. A
+ * larger value used to reach PostgreSQL and come back as a 500; it is now the
+ * caller's 422 at the edge.
+ */
+export const INT32_MAX = 2_147_483_647;
+const nonNegativeInteger = z.coerce.number().int().min(0).max(INT32_MAX, "القيمة أكبر من المسموح.");
 
 /**
  * A category reference. `null` and `""` both mean «no category» — the empty

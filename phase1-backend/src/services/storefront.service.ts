@@ -997,6 +997,11 @@ export async function checkout(storeId: string, customerId: string, input: Check
     // The delivery fee is deliberately OUTSIDE what points may cover: a courier
     // is paid in money whatever the shopper redeems.
     const totalIqd = subtotalIqd - discountIqd - loyaltyPreview.discountIqd + deliveryFeeIqd;
+    // ASVS 5.0 V1.4.2: 99 units of a very expensive item can exceed the 32-bit
+    // order columns; refuse it plainly instead of failing inside the write.
+    if (subtotalIqd > 2_147_483_647 || totalIqd > 2_147_483_647) {
+      throw new HttpError(422, "ORDER_TOTAL_TOO_LARGE", "مبلغ الطلب أكبر من المسموح لطلبٍ واحد — قسّمه على أكثر من طلب.");
+    }
     const customer = await tx.customer.findFirst({ where: { id: customerId, storeId }, select: { fullName: true, email: true } });
     if (!customer) throw new HttpError(403, "STORE_BOUNDARY_DENIED", "Customer does not belong to this store.");
     // Phase 20B-1: a product requiring a prescription stamps the order into the
