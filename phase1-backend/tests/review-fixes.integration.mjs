@@ -6,6 +6,8 @@
  *   2. Audit 14-أ — the merchant-wide wallet is not served to store staff.
  *   3. SCALE      — the visit counter batches in memory and flushes correctly,
  *                   including the live-product filter for views.
+ *   4. Audit 17-أ — the owner's overview nets a returned order to zero instead
+ *                   of counting it twice.
  */
 import assert from "node:assert/strict";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
@@ -20,6 +22,7 @@ const { createApp } = await import("../src/http/app.ts");
 const { prisma } = await import("../src/db/prisma.ts");
 const { createTypedSession } = await import("../src/auth/identity.ts");
 const { baghdadDay, recordVisit, flushVisits } = await import("../src/services/store-traffic.service.ts");
+const { platformOverview } = await import("../src/services/platform-overview.service.ts");
 
 const testId = `rvw-${Date.now()}`;
 const suffix = String(Date.now()).slice(-8);
@@ -104,6 +107,17 @@ try {
   const [again] = await prisma.$queryRawUnsafe(`SELECT visits FROM store_visits_daily WHERE store_id = '${store.id}' AND day = '${day}'::date`);
   assert.equal(Number(again.visits), 42, "a second flush adds onto the row, it does not overwrite it");
   summary.batchedVisits = { visits: 42, liveViews: 20 };
+
+  // ── 4. a returned order nets to zero on the owner's overview ──────────────
+  const before17 = await platformOverview(1);
+  const order = await prisma.storeOrder.create({ data: { storeId: store.id, orderNumber: `${testId}-o1`, status: "returned", source: "storefront", customerName: "زبون", paymentMethodCode: "cod", subtotalIqd: 50000, deliveryFeeIqd: 0, totalIqd: 50000 } });
+  const entry = { storeId: store.id, orderId: order.id, subtotalIqd: 50000, deliveryFeeIqd: 0, commissionIqd: 1000, commissionBps: 200, planCode: plan.code };
+  await prisma.ledgerEntry.create({ data: { ...entry, entryType: "order_completed" } });
+  await prisma.ledgerEntry.create({ data: { ...entry, entryType: "order_returned" } });
+  const after17 = await platformOverview(1);
+  assert.equal(after17.commerce.sales.current - before17.commerce.sales.current, 0, "17-أ: completed then returned is zero sales, not double");
+  assert.equal(after17.commerce.commission.current - before17.commerce.commission.current, 0, "17-أ: …and zero commission");
+  summary.returnNetsToZero = true;
 
   console.log(JSON.stringify({ suite: "review-fixes", ok: true, summary }, null, 2));
 } finally {

@@ -67,14 +67,16 @@ assert.deepEqual(
     `  expected: ${KNOWN.join(", ")}`,
     `  found:    ${actual.join(", ")}`,
     "",
-    "TWO readers decide money from this list, and BOTH treat anything that is not",
+    "FOUR readers decide money from this list, and ALL treat anything that is not",
     "`order_completed` as a SUBTRACTION:",
     "",
-    "  phase1-backend/src/services/merchant-wallet.service.ts  — what the platform OWES",
-    "  phase1-backend/src/services/analytics.service.ts        — the merchant's revenue",
+    "  phase1-backend/src/services/merchant-wallet.service.ts   — what the platform OWES",
+    "  phase1-backend/src/services/analytics.service.ts         — the merchant's revenue",
+    "  phase1-backend/src/services/finance.service.ts           — the finance overview",
+    "  phase1-backend/src/services/platform-overview.service.ts — the owner's GMV and commission",
     "",
     "So a new type subtracts by default, silently. Decide which side it belongs on,",
-    "update both readers, then add it to KNOWN in this file.",
+    "update every reader, then add it to KNOWN in this file.",
     "",
     "If the new type represents money the PLATFORM never handled — an in-shop cash",
     "sale, for instance — it probably should not be a ledger entry at all: the",
@@ -83,12 +85,15 @@ assert.deepEqual(
   ].join("\n"),
 );
 
-// Both readers must still exist and still use the one-type-adds rule. If someone
+// Every reader must still exist and still use the one-type-adds rule. If someone
 // rewrites either, this guard's premise is gone and it must be re-derived rather
 // than left passing over code it no longer describes.
 const readers = [
   "phase1-backend/src/services/merchant-wallet.service.ts",
   "phase1-backend/src/services/analytics.service.ts",
+  "phase1-backend/src/services/finance.service.ts",
+  // Audit 17-أ: the owner's overview summed every type unsigned until 2026-11.
+  "phase1-backend/src/services/platform-overview.service.ts",
 ];
 for (const reader of readers) {
   const source = readFileSync(path.join(root, reader), "utf8");

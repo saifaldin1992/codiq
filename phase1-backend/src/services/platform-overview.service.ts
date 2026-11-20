@@ -70,8 +70,8 @@ export async function platformOverview(rawDays: unknown, now = new Date()): Prom
     prisma.store.count(),
     prisma.store.count({ where: { isActive: true } }),
     prisma.storeOrder.count({ where: { createdAt: { gte: todayStart }, status: { notIn: NON_CONSUMING } } }),
-    prisma.ledgerEntry.aggregate({ where: { createdAt: { gte: from, lte: to } }, _sum: { subtotalIqd: true, commissionIqd: true } }),
-    prisma.ledgerEntry.aggregate({ where: { createdAt: { gte: previousFrom, lt: previousTo } }, _sum: { subtotalIqd: true, commissionIqd: true } }),
+    signedLedgerTotals({ gte: from, lte: to }),
+    signedLedgerTotals({ gte: previousFrom, lt: previousTo }),
   ]);
 
   return {
@@ -84,8 +84,29 @@ export async function platformOverview(rawDays: unknown, now = new Date()): Prom
       period: { from, to },
       previous: { from: previousFrom, to: previousTo },
       ordersToday,
-      sales: { current: current._sum.subtotalIqd ?? 0, previous: previous._sum.subtotalIqd ?? 0 },
-      commission: { current: current._sum.commissionIqd ?? 0, previous: previous._sum.commissionIqd ?? 0 },
+      sales: { current: current.subtotalIqd, previous: previous.subtotalIqd },
+      commission: { current: current.commissionIqd, previous: previous.commissionIqd },
     },
   };
+}
+
+/**
+ * Audit 17-أ — the owner's first screen summed the ledger across ALL entry types
+ * with no sign, while `recordOrderReturn` copies the completion's figures as
+ * POSITIVE numbers. A completed-then-returned order, whose real contribution is
+ * zero, showed as twice the sale and twice the commission. This applies the
+ * same rule as the wallet, finance and analytics readers (see
+ * `tests/ledger-sign.guard.mjs`): `order_completed` adds, every other type
+ * subtracts.
+ */
+async function signedLedgerTotals(createdAt: { gte: Date; lte?: Date; lt?: Date }) {
+  const groups = await prisma.ledgerEntry.groupBy({ by: ["entryType"], where: { createdAt }, _sum: { subtotalIqd: true, commissionIqd: true } });
+  let subtotalIqd = 0;
+  let commissionIqd = 0;
+  for (const group of groups) {
+    const sign = group.entryType === "order_completed" ? 1 : -1;
+    subtotalIqd += sign * (group._sum.subtotalIqd ?? 0);
+    commissionIqd += sign * (group._sum.commissionIqd ?? 0);
+  }
+  return { subtotalIqd, commissionIqd };
 }
