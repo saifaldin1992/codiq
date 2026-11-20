@@ -130,4 +130,12 @@ console.log(
     2,
   ),
 );
+// ASVS 5.0 V6.2.4: the ten-thousand most common breached passwords are refused,
+// matched exactly — containing a common word is not, by itself, a refusal.
+for (const breached of ["baseball1", "qwertyuiop", "Football1", "superman1"]) {
+  assert.throws(() => assertPasswordAcceptable(breached), (error) => error.code === "COMMON_PASSWORD", `«${breached}» is in the breach list`);
+}
+for (const fine of ["baseball-season-in-erbil", "شجرة الرمان في بيت جدي"]) {
+  assert.equal(assertPasswordAcceptable(fine), fine, `«${fine}» contains common words but is not a common password`);
+}
 console.log("password:policy OK");

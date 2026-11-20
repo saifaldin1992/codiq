@@ -165,6 +165,9 @@ export class HttpEmailProvider implements NotificationProvider {
     try {
       const response = await fetch(`${this.endpoint}/emails`, {
         method: "POST",
+        // ASVS V15.3.2: the provider API never redirects; following one would
+        // carry the API key to wherever it pointed.
+        redirect: "error",
         headers: { authorization: `Bearer ${this.settings.apiKey}`, "content-type": "application/json" },
         // `reply_to` is omitted entirely when absent — Resend rejects a null.
         body: JSON.stringify({ from: this.settings.from, to: [message.to], subject: message.subject, text: message.body, ...(message.replyTo ? { reply_to: [message.replyTo] } : {}) }),
@@ -193,6 +196,7 @@ export class HttpEmailProvider implements NotificationProvider {
   async verifyTransport(): Promise<{ ok: true } | { ok: false; error: unknown }> {
     try {
       const response = await fetch(`${this.endpoint}/domains`, {
+        redirect: "error",
         headers: { authorization: `Bearer ${this.settings.apiKey}` },
         signal: AbortSignal.timeout(20_000),
       });

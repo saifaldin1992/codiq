@@ -10,6 +10,7 @@ import { reportServerFault } from "../observability/sentry.js";
 import { CORRELATION_HEADER, routePatternOf } from "./correlation.js";
 import { fkRuleFor, foreignKeyConstraintName, isForeignKeyViolation } from "../services/soft-delete/fk-violations.js";
 import { isRetryableTransactionError } from "../db/serializable-retry.js";
+import { clientIp } from "./client-ip.js";
 
 /**
  * D-41 (phase 24-أ): the handler is now two halves.
@@ -128,9 +129,30 @@ function logOutcome(error: unknown, request: Request, outcome: ErrorOutcome): vo
     logger.warn("request.degraded", { ...fields, err: error });
     return;
   }
+  // ASVS 5.0 V16.3.1–V16.3.3: refusals that are SECURITY events are logged at
+  // warn — failed credentials or second factor, revoked access, a forged
+  // webhook, a permission / tenant-boundary / CSRF denial, a rate limit. They
+  // carry the client address (the «where» of the event); the actor and store
+  // are stamped from the context bag. Plain «not signed in yet» (MISSING_SESSION)
+  // and business refusals stay below, so polling cannot flood the log.
+  if (isSecurityRefusal(outcome.status, outcome.error.code)) {
+    logger.warn("security.refused", { ...fields, ip: clientIp(request) });
+    return;
+  }
   // A 4xx is the CALLER'S mistake and the response already says so. Logging one
   // per unauthenticated poll would be the flood described in logger.ts.
   if (logger.isLevelEnabled("debug")) logger.debug("request.rejected", fields);
+}
+
+const SECURITY_401 = /^INVALID_[A-Z_]*CREDENTIALS$|^INVALID_SECOND_FACTOR$|_ACCESS_REVOKED$|^WEBHOOK_SIGNATURE_INVALID$/;
+const SECURITY_403 = /DENIED$|BOUNDARY|PERMISSION|CSRF|REVOKED$|DISABLED$|FORBIDDEN/;
+
+/** Exported for the logging guard. */
+export function isSecurityRefusal(status: number, code: string): boolean {
+  if (status === 429) return true;
+  if (status === 401) return SECURITY_401.test(code);
+  if (status === 403) return SECURITY_403.test(code);
+  return false;
 }
 
 export function classifyError(error: unknown, request: Request): ErrorOutcome {

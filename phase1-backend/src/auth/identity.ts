@@ -21,6 +21,7 @@ import { setLogContext } from "../logging/context.js";
 /** Derived ONCE per process: the root secret cannot change while it lives. */
 const KEYS = buildKeys(config.sessionJwtSecret, config.sessionJwtSecretPrevious);
 import type { IdentityKind } from "./redirects.js";
+import { logger } from "../logging/logger.js";
 
 export interface SessionClaims {
   identityKind: IdentityKind;
@@ -254,6 +255,9 @@ export async function createTypedSession(identityKind: IdentityKind, subjectId: 
   } else {
     await prisma.customerSession.create({ data: { id: sessionId, customerId: subjectId, tokenHash, expiresAt, lastSeenAt: new Date() } });
   }
+  // ASVS 5.0 V16.3.1: every successful authentication (sign-in, second factor,
+  // store switch) ends here, so it is logged here — once, with ids only.
+  logger.info("auth.session_issued", { identityKind, subjectId, sessionId });
   return accessToken;
 }
 

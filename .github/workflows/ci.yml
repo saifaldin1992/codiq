@@ -798,6 +798,16 @@ jobs:
           path: coverage/
           retention-days: 14
 
+      # ASVS V15.1.2: a software bill of materials for every build, so a new
+      # advisory can be matched to this exact dependency set.
+      - name: SBOM — CycloneDX inventory of dependencies
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          artifact-name: sbom.cdx.json
+
   # This one STAYS non-blocking, deliberately — do not flip it to match the
   # browser job above. It probes a LIVE external environment: a Railway restart,
   # a DNS blip or a Cloudflare edge incident would block a pull request that has

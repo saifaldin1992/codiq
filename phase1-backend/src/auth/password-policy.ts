@@ -43,6 +43,7 @@
  * a password that leaked rather than one that was guessed.
  */
 import { HttpError } from "./auth.errors.js";
+import { isBreachedCommonPassword } from "./breached-passwords.js";
 
 /** The floor, in characters. Set by the owner. */
 export const PASSWORD_MIN_LENGTH = 8;
@@ -226,6 +227,9 @@ export function assertPasswordAcceptable(password: unknown): string {
 
   const tooCommon =
     forms.some((form) => COMMON_PASSWORDS.has(form)) ||
+    // The ten-thousand breach list: exact match only, so a password that merely
+    // CONTAINS a common word is not refused for reasons nobody could guess.
+    isBreachedCommonPassword(lowered) ||
     isSingleCharacter(lowered) ||
     isSequentialRun(lowered) ||
     isRepeatedPattern(lowered);

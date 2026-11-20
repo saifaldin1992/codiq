@@ -379,4 +379,15 @@ restoreSink();
   assert.equal(/export function maskPhoneToLastFour/.test(source), false, "a second implementation reappeared");
 }
 
+// ASVS 5.0 V16.3: which refusals are security events (logged at warn) and which are not.
+{
+  const { isSecurityRefusal } = await import("../src/http/errors.ts");
+  for (const [status, code] of [[401, "INVALID_MERCHANT_CREDENTIALS"], [401, "INVALID_SECOND_FACTOR"], [401, "STAFF_ACCESS_REVOKED"], [401, "WEBHOOK_SIGNATURE_INVALID"], [403, "STORE_BOUNDARY_DENIED"], [403, "STAFF_PERMISSION_DENIED"], [403, "CSRF_ORIGIN_DENIED"], [429, "RATE_LIMITED"]]) {
+    assert.equal(isSecurityRefusal(status, code), true, `${status} ${code} is a security event`);
+  }
+  for (const [status, code] of [[401, "MISSING_SESSION"], [401, "SECOND_FACTOR_REQUIRED"], [403, "PLAN_LIMIT_EXCEEDED"], [422, "INVALID_ORDER_TRANSITION"], [404, "RESOURCE_NOT_FOUND"]]) {
+    assert.equal(isSecurityRefusal(status, code), false, `${status} ${code} is not — polling and business refusals must not flood the log`);
+  }
+}
+
 console.log("logging guard OK");
