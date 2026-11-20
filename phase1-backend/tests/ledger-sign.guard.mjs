@@ -93,12 +93,20 @@ const readers = [
   "phase1-backend/src/services/analytics.service.ts",
   "phase1-backend/src/services/finance.service.ts",
   // Audit 17-أ: the owner's overview summed every type unsigned until 2026-11.
+  // It expresses the rule as two aggregate filters rather than a ternary.
   "phase1-backend/src/services/platform-overview.service.ts",
 ];
+const RULE_SHAPES = [
+  (source) => source.includes('entryType === "order_completed" ? 1 : -1'),
+  (source) => source.includes('entryType: "order_completed" }') && source.includes('entryType: { not: "order_completed" } }'),
+];
 for (const reader of readers) {
-  const source = readFileSync(path.join(root, reader), "utf8");
+  const source = readFileSync(path.join(root, reader), "utf8")
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+    .join("\n");
   assert.ok(
-    source.includes('entryType === "order_completed" ? 1 : -1'),
+    RULE_SHAPES.some((matches) => matches(source)),
     `${reader} no longer uses the one-type-adds sign rule. This guard describes code that has changed — re-derive it rather than deleting it.`,
   );
 }

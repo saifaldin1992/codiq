@@ -100,13 +100,14 @@ export async function platformOverview(rawDays: unknown, now = new Date()): Prom
  * subtracts.
  */
 async function signedLedgerTotals(createdAt: { gte: Date; lte?: Date; lt?: Date }) {
-  const groups = await prisma.ledgerEntry.groupBy({ by: ["entryType"], where: { createdAt }, _sum: { subtotalIqd: true, commissionIqd: true } });
-  let subtotalIqd = 0;
-  let commissionIqd = 0;
-  for (const group of groups) {
-    const sign = group.entryType === "order_completed" ? 1 : -1;
-    subtotalIqd += sign * (group._sum.subtotalIqd ?? 0);
-    commissionIqd += sign * (group._sum.commissionIqd ?? 0);
-  }
-  return { subtotalIqd, commissionIqd };
+  const sum = { subtotalIqd: true, commissionIqd: true } as const;
+  // The one-type-adds rule, as two filters: completions add, every other type subtracts.
+  const [added, subtracted] = await Promise.all([
+    prisma.ledgerEntry.aggregate({ where: { createdAt, entryType: "order_completed" }, _sum: sum }),
+    prisma.ledgerEntry.aggregate({ where: { createdAt, entryType: { not: "order_completed" } }, _sum: sum }),
+  ]);
+  return {
+    subtotalIqd: (added._sum.subtotalIqd ?? 0) - (subtracted._sum.subtotalIqd ?? 0),
+    commissionIqd: (added._sum.commissionIqd ?? 0) - (subtracted._sum.commissionIqd ?? 0),
+  };
 }
