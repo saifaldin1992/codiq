@@ -1,0 +1,8 @@
+{
+  "backup-recovery.guard.mjs": 1,
+  "list-cursor.unit.mjs": 5,
+  "md1.integration.mjs": 4,
+  "md3.integration.mjs": 9,
+  "phase7.product-management.integration.mjs": 1,
+  "pos.browser-acceptance.mjs": 2
+}

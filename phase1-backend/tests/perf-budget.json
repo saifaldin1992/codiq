@@ -1,0 +1,5 @@
+{
+  "comment": "ق-137 — landing entry budget, gzip bytes. Measured 2026-09-01 after the route split: JS 135,082 / CSS 30,641 (was JS 289,262 before the split). Headroom ~10% for legitimate small growth. Numbers may only FALL or hold; raising one is an explicit reviewed decision recorded in the PR that does it.",
+  "entryJsGzipMax": 150000,
+  "entryCssGzipMax": 34000
+}

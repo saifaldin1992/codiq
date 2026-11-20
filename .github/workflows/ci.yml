@@ -1,0 +1,958 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      # ق-134: production deploys from `release` behind Railway's «Wait for
+      # CI». Without CI running on this branch, that wait has nothing to wait
+      # for — the release commit must earn its own green run.
+      - release
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
+  CODIQ_PRODUCTION_DATABASE_URL: postgresql://ci:ci@production-forbidden.invalid:5432/codiq_production
+  SESSION_JWT_SECRET: codiq-ci-session-secret-only-not-for-production
+  # 19-د (D-40): the root the TOTP secrets and the notification provider key are
+  # encrypted under at rest. A SEPARATE root from SESSION_JWT_SECRET on purpose —
+  # rotating a signing key must never make a stored secret unreadable. Every
+  # environment that is not `development` fails at boot without it, which is why
+  # it is declared here for both jobs rather than per step.
+  CODIQ_ENCRYPTION_KEY: codiq-ci-encryption-root-for-tests-only-0123456789
+  # Owner registration is closed in every deployed environment; tests bootstrap owners freely.
+  CODIQ_ALLOW_OWNER_REGISTRATION: "true"
+
+jobs:
+  integration:
+    name: ci / integration
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: codiq_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d codiq_ci_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
+      CODIQ_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
+      CODIQ_POSTGRES_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
+      CODIQ_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # D-67 — قبل هذه الخطوة لم يكن في المنصّة ما يقول إنّ اعتماديةً صارت ثغرة.
+      #
+      # أوّل تشغيلٍ لها وجد ٦٣ تنبيهاً، منها ثلاثةٌ عالية الخطورة في `multer` —
+      # وهو المسار الذي ترفع عبره كلُّ صورة منتج: طلبٌ واحدٌ مصوغٌ بعناية
+      # (`items[4294967294]`) يحجز مصفوفةً بأقصى طول ويشغل المعالج فلا يخدم
+      # الخادمُ أحداً. كان ذلك حيّاً، وسجلّ الدين نفسه كان يقول «التبعيات الحالية
+      # سليمة».
+      #
+      # لماذا `--prod` ولماذا `high` — وهذا ليس تساهلاً بل تحديدُ ما تحرسه:
+      #
+      #   · `--prod` يقصر البوّابة على ما يستطيع **طلبٌ من الإنترنت** بلوغه.
+      #     ثغرةٌ في `vite` أو `vitest` أو `esbuild` تعيش في آلة البناء وحدها
+      #     ولا تُشحن؛ إدخالها هنا يعني بوّابةً حمراء لأسبابٍ لا تمسّ تاجراً ولا
+      #     زبوناً، وبوّابةٌ تُعطّل بعد أسبوعين ليست بوّابة. Dependabot أعلاه هو
+      #     من يتابع أدوات البناء، بطلب دمجٍ يُقرأ لا بفشلٍ يوقف العمل.
+      #
+      #   · `high` هو الحدّ الذي يعني «يُستغَلّ عن بعدٍ بلا مصادقة». ما دونه
+      #     يظهر في مخرجات الخطوة ويُقرأ، ولا يوقف دمجاً.
+      #
+      # حين يظهر تنبيهٌ لا حلَّ له اليوم، الاستثناء يُكتب في `pnpm.auditConfig`
+      # في package.json ومعه سببه — لا يُخفَّض الحدّ ولا تُحذف الخطوة.
+      - name: "Guard — no known-exploitable advisory in what we ship (D-67)"
+        run: pnpm audit:prod
+
+      - name: Install S3 test runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install S3 emulator
+        run: |
+          python -m pip install "moto[server,s3]"
+          moto_server --help > /dev/null
+
+      - name: Generate Prisma Client
+        run: pnpm phase1:db:generate
+
+      - name: Apply Prisma migrations to temporary PostgreSQL
+        run: pnpm phase1:db:migrate
+
+      # ق-247: an empty database proves nothing about a migration that rewrites or
+      # constrains rows. Replay every migration after prisma/migrations/RELEASED
+      # over production-shaped rows, with Prisma itself, on a throwaway database.
+      - name: Migration rehearsal — unreleased migrations over production-shaped rows (ق-247)
+        run: pnpm migrate:rehearsal
+
+      - name: Typecheck frontend
+        run: pnpm check
+
+      - name: Typecheck backend
+        run: pnpm phase1:typecheck
+
+      - name: Build composite application
+        run: pnpm build
+
+      - name: UI conventions guard (P27-10 — no raw password field)
+        run: pnpm ui:guard
+
+      # ق-217: the generator template is out of the product — a session-replay
+      # capture script was being served publicly from every build whose NODE_ENV
+      # was not exactly "production".
+      - name: Template residue guard (ق-217)
+        run: pnpm template:guard
+
+      # PS-2. 19-أ's owner second factor was complete, tested and green for a
+      # month while being impossible to turn on: no screen ever called its
+      # enrolment routes, and ق-124 required it of him anyway. The owner found it
+      # by opening his own security page on the live platform. This asserts that
+      # every route on an identity's OWN account surface has a caller.
+      - name: "Guard — an owner can reach his own account surface"
+        run: pnpm owner:surface:guard
+
+      - name: "Guard — design tokens (ratchet: no new raw colour)"
+        run: pnpm theme:guard
+
+      - name: "Guard — validation adoption (ratchet: no new hand-rolled input checks)"
+        run: pnpm validation:guard
+
+      - name: "Guard — every write route checks the request origin (CSRF second layer)"
+        run: pnpm csrf:guard
+
+      # #140 measured phase 8B failing SIX runs in ten because it truncated
+      # fourteen tables and left the shared login counter — so it read the meter
+      # a previous suite had run up, and the owner sign-in answered 429. This
+      # holds every truncating suite to the full list.
+      - name: "Guard — a suite that truncates must clear the shared login counter"
+        run: pnpm login:counter:guard
+
+      # المرحلة 20-2. The two numbers this prints may only fall: a NEW list route
+      # with no cursor, or one that mints a cursor in a dialect of its own, fails
+      # the build here rather than being discovered by the first merchant with a
+      # thousand products.
+      - name: "Guard — one list envelope, one cursor dialect (ratchet: D-18/D-73/D-74)"
+        run: pnpm list:guard
+
+      - name: "Unit — the cursor dialect: page 2, a foreign cursor, a stale link"
+        run: pnpm list:unit
+
+      # المرحلة 20-3. A keyset page is fast ONLY on an index that ends in
+      # (ordering_col, id); without one «الصفحة التالية» sorts the whole tenant
+      # partition, and nothing else in this file can see that. The guard reads
+      # the CREATE INDEX out of prisma/migrations — not out of schema.prisma —
+      # so a declaration nobody migrated cannot pass as coverage. Both numbers
+      # it prints may only fall. No database, no network.
+      - name: "Guard — every keyset list rides a real composite index (ratchet: 20-3)"
+        run: pnpm keyset:guard
+      - name: "Guard — every route of a registered service declares its capability (ratchet: ق-249)"
+        run: pnpm capability:guard
+      # ق-251. The settings are a closed registry: its codes, the merchant_settings CHECK and the plan
+      # features must agree, and the one resolver's rules are the specification (01 §14).
+      - name: "Guard — the configuration registry, its CHECK and the plan features agree; the resolver's rules hold (ق-251)"
+        run: pnpm config:unit
+
+      - name: "Integration — المرحلة 20-2: the list contract over the real app"
+        run: pnpm contract:test
+
+      - name: Copy tone guard (ق-96 — masculine address)
+        run: pnpm tone:test
+
+      - name: "Guard — landing perf budget (ق-137: entry gzip may only fall)"
+        run: pnpm perf:guard
+
+      - name: "Guard — till SW precache mirrors the real TillPage closure (ق-142)"
+        run: pnpm sw:guard
+
+      # D-41 (24-أ). Two of the assertions here are the whole point: the
+      # redaction list must actually redact (a password, a session token, a TOTP
+      # secret, an email and a phone are fed in and none may appear), and the
+      # error handler must still answer with the UNCHANGED
+      # `{error:{code,message}}` envelope — phase 22 translates those Arabic
+      # messages and the red team's fixes name those codes.
+      - name: "Guard — structured logging: one JSON line, one correlation id, and nothing secret on stdout (D-41)"
+        run: pnpm logging:guard
+
+      # 19-د (D-34). The assertion that earns its place: `worker-src 'self'`.
+      # Drop it and the till's service worker stops registering — silently, with
+      # the failure surfacing only when a shop loses power.
+      - name: "Guard — security headers: the exact set, and a CSP that keeps the offline till alive (D-34)"
+        run: pnpm headers:guard
+
+      # 24-ج (ق-147). Runs the real backup code — no database, no bucket, no
+      # production credential, which is what lets it live in a CI that is
+      # forbidden Neon and production. The assertion that earns its place is
+      # boundary truncation: an upload killed between two whole frames yields a
+      # structurally perfect file that would otherwise decrypt cleanly and
+      # restore a half-empty database with «OK» in every log line.
+      - name: "Guard — a truncated or altered dump must be refused, and the DR doc must state the numbers the code uses (24-ج)"
+        run: pnpm backup:guard
+      - name: "Integration — the API's edges: unmatched path, malformed body, oversize body (20-2)"
+        run: pnpm api:edge:test
+
+      # The 2026-09-05 production outage in one line: `/ready` answered 500 for
+      # every request because an OPTIONAL diagnostic (the pg_trgm threshold)
+      # threw on a connection where nobody had searched yet. Every test suite ran
+      # a search first, so nothing could see it.
+      - name: "Integration — /ready survives a diagnostic it cannot read"
+        run: pnpm ready:test
+
+      # المرحلة 20-4. BLOCKING, and the reason is the whole point of the phase:
+      # this guard REGENERATES the OpenAPI document from `createApp()`'s live
+      # routing table and the zod schemas, and fails on any difference from the
+      # committed copy. A route added with no spec entry, a spec entry left
+      # behind by a deleted route, or a changed request schema all stop the
+      # build here — which is the only place a spec and the code it describes
+      # can be kept honest without asking anyone to remember.
+      - name: "Guard — the OpenAPI document is regenerated from the routes and must match (20-4)"
+        run: pnpm openapi:guard
+
+      # The dual mount is the kind of change that looks free. This proves the
+      # things that would otherwise break quietly: the mount ORDER, the
+      # storefront exception (`/api/v1/store/*` must be refused — the customer
+      # cookie is path-scoped), ONE rate-limit bucket across both prefixes, and
+      # one session accepted at both.
+      - name: "Integration — المرحلة 20-4: /api/v1 beside /api, one app, one bucket, one session"
+        run: pnpm apiv1:test
+
+      - name: Integration — phase 1
+        run: pnpm phase1:test
+
+      - name: Integration — phase 5 tenancy
+        run: pnpm phase5:test
+
+      - name: Integration — phase 6 provisioning
+        run: pnpm phase6:test
+
+      - name: Integration — phase 7 catalog and S3
+        run: pnpm phase7:test
+
+      # ق-176. The stock movement log had thirteen writers and no reader.
+      - name: "Integration — the stock movement log can be read (ق-176)"
+        run: pnpm inventory:movements
+
+      # ق-243. The product editor resent the stock it had loaded on every save,
+      # and the server wrote it over the live stock with no compare-and-swap —
+      # a till sale that landed since the page opened was undone by a typo fix.
+      # Stock now moves through the inventory door alone, under a row lock, and a
+      # stale `expectedStockQuantity` is a 409 rather than a phantom unit.
+      - name: "Integration — a stale screen cannot overwrite a sale (ق-243)"
+        run: pnpm inventory:cas
+
+      # D-36. bcryptjs is pure JavaScript: a cost-12 compare is ~300 ms ON the
+      # event loop, during which the single process serves nobody — a burst of
+      # sign-ins is a CPU denial of service from any login form. Native bcrypt
+      # hashes on the threadpool. The suite pins a bcryptjs-minted hash (every
+      # stored password) and proves a 1 ms timer fires DURING a compare.
+      - name: "Unit — a password compare no longer stops the event loop (D-36)"
+        run: pnpm password:hash
+
+      # D-72. Image upload was a per-file loop of put-then-insert with no
+      # transaction: a failure left earlier files committed and orphan objects
+      # billed to the merchant. Proven against a real bucket with a failure
+      # injected after every put and every insert — two zeros must remain.
+      - name: "Integration — an image upload lands whole or not at all (D-72)"
+        run: pnpm image:atomic
+
+      # ق-246. The platform is cash-on-delivery through courier companies and
+      # knew nothing about a parcel after it left the shelf. Handover facts on
+      # the order, the courier's manifest as CSV, and the per-courier cash
+      # reconciliation — tenant-bounded, window-bounded, and idempotent.
+      - name: "Integration — handover, manifest and COD cash reconciliation (ق-246)"
+        run: pnpm delivery:test
+      # ق-249. The feature catalogue: availability is resolved on the server by a
+      # written precedence, and every answer names its source.
+      - name: "Unit — availability precedence matrix (ق-249)"
+        run: pnpm availability:unit
+      - name: "Integration — services, availability, flags and store status (ق-249)"
+        run: pnpm availability:test
+      # ق-250. Windows start and end on the clock at read time; incidents block or tell.
+      - name: "Integration — scheduled maintenance and incidents (ق-250)"
+        run: pnpm maintenance:test
+      - name: "Integration — the configuration hierarchy as one function (ق-251)"
+        run: pnpm config:test
+
+      # ق-179. Customer.isActive was enforced at the door since phase 9 and
+      # nothing could set it. The switch, its audit event, and its walls.
+      - name: "Integration — the merchant can block a shopper (ق-179)"
+        run: pnpm customer:block
+
+      # ق-180. Three ceiling columns built for the owner's hand, with no
+      # writer but a test and no screen. The owner's door, the merchant's window.
+      - name: "Integration — message ceilings: owner writes, merchant reads (ق-180)"
+        run: pnpm messaging:caps
+
+      # ق-182. PG-3 built the complaints table and nothing ever wrote to it.
+      # The Svix-signed door, attribution, suppression, dedupe, and the reader.
+      - name: "Integration — complaints arrive from the mail provider (ق-182)"
+        run: pnpm complaints:webhook
+
+      # ق-207. The marketing channel had a store cap and no per-recipient one:
+      # 200 restock alerts a day to one stranger, and a second store reset it.
+      - name: "Integration — marketing has a per-recipient ceiling, platform-wide (ق-207)"
+        run: pnpm marketing:recipient-cap
+
+      # ق-199. «واجهة المتجر»: every field the merchant sets reaches the shopper's
+      # public-config, phones normalise, handles refuse URLs, policies have pages,
+      # the logo is metered, another tenant sees none of it, and the support
+      # address becomes Reply-To on the store's own customer mail (ق-184).
+      - name: "Integration — the merchant owns his storefront's face (ق-199)"
+        run: pnpm storefront:config
+
+      # ق-201. Registration is optional: a phone becomes a shadow customer, the
+      # same checkout runs, replays are recognised, an account's phone is refused,
+      # the switch can turn it off, and a password turns the guest into an account.
+      - name: "Integration — buying without an account (ق-201)"
+        run: pnpm guest:checkout
+
+      # ق-200. The front page's rails are orderings of one list: best-selling
+      # from real orders, top-rated from live reviews, own cursor kinds, a
+      # shopper-safe review feed, same-category siblings, and the star summary
+      # on the product fetch.
+      - name: "Integration — the storefront's public rails (ق-200)"
+        run: pnpm public:rails
+
+      # ق-209. A switch per payment method: COD on by default, a wallet transfer
+      # needs a wallet number, gateways wait for 25أ, the last method cannot go
+      # off, the storefront sees only what is on, and checkout honours the pick.
+      - name: "Integration — payment methods the merchant switches (ق-209)"
+        run: pnpm payments:methods
+
+      # ق-202. The visit beacon counts a day's visits and unique visitors with
+      # no identity, and the merchant's home aggregate answers today-vs-yesterday,
+      # by status / payment / Baghdad hour, best sellers, most viewed, low stock,
+      # the wallet and the latest orders in one request.
+      - name: "Integration — the merchant's home aggregate and the visit beacon (ق-202)"
+        run: pnpm merchant:home
+
+      # ق-199. «واجهة المتجر»: every merchant field has a screen that sends it, a
+      # public key that carries it, and a storefront component that draws it.
+      - name: "Guard — the storefront's merchant fields and public payload agree (ق-199)"
+        run: pnpm storefront:guard
+
+      - name: Integration — phase 8A order lifecycle
+        run: pnpm phase8a:test
+
+      - name: Integration — phase 9A storefront
+        run: pnpm phase9a:test
+
+      - name: Integration — phase 13 merchant store switcher
+        run: pnpm phase13:test
+
+      - name: Integration — phase 14 staff permissions matrix
+        run: pnpm phase14:test
+
+      - name: Integration — phase 15 notification outbox
+        run: pnpm phase15:test
+
+      - name: Integration — phase 16 plans and entitlements
+        run: pnpm phase16:test
+
+      - name: Integration — phase 17 finance, registration, domains
+        run: pnpm phase17:test
+
+      - name: Integration — phase 20A product variants
+        run: pnpm phase20a:test
+
+      - name: Integration — nested category tree
+        run: pnpm category:test
+
+      - name: Integration — plans management and upgrade requests
+        run: pnpm plans:test
+
+      # ق-225: the platform can stop a merchant it already approved — his door,
+      # his stores, his sessions and his staff's sessions, with the money untouched.
+      - name: Integration — merchant suspension (ق-225)
+        run: pnpm suspension:test
+
+      - name: Integration — phase 20B-1 coupons and prescriptions
+        run: pnpm phase20b1:test
+
+      - name: Integration — phase 20B-2 analytics and abandoned carts
+        run: pnpm phase20b2:test
+
+      - name: Integration — phase 20B-3 CSV import/export and ad pixels
+        run: pnpm phase20b3:test
+
+      - name: Integration — CD-1 customer delight (tracking, courier notice, reorder)
+        run: pnpm cd1:test
+
+      - name: Integration — CD-2 reviews, wishlist, back-in-stock
+        run: pnpm cd2:test
+
+      - name: Integration — CD-3 self-service returns portal
+        run: pnpm cd3:test
+
+      - name: Integration — CD-5 loyalty points
+        run: pnpm cd5:test
+
+      - name: "Integration — 19-أ sessions, sign-out and device list"
+        run: pnpm phase19a:test
+
+      - name: "Unit — TOTP against RFC 6238 published vectors"
+        run: pnpm totp:rfc
+
+      # ق-160. The storefront signup field asks an Iraqi for `07XXXXXXXXX` and
+      # sent it verbatim; the server answered «Phone must use E.164 format.» in
+      # English and refused him — at the first gate a shopper ever meets. No
+      # suite saw it because every test wrote E.164, which is what the function
+      # demanded: the tests agreed with the code and both disagreed with the
+      # form. Found by driving a live deployment (`pnpm rehearsal`).
+      - name: "Unit — an Iraqi shopper's phone, in the shape the form asks for (ق-160)"
+        run: pnpm phone:test
+
+      # ق-162. The rehearsal placed a real order on staging and was refused:
+      # the seed wrote ENGLISH governorate keys, the merchant screen held a
+      # private Arabic label map, and the SHOPPER typed «بغداد» into a free-text
+      # field that the server matched exactly. No real customer could place an
+      # order on any store. The list now lives once; the client mirror is
+      # COMPARED to it here rather than trusted, because an unchecked mirror is
+      # what caused this.
+      - name: "Unit — one list of governorates, and the client mirror matches it (ق-162)"
+        run: pnpm governorates:test
+
+      # ق-163. TypeScript checks that the CALLER may pass a field; it has no
+      # opinion about whether the callee then sends it. A hand-written key list
+      # beside a typed parameter drifts by OMISSION, which is invisible — the
+      # shopper saw a loyalty discount on screen and the order was written at
+      # full price. This compares the two.
+      - name: "Guard — every field checkout accepts is a field checkout sends (ق-163)"
+        run: pnpm checkout:payload
+
+      # ق-164. The merchant — the identity that PAYS for this platform — was the
+      # only one with no way out of his own dashboard. /auth/logout was built,
+      # identity-generic, and working the whole time; nobody had drawn the
+      # button. Server tests cannot see this: the server is not the broken part.
+      - name: "Guard — every identity can sign out (ق-164)"
+        run: pnpm logout:guard
+
+      # ق-165. Columns that are WRITTEN and never READ: the write path is easy
+      # to test and the read path has no test that fails when it is absent. The
+      # worker records exactly why a message was held; the screen knew none of
+      # those words, so a merchant saw «إعادة محاولة» and a silent day.
+      - name: "Guard — every held-message reason is a sentence the merchant reads (ق-165)"
+        run: pnpm outcome:vocabulary
+
+      # ق-166. CD-5 shipped everything but the switch, so `loyaltyEnabled` could
+      # never leave false in any store. The screen mirrors four server bounds —
+      # and while writing it one was copied wrong, which is why the mirror is
+      # compared rather than trusted. Also asserts the screen is REACHABLE.
+      - name: "Guard — the loyalty screen states the server's own bounds, and opens (ق-166)"
+        run: pnpm loyalty:mirror
+
+      # ق-167. `ownerName` was written by all three creation paths and read by
+      # nothing: the owner approved merchants selling cash under his brand with
+      # neither a name nor a number. The guard names the READER, because its
+      # first draft passed while both list queries were stripped — the creation
+      # paths select the column to echo back the row they just wrote.
+      - name: "Guard — a written column is read by the person it is about (ق-167)"
+        run: pnpm column:roundtrip
+      - name: Guard — every term of the order total reaches the merchant, the courier and the accountant (ق-187)
+        run: pnpm order:money
+      - name: Integration — the platform wakes its owner when the messaging spine fails silently (ق-188)
+        run: pnpm health:test
+      - name: Guard — a document that states a countable fact must state the true one (ق-189)
+        run: pnpm docs:fresh
+      - name: Integration — a rate limit whose key the caller chooses is not a limit (ق-194)
+        run: pnpm ratelimit:key
+      - name: Integration — the merchant owns the large images on his own front page (ق-198)
+        run: pnpm banners:test
+
+      # ق-168. The third face of one defect. ق-163: the client declared a field
+      # and dropped it. ق-167: the server wrote a column nothing read. Here: the
+      # server ACCEPTS a field and no screen offers it — the write-off reason,
+      # accepted since RI-1, with no input anywhere to type it into.
+      - name: "Guard — a field the server accepts is a field a screen can send (ق-168)"
+        run: pnpm schema:sent
+
+      # ق-169. pg3 pinned three drains to literal days. They were safely past or
+      # future when written, the suite was green for weeks — and the hour UTC
+      # rolled over to 2026-09-07 the third became TODAY, so the real-clock
+      # drains earlier in the file had already spent that day's per-recipient
+      # budget. It blocked a pull request about something else entirely. The
+      # file already carried a comment about the LAST time this happened.
+      - name: "Guard — no test writes a calendar date down and calls it now (ق-169)"
+        run: pnpm clock:guard
+
+      # ق-170. Nine permission codes on the server, eleven hand-written nav
+      # entries in the staff shell, nothing comparing them — so three codes
+      # were grantable, answered 200, and opened nothing. A staff member saw
+      # his permissions as chips on his home page and could use none of them.
+      - name: "Guard — every platform permission opens a screen (ق-170)"
+        run: pnpm platform:nav
+
+      # ق-172. The general form of PS-2, ق-164 and ق-170: every route the
+      # server registers must have a literal caller under client/src. The
+      # audit found sixteen routes nobody could reach; this fails on the
+      # seventeenth. Current misses are frozen in surface.legacy.json, which
+      # may only shrink.
+      - name: "Guard — every route has a screen; the legacy list only shrinks (ق-172)"
+        run: pnpm surface:guard
+
+      # ق-173. The storefront has two hand-written route lists — App.tsx and
+      # StorefrontWrapper — and the addresses page was added to one of them,
+      # type-checked, built, and answered 404. Same shape as ق-170.
+      - name: "Guard — every storefront page the wrapper dispatches is one the router delivers (ق-173)"
+        run: pnpm storefront:routes
+
+      # ق-161. The brand is written «Codiq», one capital. A rename decays — the
+      # next email subject gets typed CODIQ by habit and nobody notices, because
+      # a name written two ways looks like two products only to a careful
+      # reader. The pattern requires a word boundary on both sides, so the
+      # CODIQ_* variable names and CODIQBK1 — the eight magic bytes at the head
+      # of every backup file ever written — cannot match it.
+      - name: "Guard — the brand is Codiq, and only the first letter is capital (ق-161)"
+        run: pnpm brand:guard
+
+      # PS-3. IDENTITY_BOUNDARY_DENIED answered an English sentence naming
+      # neither the session held nor the area wanted, on an Arabic-first
+      # platform, from the day it shipped — and the owner met it on his own
+      # security page in production. Three layers throw this code; the assertion
+      # that earns its place is that the dead end is gone from ALL of them, since
+      # a message fixed in one layer and left in two is how it comes back.
+      - name: "Unit — the identity boundary says what you are and what to do (PS-3)"
+        run: pnpm identity:boundary
+
+      # ق-154. Railway disables outbound SMTP below the Pro plan, which is why
+      # this platform had never delivered a single email: the probe on
+      # production answered ETIMEDOUT on Gmail's IPv4 address. The HTTPS
+      # transport is the one that works here. Exercised against a loopback
+      # server rather than a mock, because a mock agrees with whatever the code
+      # does — including sending no Authorization header at all.
+      - name: "Unit — the HTTPS mail transport, and the key that must never reach an outcome (ق-154)"
+        run: pnpm http:mail:test
+
+      # ق-155. Staging failed to deploy four times in an hour with P1002 —
+      # prisma's session-level advisory lock cannot survive a transaction
+      # pooler — because a variable NAMED unpooled held a pooled url. The
+      # resolver now corrects it instead of trusting the name.
+      - name: "Unit — migrations never receive a pooled connection (ق-155)"
+        run: pnpm db:url:test
+
+      # ق-156. Both failures were found while restoring a REAL production
+      # backup, one minute apart: the recovery tool refused the `--` separator
+      # that npm requires and habit types, and importing the module RAN A
+      # RESTORE because main() was called at the top level. The second is why
+      # this test can exist at all.
+      - name: "Unit — the recovery tool's command line, and that importing it restores nothing (ق-156)"
+        run: pnpm restore:args
+
+      # PS-2. `qrcode` THROWS when a payload exceeds the capacity of the version
+      # and EC level it picks, and the otpauth URI grows with the owner's email
+      # address — so the ceiling is hit here, at an address far longer than his,
+      # instead of on the one screen he uses once. Also pins that the card
+      # encodes the SERVER's uri rather than re-deriving one, which would let the
+      # image and the key printed under it describe different accounts.
+      - name: "Unit — the enrolment QR encodes what the server minted, and fits (PS-2)"
+        run: pnpm totp:qr
+
+      - name: "Unit — one retry policy for a lost race (ق-132: the till must not refuse)"
+        run: pnpm retry:test
+
+      - name: "Unit — D-62 purpose-bound keys and secret rotation"
+        run: pnpm keys:rotation
+
+      - name: "Unit — password policy (minimum 8, and the guessed ones refused)"
+        run: pnpm password:policy
+
+      # It reads a passed-in environment object, never `process.env`, so this
+      # step cannot be perturbed by the job's own variables.
+      - name: "Unit — the environment preflight: half-configured is never a decision"
+        run: pnpm env:check:test
+
+      # ق-235: what Sentry is allowed to be told about a shopper. This platform
+      # is cash-on-delivery, so an order payload carries a name, a home address
+      # and a phone number — and the SDK captures bodies, cookies and headers by
+      # DEFAULT. The suite pins what leaves the server, and that it stays inert
+      # with no DSN, which every other check on this runner depends on.
+      - name: "Unit — ق-235 Sentry scrubbing and inertness"
+        run: pnpm sentry:test
+
+      # ق-236: twenty-two rate limits key on the caller's address. Putting an
+      # edge in front without reading its header collapses every bucket into one;
+      # reading that header without a declared edge lets any caller mint a fresh
+      # bucket per request. The suite pins the line between those two failures.
+      - name: "Unit — ق-236 the caller's address behind a trusted edge"
+        run: pnpm clientip:test
+
+      # ق-238: the catalog projection puts ONE image on each of twenty-four
+      # cards, so whatever a merchant's phone produced was multiplied by
+      # twenty-four on every storefront page. The suite pins the three sizes,
+      # the EXIF rotation phones encode as a flag, and the metadata strip that
+      # keeps a shop's GPS coordinates out of a public object.
+      - name: "Unit — ق-238 product images are re-encoded, rotated and stripped"
+        run: pnpm images:test
+
+      # And the half of ق-238 that is a RATCHET rather than a fix: a public
+      # route that streams stored bytes must name a cache policy. The product
+      # image never had one while three sibling routes did — drift, not a
+      # decision, and this is the file that remembers.
+      - name: "Guard — every public byte route names a cache policy"
+        run: pnpm imagecache:guard
+
+      # ق-239: nine independent intervals in the worker meant Neon was awake
+      # around the clock — and 99.7% of that came from the eight nobody
+      # suspected, not from the five-second outbox loop everybody blamed. The
+      # suite pins the one tick they now share and the backoff that lets the
+      # database sleep between bursts.
+      - name: "Unit — ق-239 one tick for eight jobs, and an outbox that backs off"
+        run: pnpm workersched:test
+
+      # And the ratchet under it: a tenth timer would reopen the whole defect in
+      # total silence — nothing fails, the database simply stops suspending and
+      # the bill returns with no visible cause.
+      - name: "Guard — one repeating timer in the backend, and it is the scheduler"
+        run: pnpm workertimers:guard
+      - name: "Unit — the mail probe writes no row and prints no secret"
+        run: pnpm mail:probe:test
+      # Its own database on purpose. The suite asserts the owners table starts
+      # EMPTY — that is the whole safety property it exists to prove — and by
+      # this point the shared `codiq_ci_test` has owners in it from a dozen
+      # earlier suites. Ordering this step first instead would work today and
+      # break silently the day someone reorders the file.
+      - name: "Integration — the bootstrap that mints the first owner (production had none)"
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_owner_bootstrap?schema=public
+          CODIQ_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_owner_bootstrap?schema=public
+          CODIQ_POSTGRES_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/codiq_ci_owner_bootstrap?schema=public
+          CODIQ_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_owner_bootstrap?schema=public
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE codiq_ci_owner_bootstrap'
+          npx prisma migrate deploy --schema prisma/schema.prisma
+          pnpm owner:bootstrap:test
+
+      - name: "Integration — ق-128 the free month, and the day after it"
+        run: pnpm trial:test
+
+      - name: "Integration — ق-132 the cashier: one order book, one stock balance"
+        run: pnpm pos:test
+
+      - name: "Integration — ق-132 the cashier under concurrency"
+        run: pnpm pos:race
+
+      - name: "Integration — WA-1 (ق-139) the manual WhatsApp channel"
+        run: pnpm wa1:test
+
+      - name: "Integration — RI-1 (ق-140) return inspection: restock or write off"
+        run: pnpm ri1:test
+
+      - name: "Integration — D-39/D-46 retention windows and reservation expiry"
+        run: pnpm retention:test
+
+      - name: "Integration — 19-ب (ق-143) platform staff: identity, permissions, audit"
+        run: pnpm ps1:test
+
+      - name: "Guard — a new ledger entry type must not subtract by default"
+        run: pnpm ledger:sign
+
+      - name: "Unit — cookies carry Secure (and the __Host- prefix) outside local development"
+        run: pnpm cookie:secure
+
+      # D-70. The defect ran on every single deploy: SIGTERM answered with
+      # `process.exit(0)` and no `server.close()`, so whatever response was being
+      # written at that instant had its socket destroyed. Nothing logged it —
+      # the process that would have logged it was the one exiting.
+      - name: "Unit — a deploy drains in-flight requests instead of cutting them (D-70)"
+        run: pnpm shutdown:test
+
+      # D-67. multer 2.3.0 enforces the field-name ceilings ONLY when the option
+      # is present, so the version bump on its own closes nothing. This asserts
+      # both halves: every multer instance passes it, and the advisory's own
+      # attack body is refused by a real one.
+      - name: "Guard — every upload refuses a crafted multipart field name (D-67)"
+        run: pnpm upload:limits
+
+      # ق-241. Arabic costs two bytes a letter on the wire and compresses by
+      # about ninety-five parts in a hundred; the platform was sending all of it
+      # raw, and egress is roughly nine tenths of the monthly bill. The guard
+      # asserts the bytes round-trip exactly — a truncated UTF-8 tail passes a
+      # size check and breaks a shopper's screen.
+      - name: "Guard — Arabic answers go out compressed, and decode back exactly (ق-241)"
+        run: pnpm compression:guard
+
+      - name: "Guard — the strength meter and the server policy stay identical"
+        run: pnpm password:mirror
+
+      # PG-6 (ق-74). The till filters its offline snapshot in the browser, so
+      # one TypeScript copy of the Arabic normalizer is unavoidable — and its
+      # drift is silent: no error, no log, the cashier simply stops finding the
+      # product on the shelf. 76 strings through BOTH implementations.
+      - name: "Guard — the Arabic normalizer and its offline mirror stay identical"
+        run: pnpm search:mirror
+
+      # ق-220: the order board's transition table is a hand-copied mirror of the
+      # server's, and its DERIVED terminal set decides whether a bulk move gets the
+      # «هذه حالة نهائية» confirmation. Drift = forty COD orders cancelled with one
+      # click and no warning.
+      - name: "Guard — the order board's transition table mirrors the server's (ق-220)"
+        run: pnpm transitions:mirror
+
+      - name: "Integration — 19-أ owner second factor (TOTP + recovery codes)"
+        run: pnpm phase19b:test
+
+      - name: "Integration — 19-أ change your own password (all four identities)"
+        run: pnpm phase19c:test
+
+      - name: "Integration — PR-1 (19-أ) استعادة كلمة السر: single use, both ceilings, and the second factor it must not bypass"
+        run: pnpm pr1:test
+
+      - name: Integration — PG-1 customer self-cancellation
+        run: pnpm pg1:test
+
+      - name: Integration — MD-1 merchant delight (search, duplicate, notes, bulk, vacation)
+        run: pnpm md1:test
+
+      - name: "Integration — PG-6 (ق-74) Arabic smart search: the fold, the tenancy wall, and the query plan"
+        run: pnpm pg6:test
+
+      - name: Integration — MD-6 store verification badge
+        run: pnpm md6:test
+
+      - name: Integration — MD-3 daily digest and stock-out forecast
+        run: pnpm md3:test
+
+      - name: Integration — PG-3 messaging compliance
+        run: pnpm pg3:test
+
+      - name: Integration — PG-2 soft delete, trash bin, purge
+        run: pnpm pg2:test
+
+      - name: Integration — P27-20 platform logo
+        run: pnpm brand:test
+
+      - name: Integration — phase 10 composite server
+        run: node phase1-backend/tests/phase10.composite-server.runtime.mjs
+
+      # P27-7: blocking. Runs itself twice — flag off (every other environment,
+      # proving no regression) and flag on (the demo environment's enforcement).
+      - name: Integration — P27-7 demo environment
+        run: pnpm demo:test
+
+  # This one STAYS non-blocking, deliberately — do not flip it to match the
+  # browser job above. It probes a LIVE external environment: a Railway restart,
+  # a DNS blip or a Cloudflare edge incident would block a pull request that has
+  # nothing wrong with it. A gate must fail only on things the change controls.
+  staging-healthcheck:
+    name: ci / staging healthcheck (environment probe, non-blocking)
+    runs-on: ubuntu-24.04
+    needs: integration
+    continue-on-error: true
+    steps:
+      # ق-237: `/api/ready`, NOT `/api/health`.
+      #
+      # `/health` is a hardcoded 200 that touches nothing — by design, and
+      # correctly so: it answers «is the process alive», which is what a platform
+      # restart decision needs. But it is the WRONG QUESTION for a probe that is
+      # meant to notice an outage, and `docs/DEPLOYMENT.md` has said so in writing
+      # twice («لا يكفي — لا يلمس قاعدة البيانات ويُعيد ok مهما كان حالها») while this job went
+      # on probing it anyway.
+      #
+      # It cost two days. On 2026-09-09 the Neon compute quota ran out, every
+      # route that touches the database answered 500, and this probe stayed green
+      # throughout because the endpoint it watched could not fail. `/ready` runs
+      # `SELECT 1` and reports the environment verdict, so it fails when the
+      # platform is actually unable to serve.
+      #
+      # The public hostname first, then the Railway origin: an edge outage and an
+      # application outage are distinguishable from the log alone.
+      - name: Check public staging readiness (touches the database)
+        run: |
+          curl --fail --show-error --silent \
+            --retry 5 \
+            --retry-delay 5 \
+            https://staging.codiqos.com/api/ready
+      - name: Check Railway origin directly
+        run: |
+          curl --fail --show-error --silent \
+            --retry 5 \
+            --retry-delay 5 \
+            https://codiq-staging.up.railway.app/api/ready
+
+  # BLOCKING as of 2026-09-04. It was «temporary non-blocking» for long enough
+  # that the word stopped meaning anything: fifteen suites drive real screens —
+  # the till selling offline, the shopper checking out, the trash bin, the
+  # staff shell — and every one of those contracts could fail RED and still be
+  # merged. The phase-26 acceptance gate is measured on exactly these, so a gate
+  # that cannot fail is not a gate.
+  #
+  # Earned, not asserted: eleven real runs on main before this flip — ten green,
+  # one failure that reran clean. The two known flakes are recorded rather than
+  # tolerated (phase19a's «the phone is in the list», and the POS suites under a
+  # loaded runner); each is a TEST to repair, and neither may be answered by
+  # weakening its assertion.
+  browser-acceptance:
+    name: ci / browser acceptance
+    runs-on: ubuntu-24.04
+    needs: integration
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: codiq_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d codiq_ci_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
+      CODIQ_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
+      CODIQ_POSTGRES_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
+      CODIQ_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
+      CODIQ_TEST_ARTIFACTS_DIR: /tmp/codiq-test-artifacts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install browser and S3 test runtimes
+        run: |
+          python -m pip install "moto[server,s3]"
+          moto_server --help > /dev/null
+          pnpm exec playwright install --with-deps chromium
+          browser_path=$(node -e 'const { chromium } = require("playwright"); process.stdout.write(chromium.executablePath());')
+          sudo ln -sf "$browser_path" /usr/bin/chromium
+          test -x /usr/bin/chromium
+
+      - name: Generate Prisma Client and migrate temporary PostgreSQL
+        run: |
+          pnpm phase1:db:generate
+          pnpm phase1:db:migrate
+
+      - name: Build composite application
+        run: pnpm build
+
+      - name: Start composite application for legacy browser flows
+        run: |
+          PORT=3114 node dist/index.js > /tmp/codiq-composite.log 2>&1 &
+          echo $! > /tmp/codiq-composite.pid
+          for attempt in $(seq 1 30); do curl --fail --silent http://127.0.0.1:3114/platform/login && break; sleep 1; done
+
+      - name: Browser — phase 6
+        run: pnpm phase6:browser
+
+      - name: Browser — phase 7
+        run: pnpm phase7:browser
+
+      - name: Browser — phase 8B
+        run: pnpm phase8b:browser
+
+      - name: Browser — phase 9B
+        run: pnpm phase9b:browser
+
+      - name: Browser — phase 9B cookie scope
+        run: pnpm phase9b:cookie
+
+      - name: Browser — phase 13 store switcher
+        run: pnpm phase13:browser
+        env:
+          PHASE13_WEB_BASE_URL: http://127.0.0.1:3114
+
+      - name: Browser — phase 14 staff acceptance
+        run: pnpm phase14:browser
+
+      - name: Browser — phase 15 notifications
+        run: pnpm phase15:browser
+
+      - name: Browser — phase 16 plans and subscription
+        run: pnpm phase16:browser
+
+      - name: "Browser — الكاشير till end to end"
+        run: pnpm pos:browser
+
+      - name: "Browser — الكاشير دون اتصال (ق-142)"
+        run: pnpm pos-offline:browser
+
+      - name: "Browser — 19-ب طاقم المنصة lifecycle (ق-143)"
+        run: pnpm ps1:browser
+
+      # PR-1: three of its promises are UI contracts an HTTP client cannot see —
+      # that a known and an unknown address produce the same WORDS on screen,
+      # that the mailed link opens a working page in a browser with no session,
+      # and that a spent link shows the dead-link screen rather than a form.
+      - name: "Browser — PR-1 استعادة كلمة السر end to end"
+        run: pnpm pr1:browser
+
+      - name: Browser — phase 17 landing, finance, domains
+        run: pnpm phase17:browser
+
+      - name: Browser — phase 20A variants UI
+        run: pnpm phase20a:browser
+
+      - name: Browser — phase 20B unified growth acceptance
+        run: pnpm phase20b:browser
+
+      # PG-2: the sheet's ق-10 promise («the movement count comes from the
+      # server or is not shown») and the no-silent-rename rule are UI contracts,
+      # so only a browser can hold them. It also asserts zero horizontal overflow
+      # at 390 / 768 / 1440 (ق-28).
+      - name: Browser — PG-2 trash bin, delete sheet and activity log
+        run: pnpm pg2:browser
+
+      - name: Stop composite application
+        if: always()
+        run: kill "$(cat /tmp/codiq-composite.pid)" 2>/dev/null || true
+
+      - name: Upload composite-server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-composite-server-log
+          path: /tmp/codiq-composite.log
+          if-no-files-found: ignore

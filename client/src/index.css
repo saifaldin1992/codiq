@@ -1,0 +1,448 @@
+/* Design reminder — codiq phase 2: light Samsung One UI surfaces, calm Signal Blue accents, and generous Arabic whitespace. */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/**
+ * Platform typography — the single source of truth (owner decision 2026-08-27).
+ * Inter renders Latin and Rubik renders Arabic: Inter carries no Arabic glyphs,
+ * so Arabic text falls straight through to Rubik. Every surface (landing, the
+ * three dashboards, the storefront) inherits this from `body`; nothing else in
+ * client/ may name a font family, so changing these two names re-themes the
+ * whole platform in one edit. Declared in `@theme` so the `font-sans` utility
+ * and `var(--font-sans)` both resolve here.
+ */
+@theme {
+  --font-sans: "Inter", "Rubik", "Noto Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+:root {
+  /* ==========================================================================
+   * CODIQ dashboard tokens — the semantic layer for the owner, merchant and
+   * staff panels.
+   *
+   * WHY THESE EXIST. Before this file the dashboards carried 2,545 raw hex
+   * values across 73 components, spread over 489 DISTINCT colours — 226 of them
+   * used exactly once. That is not a palette, it is drift: every screen picked
+   * "a blue that looked right", and no two agreed. Phase 21 has to collapse them
+   * anyway (its acceptance gate forbids raw colour outright), and that decision
+   * gets harder with every screen added, so the roles are fixed here first.
+   *
+   * THE SHAPE IS NOT INVENTED. It mirrors `--storefront-*`, which has carried
+   * the whole shopper-facing surface since phase 12 and survived every feature
+   * since. The dashboards get the same roles plus the status colours they need.
+   *
+   * THE LIGHT VALUES ARE TODAY'S DOMINANT COLOURS, deliberately: converting a
+   * component must change how it is written, never how it looks. Where a screen
+   * had drifted a shade or two off, it snaps back to the role — which is the
+   * point of doing this at all.
+   *
+   * Dark values land in phase 21-ج. Nothing here presumes them; a component that
+   * names a role rather than a colour is already ready for that.
+   * ========================================================================== */
+
+  /* surfaces */
+  --codiq-canvas: #F4F7FB;          /* page behind the cards */
+  --codiq-surface: #FFFFFF;         /* a card */
+  --codiq-surface-sunken: #F7F9FC;  /* a well inside a card */
+
+  /* text, darkest to lightest */
+  --codiq-text: #1E2D45;
+  --codiq-text-secondary: #53617A;
+  --codiq-text-muted: #718097;
+
+  /* lines */
+  --codiq-border: #E7ECF4;
+  --codiq-border-strong: #DCE5F1;
+
+  /* brand */
+  --codiq-accent: #1E6FDB;
+  --codiq-accent-hover: #155FC4;
+  --codiq-accent-strong: #123A6B;   /* headings and deep fills */
+  --codiq-accent-soft: #EAF2FF;     /* tinted background */
+  --codiq-accent-on-soft: #155FC4;  /* text on that background */
+
+  /* status — each a pair: a readable foreground and its tint */
+  --codiq-success: #287453;
+  --codiq-success-soft: #ECF8F1;
+  --codiq-danger: #B62E3F;
+  --codiq-danger-soft: #FFF0F1;
+  --codiq-danger-border: #E4C7CE;
+  /* ق-225: the pressed state of the two decision buttons on the merchants
+     directory (suspend / resume). Defined here rather than written inline,
+     because a hover that names a variable nobody declared resolves to
+     nothing and the design-token guard — which counts raw hex — cannot see
+     a dead rule. */
+  --codiq-danger-hover: #9E2836;
+  --codiq-success-hover: #1F5C41;
+  --codiq-warning: #93601F;
+  --codiq-warning-soft: #FFF6E7;
+  /* ق-228: the edge of a «هذا البريد مسجَّل — هل هو الشخص نفسه؟» panel. Declared
+     here for the reason ق-225's two hover tokens were: a rule that names a
+     variable nobody declared resolves to nothing, and the design-token guard
+     counts raw hex, so it cannot see a border that is not there. */
+  --codiq-warning-border: #F0DCB4;
+
+  /* Roles the first sweep uncovered. Each was a colour with no home — jamming
+   * them into "danger" would have been the same drift in a new coat: a
+   * trend-down arrow is not an error, and an empty star is not a disabled
+   * control. */
+  --codiq-rating: #E8A31C;          /* a filled star */
+  --codiq-rating-empty: #C9D3E0;    /* an unfilled one */
+  --codiq-favourite: #D8556F;       /* a saved heart */
+  --codiq-negative: #A45268;        /* down, unmet — softer than danger */
+  --codiq-negative-icon: #B0788A;
+  --codiq-neutral-soft: #F1F4F9;    /* an inert chip */
+
+  /* المرحلة 21 — THE BRAND MARK, and the one rule that separates it from
+   * everything above: these three must NEVER be redefined per theme.
+   *
+   * `BrandMark` draws a white 'C' and a pale dot ON a blue disc. Mapping that
+   * white to `--codiq-surface` — the obvious move, since #FFFFFF is exactly
+   * what surface holds today — would flip it dark under a dark theme and erase
+   * the letter inside its own coin. The logo's colours are relationships
+   * between each other, not between the logo and the page behind it.
+   *
+   * They are tokens rather than literals so the mark is defined in ONE place:
+   * a rebrand is three lines here, not a search across every surface that
+   * happens to draw it. */
+  --codiq-brand-coin: #1E6FDB;      /* the disc */
+  --codiq-brand-ink: #FFFFFF;       /* the letter on it */
+  --codiq-brand-spark: #8FC2FF;     /* the dot in the letter's mouth */
+
+  --radius: 1.15rem;
+  --background: oklch(0.973 0.008 251);
+  --foreground: oklch(0.25 0.03 259);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.25 0.03 259);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.03 259);
+  --primary: oklch(0.515 0.178 258);
+  --primary-foreground: oklch(0.985 0.005 260);
+  --secondary: oklch(0.95 0.016 252);
+  --secondary-foreground: oklch(0.31 0.04 259);
+  --muted: oklch(0.956 0.009 251);
+  --muted-foreground: oklch(0.56 0.03 259);
+  --accent: oklch(0.93 0.024 254);
+  --accent-foreground: oklch(0.34 0.08 258);
+  --destructive: oklch(0.59 0.22 27);
+  --destructive-foreground: oklch(0.985 0.005 260);
+  --border: oklch(0.91 0.013 251);
+  --input: oklch(0.91 0.013 251);
+  --ring: oklch(0.515 0.178 258);
+}
+
+/* HeroUI-skin fix (2026-09-02): this universal default was UNLAYERED, and
+   unlayered CSS beats every @layer regardless of specificity — so it silently
+   overrode `border-transparent` and every `focus:border-*` utility on the
+   whole platform (fields could never show their focus border). Inside the
+   base layer it keeps providing the default while utilities win again. */
+@layer base {
+  * { @apply border-border outline-ring/50; }
+}
+
+html, body, #root { min-height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+button:not(:disabled), a[href] { cursor: pointer; }
+
+.codiq-scroll::-webkit-scrollbar { width: 6px; }
+.codiq-scroll::-webkit-scrollbar-thumb { background: #d9e2f0; border-radius: 999px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+/* ---------------------------------------------------------------------------
+ * codiq marketing landing — motion layer.
+ * Every rule below is scoped to the landing page (`.cq-*`) so no dashboard or
+ * storefront surface inherits it, and no animation library enters the bundle.
+ * The reduced-motion block at the end of this file is the single opt-out: it
+ * cancels transforms, transitions and keyframes while leaving every element at
+ * full opacity, so a visitor who asks for less motion still reads everything.
+ * ------------------------------------------------------------------------ */
+
+.cq-reveal {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  transition: opacity 720ms cubic-bezier(0.22, 0.61, 0.36, 1), transform 720ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition-delay: var(--cq-delay, 0ms);
+}
+.cq-reveal[data-revealed="true"] { opacity: 1; transform: none; }
+
+/* Cards: a calm lift instead of a bounce, and a shadow that grows with it. */
+.cq-card {
+  transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 320ms cubic-bezier(0.22, 0.61, 0.36, 1), border-color 320ms ease;
+}
+@media (hover: hover) {
+  .cq-card:hover { transform: translateY(-4px); box-shadow: 0 22px 48px rgba(28, 52, 96, 0.11); border-color: #D9E5F6; }
+  .cq-card:hover .cq-card__icon { transform: scale(1.06) rotate(-3deg); background: #E3EEFF; }
+}
+.cq-card__icon { transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1), background-color 320ms ease; }
+
+/* Buttons: a 1px rise plus a soft halo — nothing that shifts the layout. */
+.cq-cta { transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 220ms ease, background-color 220ms ease; }
+@media (hover: hover) { .cq-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(30, 111, 219, 0.26); } }
+.cq-cta:active { transform: translateY(0); }
+.cq-cta--ghost { transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 220ms ease, border-color 220ms ease; }
+@media (hover: hover) { .cq-cta--ghost:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(28, 52, 96, 0.10); } }
+
+/* Sticky nav — flat at the top of the page, elevated once it starts covering content.
+   The old `.cq-navscroll` rules are gone on purpose: they hid the scrollbar of an
+   overflowing nav, so on a 320–360px handset «لوحة المنصة» sat outside the
+   container with no visible way to reach it. The nav wraps now (Home.tsx) instead
+   of scrolling, so nothing needs its scrollbar hidden. */
+.cq-nav { transition: box-shadow 260ms ease, background-color 260ms ease, border-color 260ms ease; }
+
+/* ---- hero motif -------------------------------------------------------- */
+.cq-motif-drift { transform-box: fill-box; transform-origin: center; animation: cq-drift 72s linear infinite; }
+.cq-motif-pulse { animation: cq-lap 8s linear infinite; }
+.cq-motif-halo { transform-box: fill-box; transform-origin: center; animation: cq-breathe 7s ease-in-out infinite; }
+.cq-motif-coin { transform-box: fill-box; transform-origin: center; animation: cq-coin 3.2s ease-in-out infinite; }
+.cq-motif-core { transform-box: fill-box; transform-origin: center; animation: cq-float 9s ease-in-out infinite; }
+.cq-motif-node { transform-box: fill-box; transform-origin: center; animation: cq-node 8s ease-in-out infinite; }
+.cq-motif-node__ring { opacity: 0; transform-box: fill-box; transform-origin: center; animation: cq-node-ring 8s ease-in-out infinite; }
+.cq-motif-node--1, .cq-motif-node--1 .cq-motif-node__ring { animation-delay: 2s; }
+.cq-motif-node--2, .cq-motif-node--2 .cq-motif-node__ring { animation-delay: 4s; }
+.cq-motif-node--3, .cq-motif-node--3 .cq-motif-node__ring { animation-delay: 6s; }
+
+@keyframes cq-drift { to { transform: rotate(360deg); } }
+@keyframes cq-lap { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }
+@keyframes cq-breathe { 0%, 100% { transform: scale(0.94); opacity: 0.75; } 50% { transform: scale(1.05); opacity: 1; } }
+@keyframes cq-coin { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.28); } }
+@keyframes cq-float { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+@keyframes cq-node { 0%, 12%, 100% { transform: scale(1); } 5% { transform: scale(1.09); } }
+@keyframes cq-node-ring { 0% { opacity: 0.55; transform: scale(0.9); } 14% { opacity: 0; transform: scale(1.18); } 100% { opacity: 0; transform: scale(1.18); } }
+
+/* ---- hero device fan --------------------------------------------------- */
+.cq-device__float { transform-box: fill-box; transform-origin: center; animation: cq-float 11s ease-in-out infinite; }
+/* Every screen starts hidden; the frame's own first screen is marked static so
+   it survives when the cycle is switched off for reduced motion. */
+.cq-screen { opacity: 0; animation: cq-screen-cycle 13.2s ease-in-out infinite; }
+.cq-screen[data-static="true"] { opacity: 1; }
+@keyframes cq-screen-cycle {
+  0%, 21% { opacity: 1; }
+  25%, 96% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* ---- showcase panels --------------------------------------------------- */
+.cq-panel__tile { opacity: 0; transform: translateY(10px); transition: opacity 560ms ease, transform 560ms cubic-bezier(0.22, 0.61, 0.36, 1); transition-delay: var(--cq-delay, 0ms); }
+.cq-panel[data-active="true"] .cq-panel__tile { opacity: 1; transform: none; }
+.cq-panel__badge { opacity: 0; transition: opacity 520ms ease 620ms; }
+.cq-panel[data-active="true"] .cq-panel__badge { opacity: 1; }
+.cq-panel__row { opacity: 0; transform: translateY(8px); transition: opacity 480ms ease, transform 480ms ease; transition-delay: var(--cq-delay, 0ms); }
+.cq-panel[data-active="true"] .cq-panel__row { opacity: 1; transform: none; }
+.cq-toggle__track { transition: fill 420ms ease; transition-delay: calc(var(--cq-delay, 0ms) + 220ms); }
+.cq-toggle__knob { transition: transform 420ms cubic-bezier(0.34, 1.3, 0.64, 1); transition-delay: calc(var(--cq-delay, 0ms) + 220ms); }
+.cq-panel[data-active="true"] .cq-toggle[data-on="true"] .cq-toggle__track { fill: #1E6FDB; }
+.cq-panel[data-active="true"] .cq-toggle[data-on="true"] .cq-toggle__knob { transform: translateX(-36px); }
+
+/* ---- payment roadmap band ---------------------------------------------- */
+.cq-pay { transition: transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1), border-color 300ms ease, background-color 300ms ease; }
+@media (hover: hover) {
+  .cq-pay--live:hover { transform: translateY(-3px); border-color: #A9D8C1; }
+  .cq-pay:not(.cq-pay--live):hover { border-color: #CBD6E6; background: #F5F8FC; }
+}
+
+/* ---- billing toggle ---------------------------------------------------- */
+.cq-billing__option { transition: background-color 260ms ease, color 260ms ease, box-shadow 260ms ease; color: #51607A; }
+.cq-billing__option[aria-pressed="true"] { background: #1E6FDB; color: #FFFFFF; box-shadow: 0 8px 18px rgba(30, 111, 219, 0.24); }
+.cq-billing__option:disabled { color: #63718A; }
+@media (hover: hover) { .cq-billing__option:not(:disabled):not([aria-pressed="true"]):hover { background: #F4F7FB; color: #1E6FDB; } }
+
+/* Price figure: re-keyed on a cycle change so it cross-fades instead of snapping. */
+.cq-price { animation: cq-price-in 380ms ease both; }
+@keyframes cq-price-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* The owner-recommended plan sits a touch proud of its neighbours on wide screens
+   only. When no plan is recommended nothing matches, so no card is raised — the
+   grid reads as three equal options, which is the honest default. */
+@media (min-width: 768px) and (hover: hover) {
+  .cq-plan[data-recommended="true"] { transform: translateY(-8px); }
+  .cq-plan[data-recommended="true"]:hover { transform: translateY(-12px); }
+}
+
+/* ---- FAQ accordion ----------------------------------------------------- */
+.cq-faq__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 340ms cubic-bezier(0.22, 0.61, 0.36, 1), visibility 0s linear 340ms;
+}
+.cq-faq__panel > * { overflow: hidden; }
+.cq-faq[data-open="true"] .cq-faq__panel {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition: grid-template-rows 340ms cubic-bezier(0.22, 0.61, 0.36, 1), visibility 0s linear 0s;
+}
+.cq-faq__icon { transition: transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1), background-color 260ms ease, color 260ms ease; }
+.cq-faq[data-open="true"] .cq-faq__icon { transform: rotate(135deg); background: #1E6FDB; color: #FFFFFF; }
+
+/* ---- numbered steps ---------------------------------------------------- */
+.cq-step__num { transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1), color 320ms ease; }
+@media (hover: hover) { .cq-step:hover .cq-step__num { transform: translateY(-3px); color: #1E6FDB; } }
+
+/* ---- order lifecycle rail ---------------------------------------------- */
+.cq-rail__list { position: relative; margin: 0; padding: 0; list-style: none; }
+.cq-rail__row { position: relative; display: flex; gap: 0.9rem; padding-bottom: 1.55rem; }
+.cq-rail__row:last-child { padding-bottom: 0; }
+.cq-rail__row::before {
+  content: "";
+  position: absolute;
+  inset-block: 26px 0;
+  inset-inline-start: 12px;
+  width: 2px;
+  background: linear-gradient(#CFE0F7, #E8EFF9);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 620ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition-delay: var(--cq-delay, 0ms);
+}
+.cq-rail__row:last-child::before { display: none; }
+.cq-rail[data-active="true"] .cq-rail__row::before { transform: scaleY(1); }
+.cq-rail__node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #1E6FDB;
+  box-shadow: 0 0 0 4px #EAF2FF;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 420ms ease, transform 420ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  transition-delay: var(--cq-delay, 0ms);
+}
+.cq-rail[data-active="true"] .cq-rail__node { opacity: 1; transform: scale(1); }
+.cq-rail__body { opacity: 0; transform: translateY(8px); transition: opacity 520ms ease, transform 520ms ease; transition-delay: calc(var(--cq-delay, 0ms) + 90ms); }
+.cq-rail[data-active="true"] .cq-rail__body { opacity: 1; transform: none; }
+.cq-rail__terminal { opacity: 0; transition: opacity 460ms ease; transition-delay: var(--cq-delay, 0ms); }
+.cq-rail[data-active="true"] .cq-rail__terminal { opacity: 1; }
+
+/* ---- capability marquee ------------------------------------------------ */
+/* `overflow: hidden` clips the track but does NOT stop it contributing its
+   max-content width to the grid track above it, which blew the page out to
+   ~4500px. Inline-size containment makes the strip size from its column
+   instead of from its (deliberately endless) contents. */
+.cq-marquee { position: relative; min-width: 0; contain: inline-size; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent); mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent); }
+.cq-marquee__track { display: flex; width: max-content; gap: 0.65rem; animation: cq-marquee 46s linear infinite; }
+@media (hover: hover) { .cq-marquee:hover .cq-marquee__track { animation-play-state: paused; } }
+/* WCAG 2.2.2 — the real stop. `:hover` above is a convenience for mouse users;
+   this is the button's state, so a keyboard or touch visitor can hold the strip
+   still. It sits after the hover rule so an explicit pause always wins. */
+.cq-marquee[data-cq-playing="false"] .cq-marquee__track { animation-play-state: paused; }
+@keyframes cq-marquee { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
+
+/* ---- product-story sticky stage -----------------------------------------
+ * One Apple-style stage holds the viewport (position: sticky, set in the page
+ * markup with logical inset-block-start) while three text beats scroll past.
+ * The three vector panels sit stacked on the same grid cell; `data-stage` on
+ * the wrapper — flipped by each beat's useReveal — chooses which one is
+ * opaque. Pure CSS cross-fade: no pinning library, no scroll math.
+ * ------------------------------------------------------------------------ */
+.cq-stage { display: grid; }
+.cq-stage__panel { grid-area: 1 / 1; opacity: 0; transition: opacity 400ms ease; pointer-events: none; }
+.cq-stage[data-stage="0"] .cq-stage__panel--0,
+.cq-stage[data-stage="1"] .cq-stage__panel--1,
+.cq-stage[data-stage="2"] .cq-stage__panel--2 { opacity: 1; pointer-events: auto; }
+
+/* ---- how step rail -------------------------------------------------------
+ * The connecting rule draws in with scaleX — compositor-only. The page is
+ * dir="rtl", so the drawing origin is the START side = the right edge.
+ * ------------------------------------------------------------------------ */
+.cq-steprail__rule { transform: scaleX(0); transform-origin: 100% 50%; transition: transform 700ms cubic-bezier(0.22, 0.61, 0.36, 1); transition-delay: var(--cq-delay, 0ms); }
+.cq-steprail[data-revealed="true"] .cq-steprail__rule { transform: scaleX(1); }
+
+/* ---- nav late CTA -------------------------------------------------------- */
+.cq-nav-cta { opacity: 0; transform: translateY(-4px); transition: opacity 300ms ease, transform 300ms ease; pointer-events: none; }
+.cq-nav-cta[data-shown="true"] { opacity: 1; transform: none; pointer-events: auto; }
+
+/* ---- off-screen animation parking ---------------------------------------
+ * The page carries 44 infinite animations. Left alone they keep the compositor
+ * busy for the whole visit even when their block is far above the viewport,
+ * which is felt on the low-end Android handsets this market runs. Blocks marked
+ * `data-cq-onscreen="false"` by `useInViewport` freeze every animation inside
+ * them. Paused, never cancelled — the frame is kept, so nothing snaps when the
+ * block scrolls back in.
+ *
+ * Deliberately NOT `contain: paint` here. `contain` is one property, so a blanket
+ * rule would REPLACE the `contain: inline-size` that `.cq-marquee` depends on,
+ * and the endless track's max-content width would leak back into layout — a
+ * measured 4300px of horizontal page overflow. Pausing is the win that matters.
+ * ------------------------------------------------------------------------ */
+[data-cq-onscreen="false"],
+[data-cq-onscreen="false"] * { animation-play-state: paused !important; }
+
+/* ---- the single motion opt-out ----------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .cq-reveal,
+  .cq-rail__body,
+  .cq-rail__terminal,
+  .cq-rail__node { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .cq-rail__row::before { transform: scaleY(1) !important; transition: none !important; }
+  .cq-card, .cq-cta, .cq-cta--ghost, .cq-card__icon, .cq-step__num, .cq-nav { transition: none !important; }
+  .cq-card:hover, .cq-cta:hover, .cq-cta--ghost:hover, .cq-card:hover .cq-card__icon, .cq-step:hover .cq-step__num { transform: none !important; }
+  .cq-marquee { -webkit-mask-image: none; mask-image: none; overflow-x: auto; }
+  .cq-marquee__track { animation: none !important; transform: none !important; flex-wrap: wrap; width: 100%; }
+  .cq-motif-drift, .cq-motif-pulse, .cq-motif-halo, .cq-motif-coin, .cq-motif-core, .cq-motif-node { animation: none !important; }
+  .cq-motif-node__ring { animation: none !important; opacity: 0 !important; }
+  /* Device fan: freeze each frame on its own static screen instead of cycling. */
+  .cq-device__float { animation: none !important; }
+  .cq-screen { animation: none !important; }
+  /* Showcase panels: show the finished diagram — tiles up, toggles already on. */
+  .cq-panel__tile, .cq-panel__badge, .cq-panel__row { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .cq-toggle__track, .cq-toggle__knob { transition: none !important; }
+  .cq-toggle[data-on="true"] .cq-toggle__track { fill: #1E6FDB; }
+  .cq-toggle[data-on="true"] .cq-toggle__knob { transform: translateX(-36px) !important; }
+  /* Sticky stage + step rail + nav CTA (ق-137 redesign): state stays real —
+     data-stage still picks the visible panel — only the tweening goes away,
+     and the rule is painted full. The page also swaps the sticky theater for
+     plain stacked rows under reduced motion (useMediaQuery + the reduced-motion
+     hook choose the structure at mount); these rules are the belt to that. */
+  .cq-stage__panel { transition: none !important; }
+  .cq-steprail__rule { transform: scaleX(1) !important; transition: none !important; }
+  .cq-nav-cta { transition: none !important; transform: none !important; }
+  /* Pricing + FAQ: state stays real, only the tweening goes away. */
+  .cq-billing__option, .cq-faq__icon, .cq-pay { transition: none !important; }
+  .cq-pay:hover { transform: none !important; }
+  .cq-price { animation: none !important; }
+  .cq-plan[data-recommended="true"], .cq-plan[data-recommended="true"]:hover { transform: none !important; }
+  .cq-faq__panel { transition: none !important; }
+}

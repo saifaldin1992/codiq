@@ -1,0 +1,16 @@
+# The schema is the one file where a line-ending flip is genuinely dangerous: it
+# turns a 25-line change into a 2,123-line diff, and a dropped hunk inside that
+# is invisible on review. Pinned to LF, which is what main has always stored.
+#
+# Deliberately NOT applied to *.sql: the migrations are checksummed by Prisma and
+# some are already applied in production, so renormalising them would rewrite
+# files that must stay byte-identical to what has run.
+prisma/schema.prisma text eol=lf
+
+# المرحلة 20-4: the two generated OpenAPI artefacts, for the same reason and one
+# more. They are written by `pnpm openapi:generate` and compared byte-for-byte by
+# `pnpm openapi:guard`; a checkout that flipped their endings would fail the
+# guard on a clean tree, on Windows only, with a diff nobody could see. Pinned to
+# LF, which is what the generator writes and what CI reads.
+docs/openapi.json text eol=lf
+phase1-backend/src/http/openapi.document.ts text eol=lf

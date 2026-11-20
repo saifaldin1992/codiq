@@ -1,0 +1,32 @@
+{
+  "_": [
+    "ق-249 — routes inside a service's domain that carry NO capability gate, each with the reason.",
+    "This list only shrinks: capability-registry.guard.mjs fails when a route here gains its gate",
+    "(delete the row) and when a new domain route appears in neither list.",
+    "Principle: the gate sits on the action that creates or changes state under a capability, and",
+    "on the screen whose whole content IS the capability. Reads of history and removals stay open."
+  ],
+  "unregistered": {
+    "DELETE /merchant/stores/:storeSlug/marketing/coupons/:couponId": "REMOVAL — taking something away must never be blocked by an availability switch; a merchant or customer can always undo.",
+    "POST /merchant/stores/:storeSlug/pos/devices/:deviceId/revoke": "SECURITY — revoking access is a safety action; it must work while the capability is closed.",
+    "GET /merchant/stores/:storeSlug/pos/shortfalls": "READ OF HISTORY — what already happened stays visible when the capability closes; the gate sits on the action that creates new state. Shortfalls are the stock the POS already sold short.",
+    "POST /merchant/stores/:storeSlug/pos/shortfalls/:shortfallId/review": "RECONCILIATION — reviewing a shortfall settles stock the POS already sold; blocking it would leave inventory wrong for as long as the switch is off.",
+    "GET /merchant/stores/:storeSlug/inventory/returns": "READ OF HISTORY — what already happened stays visible when the capability closes; the gate sits on the action that creates new state. Returns already physically received wait for inspection.",
+    "GET /merchant/stores/:storeSlug/inventory/returns/inspected": "READ OF HISTORY — what already happened stays visible when the capability closes; the gate sits on the action that creates new state.",
+    "POST /merchant/stores/:storeSlug/inventory/returns/:reservationId/resolve": "RECONCILIATION — inspecting a return that already arrived puts stock back where it belongs; the customer's ability to FILE a return (cx.returns) is the gate.",
+    "GET /store/:storeSlug/account/returns": "READ OF HISTORY — what already happened stays visible when the capability closes; the gate sits on the action that creates new state.",
+    "POST /store/:storeSlug/account/returns/:requestId/withdraw": "REMOVAL — taking something away must never be blocked by an availability switch; a merchant or customer can always undo.",
+    "GET /merchant/stores/:storeSlug/returns": "READ OF HISTORY — what already happened stays visible when the capability closes; the gate sits on the action that creates new state.",
+    "POST /merchant/stores/:storeSlug/returns/:requestId/decision": "PENDING WORK — a request filed while the capability was open still needs an answer; closing cx.returns stops new requests, not decisions on existing ones.",
+    "GET /store/:storeSlug/products/:productId/reviews": "PUBLIC CONTENT — reviews already published stay readable; cx.reviews gates writing a new one.",
+    "GET /store/:storeSlug/reviews": "PUBLIC CONTENT — the store's published reviews.",
+    "DELETE /store/:storeSlug/reviews/:reviewId": "REMOVAL — taking something away must never be blocked by an availability switch; a merchant or customer can always undo.",
+    "GET /store/:storeSlug/account/loyalty": "READ OF HISTORY — what already happened stays visible when the capability closes; the gate sits on the action that creates new state. The customer's points balance exists whether or not offers.loyalty is open.",
+    "GET /store/:storeSlug/account/wishlist": "READ OF HISTORY — what already happened stays visible when the capability closes; the gate sits on the action that creates new state. What the customer already saved.",
+    "DELETE /store/:storeSlug/account/wishlist/:variantId": "REMOVAL — taking something away must never be blocked by an availability switch; a merchant or customer can always undo.",
+    "GET /merchant/stores/:storeSlug/reviews": "MODERATION — the merchant must always see and act on what customers already wrote.",
+    "PUT /merchant/stores/:storeSlug/reviews/:reviewId/hidden": "MODERATION — hiding a review is a removal; it must work while cx.reviews is closed.",
+    "GET /merchant/stores/:storeSlug/team": "SECURITY — revoking access is a safety action; it must work while the capability is closed. Seeing who holds access is never optional.",
+    "DELETE /merchant/stores/:storeSlug/team/:membershipId": "SECURITY — revoking access is a safety action; it must work while the capability is closed."
+  }
+}

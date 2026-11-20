@@ -1,0 +1,62 @@
+
+> codiq-phase1@1.0.0 phase1:test /home/ubuntu/codiq-phase1
+> tsx phase1-backend/tests/phase1.integration.ts
+
+{
+  "platformOwner": {
+    "email": "owner.phase1@codiq.test",
+    "redirectTo": "/platform/dashboard",
+    "protectedArea": "platform_owner"
+  },
+  "merchant": {
+    "email": "merchant.phase1@codiq.test",
+    "redirectTo": "/merchant/stores/store-a/dashboard",
+    "protectedArea": "merchant"
+  },
+  "foundationReadiness": {
+    "customDomain": null,
+    "paymentMethods": [
+      {
+        "code": "CARD",
+        "isEnabled": false
+      },
+      {
+        "code": "COD",
+        "isEnabled": true
+      }
+    ],
+    "notificationApiKey": null,
+    "notificationEnabled": false,
+    "deliveryRateRows": 18
+  },
+  "identityBoundary": {
+    "ownerToMerchantArea": "IDENTITY_BOUNDARY_DENIED",
+    "merchantToOwnerArea": "IDENTITY_BOUNDARY_DENIED"
+  },
+  "merchantStoreBoundary": {
+    "storeASessionToStoreA": 200,
+    "storeASessionToStoreB": 403,
+    "deniedCode": "STORE_BOUNDARY_DENIED",
+    "separateStoreBSessionToStoreB": 200
+  },
+  "customerEmailUniqueness": {
+    "sameStoreDuplicateStatus": 409,
+    "sameStoreDuplicateCode": "DUPLICATE_IDENTITY",
+    "differentStoreRegistrationStatus": 201
+  },
+  "customerStoreBoundary": {
+    "sameEmailCreatedInTwoStores": true,
+    "ownStoreStatus": 200,
+    "otherStoreStatus": 403,
+    "deniedCode": "STORE_BOUNDARY_DENIED"
+  },
+  "apiEmailConflict": {
+    "status": 409,
+    "code": "EMAIL_RESERVED_FOR_PLATFORM_OWNER",
+    "message": "This email already belongs to a platform owner and cannot be registered as a merchant."
+  },
+  "databaseTriggerConflict": {
+    "code": "23505",
+    "message": "CODIQ_EMAIL_CONFLICT: this email is already registered as a platform owner and cannot be a merchant"
+  }
+}

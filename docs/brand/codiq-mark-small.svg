@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="32" height="32">
+  <!-- CODIQ mark — SMALL-SIZE form (≤24px: favicons, tab icons, tiny avatars).
+       Thicker stroke (13) and NO coin — below 24px the coin smears into noise
+       (ق-138, guidelines «الأحجام»). This is the favicon in client/index.html. -->
+  <circle cx="48" cy="48" r="48" fill="#1E6FDB"/>
+  <path d="M64.5 31.2a22.6 22.6 0 1 0 0 33.6" fill="none" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round"/>
+</svg>

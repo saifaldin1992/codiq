@@ -1,0 +1,305 @@
+{
+  "merchant-home.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /merchant/stores/:storeSlug/dashboard/home",
+        "reason": "AGGREGATE — the merchant's home in one payload (ق-202): today vs yesterday, orders by status / payment / hour, five best sellers, five most viewed, five low-stock rows, the wallet, and the eight latest orders. Every list inside it is a fixed-size top-N, and the full lists are each one screen away."
+      }
+    ],
+    "missingStoreSlug": []
+  },
+  "payment-methods.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /merchant/stores/:storeSlug/payment-methods",
+        "reason": "BOUNDED — a fixed CATALOG of six methods (ق-209) merged with the store's switch rows; it cannot grow with the merchant's data, and a switch panel needs every switch on one screen."
+      }
+    ],
+    "missingStoreSlug": []
+  },
+  "store-banners.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /store/:storeSlug/banners",
+        "reason": "BOUNDED — the front page's slides, capped at MAX_STORE_BANNERS (12) by the service and by the merchant's own restraint. A slider is rendered whole; a page boundary would cut a carousel in half."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/banners",
+        "reason": "BOUNDED — the same twelve, hidden ones included, on the merchant's own screen where he reorders them; ordering needs the whole list in hand."
+      }
+    ],
+    "missingStoreSlug": []
+  },
+  "catalog.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /merchant/stores/:storeSlug/catalog/categories",
+        "reason": "BOUNDED — a TREE, not a list. The client renders parent/child nesting from one payload, so a page boundary would orphan every child whose parent fell on the previous page. Bounded by the 3-level depth cap the service enforces and by the merchant's own curation of his shelves."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/catalog/export/products.csv",
+        "reason": "NOT A JSON LIST — a CSV export streamed row by row to a file the merchant downloads. Exporting his whole catalog is the point of it, and a cursor would produce a truncated spreadsheet."
+      }
+    ],
+    "missingStoreSlug": [
+      {
+        "route": "GET /merchant/stores/:storeSlug/catalog/export/products.csv",
+        "reason": "NOT A JSON ENVELOPE — a CSV byte stream with its own Content-Disposition. There is no object to carry an echo in."
+      }
+    ]
+  },
+  "marketing.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /store/:storeSlug/public-config",
+        "reason": "NOT A LIST — the shop's face in one payload (ق-199): name, logo, announcement, contact, policies, the enabled payment methods (at most six, from a fixed catalog) and the home sections (exactly six keys). The findMany the guard detects is the payment-method catalog merge; nothing here grows with the merchant's data."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/inventory/forecast",
+        "reason": "RANKED SHORTLIST — the products closest to running out, bounded by the caller's limit. Its whole value is being short; the merchant acts on the top of it, and the full catalog is one screen away."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/reports/monthly",
+        "reason": "AGGREGATE — one month of figures, computed server-side. The findMany the guard detects feeds a sum, not the response body."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/marketing/analytics/summary",
+        "reason": "AGGREGATE — totals over the requested window. No row of the underlying tables reaches the client."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/marketing/analytics/sales-series",
+        "reason": "AGGREGATE — one point per day over the requested window, which the window itself bounds."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/marketing/analytics/top-products",
+        "reason": "AGGREGATE — a ranked top-N over the window, bounded by its own limit. 'The rest of the top products' is not a question this chart answers."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/marketing/analytics/status-funnel",
+        "reason": "AGGREGATE — one count per order status. Eight rows, fixed by the status machine."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/marketing/analytics/coupons",
+        "reason": "AGGREGATE — redemption totals per coupon over the window, not the redemption rows themselves."
+      }
+    ],
+    "missingStoreSlug": [
+      {
+        "route": "GET /merchant/stores/:storeSlug/reports/monthly",
+        "reason": "AGGREGATE, not a list envelope — the month's figures under one `report` key. Detected because the totals are folded from a findMany."
+      }
+    ]
+  },
+  "merchant.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /merchant/stores",
+        "reason": "BOUNDED by the plan — a merchant may hold only as many stores as his subscription entitles him to, checked by assertWithinPlanLimit on every create. This is the store switcher and it must show all of them."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/services",
+        "reason": "BOUNDED — the merchant's view of the same catalogue (ق-249): eight services with their effective state here; the whole point is to see it all on one screen."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/availability/notices",
+        "reason": "BOUNDED — the merchant's banner (ق-250): at most twenty windows within a week and the open incidents (a handful); two short lists the dashboard shows whole, never paged."
+      }
+    ]
+  },
+  "orders.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /merchant/stores/:storeSlug/delivery-rates",
+        "reason": "BOUNDED — eighteen rows, one per Iraqi governorate. The set is fixed by the country, not by the merchant, and the screen is a form over all of them at once."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/export.csv",
+        "reason": "NOT A JSON LIST — a CSV export streamed row by row. Same reason as the catalog export: a paginated download is a broken download."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/print/sheet",
+        "reason": "BOUNDED by the caller — it prints exactly the order ids passed in ?ids=, which parsePrintIds already caps. There is no 'rest of the list' to reach."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/:orderId/history",
+        "reason": "BOUNDED — the status events of ONE order. The transition machine has eight states and no cycles, so the timeline cannot exceed a handful of rows however long the order lives."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/search",
+        "reason": "RANKED SHORTLIST — the command palette. It answers with the best matches per domain and already reports 'truncated' per scope, so it never implies that is all there is. Paging a palette is not a thing a person does; he types more letters."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/:orderId/tags",
+        "reason": "BOUNDED — at most eight internal tags per order, enforced by the order_tags_max_per_order database constraint, not by convention."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/:orderId/whatsapp",
+        "reason": "NOT A LIST — the WhatsApp panel for ONE order: its templates and the sends already recorded against it. Detected because the panel reads its send history with findMany."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/manifest.csv",
+        "reason": "NOT A JSON LIST — the courier manifest (ق-246), a CSV streamed row by row over a window the service caps at 62 days. Same reason as the orders export: a paginated download is a broken download."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/couriers",
+        "reason": "BOUNDED — the datalist behind the courier field (ق-246): the store's own spellings in the last 90 days, most used first, take: 50 in the service. A suggestion list past fifty is noise, not a page."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/cod-reconciliation",
+        "reason": "AGGREGATE — the COD cash report (ق-246): one row per courier (bounded by how many couriers a store uses) over a window capped at 62 days, folded server-side page by page. Its `outstanding` checklist is capped at COD_COLLECT_BATCH_LIMIT (200) — the size of one «استلمتُ النقد» batch — and carries outstandingTotal so the screen says «first 200 of N», never «all»."
+      }
+    ],
+    "missingStoreSlug": [
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/export.csv",
+        "reason": "NOT A JSON ENVELOPE — a CSV byte stream, same reason as the catalog export."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/print/sheet",
+        "reason": "NOT A LIST ENVELOPE — a print document assembled from the ids the caller passed, rendered as a sheet rather than browsed."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/orders/manifest.csv",
+        "reason": "NOT A JSON ENVELOPE — a CSV byte stream (ق-246), same reason as the orders export."
+      }
+    ]
+  },
+  "platform-staff.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /platform/staff/team",
+        "reason": "BOUNDED — the platform's own staff roster, created one at a time by the owner himself. It is the same screen that grants and revokes their permissions, so it must show every one of them."
+      }
+    ]
+  },
+  "platform.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /platform/pulse",
+        "reason": "AGGREGATE — three cohort COUNTS. The cohorts themselves are opened at /platform/pulse/:cohort, which is keyset-paginated."
+      },
+      {
+        "route": "GET /platform/plans",
+        "reason": "BOUNDED — the platform's plan catalogue, created by the owner one plan at a time. The management grid compares them side by side, so all of them must be present."
+      },
+      {
+        "route": "GET /merchant/finance/report",
+        "reason": "AGGREGATE — the merchant's ledger totals over the requested period, computed in the database."
+      },
+      {
+        "route": "GET /merchant/finance/wallet",
+        "reason": "AGGREGATE — a balance folded from the append-only ledger, never a list of its entries."
+      },
+      {
+        "route": "GET /platform/finance/report",
+        "reason": "AGGREGATE — platform-wide ledger totals over the requested period, computed in the database."
+      },
+      {
+        "route": "GET /platform/settings/contact",
+        "reason": "NOT A LIST — the platform's three contact fields. Detected through a helper that happens to read rows elsewhere in its module."
+      }
+    ]
+  },
+  "pos.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /merchant/stores/:storeSlug/pos/devices",
+        "reason": "BOUNDED — the tills a shop has paired, created one at a time behind settings.manage. The cashier's device picker must offer all of them or he cannot sell from the one he is standing at."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/pos/products",
+        "reason": "RANKED SHORTLIST — the till's online search, capped by its own limit and reporting hasMore. A cashier types two or three characters and taps a row; the answer to 'not here' is a better needle, not page 2."
+      }
+    ]
+  },
+  "public.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /public/contact",
+        "reason": "NOT A LIST — the same three contact fields, unauthenticated and edge-cached."
+      },
+      {
+        "route": "GET /public/plans",
+        "reason": "BOUNDED — the same plan catalogue, as the public pricing grid. A visitor comparing plans needs every one of them on the page."
+      },
+      {
+        "route": "GET /public/demo-status",
+        "reason": "NOT A LIST — a single boolean saying whether this deployment is the demo. Detected only through the shared config helper."
+      },
+      {
+        "route": "GET /public/unsubscribe/:token",
+        "reason": "NOT A LIST — one store name and one address, resolved from the HMAC in the link so the page can name what is being unsubscribed."
+      }
+    ]
+  },
+  "reviews-wishlist.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /store/:storeSlug/products/:productId/recommendations",
+        "reason": "RANKED SHORTLIST — bought-together suggestions, bounded by the caller's own limit. It is a strip beside a product, not a browsable list."
+      },
+      {
+        "route": "GET /store/:storeSlug/products/:productId/related",
+        "reason": "RANKED SHORTLIST — the products sharing this one's category (ق-200), capped at eight by the service. It is the strip under a product page, and 'the ninth most related product' is not a question a shopper asks; the category page next to it is the browsable list."
+      },
+      {
+        "route": "GET /store/:storeSlug/reviews",
+        "reason": "RANKED SHORTLIST — the shop's best praise for the home page's «آراء العملاء» rail (ق-200): four-star-and-up reviews that carry a body, capped by the service. A carousel of testimonials is rendered whole; the per-product reviews, which ARE browsable, keep their own paginated route."
+      }
+    ]
+  },
+  "sessions.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /auth/sessions",
+        "reason": "BOUNDED — one identity's live sessions, capped at 50 and swept by the 30-day session retention window. The screen exists to spot an unfamiliar device, not to browse history; a device that fell off the bottom is already expired."
+      }
+    ]
+  },
+  "storefront.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /store/:storeSlug/categories",
+        "reason": "BOUNDED — the storefront's category tree, same shape and same reason as the merchant one: the shopper's navigation is rendered from the whole tree, and it carries only categories that actually hold an active product."
+      },
+      {
+        "route": "GET /store/:storeSlug/products/:productId",
+        "reason": "NOT A LIST — one product. Detected because the payload includes its variants and images, each read with findMany, both bounded by the product itself."
+      },
+      {
+        "route": "GET /store/:storeSlug/account/addresses",
+        "reason": "BOUNDED — one shopper's own address book, which he adds to by hand. The checkout picker must offer every address he saved."
+      },
+      {
+        "route": "GET /store/:storeSlug/delivery-areas",
+        "reason": "BOUNDED BY GEOGRAPHY — Iraq has eighteen governorates and will not grow one. The list is the subset of those the merchant has enabled, so it is at most eighteen rows and is rendered as a single <select> a shopper reads in one glance. A cursor here would paginate a dropdown."
+      }
+    ],
+    "missingStoreSlug": []
+  },
+  "team.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /merchant/stores/:storeSlug/team",
+        "reason": "BOUNDED by the plan — staff seats are an entitlement, checked by assertWithinPlanLimit on every invitation, and the permissions matrix screen is a view of the whole team at once."
+      }
+    ]
+  },
+  "platform-services.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /platform/services",
+        "reason": "BOUNDED — the service catalogue (ق-249): eight services and their capabilities, seeded by migration and edited one row at a time by the owner; a control screen needs every switch in view at once."
+      },
+      {
+        "route": "GET /platform/feature-flags",
+        "reason": "BOUNDED — the rollout flags (ق-249): one per capability at most, each with a handful of rules; a flag screen that pages would hide the rule the owner is looking for."
+      },
+      {
+        "route": "GET /platform/config",
+        "reason": "BOUNDED — the closed settings registry (ق-251): nine codes the owner sees whole; a registry that pages is a registry nobody can read in one look."
+      }
+    ],
+    "missingStoreSlug": []
+  }
+}

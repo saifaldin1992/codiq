@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- CODIQ mark — ق-138 approved geometry. Circle r48 #1E6FDB, C stroke 9
+       round caps opening to the Latin reading direction, COD coin r5.3 #8FC2FF
+       in the gap (diameter 10.6 ≈ letter stroke ×1.18). Do not restyle by eye. -->
+  <circle cx="48" cy="48" r="48" fill="#1E6FDB"/>
+  <path d="M63.5 32.6a21.4 21.4 0 1 0 0 30.8" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="61.4" cy="48" r="5.3" fill="#8FC2FF"/>
+</svg>

@@ -1,0 +1,8 @@
+{
+  "GET /api/platform/stores/*/products": "NO SCREEN — the platform has no per-store product view; only the list-envelope contract test reaches it. Build the view or delete the route with its contract row.",
+  "GET /api/platform/stores/*/products/*": "NO SCREEN — see the list route above.",
+  "GET /api/platform/stores/*/orders": "NO SCREEN — OrderWorkspace in platform scope filters /platform/orders by store instead; only the contract test reaches this. Delete with its contract row, or point the workspace here.",
+  "GET /api/platform/stores/*/orders/*": "NO SCREEN — see the list route above.",
+  "POST /api/merchant/stores/*/marketing/coupons/*/restore": "API-ONLY, DECISION OPEN — no screen calls it (DeleteConfirmSheet restores through /trash/…/restore) but phase20b1:219 asserts it. Retire it together with that assertion, or keep it as an API act; not both.",
+  "POST /api/merchant/stores/*/team/*/restore": "API-ONLY, DECISION OPEN — no screen calls it (DeleteConfirmSheet restores through /trash/…/restore) but pg2.integration T12 asserts it. Retire it together with that assertion, or keep it as an API act; not both."
+}

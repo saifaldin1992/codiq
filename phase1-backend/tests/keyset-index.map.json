@@ -1,0 +1,257 @@
+{
+  "_": [
+    "المرحلة 20-3 — which composite index each 20-2 keyset page rides.",
+    "",
+    "One row per keysetWhere(...) call site, keyed by <file>#<function>. `index`",
+    "names a b-tree whose columns END in (column, id); `keyset-index.guard.mjs`",
+    "reads the CREATE INDEX out of prisma/migrations — not out of schema.prisma —",
+    "so a declaration nobody ever migrated cannot pass as coverage.",
+    "",
+    "`index: null` means «an existing index already serves this page, measured».",
+    "It requires a reason carrying the two numbers, and the count of them may only",
+    "FALL. Numbers below are median-of-five EXPLAIN (ANALYZE, BUFFERS) on the",
+    "1.96M-row corpus in phase1-backend/tests/perf-index-evidence.seed.sql, cursor",
+    "half way down each list. Re-measure with `pnpm perf:evidence`."
+  ],
+  "lists": [
+    {
+      "key": "http/routes/orders.ts#sendProductsForStore",
+      "model": "Product",
+      "column": "sku",
+      "index": null,
+      "reason": "Ordered by (sku, id), and `products_store_sku_live_key` is UNIQUE on (store_id, sku) WHERE deleted_at IS NULL — the same LIVE predicate this list carries. A unique key means sku already identifies the row, so the id tiebreaker can never break a tie and an index carrying it would be dead weight. Measured 0.116 ms on 40,000 live products in one store."
+    },
+    {
+      "key": "http/routes/orders.ts#sendOrdersForStore",
+      "model": "StoreOrder",
+      "column": "order_number",
+      "index": null,
+      "reason": "Same shape as the products list beside it: `store_orders_store_id_order_number_key` is UNIQUE on (store_id, order_number), so order_number alone orders the store's rows and the id tiebreaker is unreachable. Measured 0.139 ms on 100,000 orders in one store."
+    },
+    {
+      "key": "services/abandoned-cart.service.ts#abandonedCartsPanel",
+      "model": "ShoppingCart",
+      "column": "last_activity_at",
+      "index": "shopping_carts_store_activity_id_idx"
+    },
+    {
+      "key": "services/coupon.service.ts#listCoupons",
+      "model": "Coupon",
+      "column": "created_at",
+      "index": "coupons_store_live_created_id_idx"
+    },
+    {
+      "key": "services/csv-transfer.service.ts#exportOrdersCsv",
+      "model": "StoreOrder",
+      "column": "created_at",
+      "index": "store_orders_store_created_id_idx"
+    },
+    {
+      "key": "services/customer-directory.service.ts#listStoreCustomers",
+      "model": "Customer",
+      "column": "created_at",
+      "index": "customers_store_created_id_idx"
+    },
+    {
+      "key": "services/entitlement.service.ts#listMerchantsWithPlans",
+      "model": "Merchant",
+      "column": "created_at",
+      "index": "merchants_created_id_idx"
+    },
+    {
+      "key": "services/entitlement.service.ts#listUpgradeRequests",
+      "model": "PlanUpgradeRequest",
+      "column": "created_at",
+      "index": "plan_upgrade_requests_created_id_idx"
+    },
+    {
+      "key": "services/availability.service.ts#listAvailabilityOverrides",
+      "model": "AvailabilityOverride",
+      "column": "created_at",
+      "index": "availability_overrides_created_id_idx"
+    },
+    {
+      "key": "services/maintenance.service.ts#listMaintenanceWindows",
+      "model": "MaintenanceWindow",
+      "column": "created_at",
+      "index": "maintenance_windows_created_id_idx"
+    },
+    {
+      "key": "services/incidents.service.ts#listIncidents",
+      "model": "Incident",
+      "column": "created_at",
+      "index": "incidents_created_id_idx"
+    },
+    {
+      "key": "services/finance.service.ts#merchantSettlements",
+      "model": "Settlement",
+      "column": "created_at",
+      "index": "settlements_merchant_created_idx"
+    },
+    {
+      "key": "services/loyalty.service.ts#loyaltyStatement",
+      "model": "LoyaltyEntry",
+      "column": "created_at",
+      "index": "loyalty_entries_customer_idx"
+    },
+    {
+      "key": "services/notification-settings.service.ts#listNotificationLog",
+      "model": "NotificationOutbox",
+      "column": "created_at",
+      "index": "notification_outbox_store_log_idx"
+    },
+    {
+      "key": "services/order-lifecycle.service.ts#listStoreOrders",
+      "model": "StoreOrder",
+      "column": "created_at",
+      "index": "store_orders_store_created_id_idx"
+    },
+    {
+      "key": "services/order-lifecycle.service.ts#listPlatformOrders",
+      "model": "StoreOrder",
+      "column": "created_at",
+      "index": "store_orders_created_id_idx"
+    },
+    {
+      "key": "services/order-notes.service.ts#listOrderNotes",
+      "model": "OrderNote",
+      "column": "created_at",
+      "index": null,
+      "reason": "`order_notes_store_order_idx` is (store_id, order_id, created_at) and stops before id, so the plan carries an Incremental Sort — but that sort runs inside created_at TIES, which are single rows, so it does not grow with the thread. Measured 0.058 ms on an order carrying 20,001 notes; the (…, id) variant was not worth replacing a live index for."
+    },
+    {
+      "key": "services/platform-audit.service.ts#listPlatformAuditEvents",
+      "model": "PlatformAuditEvent",
+      "column": "created_at",
+      "index": "platform_audit_events_created_idx"
+    },
+    {
+      "key": "services/platform-directory.service.ts#listPlatformStores",
+      "model": "Store",
+      "column": "created_at",
+      "index": "stores_created_id_idx"
+    },
+    {
+      "key": "services/pos.service.ts#listPosShortfalls",
+      "model": "PosTicketShortfall",
+      "column": "created_at",
+      "index": "pos_ticket_shortfalls_open_created_id_idx"
+    },
+    {
+      "key": "services/product-catalog.service.ts#listProducts",
+      "model": "Product",
+      "column": "created_at",
+      "index": "products_store_created_id_idx"
+    },
+    {
+      "key": "services/product-review.service.ts#listProductReviews",
+      "model": "ProductReview",
+      "column": "created_at",
+      "index": "product_reviews_product_idx"
+    },
+    {
+      "key": "services/product-review.service.ts#listStoreReviews",
+      "model": "ProductReview",
+      "column": "created_at",
+      "index": "product_reviews_store_idx"
+    },
+    {
+      "key": "services/registration.service.ts#listRegistrationRequests",
+      "model": "Merchant",
+      "column": "created_at",
+      "index": "merchants_pending_created_id_idx"
+    },
+    {
+      "key": "services/return-inspection.service.ts#listPendingReturnInspections",
+      "model": "InventoryReservation",
+      "column": "returned_at",
+      "index": null,
+      "reason": "`inventory_reservations_pending_inspection_idx` is (store_id, returned_at DESC) WHERE return_disposition = 'pending_inspection' — the exact predicate this list carries — and stops before id. Measured 0.09 ms; the (…, id DESC) variant measured 0.08 ms, which does not buy the churn of replacing a live index. The residual Incremental Sort is over returned_at ties only."
+    },
+    {
+      "key": "services/return-request.service.ts#listCustomerReturnRequests",
+      "model": "ReturnRequest",
+      "column": "created_at",
+      "index": "return_requests_customer_idx"
+    },
+    {
+      "key": "services/return-request.service.ts#listStoreReturnRequests",
+      "model": "ReturnRequest",
+      "column": "created_at",
+      "index": "return_requests_store_created_id_idx"
+    },
+    {
+      "key": "services/soft-delete/audit-log.service.ts#listAuditEvents",
+      "model": "StoreAuditEvent",
+      "column": "created_at",
+      "index": "store_audit_events_store_created_idx"
+    },
+    {
+      "key": "services/soft-delete/soft-delete.service.ts#listTrash",
+      "model": "Product",
+      "column": "deleted_at",
+      "index": null,
+      "reason": "One keyset over FOUR tables (products, product_categories, coupons, store_staff_memberships), each carrying `*_store_trash_idx` as (store_id, deleted_at DESC) WHERE deleted_at IS NOT NULL — the predicate the trash bin always applies — stopping before id. Measured 0.13 ms on 10,000 trashed products against 0.05 ms for the (…, id DESC) variant: real, but 0.08 ms, and the residual Incremental Sort is over deleted_at ties, so it does not grow with the bin. Four live indexes is too much churn for that."
+    },
+    {
+      "key": "services/storefront.service.ts#publicProducts",
+      "model": "Product",
+      "column": "created_at",
+      "index": "products_store_created_id_idx"
+    },
+    {
+      "key": "services/storefront.service.ts#customerOrders",
+      "model": "StoreOrder",
+      "column": "created_at",
+      "index": "store_orders_store_created_id_idx"
+    },
+    {
+      "key": "services/delivery.service.ts#courierManifestCsv",
+      "model": "StoreOrder",
+      "column": "handed_over_at",
+      "index": "store_orders_store_handed_over_idx",
+      "reason": "Measured 2026-09-14 on 120,003 handed-over orders in one store, cursor half way, page 200: 0.18 ms riding the index vs 154.1 ms Seq Scan + Sort without it (migration 20260914180000 header)."
+    },
+    {
+      "key": "services/delivery.service.ts#codReconciliation",
+      "model": "StoreOrder",
+      "column": "handed_over_at",
+      "index": "store_orders_store_handed_over_idx",
+      "reason": "Measured 2026-09-14 on 120,003 handed-over orders in one store, cursor half way, page 200: 0.18 ms riding the index vs 154.1 ms Seq Scan + Sort without it (migration 20260914180000 header)."
+    },
+    {
+      "key": "services/wishlist.service.ts#listWishlist",
+      "model": "WishlistItem",
+      "column": "created_at",
+      "index": "wishlist_items_customer_created_id_idx"
+    },
+    {
+      "key": "services/inventory-movements.service.ts#listInventoryMovements",
+      "model": "InventoryMovement",
+      "column": "created_at",
+      "index": "inventory_movements_store_created_id_idx"
+    },
+    {
+      "key": "services/return-inspection.service.ts#listInspectedReturns",
+      "model": "InventoryReservation",
+      "column": "inspected_at",
+      "index": "inventory_reservations_store_inspected_id_idx"
+    },
+    {
+      "key": "notifications/resend-webhook.ts#listComplaints",
+      "model": "NotificationComplaint",
+      "column": "reported_at",
+      "index": "notification_complaints_reported_id_idx"
+    }
+  ],
+  "schemaOnlyIndexes": [
+    "InventoryReservation.@@index([storeId, productId, status])"
+  ],
+  "_schemaOnlyIndexes": [
+    "Declared in schema.prisma, created by NO migration — the drift migration",
+    "20260904100000 named in passing and nobody had a guard for. Left standing and",
+    "listed rather than quietly created: adding the index is a schema change with",
+    "its own write cost and belongs in a change that measures it, not in this one.",
+    "This list may only FALL."
+  ]
+}

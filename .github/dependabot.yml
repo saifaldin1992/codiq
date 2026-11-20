@@ -1,0 +1,55 @@
+# D-67 — أحدٌ ما يجب أن يخبرنا حين تُنشر ثغرةٌ في اعتمادية.
+#
+# قبل هذا الملف كانت الإجابة: لا أحد. ٦٣٠ اعتمادية، ولا آليةَ تُراجعها إلّا أن
+# يقرأ إنسانٌ خبراً. أوّل تشغيلٍ لـ`pnpm audit` بعد إضافته أظهر ٦٣ تنبيهاً،
+# منها ثلاثةٌ عالية الخطورة في `multer` — وهو المسار الذي يرفع التاجرُ صوره
+# عبره: طلبٌ واحدٌ مصوغٌ بعناية يشغل المعالج ويمنع الخادم من خدمة أيّ أحدٍ آخر.
+# كان ذلك حيّاً في الإنتاج ولم يكن أحدٌ يعلم.
+#
+# التجميع (`groups`) متعمَّد: بلا تجميعٍ يفتح Dependabot طلبَ دمجٍ لكلّ حزمة،
+# وكلّ طلبٍ يشغّل CI، ودقائق CI محسوبةٌ على المستودع الخاصّ. أسبوعياً ومجمَّعاً
+# يعني طلبَ دمجٍ واحداً للإنتاج وآخر لأدوات البناء، لا خمسين.
+#
+# ملاحظة للمالك: هذا الملفّ يُفعّل «تحديثات الإصدارات». أمّا «تنبيهات الأمان»
+# — التي تفتح طلبَ دمجٍ فورياً عند نشر ثغرة بدل انتظار الأسبوع — فتُفعَّل مرّةً
+# واحدةً من إعدادات المستودع على GitHub (Security → Dependabot alerts)، ولا
+# يستطيع ملفٌّ في المستودع تفعيلها.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "04:00"
+      timezone: Asia/Baghdad
+    # حدٌّ منخفضٌ عن قصد: كلّ طلبِ دمجٍ يشغّل CI، ودقائقه محسوبة.
+    open-pull-requests-limit: 3
+    groups:
+      production-dependencies:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      development-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # الترقيات الكبرى تُقرَأ وتُختبر يدوياً، لا تُدمَج من طلبٍ آليّ: express 5
+      # وprisma 8 وvite 8 كلٌّ منها يغيّر سلوكاً تعتمد عليه المنصّة.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      timezone: Asia/Baghdad
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns:
+          - "*"
