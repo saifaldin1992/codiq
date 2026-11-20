@@ -7,7 +7,10 @@
 import { Route, Switch } from "wouter";
 import { MarketShell } from "./MarketShell";
 import { MarketHomePage } from "./pages/MarketHomePage";
-import { MarketAccountPage, MarketCartPage, MarketCategoriesPage, MarketNotFoundPage, MarketSearchPage, MarketStoresPage } from "./pages/MarketPlaceholderPages";
+import { MarketAccountPage, MarketCartPage, MarketCategoriesPage, MarketNotFoundPage, MarketSearchPage } from "./pages/MarketPlaceholderPages";
+import { MarketStoresPage } from "./pages/MarketStoresPage";
+import { MarketStorePage } from "./pages/MarketStorePage";
+import { MarketStoreReviewsPage } from "./pages/MarketStoreReviewsPage";
 
 export default function MarketApp() {
   return (
@@ -15,6 +18,8 @@ export default function MarketApp() {
       <Switch>
         <Route path="/" component={MarketHomePage} />
         <Route path="/stores" component={MarketStoresPage} />
+        <Route path="/s/:slug/reviews" component={MarketStoreReviewsPage} />
+        <Route path="/s/:slug" component={MarketStorePage} />
         <Route path="/categories" component={MarketCategoriesPage} />
         <Route path="/cart" component={MarketCartPage} />
         <Route path="/account" component={MarketAccountPage} />

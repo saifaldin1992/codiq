@@ -256,6 +256,16 @@ model Store {
   pickupEnabled        Boolean   @default(false) @map("pickup_enabled")
   district             District? @relation(fields: [districtId, governorateKey], references: [id, governorateKey], onDelete: Restrict, map: "stores_district_in_governorate")
   openingHours         StoreOpeningHour[]
+  /// Marketplace M1 (migration 20261121100000): listing request → owner decision.
+  /// unlisted | pending | listed | rejected | delisted.
+  marketStatus         String    @default("unlisted") @map("market_status") @db.Text
+  marketStatusAt       DateTime? @map("market_status_at") @db.Timestamptz(6)
+  marketStatusNote     String?   @map("market_status_note") @db.Text
+  marketListedAt       DateTime? @map("market_listed_at") @db.Timestamptz(6)
+  isBrand              Boolean   @default(false) @map("is_brand")
+  boostedUntil         DateTime? @map("boosted_until") @db.Timestamptz(6)
+  ambassadorUntil      DateTime? @map("ambassador_until") @db.Timestamptz(6)
+  marketMetrics        StoreMarketMetrics?
   merchant             Merchant              @relation(fields: [merchantId], references: [id], onDelete: Restrict)
   customers            Customer[]
   paymentMethods       PaymentMethod[]
@@ -2063,4 +2073,27 @@ model StoreOpeningHour {
 
   @@id([storeId, weekday])
   @@map("store_opening_hours")
+}
+
+/// Marketplace M1: the computed reputation the directory sorts by. Written only
+/// by the market-metrics job; see modules/market-stores/market-score.ts.
+model StoreMarketMetrics {
+  storeId               String   @id @map("store_id") @db.Uuid
+  score                 Decimal? @db.Decimal(5, 2)
+  tier                  String?  @db.Text
+  ratingAvg             Decimal? @map("rating_avg") @db.Decimal(3, 2)
+  ratingCount           Int      @default(0) @map("rating_count")
+  completedOrders       Int      @default(0) @map("completed_orders")
+  completedOrders30d    Int      @default(0) @map("completed_orders_30d")
+  cancelRate            Decimal? @map("cancel_rate") @db.Decimal(5, 4)
+  repeatRate            Decimal? @map("repeat_rate") @db.Decimal(5, 4)
+  medianResponseMinutes Int?     @map("median_response_minutes")
+  inStockRate           Decimal? @map("in_stock_rate") @db.Decimal(5, 4)
+  views30d              Int      @default(0) @map("views_30d")
+  productCount          Int      @default(0) @map("product_count")
+  badges                Json     @default("[]") @db.JsonB
+  computedAt            DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  store                 Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_market_metrics")
 }

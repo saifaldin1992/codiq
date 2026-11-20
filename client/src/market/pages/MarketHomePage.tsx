@@ -1,8 +1,14 @@
 import { Link } from "wouter";
 import { ShoppingBag, Sparkles, Store, Truck, Wallet } from "lucide-react";
+import { StoreShelf } from "../components/StoreShelf";
+import { useMarketLocation } from "../market-location";
+import { marketStoresUrl } from "../use-market-stores";
 
-/** M0: the welcome card and the four promises. The sections (banners, deals, lists) arrive in M3. */
+/** The welcome card, the four promises and the store shelves. Banners, deals and product lists arrive in M3. */
 export function MarketHomePage() {
+  const [location] = useMarketLocation();
+  const where = { governorate: location?.governorateKey, district: location?.districtId ?? undefined, limit: 10 };
+  const all = <Link href="/stores" className="text-xs font-bold text-[var(--codiq-accent)]">عرض الكل</Link>;
   const promises = [
     { icon: ShoppingBag, text: "كل المتاجر في مكان واحد" },
     { icon: Sparkles, text: "عروض جديدة كل يوم" },
@@ -25,6 +31,8 @@ export function MarketHomePage() {
           </li>
         ))}
       </ul>
+      <StoreShelf testId="market-home-recommended" title="متاجر مقترحة" url={marketStoresUrl({ ...where, sort: "recommended" })} action={all} />
+      <StoreShelf testId="market-home-newest" title="انضمّت حديثاً إلى السوق" url={marketStoresUrl({ ...where, sort: "newest" })} action={all} />
     </div>
   );
 }

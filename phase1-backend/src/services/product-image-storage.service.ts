@@ -287,6 +287,23 @@ export async function getStoreLogoBytes(objectKey: string) {
 export async function deleteStoreLogoObjects(objectKeys: readonly string[]) {
   await deleteStoredObjects(objectKeys, "store-logo");
 }
+/**
+ * Marketplace M1 — the store's cover in the market directory and on its market
+ * page. A banner in every way that matters (validator, bucket, plan meter); its
+ * own prefix so covers/ is greppable in the bucket.
+ */
+export async function putStoreCover(storeId: string, file: Express.Multer.File) {
+  const detected = validateStoreImage(file);
+  const config = s3Config();
+  const objectKey = `covers/${storeId}/${randomUUID()}.${detected.extension}`;
+  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
+  return { objectKey, contentType: detected.contentType, byteSize: file.size };
+}
+
+export async function deleteStoreCoverObjects(objectKeys: readonly string[]) {
+  await deleteStoredObjects(objectKeys, "store-cover");
+}
+
 export const productImageConstraints = { maxBytes: MAX_IMAGE_BYTES, allowedContentTypes };
 export const prescriptionImageConstraints = { maxBytes: MAX_PRESCRIPTION_BYTES, allowedContentTypes };
 export const storeImageConstraints = { maxBytes: MAX_STORE_IMAGE_BYTES, allowedContentTypes };

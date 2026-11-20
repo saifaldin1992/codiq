@@ -310,5 +310,23 @@
       }
     ],
     "missingStoreSlug": []
+  },
+  "modules/market-stores/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/stores/:storeSlug",
+        "reason": "NOT A LIST — one store's market page. Detected because it reads the store's opening hours (at most seven rows, one per weekday) and its enabled payment methods (a fixed catalog of six) beside the store itself."
+      },
+      {
+        "route": "GET /market/stores/:storeSlug/cover",
+        "reason": "NOT A LIST — the bytes of one image. Detected because the listed-store check that guards it is a raw query."
+      }
+    ],
+    "missingStoreSlug": [
+      {
+        "route": "GET /market/stores/:storeSlug/cover",
+        "reason": "NOT A JSON ENVELOPE — an image byte stream with its own content type. There is no object to carry an echo in."
+      }
+    ]
   }
 }

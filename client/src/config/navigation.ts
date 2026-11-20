@@ -87,6 +87,8 @@ export const ownerNavGroups: NavGroup[] = [
       { label: "إضافة تاجر", path: "/platform/dashboard/merchants/add", status: "implemented" },
       { label: "طلبات التسجيل", path: "/platform/dashboard/merchants/registration-requests", status: "implemented" },
       { label: "المتاجر", path: "/platform/dashboard/stores", status: "implemented" },
+      // Marketplace M1: who is in the shared market, who is waiting, and the marks only the platform grants.
+      { label: "السوق", path: "/platform/dashboard/market", status: "implemented" },
       { label: "إضافة متجر", path: "/platform/dashboard/stores/add", status: { phase: "الدفعة B" } },
     ],
   },
@@ -269,6 +271,8 @@ export const merchantNavGroups: NavGroup[] = [
       // that differs from shop to shop is edited here and nowhere else.
       { label: "واجهة المتجر", path: "/merchant/dashboard/settings/storefront", status: "implemented" },
       { label: "إعدادات المتجر", path: "/merchant/dashboard/settings/store", status: "implemented" },
+      // Marketplace M1: the store in the shared market — listing request, place, hours, cover, reputation.
+      { label: "السوق", path: "/merchant/dashboard/settings/market", status: "implemented" },
       // ق-249 (المرحلة 29): what works in this store right now, and why not when not.
       { label: "الخدمات", path: "/merchant/dashboard/settings/services", status: "implemented" },
       // ق-251: the configuration hierarchy as the merchant reads it, and his own level of it.

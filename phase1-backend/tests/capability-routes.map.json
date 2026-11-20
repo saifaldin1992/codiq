@@ -46,6 +46,7 @@
     {"route": "PUT /merchant/stores/:storeSlug/loyalty", "capability": "offers.loyalty"},
     {"route": "PATCH /merchant/stores/:storeSlug/team/:membershipId", "capability": "team.staff"},
     {"route": "PUT /merchant/stores/:storeSlug/team/:membershipId/overrides", "capability": "team.staff"},
-    {"route": "POST /merchant/stores/:storeSlug/team/:membershipId/restore", "capability": "team.staff"}
+    {"route": "POST /merchant/stores/:storeSlug/team/:membershipId/restore", "capability": "team.staff"},
+    {"route": "GET /market/stores/:storeSlug/reviews", "capability": "cx.reviews"}
   ]
 }

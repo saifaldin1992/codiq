@@ -484,7 +484,9 @@ function allTsFiles(dir) {
  */
 function schemaQualifier(file) {
   if (path.dirname(file) === CORE_SCHEMAS_DIR) return path.basename(file).replace(/\.schema\.ts$|\.ts$/, "");
-  return path.relative(SRC, file).replace(/\\/g, "/").replace(/\.ts$/, "");
+  // Dotted, never slashed: the name becomes a `#/components/schemas/<name>` JSON
+  // pointer, where «/» would be read as a path step and the $ref would not resolve.
+  return path.relative(SRC, file).replace(/\\/g, "/").replace(/\.ts$/, "").replace(/\//g, ".");
 }
 const SCHEMA_FILES = new Set(schemaSourceFiles());
 
