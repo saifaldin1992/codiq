@@ -445,6 +445,9 @@
                   "STORE_ON_VACATION",
                   "STORE_SUSPENDED",
                   "SUSPENSION_REASON_REQUIRED",
+                  "TEAM_GRANT_EXCEEDS_OWN",
+                  "TEAM_SELF_CHANGE_DENIED",
+                  "TEAM_TARGET_OUTRANKS",
                   "TICKET_REUSED",
                   "TICKET_TOTALS_MISMATCH",
                   "TOO_MANY_MAINTENANCE_WINDOWS",
@@ -4968,7 +4971,7 @@
             ]
           },
           "403": {
-            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED` · `TEAM_SELF_CHANGE_DENIED` · `TEAM_TARGET_OUTRANKS`",
             "content": {
               "application/json": {
                 "schema": {
@@ -4981,7 +4984,9 @@
               "IDENTITY_BOUNDARY_DENIED",
               "MERCHANT_DISABLED",
               "STAFF_PERMISSION_DENIED",
-              "STORE_BOUNDARY_DENIED"
+              "STORE_BOUNDARY_DENIED",
+              "TEAM_SELF_CHANGE_DENIED",
+              "TEAM_TARGET_OUTRANKS"
             ]
           },
           "413": {
@@ -5091,7 +5096,7 @@
             ]
           },
           "403": {
-            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED` · `TEAM_GRANT_EXCEEDS_OWN` · `TEAM_SELF_CHANGE_DENIED` · `TEAM_TARGET_OUTRANKS`",
             "content": {
               "application/json": {
                 "schema": {
@@ -5105,7 +5110,10 @@
               "MERCHANT_DISABLED",
               "PLAN_LIMIT_EXCEEDED",
               "STAFF_PERMISSION_DENIED",
-              "STORE_BOUNDARY_DENIED"
+              "STORE_BOUNDARY_DENIED",
+              "TEAM_GRANT_EXCEEDS_OWN",
+              "TEAM_SELF_CHANGE_DENIED",
+              "TEAM_TARGET_OUTRANKS"
             ]
           },
           "404": {
@@ -17852,7 +17860,7 @@
             ]
           },
           "403": {
-            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED` · `TEAM_GRANT_EXCEEDS_OWN`",
             "content": {
               "application/json": {
                 "schema": {
@@ -17866,7 +17874,8 @@
               "MERCHANT_DISABLED",
               "PLAN_LIMIT_EXCEEDED",
               "STAFF_PERMISSION_DENIED",
-              "STORE_BOUNDARY_DENIED"
+              "STORE_BOUNDARY_DENIED",
+              "TEAM_GRANT_EXCEEDS_OWN"
             ]
           },
           "404": {
@@ -41642,7 +41651,7 @@
             ]
           },
           "403": {
-            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED` · `TEAM_GRANT_EXCEEDS_OWN` · `TEAM_SELF_CHANGE_DENIED` · `TEAM_TARGET_OUTRANKS`",
             "content": {
               "application/json": {
                 "schema": {
@@ -41655,7 +41664,10 @@
               "IDENTITY_BOUNDARY_DENIED",
               "MERCHANT_DISABLED",
               "STAFF_PERMISSION_DENIED",
-              "STORE_BOUNDARY_DENIED"
+              "STORE_BOUNDARY_DENIED",
+              "TEAM_GRANT_EXCEEDS_OWN",
+              "TEAM_SELF_CHANGE_DENIED",
+              "TEAM_TARGET_OUTRANKS"
             ]
           },
           "404": {
@@ -44605,6 +44617,28 @@
       ],
       "messages": [
         "اكتب سبب الإيقاف — يُقرأ لاحقاً في سجلّ التدقيق وعند رفع الإيقاف."
+      ]
+    },
+    "TEAM_GRANT_EXCEEDS_OWN": {
+      "statuses": [
+        403
+      ],
+      "messages": []
+    },
+    "TEAM_SELF_CHANGE_DENIED": {
+      "statuses": [
+        403
+      ],
+      "messages": [
+        "لا يمكنك تعديل عضويتك أنت — يغيّرها صاحب المتجر أو مدير آخر."
+      ]
+    },
+    "TEAM_TARGET_OUTRANKS": {
+      "statuses": [
+        403
+      ],
+      "messages": [
+        "لهذا العضو صلاحيات لا تملكها، فلا يمكنك تعديله."
       ]
     },
     "TICKET_REUSED": {

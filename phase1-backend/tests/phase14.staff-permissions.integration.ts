@@ -479,6 +479,48 @@ try {
   assert.equal((await request("/merchant/stores/phase14-a-one/orders", { headers: bearer(tokenManager) })).status, 200, "ق-192: …and his staff");
   summary.disabledMerchantStops = { merchantRead: 403, merchantWrite: 403, staff: 403, restored: 200 };
 
+  // ============================================================
+  // `team.manage` IS NOT EVERY PERMISSION.
+  //
+  // An employee the merchant trusted with `team.manage` alone used to be able to
+  // grant himself any other code through his own overrides, promote himself to
+  // store_manager, or create a manager account whose password he chose. He now
+  // manages the team inside his own authority: never himself, never beyond the
+  // codes he holds, never a member who outranks him. The merchant is unaffected.
+  // ============================================================
+  async function seatMember(email: string, roleCode: "store_manager" | "store_staff", allow: PermissionCode[] = []) {
+    const person = await prisma.staff.create({ data: { email, passwordHash: "unused", displayName: email.split("@")[0]! } });
+    const seat = await prisma.storeStaffMembership.create({ data: { staffId: person.id, storeId: storeA1.id, roleCode } });
+    if (allow.length) await prisma.staffMembershipPermissionOverride.createMany({ data: allow.map((permissionCode) => ({ membershipId: seat.id, permissionCode, effect: "allow" })) });
+    return { seat, token: await createTypedSession("staff", person.id, storeA1.id, seat.id) };
+  }
+  const teamOnly = await seatMember("team.only.phase14@codiq.test", "store_staff", ["team.manage"]);
+  const peer = await seatMember("peer.phase14@codiq.test", "store_staff");
+  const boss = await seatMember("boss.phase14@codiq.test", "store_manager");
+  const asTeamOnly = (path: string, method: string, body: unknown) => request(`${teamUrl("phase14-a-one")}${path}`, { method, headers: bearer(teamOnly.token), body: JSON.stringify(body) });
+
+  const selfGrant = await asTeamOnly(`/${teamOnly.seat.id}/overrides`, "PUT", { overrides: [{ permissionCode: "team.manage", effect: "allow" }, { permissionCode: "settings.manage", effect: "allow" }] });
+  assert.equal(selfGrant.status, 403, `an employee cannot grant himself a permission · ${JSON.stringify(selfGrant.body)}`);
+  assert.equal(selfGrant.body.error.code, "TEAM_SELF_CHANGE_DENIED");
+  const selfPromote = await asTeamOnly(`/${teamOnly.seat.id}`, "PATCH", { roleCode: "store_manager" });
+  assert.equal(selfPromote.body.error?.code, "TEAM_SELF_CHANGE_DENIED", "…nor promote himself");
+  const managerAccount = await asTeamOnly("", "POST", { email: "planted.manager.phase14@codiq.test", displayName: "مدير مزروع", temporaryPassword: "PlantedManager!2026", roleCode: "store_manager" });
+  assert.equal(managerAccount.status, 403, `…nor create a manager account whose password he knows · ${JSON.stringify(managerAccount.body)}`);
+  assert.equal(managerAccount.body.error.code, "TEAM_GRANT_EXCEEDS_OWN");
+  const peerBeyond = await asTeamOnly(`/${peer.seat.id}/overrides`, "PUT", { overrides: [{ permissionCode: "settings.manage", effect: "allow" }] });
+  assert.equal(peerBeyond.body.error?.code, "TEAM_GRANT_EXCEEDS_OWN", "…nor grant a colleague a code he does not hold — a confederate is the same escalation");
+  const peerWithin = await asTeamOnly(`/${peer.seat.id}/overrides`, "PUT", { overrides: [{ permissionCode: "orders.update", effect: "deny" }] });
+  assert.equal(peerWithin.status, 200, `inside his own authority he still manages the team · ${JSON.stringify(peerWithin.body)}`);
+  const bossDisabled = await asTeamOnly(`/${boss.seat.id}`, "PATCH", { isActive: false });
+  assert.equal(bossDisabled.body.error?.code, "TEAM_TARGET_OUTRANKS", "…but cannot disable a manager who outranks him");
+  const bossRemoved = await request(`${teamUrl("phase14-a-one")}/${boss.seat.id}`, { method: "DELETE", headers: bearer(teamOnly.token) });
+  assert.equal(bossRemoved.body.error?.code, "TEAM_TARGET_OUTRANKS", "…nor remove him");
+  assert.equal((await request("/merchant/stores/phase14-a-one/payment-methods", { headers: bearer(teamOnly.token) })).status, 403, "and after all of it he still holds no settings.manage");
+  // The merchant is never bounded.
+  const merchantGrant = await putOverrides(teamOnly.seat.id, [{ permissionCode: "team.manage", effect: "allow" }, { permissionCode: "settings.manage", effect: "allow" }]);
+  assert.ok(merchantGrant.permissions.includes("settings.manage"), "the merchant grants whatever he chooses");
+  summary.teamEscalationClosed = { selfGrant: selfGrant.body.error.code, managerAccount: managerAccount.body.error.code, outranked: bossDisabled.body.error.code, withinAuthority: peerWithin.status };
+
   console.log(JSON.stringify(summary, null, 2));
 } finally {
   await new Promise<void>((resolve) => server.close(() => resolve()));
