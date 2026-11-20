@@ -171,6 +171,13 @@ export async function updateStoreMembership(storeId: string, membershipId: strin
   const activeChanged = nextActive !== undefined && nextActive !== current.isActive;
 
   const membership = await prisma.$transaction(async (tx) => {
+    if (activeChanged && nextActive === true) {
+      // Audit 16-ب: re-activating a suspended member adds a seat exactly like
+      // inviting one does, so it spends the same `max_staff` quota. Without this
+      // the limit was bypassed from the team screen: suspend, invite, reactivate.
+      const store = await tx.store.findUniqueOrThrow({ where: { id: storeId }, select: { merchantId: true } });
+      await assertWithinPlanLimit(tx, store.merchantId, "max_staff");
+    }
     const updated = await tx.storeStaffMembership.update({
       where: { id: membershipId },
       data: {

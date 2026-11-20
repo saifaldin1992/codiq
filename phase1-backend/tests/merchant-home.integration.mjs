@@ -20,6 +20,8 @@ process.env.CODIQ_ALLOW_OWNER_REGISTRATION = "true";
 const { assertSafeTestDatabaseUrl } = await import("./helpers/test-database-guard.ts");
 assertSafeTestDatabaseUrl(process.env.CODIQ_TEST_DATABASE_URL);
 
+// The visit counter batches in memory; this suite asserts on rows right after the beacon.
+process.env.CODIQ_VISIT_FLUSH_MS = "0";
 const { createApp } = await import("../src/http/app.ts");
 const { prisma } = await import("../src/db/prisma.ts");
 const { createTypedSession } = await import("../src/auth/identity.ts");

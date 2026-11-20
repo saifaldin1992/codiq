@@ -58,6 +58,8 @@ export interface GracefulShutdownOptions {
   graceMs?: number;
   /** Injected in tests: the real one ends the process and takes the suite with it. */
   exit?: (code: number) => void;
+  /** Runs after the last request drained and before exit — e.g. flushing in-memory counters. Bounded by the grace deadline. */
+  beforeExit?: () => Promise<void>;
 }
 
 export function installGracefulShutdown(
@@ -79,8 +81,12 @@ export function installGracefulShutdown(
     stopOutboxWorker();
     server.close((error) => {
       if (error) logger.warn("shutdown.close_failed", { signal, err: error });
-      else logger.info("shutdown.complete", { signal });
-      exit(0);
+      const finish = () => {
+        if (!error) logger.info("shutdown.complete", { signal });
+        exit(0);
+      };
+      if (!options.beforeExit) return finish();
+      options.beforeExit().catch((drainError) => logger.warn("shutdown.drain_failed", { signal, err: drainError })).finally(finish);
     });
     server.closeIdleConnections();
     const deadline = setTimeout(() => {

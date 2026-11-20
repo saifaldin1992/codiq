@@ -10,7 +10,8 @@ import { merchantHome } from "../../services/merchant-home.service.js";
 
 export function registerMerchantHomeRoutes(app: ExpressApp) {
   app.get("/merchant/stores/:storeSlug/dashboard/home", asyncRoute(async (request, response) => {
-    const { store } = await requireStoreActor(request, "orders.view");
-    response.status(200).json({ storeSlug: store.slug, home: await merchantHome(store.id, store.merchantId, request.query as Record<string, unknown>) });
+    const { store, actor } = await requireStoreActor(request, "orders.view");
+    const home = await merchantHome(store.id, store.merchantId, request.query as Record<string, unknown>, new Date(), { includeWallet: actor.kind === "merchant" });
+    response.status(200).json({ storeSlug: store.slug, home });
   }));
 }

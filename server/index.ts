@@ -15,6 +15,7 @@ import { logger } from "../phase1-backend/src/logging/logger.js";
 import { initSentry } from "../phase1-backend/src/observability/sentry.js";
 import { OUTBOX_SIGNAL_MESSAGE, setOutboxSignalSink } from "../phase1-backend/src/jobs/outbox-signal.js";
 import { installGracefulShutdown } from "./graceful-shutdown.js";
+import { flushVisits } from "../phase1-backend/src/services/store-traffic.service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -152,7 +153,7 @@ async function startServer() {
   app.use(API_MOUNT_V1, codiqApi);
   app.use(API_MOUNT_LEGACY, codiqApi);
   const stopOutboxWorker = startOutboxWorkerProcess();
-  installGracefulShutdown(server, stopOutboxWorker);
+  installGracefulShutdown(server, stopOutboxWorker, { beforeExit: flushVisits });
 
   // Serve static files from dist/public in production
   const staticPath =

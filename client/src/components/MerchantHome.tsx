@@ -24,7 +24,8 @@ type Home = {
   topProducts: { productId: string; name: string; units: number; revenueIqd: number }[];
   mostViewed: { productId: string; name: string; views: number }[];
   lowStock: { count: number; products: { id: string; name: string; stockQuantity: number; lowStockThreshold: number }[] };
-  wallet: { pendingNetIqd: number; pendingOrders: number; lastSettlement: { id: string; periodTo: string; netPayoutIqd: number; createdAt: string } | null };
+  /** null for staff: the wallet is the merchant's, across all his stores (audit 14-أ). */
+  wallet: { pendingNetIqd: number; pendingOrders: number; lastSettlement: { id: string; periodTo: string; netPayoutIqd: number; createdAt: string } | null } | null;
   recentOrders: { id: string; orderNumber: string; status: string; totalIqd: number; customerName: string; createdAt: string; paymentMethodCode: string; paymentStatus: string }[];
 };
 
@@ -154,7 +155,7 @@ export function MerchantHome({ storeSlug, navigate }: { storeSlug?: string; navi
           </div>
         </div>
         <div className="flex items-center gap-6">
-          <div><p className="text-[11px] font-bold text-[var(--codiq-text-muted)]">الرصيد (دينار عراقي)</p><p className="text-lg font-black tabular-nums text-[var(--codiq-text)]">{money(home.wallet.pendingNetIqd)}</p></div>
+          {home.wallet ? <div><p className="text-[11px] font-bold text-[var(--codiq-text-muted)]">الرصيد (دينار عراقي)</p><p className="text-lg font-black tabular-nums text-[var(--codiq-text)]">{money(home.wallet.pendingNetIqd)}</p></div> : null}
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => void share()} data-testid="home-share">{copied ? <Check className="ml-1.5 h-4 w-4" /> : <Share2 className="ml-1.5 h-4 w-4" />}{copied ? "نُسخ الرابط" : "مشاركة"}</Button>
             <a href={storeUrl} target="_blank" rel="noreferrer" data-testid="home-open-store" className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[var(--codiq-accent)] px-3 text-sm font-bold text-white hover:bg-[var(--codiq-accent-hover)]"><ExternalLink className="h-4 w-4" />الانتقال إلى المتجر</a>
@@ -238,12 +239,14 @@ export function MerchantHome({ storeSlug, navigate }: { storeSlug?: string; navi
         </div>
 
         <aside className="space-y-4">
+          {home.wallet ? ((wallet) => (
           <section data-testid="home-balance" className="rounded-[22px] border border-[var(--codiq-border)] bg-[var(--codiq-surface)] p-5 shadow-sm">
             <p className="flex items-center gap-2 text-xs font-bold text-[var(--codiq-text-secondary)]"><Wallet className="h-4 w-4 text-[var(--codiq-accent)]" />الرصيد المتاح</p>
-            <p className="mt-2 text-2xl font-black tabular-nums text-[var(--codiq-text)]">{money(home.wallet.pendingNetIqd)}</p>
-            <p className="mt-1 text-[11px] text-[var(--codiq-text-muted)]">{home.wallet.pendingOrders ? `صافي ${number.format(home.wallet.pendingOrders)} طلب مكتمل لم يُسوَّ بعد.` : "لا مبالغ بانتظار التسوية."}{home.wallet.lastSettlement ? ` آخر تسوية: ${money(home.wallet.lastSettlement.netPayoutIqd)}.` : ""}</p>
+            <p className="mt-2 text-2xl font-black tabular-nums text-[var(--codiq-text)]">{money(wallet.pendingNetIqd)}</p>
+            <p className="mt-1 text-[11px] text-[var(--codiq-text-muted)]">{wallet.pendingOrders ? `صافي ${number.format(wallet.pendingOrders)} طلب مكتمل لم يُسوَّ بعد.` : "لا مبالغ بانتظار التسوية."}{wallet.lastSettlement ? ` آخر تسوية: ${money(wallet.lastSettlement.netPayoutIqd)}.` : ""}</p>
             <Button type="button" variant="outline" size="sm" className="mt-3 w-full rounded-xl" onClick={() => navigate(dashboard("/orders/settlements"))}>مراجعة التسويات</Button>
           </section>
+          ))(home.wallet) : null}
           <section data-testid="home-address" className="rounded-[22px] border border-[var(--codiq-border)] bg-[var(--codiq-surface)] p-5 shadow-sm">
             <p className="flex items-center gap-2 text-xs font-bold text-[var(--codiq-text-secondary)]"><MapPin className="h-4 w-4 text-[var(--codiq-accent)]" />عنوان المتجر</p>
             {store.addressLine || store.city ? <p className="mt-2 text-sm leading-6 text-[var(--codiq-text)]">{[store.addressLine, store.city].filter(Boolean).join("، ")}</p> : <p className="mt-2 text-xs leading-6 text-[var(--codiq-text-muted)]">لم تكتب عنوان متجرك بعد — يظهر لزبائنك في تذييل المتجر.</p>}

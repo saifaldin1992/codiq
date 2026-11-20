@@ -66,7 +66,12 @@ async function daySummary(storeId: string, day: string, traffic: { visits: numbe
   };
 }
 
-export async function merchantHome(storeId: string, merchantId: string, query: Record<string, unknown>, now: Date = new Date()) {
+/**
+ * Audit 14-أ: the wallet is the MERCHANT's money across ALL his stores. The home
+ * page is guarded by `orders.view`, which the lowest staff role holds, so the
+ * balance is computed and returned only when the caller is the merchant himself.
+ */
+export async function merchantHome(storeId: string, merchantId: string, query: Record<string, unknown>, now: Date = new Date(), options: { includeWallet: boolean } = { includeWallet: false }) {
   const today = baghdadDay(now);
   const yesterday = daysBefore(today, 1);
   const { from, to } = parseRange(query, now);
@@ -79,7 +84,7 @@ export async function merchantHome(storeId: string, merchantId: string, query: R
     prisma.store.findUniqueOrThrow({ where: { id: storeId }, select: { name: true, slug: true, defaultSubdomain: true, customDomain: true, verifiedAt: true, addressLine: true, city: true, supportPhone: true, guestCheckoutEnabled: true, logoObjectKey: true } }),
     daySummary(storeId, today, traffic.get(today)!),
     daySummary(storeId, yesterday, traffic.get(yesterday)!),
-    merchantWallet(merchantId, now),
+    options.includeWallet ? merchantWallet(merchantId, now) : Promise.resolve(null),
     prisma.storeOrder.groupBy({ by: ["status"], where: rangeWhere, _count: { _all: true }, _sum: { totalIqd: true } }),
     prisma.storeOrder.groupBy({ by: ["paymentMethodCode"], where: { ...rangeWhere, status: REAL_ORDERS.status }, _count: { _all: true }, _sum: { totalIqd: true } }),
     // D-104: hours in Baghdad time. `AT TIME ZONE` on a timestamptz yields the
@@ -119,7 +124,7 @@ export async function merchantHome(storeId: string, merchantId: string, query: R
     mostViewed: viewed,
     lowStock: { count: lowStockCount, products: lowStockProducts },
     // The balance is the MERCHANT's, across his stores — one wallet, one payout.
-    wallet: { pendingNetIqd: wallet.pending.netPayoutIqd, pendingOrders: wallet.pending.completedOrders, lastSettlement: wallet.lastSettlement },
+    wallet: wallet ? { pendingNetIqd: wallet.pending.netPayoutIqd, pendingOrders: wallet.pending.completedOrders, lastSettlement: wallet.lastSettlement } : null,
     recentOrders,
   };
 }

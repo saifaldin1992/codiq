@@ -358,6 +358,9 @@ jobs:
       - name: "Integration — the merchant's home aggregate and the visit beacon (ق-202)"
         run: pnpm merchant:home
 
+      - name: Integration — 2026-11 review fixes (staff seat on reactivation, wallet scope, batched visits)
+        run: pnpm review:fixes
+
       # ق-199. «واجهة المتجر»: every merchant field has a screen that sends it, a
       # public key that carries it, and a storefront component that draws it.
       - name: "Guard — the storefront's merchant fields and public payload agree (ق-199)"
