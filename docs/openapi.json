@@ -548,7 +548,6 @@
           }
         },
         "required": [
-          "identifier",
           "password"
         ]
       },
@@ -565,8 +564,7 @@
         },
         "required": [
           "email",
-          "password",
-          "totpCode"
+          "password"
         ]
       },
       "auth.loginStaffSchema": {
@@ -612,15 +610,7 @@
           "merchantEmail": {},
           "storeSlug": {},
           "percentage": {}
-        },
-        "required": [
-          "scope",
-          "enabled",
-          "planCode",
-          "merchantEmail",
-          "storeSlug",
-          "percentage"
-        ]
+        }
       },
       "availability.createOverrideSchema": {
         "type": "object",
@@ -634,18 +624,7 @@
           "reason": {},
           "startsAt": {},
           "endsAt": {}
-        },
-        "required": [
-          "scope",
-          "storeSlug",
-          "merchantEmail",
-          "serviceCode",
-          "capabilityCode",
-          "state",
-          "reason",
-          "startsAt",
-          "endsAt"
-        ]
+        }
       },
       "availability.incidentUpdateSchema": {
         "type": "object",
@@ -654,13 +633,7 @@
           "message": {},
           "publicMessage": {},
           "blocks": {}
-        },
-        "required": [
-          "status",
-          "message",
-          "publicMessage",
-          "blocks"
-        ]
+        }
       },
       "availability.openIncidentSchema": {
         "type": "object",
@@ -670,25 +643,14 @@
           "publicMessage": {},
           "affects": {},
           "blocks": {}
-        },
-        "required": [
-          "title",
-          "severity",
-          "publicMessage",
-          "affects",
-          "blocks"
-        ]
+        }
       },
       "availability.platformStoreStatusSchema": {
         "type": "object",
         "properties": {
           "status": {},
           "message": {}
-        },
-        "required": [
-          "status",
-          "message"
-        ]
+        }
       },
       "availability.scheduleMaintenanceWindowSchema": {
         "type": "object",
@@ -703,19 +665,7 @@
           "messageAr": {},
           "messageEn": {},
           "affects": {}
-        },
-        "required": [
-          "scope",
-          "serviceCode",
-          "capabilityCode",
-          "merchantEmail",
-          "storeSlug",
-          "startsAt",
-          "endsAt",
-          "messageAr",
-          "messageEn",
-          "affects"
-        ]
+        }
       },
       "availability.scheduleStoreMaintenanceWindowSchema": {
         "type": "object",
@@ -724,22 +674,13 @@
           "endsAt": {},
           "messageAr": {},
           "messageEn": {}
-        },
-        "required": [
-          "startsAt",
-          "endsAt",
-          "messageAr",
-          "messageEn"
-        ]
+        }
       },
       "availability.setSettingSchema": {
         "type": "object",
         "properties": {
           "value": {}
-        },
-        "required": [
-          "value"
-        ]
+        }
       },
       "availability.setStoreStatusSchema": {
         "type": "object",
@@ -747,21 +688,13 @@
           "status": {},
           "message": {},
           "maintenanceUntil": {}
-        },
-        "required": [
-          "status",
-          "message",
-          "maintenanceUntil"
-        ]
+        }
       },
       "availability.updateCapabilitySchema": {
         "type": "object",
         "properties": {
           "state": {}
-        },
-        "required": [
-          "state"
-        ]
+        }
       },
       "availability.updateServiceSchema": {
         "type": "object",
@@ -769,23 +702,14 @@
           "state": {},
           "name": {},
           "description": {}
-        },
-        "required": [
-          "state",
-          "name",
-          "description"
-        ]
+        }
       },
       "availability.upsertFeatureFlagSchema": {
         "type": "object",
         "properties": {
           "description": {},
           "enabledDefault": {}
-        },
-        "required": [
-          "description",
-          "enabledDefault"
-        ]
+        }
       },
       "catalog.createCategorySchema": {
         "type": "object",
@@ -830,13 +754,9 @@
             "maxLength": 240
           },
           "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "priceIqd": {
@@ -879,10 +799,7 @@
         "required": [
           "sku",
           "name",
-          "priceIqd",
-          "isActive",
-          "requiresPrescription",
-          "attributes"
+          "priceIqd"
         ]
       },
       "catalog.createVariantSchema": {
@@ -925,8 +842,7 @@
         "required": [
           "sku",
           "name",
-          "priceIqd",
-          "isActive"
+          "priceIqd"
         ]
       },
       "catalog.inventoryAdjustmentSchema": {
@@ -996,13 +912,9 @@
             "maxLength": 240
           },
           "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "priceIqd": {
@@ -1041,10 +953,7 @@
             "type": "boolean"
           },
           "attributes": {}
-        },
-        "required": [
-          "attributes"
-        ]
+        }
       },
       "catalog.updateVariantSchema": {
         "type": "object",
@@ -1111,11 +1020,7 @@
             "type": "string",
             "maxLength": 512
           }
-        },
-        "required": [
-          "limit",
-          "cursor"
-        ]
+        }
       },
       "loyalty.loyaltySettingsSchema": {
         "type": "object",
@@ -1143,20 +1048,13 @@
           },
           "windowHours": {},
           "recoveryCouponId": {}
-        },
-        "required": [
-          "windowHours",
-          "recoveryCouponId"
-        ]
+        }
       },
       "marketing.couponPreviewSchema": {
         "type": "object",
         "properties": {
           "couponCode": {}
-        },
-        "required": [
-          "couponCode"
-        ]
+        }
       },
       "marketing.createCouponSchema": {
         "type": "object",
@@ -1212,23 +1110,15 @@
             ]
           },
           "startsAt": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              }
+            "type": [
+              "null",
+              "string"
             ]
           },
           "endsAt": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              }
+            "type": [
+              "null",
+              "string"
             ]
           },
           "isActive": {
@@ -1249,12 +1139,7 @@
           "isEnabled": {
             "type": "boolean"
           }
-        },
-        "required": [
-          "metaPixelId",
-          "tiktokPixelId",
-          "ga4MeasurementId"
-        ]
+        }
       },
       "marketing.restoreCouponSchema": {
         "type": "object",
@@ -1320,23 +1205,15 @@
             ]
           },
           "startsAt": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              }
+            "type": [
+              "null",
+              "string"
             ]
           },
           "endsAt": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
-              }
+            "type": [
+              "null",
+              "string"
             ]
           },
           "isActive": {
@@ -1350,41 +1227,26 @@
           "fullName": {},
           "email": {},
           "phone": {}
-        },
-        "required": [
-          "fullName",
-          "email",
-          "phone"
-        ]
+        }
       },
       "merchant.createMerchantStoreSchema": {
         "type": "object",
         "properties": {
           "name": {},
           "slug": {}
-        },
-        "required": [
-          "name",
-          "slug"
-        ]
+        }
       },
       "merchant.renameMerchantStoreSchema": {
         "type": "object",
         "properties": {
           "name": {}
-        },
-        "required": [
-          "name"
-        ]
+        }
       },
       "merchant.switchMerchantStoreSchema": {
         "type": "object",
         "properties": {
           "storeSlug": {}
-        },
-        "required": [
-          "storeSlug"
-        ]
+        }
       },
       "messaging-caps.messagingCapsSchema": {
         "type": "object",
@@ -1451,10 +1313,7 @@
             "additionalProperties": false
           },
           "whatsappTemplates": {}
-        },
-        "required": [
-          "whatsappTemplates"
-        ]
+        }
       },
       "orders.bulkOrderStatusSchema": {
         "type": "object",
@@ -1470,8 +1329,7 @@
         },
         "required": [
           "orders",
-          "toStatus",
-          "note"
+          "toStatus"
         ]
       },
       "orders.codCollectedSchema": {
@@ -1503,12 +1361,7 @@
           "courierName": {},
           "trackingNumber": {},
           "expectedVersion": {}
-        },
-        "required": [
-          "courierName",
-          "trackingNumber",
-          "expectedVersion"
-        ]
+        }
       },
       "orders.replaceOrderTagsSchema": {
         "type": "object",
@@ -1551,11 +1404,7 @@
           "trackingNumber": {}
         },
         "required": [
-          "toStatus",
-          "expectedVersion",
-          "note",
-          "courierName",
-          "trackingNumber"
+          "toStatus"
         ]
       },
       "orders.updateDeliveryRateSchema": {
@@ -1820,9 +1669,7 @@
           "businessName",
           "firstStoreName",
           "email",
-          "temporaryPassword",
-          "ownerName",
-          "phone"
+          "temporaryPassword"
         ]
       },
       "platform.createPlanSchema": {
@@ -1885,8 +1732,7 @@
           "note": {}
         },
         "required": [
-          "orderId",
-          "note"
+          "orderId"
         ]
       },
       "platform.createSettlementSchema": {
@@ -1911,8 +1757,7 @@
         "required": [
           "merchantId",
           "periodFrom",
-          "periodTo",
-          "note"
+          "periodTo"
         ]
       },
       "platform.createUpgradeRequestSchema": {
@@ -1954,8 +1799,7 @@
           "reason": {}
         },
         "required": [
-          "suspended",
-          "reason"
+          "suspended"
         ]
       },
       "platform.setRegistrationModeSchema": {
@@ -2042,13 +1886,9 @@
             "type": "string"
           },
           "whatsapp": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           }
         },
@@ -2209,8 +2049,7 @@
           }
         },
         "required": [
-          "approve",
-          "note"
+          "approve"
         ]
       },
       "reviews.reviewHiddenSchema": {
@@ -2254,10 +2093,7 @@
             "minLength": 2,
             "maxLength": 120
           }
-        },
-        "required": [
-          "q"
-        ]
+        }
       },
       "search.listSearchQuerySchema": {
         "type": "object",
@@ -2267,10 +2103,7 @@
             "minLength": 2,
             "maxLength": 120
           }
-        },
-        "required": [
-          "q"
-        ]
+        }
       },
       "search.posProductSearchQuerySchema": {
         "type": "object",
@@ -2288,8 +2121,7 @@
           }
         },
         "required": [
-          "q",
-          "limit"
+          "q"
         ]
       },
       "store-banner.createStoreBannerSchema": {
@@ -2478,63 +2310,39 @@
             ]
           },
           "socialFacebook": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "socialInstagram": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "socialX": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "socialTiktok": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "socialSnapchat": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "socialYoutube": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "policyReturn": {
@@ -2649,12 +2457,7 @@
           "productId": {},
           "variantId": {},
           "quantity": {}
-        },
-        "required": [
-          "productId",
-          "variantId",
-          "quantity"
-        ]
+        }
       },
       "storefront.checkoutSchema": {
         "type": "object",
@@ -2666,16 +2469,7 @@
           "couponCode": {},
           "note": {},
           "loyaltyPoints": {}
-        },
-        "required": [
-          "cartVersion",
-          "addressId",
-          "address",
-          "paymentMethodCode",
-          "couponCode",
-          "note",
-          "loyaltyPoints"
-        ]
+        }
       },
       "storefront.createAddressSchema": {
         "type": "object",
@@ -2686,15 +2480,7 @@
           "governorate": {},
           "phoneContact": {},
           "isDefault": {}
-        },
-        "required": [
-          "recipientName",
-          "fullAddress",
-          "city",
-          "governorate",
-          "phoneContact",
-          "isDefault"
-        ]
+        }
       },
       "storefront.guestCheckoutSchema": {
         "type": "object",
@@ -2707,28 +2493,14 @@
           "fullName": {},
           "phone": {},
           "email": {}
-        },
-        "required": [
-          "cartVersion",
-          "address",
-          "paymentMethodCode",
-          "couponCode",
-          "note",
-          "fullName",
-          "phone",
-          "email"
-        ]
+        }
       },
       "storefront.loginCustomerSchema": {
         "type": "object",
         "properties": {
           "phone": {},
           "password": {}
-        },
-        "required": [
-          "phone",
-          "password"
-        ]
+        }
       },
       "storefront.registerCustomerSchema": {
         "type": "object",
@@ -2737,22 +2509,13 @@
           "phone": {},
           "password": {},
           "email": {}
-        },
-        "required": [
-          "fullName",
-          "phone",
-          "password",
-          "email"
-        ]
+        }
       },
       "storefront.setGuestPasswordSchema": {
         "type": "object",
         "properties": {
           "password": {}
-        },
-        "required": [
-          "password"
-        ]
+        }
       },
       "storefront.updateAddressSchema": {
         "type": "object",
@@ -2763,24 +2526,13 @@
           "governorate": {},
           "phoneContact": {},
           "isDefault": {}
-        },
-        "required": [
-          "recipientName",
-          "fullAddress",
-          "city",
-          "governorate",
-          "phoneContact",
-          "isDefault"
-        ]
+        }
       },
       "storefront.updateCartItemSchema": {
         "type": "object",
         "properties": {
           "quantity": {}
-        },
-        "required": [
-          "quantity"
-        ]
+        }
       },
       "team.createStoreStaffSchema": {
         "type": "object",
@@ -7603,13 +7355,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -9058,7 +8810,7 @@
           {
             "name": "q",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "minLength": 2,
@@ -9923,7 +9675,7 @@
           {
             "name": "q",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "minLength": 2,
@@ -10679,13 +10431,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -10834,13 +10586,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -11283,13 +11035,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -11588,13 +11340,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -12807,13 +12559,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -13921,7 +13673,7 @@
           {
             "name": "q",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "minLength": 2,
@@ -14334,13 +14086,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -16193,7 +15945,7 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "default": 25,
               "type": "integer",
@@ -16326,13 +16078,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -18639,13 +18391,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -19322,13 +19074,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -19624,13 +19376,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -19903,13 +19655,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -20197,13 +19949,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -20592,13 +20344,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -20943,7 +20695,7 @@
           {
             "name": "q",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "minLength": 2,
@@ -21765,13 +21517,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -24066,13 +23818,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -25713,13 +25465,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -26762,13 +26514,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512
@@ -26932,13 +26684,13 @@
           {
             "name": "limit",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {}
           },
           {
             "name": "cursor",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "maxLength": 512

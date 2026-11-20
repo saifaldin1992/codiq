@@ -37,7 +37,7 @@ export const loginPlatformOwnerSchema = z.object({
   password: z.string(),
   // Service-owned: the ABSENCE of a code is an answer here (`SECOND_FACTOR_REQUIRED`),
   // not a malformed request.
-  totpCode: z.unknown(),
+  totpCode: z.unknown().optional(),
 });
 
 export const registerMerchantSchema = z.object({
@@ -45,15 +45,15 @@ export const registerMerchantSchema = z.object({
   password: z.string(),
   businessName: z.string(),
   // Service-owned — see the note at the head of this file.
-  ownerName: z.unknown(),
-  phone: z.unknown(),
+  ownerName: z.unknown().optional(),
+  phone: z.unknown().optional(),
 });
 
 export const loginMerchantSchema = z.object({
   // P27-21: the identifier is an email OR an Iraqi mobile, and deciding which is
   // `loginMerchant`'s job — it answers a malformed one with a 400 that reveals
   // nothing about who exists.
-  identifier: z.unknown(),
+  identifier: z.unknown().optional(),
   password: z.string(),
 });
 

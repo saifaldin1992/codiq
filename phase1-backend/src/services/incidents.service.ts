@@ -96,7 +96,7 @@ export function incidentView(row: IncidentRow) {
 export type IncidentView = ReturnType<typeof incidentView>;
 
 // ─────────────────────────────────────────────────────────── writes
-export async function openIncident(actor: PlatformActor, input: { title: unknown; severity?: unknown; publicMessage: unknown; affects?: unknown; blocks?: unknown }): Promise<IncidentView> {
+export async function openIncident(actor: PlatformActor, input: { title?: unknown; severity?: unknown; publicMessage?: unknown; affects?: unknown; blocks?: unknown }): Promise<IncidentView> {
   const title = parseText(input.title, "عنوان الحادث", INCIDENT_TITLE_MAX_LENGTH);
   const publicMessage = parseText(input.publicMessage, "الرسالة العامّة", INCIDENT_MESSAGE_MAX_LENGTH);
   const severity = parseSeverity(input.severity);
@@ -119,7 +119,7 @@ export async function openIncident(actor: PlatformActor, input: { title: unknown
   return incidentView(row);
 }
 
-export async function addIncidentUpdate(actor: PlatformActor, id: string, input: { status: unknown; message: unknown; publicMessage?: unknown; blocks?: unknown }): Promise<IncidentView> {
+export async function addIncidentUpdate(actor: PlatformActor, id: string, input: { status?: unknown; message?: unknown; publicMessage?: unknown; blocks?: unknown }): Promise<IncidentView> {
   const existing = await prisma.incident.findUnique({ where: { id }, select: { id: true, status: true, title: true } });
   if (!existing) throw new HttpError(404, "INCIDENT_NOT_FOUND", "لا حادث بهذا المعرّف.");
   if (existing.status === "resolved") throw new HttpError(409, "INCIDENT_RESOLVED", "الحادث حُلّ — افتح حادثاً جديداً إن عاد.");

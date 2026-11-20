@@ -355,8 +355,8 @@ export async function merchantServicesView(merchantId: string, storeId: string) 
 
 // ─────────────────────────────────────────────────────────── overrides
 export interface OverrideInput {
-  scope: unknown; merchantId?: string | null; storeId?: string | null;
-  serviceCode?: unknown; capabilityCode?: unknown; state: unknown; reason: unknown; startsAt?: unknown; endsAt?: unknown;
+  scope?: unknown; merchantId?: string | null; storeId?: string | null;
+  serviceCode?: unknown; capabilityCode?: unknown; state?: unknown; reason?: unknown; startsAt?: unknown; endsAt?: unknown;
 }
 
 function parseInstant(value: unknown, field: string): Date | null {
@@ -486,7 +486,7 @@ export async function storeStatus(storeId: string, client: DbClient = prisma): P
  * closed. `suspended` is the platform's word and is refused here; a store the
  * platform suspended cannot be talked out of it from this door either.
  */
-export async function setStoreStatusByMerchant(storeId: string, input: { status: unknown; message?: unknown; maintenanceUntil?: unknown }): Promise<StoreStatusView> {
+export async function setStoreStatusByMerchant(storeId: string, input: { status?: unknown; message?: unknown; maintenanceUntil?: unknown }): Promise<StoreStatusView> {
   if (typeof input.status !== "string" || !(MERCHANT_STORE_STATUSES as readonly string[]).includes(input.status)) {
     throw new HttpError(422, "INVALID_STORE_STATUS", `حالة المتجر يجب أن تكون إحدى: ${MERCHANT_STORE_STATUSES.join("، ")}.`);
   }
@@ -507,7 +507,7 @@ export async function setStoreStatusByMerchant(storeId: string, input: { status:
 }
 
 /** The platform's switch: suspend a single store, or lift the suspension back to `active`. */
-export async function setStoreStatusByPlatform(actor: PlatformActor, storeId: string, input: { status: unknown; message?: unknown }): Promise<StoreStatusView> {
+export async function setStoreStatusByPlatform(actor: PlatformActor, storeId: string, input: { status?: unknown; message?: unknown }): Promise<StoreStatusView> {
   if (input.status !== "suspended" && input.status !== "active") throw new HttpError(422, "INVALID_STORE_STATUS", "المنصّة توقف المتجر (suspended) أو تعيده (active).");
   const status = input.status as StoreStatus;
   const message = parseStatusMessage(input.message);

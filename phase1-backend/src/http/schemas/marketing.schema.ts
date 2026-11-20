@@ -129,7 +129,7 @@ export const restoreCouponSchema = z.object({
  * keep getting the answer his storefront already knows how to read.
  */
 export const couponPreviewSchema = z.object({
-  couponCode: z.unknown(),
+  couponCode: z.unknown().optional(),
 });
 
 /**
@@ -141,8 +141,8 @@ export const couponPreviewSchema = z.object({
  */
 export const abandonedCartSettingsSchema = z.object({
   enabled: z.boolean().optional(),
-  windowHours: z.unknown(),
-  recoveryCouponId: z.unknown(),
+  windowHours: z.unknown().optional(),
+  recoveryCouponId: z.unknown().optional(),
 });
 
 /**
@@ -154,8 +154,8 @@ export const abandonedCartSettingsSchema = z.object({
  * nothing else.
  */
 export const marketingIntegrationsSchema = z.object({
-  metaPixelId: z.unknown(),
-  tiktokPixelId: z.unknown(),
-  ga4MeasurementId: z.unknown(),
+  metaPixelId: z.unknown().optional(),
+  tiktokPixelId: z.unknown().optional(),
+  ga4MeasurementId: z.unknown().optional(),
   isEnabled: z.boolean().optional(),
 });

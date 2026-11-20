@@ -169,15 +169,15 @@ export type MaintenanceWindowView = ReturnType<typeof windowView>;
 
 // ─────────────────────────────────────────────────────────── scheduling (platform)
 export interface ScheduleWindowInput {
-  scope: unknown;
+  scope?: unknown;
   serviceCode?: unknown;
   capabilityCode?: unknown;
   /** Resolved by the route from an email / a slug — never a uuid typed by hand. */
   merchantId?: string | null;
   storeId?: string | null;
-  startsAt: unknown;
-  endsAt: unknown;
-  messageAr: unknown;
+  startsAt?: unknown;
+  endsAt?: unknown;
+  messageAr?: unknown;
   messageEn?: unknown;
   affects?: unknown;
 }
@@ -250,7 +250,7 @@ export async function cancelMaintenanceWindow(actor: PlatformActor, id: string):
 // ─────────────────────────────────────────────────────────── scheduling (the merchant's own store)
 export interface StoreActorRef { kind: "merchant" | "staff"; id: string }
 
-export async function scheduleStoreMaintenanceWindow(store: { id: string }, actor: StoreActorRef, input: { startsAt: unknown; endsAt: unknown; messageAr: unknown; messageEn?: unknown }): Promise<MaintenanceWindowView> {
+export async function scheduleStoreMaintenanceWindow(store: { id: string }, actor: StoreActorRef, input: { startsAt?: unknown; endsAt?: unknown; messageAr?: unknown; messageEn?: unknown }): Promise<MaintenanceWindowView> {
   const now = new Date();
   const span = parseWindowSpan(input.startsAt, input.endsAt, now);
   const messageAr = parseMessage(input.messageAr, "رسالتك للزبائن", true);

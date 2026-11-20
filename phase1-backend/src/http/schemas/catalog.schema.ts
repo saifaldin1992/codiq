@@ -92,10 +92,10 @@ export const createProductSchema = z.object({
   lowStockThreshold: nonNegativeInteger.default(0),
   categoryId: categoryReference,
   // Unchecked on purpose — see the header.
-  isActive: z.unknown(),
-  requiresPrescription: z.unknown(),
+  isActive: z.unknown().optional(),
+  requiresPrescription: z.unknown().optional(),
   // ق-199: typed attribute groups («النوتة العطرية»: مقدمة/قلب/قاعدة) — validated in the service by the storefront schema.
-  attributes: z.unknown(),
+  attributes: z.unknown().optional(),
 });
 
 /**
@@ -136,7 +136,7 @@ export const updateProductSchema = z.object({
   categoryId: categoryReference,
   isActive: z.boolean().optional(),
   requiresPrescription: z.boolean().optional(),
-  attributes: z.unknown(),
+  attributes: z.unknown().optional(),
 });
 
 /**
@@ -160,7 +160,7 @@ export const createVariantSchema = z.object({
   priceIqd: nonNegativeInteger,
   stockQuantity: nonNegativeInteger.default(0),
   lowStockThreshold: nonNegativeInteger.default(0),
-  isActive: z.unknown(),
+  isActive: z.unknown().optional(),
   options: variantOptions.optional(),
 });
 

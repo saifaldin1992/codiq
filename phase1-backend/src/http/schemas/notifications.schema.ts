@@ -54,7 +54,7 @@ export const notificationSettingsUpdateSchema = z.object({
   courierDispatch: courierDispatchSettingsSchema.optional(),
   dailyDigest: dailyDigestSettingsSchema.optional(),
   // Shape asserted downstream, deliberately: see the header.
-  whatsappTemplates: z.unknown(),
+  whatsappTemplates: z.unknown().optional(),
 });
 
 export type NotificationSettingsUpdate = z.infer<typeof notificationSettingsUpdateSchema>;

@@ -34,7 +34,7 @@ import { normalizeOptionalEmail, normalizePhone } from "../auth/identity.js";
 import { checkout, mergeGuestCartIntoCustomer, priorSucceededCheckout } from "./storefront.service.js";
 import { guestCheckoutAllowed } from "./storefront-config.service.js";
 
-export interface GuestIdentityInput { fullName: unknown; phone: unknown; email?: unknown }
+export interface GuestIdentityInput { fullName?: unknown; phone?: unknown; email?: unknown }
 
 const GUEST_SELECT = { id: true, storeId: true, fullName: true, email: true, phoneNormalized: true, isGuest: true } as const;
 export type GuestCustomer = Prisma.CustomerGetPayload<{ select: typeof GUEST_SELECT }>;
@@ -95,8 +95,8 @@ export async function guestCustomerFor(storeId: string, input: GuestIdentityInpu
 }
 
 export interface GuestCheckoutInput {
-  idempotencyKey: unknown;
-  cartVersion: unknown;
+  idempotencyKey?: unknown;
+  cartVersion?: unknown;
   address?: unknown;
   paymentMethodCode?: unknown;
   couponCode?: unknown;

@@ -22,7 +22,7 @@ import { LIST_LIMIT_MAX, parseListLimit } from "../../services/list-page.js";
  * `limit` — absent, empty, or an integer inside the shared window. Anything
  * else is `400 INVALID_LIMIT`, never a silent clamp.
  */
-export const listLimitSchema = z.unknown().transform((value) => parseListLimit(value));
+export const listLimitSchema = z.unknown().optional().transform((value) => parseListLimit(value));
 
 /**
  * `cursor` — shape only. The cursor's MEANING (version, list kind, ordering

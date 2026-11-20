@@ -76,7 +76,7 @@ export const bulkOrderStatusSchema = z.object({
   toStatus: z.string(),
   // Service-owned: a non-string note is a 400 `INVALID_ORDER_NOTE`, refused once
   // up-front for the whole batch rather than fifty times.
-  note: z.unknown(),
+  note: z.unknown().optional(),
 });
 
 /**
@@ -99,19 +99,19 @@ export const transitionOrderStatusSchema = z.object({
   // rather than left out, because `z.object` strips what it does not name: a
   // schema that forgot this field would have deleted the collision check with
   // no test failing and no error anywhere. TypeScript caught exactly that.
-  expectedVersion: z.unknown(),
-  note: z.unknown(),
+  expectedVersion: z.unknown().optional(),
+  note: z.unknown().optional(),
   // ق-246: the handover facts may ride the «قيد التوصيل» transition. Service-
   // owned like `note` — `parseDeliveryFields` refuses with INVALID_DELIVERY_FIELD.
-  courierName: z.unknown(),
-  trackingNumber: z.unknown(),
+  courierName: z.unknown().optional(),
+  trackingNumber: z.unknown().optional(),
 });
 
 /** q-246: a handover correction. Meaning (lengths, which statuses admit it) is the service's. */
 export const orderDeliverySchema = z.object({
-  courierName: z.unknown(),
-  trackingNumber: z.unknown(),
-  expectedVersion: z.unknown(),
+  courierName: z.unknown().optional(),
+  trackingNumber: z.unknown().optional(),
+  expectedVersion: z.unknown().optional(),
 });
 
 /** q-246: "I received the cash" for a batch of delivered orders. The service caps and validates the ids. */

@@ -241,7 +241,7 @@ export async function orderHistoryForStore(storeId: string, orderId: string) {
 // (phase 8A), so no constraint change is needed.
 export type OrderTransitionActor = { kind: "merchant" | "staff" | "customer"; id: string };
 
-export async function transitionOrderStatus(storeId: string, actor: OrderTransitionActor, orderId: string, input: { toStatus: unknown; expectedVersion: unknown; note?: unknown; courierName?: unknown; trackingNumber?: unknown }) {
+export async function transitionOrderStatus(storeId: string, actor: OrderTransitionActor, orderId: string, input: { toStatus?: unknown; expectedVersion?: unknown; note?: unknown; courierName?: unknown; trackingNumber?: unknown }) {
   // ق-246: the «قيد التوصيل» click is the handover — the one moment the
   // merchant knows which courier has the parcel. The fields ride the same
   // transaction as the transition so a courier is never recorded on an order

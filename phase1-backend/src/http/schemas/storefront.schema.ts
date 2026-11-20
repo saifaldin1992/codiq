@@ -53,14 +53,14 @@ import { z } from "zod";
  * the message.
  */
 export const addCartItemSchema = z.object({
-  productId: z.unknown(),
-  variantId: z.unknown(),
-  quantity: z.unknown(),
+  productId: z.unknown().optional(),
+  variantId: z.unknown().optional(),
+  quantity: z.unknown().optional(),
 });
 
 /** The line-quantity PATCH carries one recognised key and nothing else. */
 export const updateCartItemSchema = z.object({
-  quantity: z.unknown(),
+  quantity: z.unknown().optional(),
 });
 
 /**
@@ -70,10 +70,10 @@ export const updateCartItemSchema = z.object({
  * becomes a hash and must stay the only place it is judged.
  */
 export const registerCustomerSchema = z.object({
-  fullName: z.unknown(),
-  phone: z.unknown(),
-  password: z.unknown(),
-  email: z.unknown(),
+  fullName: z.unknown().optional(),
+  phone: z.unknown().optional(),
+  password: z.unknown().optional(),
+  email: z.unknown().optional(),
 });
 
 /**
@@ -84,18 +84,18 @@ export const registerCustomerSchema = z.object({
  * the rest, which is a distinction an attacker can measure.
  */
 export const loginCustomerSchema = z.object({
-  phone: z.unknown(),
-  password: z.unknown(),
+  phone: z.unknown().optional(),
+  password: z.unknown().optional(),
 });
 
 /** A saved address. `requiredText` owns all four texts (400 INVALID_ADDRESS) and `normalizePhone` owns the contact (400 INVALID_PHONE). */
 export const createAddressSchema = z.object({
-  recipientName: z.unknown(),
-  fullAddress: z.unknown(),
-  city: z.unknown(),
-  governorate: z.unknown(),
-  phoneContact: z.unknown(),
-  isDefault: z.unknown(),
+  recipientName: z.unknown().optional(),
+  fullAddress: z.unknown().optional(),
+  city: z.unknown().optional(),
+  governorate: z.unknown().optional(),
+  phoneContact: z.unknown().optional(),
+  isDefault: z.unknown().optional(),
 });
 
 /** The same keys, where absent means «leave this field alone» — a distinction `updateAddress` reads, so absent must stay absent after parsing. */
@@ -110,13 +110,13 @@ export const updateAddressSchema = createAddressSchema;
  * it out of the schema makes that unambiguous instead of merely true.
  */
 export const checkoutSchema = z.object({
-  cartVersion: z.unknown(),
-  addressId: z.unknown(),
-  address: z.unknown(),
-  paymentMethodCode: z.unknown(),
-  couponCode: z.unknown(),
-  note: z.unknown(),
-  loyaltyPoints: z.unknown(),
+  cartVersion: z.unknown().optional(),
+  addressId: z.unknown().optional(),
+  address: z.unknown().optional(),
+  paymentMethodCode: z.unknown().optional(),
+  couponCode: z.unknown().optional(),
+  note: z.unknown().optional(),
+  loyaltyPoints: z.unknown().optional(),
 });
 
 /**
@@ -125,17 +125,17 @@ export const checkoutSchema = z.object({
  * and the route drops the key if a client sends it anyway.
  */
 export const guestCheckoutSchema = z.object({
-  cartVersion: z.unknown(),
-  address: z.unknown(),
-  paymentMethodCode: z.unknown(),
-  couponCode: z.unknown(),
-  note: z.unknown(),
-  fullName: z.unknown(),
-  phone: z.unknown(),
-  email: z.unknown(),
+  cartVersion: z.unknown().optional(),
+  address: z.unknown().optional(),
+  paymentMethodCode: z.unknown().optional(),
+  couponCode: z.unknown().optional(),
+  note: z.unknown().optional(),
+  fullName: z.unknown().optional(),
+  phone: z.unknown().optional(),
+  email: z.unknown().optional(),
 });
 
 /** ق-201 — the one field that turns a guest into an account. */
 export const setGuestPasswordSchema = z.object({
-  password: z.unknown(),
+  password: z.unknown().optional(),
 });

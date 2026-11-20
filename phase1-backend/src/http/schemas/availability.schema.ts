@@ -7,90 +7,90 @@
 import { z } from "zod";
 
 export const updateServiceSchema = z.object({
-  state: z.unknown(),
-  name: z.unknown(),
-  description: z.unknown(),
+  state: z.unknown().optional(),
+  name: z.unknown().optional(),
+  description: z.unknown().optional(),
 });
 
 export const updateCapabilitySchema = z.object({
-  state: z.unknown(),
+  state: z.unknown().optional(),
 });
 
 export const createOverrideSchema = z.object({
-  scope: z.unknown(),
+  scope: z.unknown().optional(),
   /** A store slug or a merchant email — resolved to ids on the server; never an id typed by hand. */
-  storeSlug: z.unknown(),
-  merchantEmail: z.unknown(),
-  serviceCode: z.unknown(),
-  capabilityCode: z.unknown(),
-  state: z.unknown(),
-  reason: z.unknown(),
-  startsAt: z.unknown(),
-  endsAt: z.unknown(),
+  storeSlug: z.unknown().optional(),
+  merchantEmail: z.unknown().optional(),
+  serviceCode: z.unknown().optional(),
+  capabilityCode: z.unknown().optional(),
+  state: z.unknown().optional(),
+  reason: z.unknown().optional(),
+  startsAt: z.unknown().optional(),
+  endsAt: z.unknown().optional(),
 });
 
 export const upsertFeatureFlagSchema = z.object({
-  description: z.unknown(),
-  enabledDefault: z.unknown(),
+  description: z.unknown().optional(),
+  enabledDefault: z.unknown().optional(),
 });
 
 export const addFeatureFlagRuleSchema = z.object({
-  scope: z.unknown(),
-  enabled: z.unknown(),
-  planCode: z.unknown(),
-  merchantEmail: z.unknown(),
-  storeSlug: z.unknown(),
-  percentage: z.unknown(),
+  scope: z.unknown().optional(),
+  enabled: z.unknown().optional(),
+  planCode: z.unknown().optional(),
+  merchantEmail: z.unknown().optional(),
+  storeSlug: z.unknown().optional(),
+  percentage: z.unknown().optional(),
 });
 
 export const setStoreStatusSchema = z.object({
-  status: z.unknown(),
-  message: z.unknown(),
-  maintenanceUntil: z.unknown(),
+  status: z.unknown().optional(),
+  message: z.unknown().optional(),
+  maintenanceUntil: z.unknown().optional(),
 });
 
 export const platformStoreStatusSchema = z.object({
-  status: z.unknown(),
-  message: z.unknown(),
+  status: z.unknown().optional(),
+  message: z.unknown().optional(),
 });
 
 // ق-250 — maintenance windows and incidents
 export const scheduleMaintenanceWindowSchema = z.object({
-  scope: z.unknown(),
-  serviceCode: z.unknown(),
-  capabilityCode: z.unknown(),
-  merchantEmail: z.unknown(),
-  storeSlug: z.unknown(),
-  startsAt: z.unknown(),
-  endsAt: z.unknown(),
-  messageAr: z.unknown(),
-  messageEn: z.unknown(),
-  affects: z.unknown(),
+  scope: z.unknown().optional(),
+  serviceCode: z.unknown().optional(),
+  capabilityCode: z.unknown().optional(),
+  merchantEmail: z.unknown().optional(),
+  storeSlug: z.unknown().optional(),
+  startsAt: z.unknown().optional(),
+  endsAt: z.unknown().optional(),
+  messageAr: z.unknown().optional(),
+  messageEn: z.unknown().optional(),
+  affects: z.unknown().optional(),
 });
 
 export const scheduleStoreMaintenanceWindowSchema = z.object({
-  startsAt: z.unknown(),
-  endsAt: z.unknown(),
-  messageAr: z.unknown(),
-  messageEn: z.unknown(),
+  startsAt: z.unknown().optional(),
+  endsAt: z.unknown().optional(),
+  messageAr: z.unknown().optional(),
+  messageEn: z.unknown().optional(),
 });
 
 export const openIncidentSchema = z.object({
-  title: z.unknown(),
-  severity: z.unknown(),
-  publicMessage: z.unknown(),
-  affects: z.unknown(),
-  blocks: z.unknown(),
+  title: z.unknown().optional(),
+  severity: z.unknown().optional(),
+  publicMessage: z.unknown().optional(),
+  affects: z.unknown().optional(),
+  blocks: z.unknown().optional(),
 });
 
 export const incidentUpdateSchema = z.object({
-  status: z.unknown(),
-  message: z.unknown(),
-  publicMessage: z.unknown(),
-  blocks: z.unknown(),
+  status: z.unknown().optional(),
+  message: z.unknown().optional(),
+  publicMessage: z.unknown().optional(),
+  blocks: z.unknown().optional(),
 });
 
 // ق-251 — one value for one registry code; null clears the level's opinion
 export const setSettingSchema = z.object({
-  value: z.unknown(),
+  value: z.unknown().optional(),
 });

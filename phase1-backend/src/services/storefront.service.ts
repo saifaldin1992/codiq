@@ -30,7 +30,7 @@ const MAX_CART_QUANTITY = 99;
 const CART_STATUS_ACTIVE = "active";
 
 type CartContext = { customerId?: string; guestToken?: string };
-type CheckoutInput = { idempotencyKey: unknown; cartVersion: unknown; addressId?: unknown; address?: unknown; paymentMethodCode?: unknown; couponCode?: unknown; note?: unknown; loyaltyPoints?: unknown };
+type CheckoutInput = { idempotencyKey?: unknown; cartVersion?: unknown; addressId?: unknown; address?: unknown; paymentMethodCode?: unknown; couponCode?: unknown; note?: unknown; loyaltyPoints?: unknown };
 
 /**
  * PG-5 (ق-73) — what the customer asks for at checkout: «اتصل قبل الوصول»,

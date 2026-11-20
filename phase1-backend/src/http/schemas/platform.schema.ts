@@ -65,8 +65,8 @@ export const createManualMerchantSchema = z.object({
   firstStoreName: z.string(),
   email: z.string(),
   temporaryPassword: z.string(),
-  ownerName: z.unknown(),
-  phone: z.unknown(),
+  ownerName: z.unknown().optional(),
+  phone: z.unknown().optional(),
 });
 
 /**
@@ -120,7 +120,7 @@ export const createSettlementSchema = z.object({
   merchantId: z.string("merchantId مطلوب."),
   periodFrom: z.string("periodFrom مطلوب."),
   periodTo: z.string("periodTo مطلوب."),
-  note: z.unknown(),
+  note: z.unknown().optional(),
   /** Audit 17-ب: the payout the operator saw in the preview; a different live amount is refused (409). */
   expectedNetPayoutIqd: z.number().int("expectedNetPayoutIqd عدد صحيح.").optional(),
 });
@@ -134,7 +134,7 @@ export const settlementPreviewQuerySchema = z.object({
 /** The manual reversal of a late return — real money, so the id is asserted before anything is read. */
 export const createReturnAdjustmentSchema = z.object({
   orderId: z.string("orderId مطلوب."),
-  note: z.unknown(),
+  note: z.unknown().optional(),
 });
 
 /** The one flag that decides whether strangers become merchants unattended. */
@@ -157,7 +157,7 @@ export const decideMerchantApprovalSchema = z.object({
  */
 export const setMerchantSuspensionSchema = z.object({
   suspended: z.boolean({ error: "suspended يجب أن يكون true أو false." }),
-  reason: z.unknown(),
+  reason: z.unknown().optional(),
 });
 
 /**

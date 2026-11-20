@@ -35,18 +35,18 @@ import { z } from "zod";
 
 /** `merchantStoreForSwitch` answers 422 INVALID_STORE_SLUG for a missing or non-string slug, and 404 for a foreign one. */
 export const switchMerchantStoreSchema = z.object({
-  storeSlug: z.unknown(),
+  storeSlug: z.unknown().optional(),
 });
 
 /** `requiredStoreName` + `normalizedStoreSlug` own both fields; the slug's uniqueness is the database's answer (409 DUPLICATE_STORE_SLUG). */
 export const createMerchantStoreSchema = z.object({
-  name: z.unknown(),
-  slug: z.unknown(),
+  name: z.unknown().optional(),
+  slug: z.unknown().optional(),
 });
 
 /** Rename only — the slug is a public identity and this route never touches it, so it is not a key here. */
 export const renameMerchantStoreSchema = z.object({
-  name: z.unknown(),
+  name: z.unknown().optional(),
 });
 
 /**
@@ -56,7 +56,7 @@ export const renameMerchantStoreSchema = z.object({
  * spread away from the service.
  */
 export const createManualCustomerSchema = z.object({
-  fullName: z.unknown(),
-  email: z.unknown(),
-  phone: z.unknown(),
+  fullName: z.unknown().optional(),
+  email: z.unknown().optional(),
+  phone: z.unknown().optional(),
 });
