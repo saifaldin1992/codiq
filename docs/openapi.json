@@ -5314,7 +5314,7 @@
             ]
           },
           "403": {
-            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -5326,6 +5326,7 @@
               "CSRF_ORIGIN_DENIED",
               "IDENTITY_BOUNDARY_DENIED",
               "MERCHANT_DISABLED",
+              "PLAN_LIMIT_EXCEEDED",
               "STAFF_PERMISSION_DENIED",
               "STORE_BOUNDARY_DENIED"
             ]
@@ -40339,7 +40340,7 @@
           "store-traffic"
         ],
         "summary": "POST /store/{storeSlug}/visit",
-        "description": "**الباب**: مفتوح بلا جلسة.\n\n**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً.\n\n**غير مُصدَّرة بنسخة**: `/api` فقط. كعكة الزبون مقصورة على `/api/store/{storeSlug}`، فالبادئة المُصدَّرة تُبطلها.",
+        "description": "**الباب**: مفتوح بلا جلسة.\n\n**غير مُصدَّرة بنسخة**: `/api` فقط. كعكة الزبون مقصورة على `/api/store/{storeSlug}`، فالبادئة المُصدَّرة تُبطلها.",
         "parameters": [
           {
             "name": "storeSlug",
@@ -40467,7 +40468,6 @@
           "public"
         ],
         "x-codiq-source": "phase1-backend/src/http/routes/store-traffic.ts",
-        "x-codiq-rate-limited": true,
         "security": [],
         "requestBody": {
           "required": true,

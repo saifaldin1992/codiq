@@ -72,6 +72,8 @@ export type StorefrontProduct = {
   // Phase 20B-1: the storefront shows a prescription badge on flagged products.
   requiresPrescription?: boolean;
   isAvailable: boolean;
+  /** Audit 12-أ: more than one active variant — the card links to the product page instead of adding the default. */
+  hasOptions?: boolean;
   // ق-200: the «جديد» badge is an age threshold over this, computed on the client.
   createdAt?: string;
 };

@@ -380,6 +380,10 @@ export async function publicProducts(storeId: string, rawLimit: unknown, rawCurs
         createdAt: product.createdAt,
         requiresPrescription: product.requiresPrescription,
         isAvailable: product.variants.some((variant) => isAvailable(variant.stockQuantity, reservedByVariant.get(variant.id))),
+        // Audit 12-أ: a card's quick «add» puts the DEFAULT variant in the cart.
+        // With options to choose, «available» may mean another size is in stock,
+        // so the card must send the shopper to choose instead of choosing for him.
+        hasOptions: product.variants.length > 1,
       };
     }),
     nextCursor: cut.nextCursor,

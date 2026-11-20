@@ -39,9 +39,11 @@ export function ProductCard({ slug, product, adding, onAdd }: { slug: string; pr
         <h3 className="mt-3 line-clamp-2 min-h-[2.75rem] text-center text-sm font-bold leading-[1.4] text-[var(--storefront-text)]">{product.name}</h3>
         <p className="mt-1 text-center text-base font-black tabular-nums text-[var(--storefront-accent)]">{priceLabel(product)} <span className="text-xs font-bold">د.ع</span></p>
       </Link>
-      <Button type="button" disabled={adding || !product.isAvailable} onClick={() => onAdd(product.id)} className="mt-3 w-full rounded-xl bg-[var(--storefront-accent)] font-bold hover:bg-[var(--storefront-accent-hover)]">
-        <Plus className="ml-1.5 h-4 w-4" />{!product.isAvailable ? "نفد المخزون" : adding ? "جارٍ الإضافة…" : "أضف إلى السلة"}
-      </Button>
+      {product.hasOptions && product.isAvailable
+        ? <Link href={`/store/${slug}/products/${product.id}`} data-testid="product-card-choose" className="mt-3 inline-flex h-9 w-full items-center justify-center rounded-xl bg-[var(--storefront-accent)] text-sm font-bold text-white hover:bg-[var(--storefront-accent-hover)]">اختر الخيارات</Link>
+        : <Button type="button" disabled={adding || !product.isAvailable} onClick={() => onAdd(product.id)} className="mt-3 w-full rounded-xl bg-[var(--storefront-accent)] font-bold hover:bg-[var(--storefront-accent-hover)]">
+            <Plus className="ml-1.5 h-4 w-4" />{!product.isAvailable ? "نفد المخزون" : adding ? "جارٍ الإضافة…" : "أضف إلى السلة"}
+          </Button>}
     </article>
   );
 }
