@@ -8,7 +8,7 @@ import { ArrowUpCircle, BadgeCheck, CircleAlert, Gauge, LoaderCircle, RefreshCw 
 import { Button } from "@/components/ui/button";
 
 type Entitlement = { feature: string; label: string; limit: number; used: number };
-type View = { plan: { code: string; name: string; monthlyPriceIqd: number }; subscription?: { endsAt: string | null; isTrial: boolean; daysLeft: number | null }; entitlements: Entitlement[] };
+type View = { plan: { code: string; name: string; monthlyPriceIqd: number; version?: number | null }; subscription?: { endsAt: string | null; isTrial: boolean; daysLeft: number | null }; entitlements: Entitlement[] };
 const dayFormat = new Intl.DateTimeFormat("ar-IQ", { dateStyle: "long" });
 type PublicPlan = { code: string; name: string; monthlyPriceIqd: number };
 
@@ -86,7 +86,7 @@ export function SubscriptionPanel() {
                       مجاناً حتى {dayFormat.format(new Date(view.subscription.endsAt))} — يبقى <strong>{view.subscription.daysLeft}</strong> يوماً. بعدها تنتقل تلقائياً إلى الخطة المجانية ما لم تطلب ترقية.
                     </p>
                   ) : (
-                    <p className="text-xs text-[#61708A]">{view.plan.monthlyPriceIqd === 0 ? "مجانية" : `${money.format(view.plan.monthlyPriceIqd)} د.ع شهرياً`}</p>
+                    <p className="text-xs text-[#61708A]">{view.plan.monthlyPriceIqd === 0 ? "مجانية" : `${money.format(view.plan.monthlyPriceIqd)} د.ع شهرياً`}{view.plan.version ? <span data-testid="subscription-plan-version"> · الإصدار {view.plan.version} — شروطك ثابتة حتى التجديد</span> : null}</p>
                   )}
                 </div>
               </div>

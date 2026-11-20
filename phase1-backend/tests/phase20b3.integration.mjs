@@ -32,6 +32,7 @@
  * non-GET request; notification_outbox untouched (no fake event types needed).
  */
 import assert from "node:assert/strict";
+import { applyPlanTermsNow } from "./helpers/plan-terms.js";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
 import { Client } from "pg";
 
@@ -239,6 +240,7 @@ try {
   });
   const merchantAProducts = await prisma.product.count({ where: { store: { merchantId: merchantA.payload.account.id } } });
   await prisma.planFeature.update({ where: { planId_featureCode: { planId: freePlan.id, featureCode: "max_products" } }, data: { limitValue: merchantAProducts + 1 } });
+  await applyPlanTermsNow(prisma, freePlan.id); // phase 30: publish + renew so the clamp applies
   const limitCsv = [
     CSV_HEADER,
     "CSV-LIM1,منتج حد أول,,,,CSV-LIM1,,1000,0,0,true,",
@@ -249,6 +251,7 @@ try {
   assert.equal(limited.payload.error.code, "PLAN_LIMIT_EXCEEDED", "TWO new products exceed the remaining-one budget");
   assert.equal(await prisma.product.count({ where: { storeId: storeA.id, sku: { in: ["CSV-LIM1", "CSV-LIM2"] } } }), 0, "zero partial inserts under the plan refusal");
   await prisma.planFeature.update({ where: { planId_featureCode: { planId: freePlan.id, featureCode: "max_products" } }, data: { limitValue: 100 } });
+  await applyPlanTermsNow(prisma, freePlan.id); // phase 30: publish + renew so the clamp applies
   summary.planLimit = { status: 403, code: "PLAN_LIMIT_EXCEEDED", partialInserts: 0 };
 
   // ---------- 6. create-only + row cap + encoding ----------

@@ -29843,7 +29843,7 @@
             ]
           },
           "422": {
-            "description": "`INVALID_INCIDENT` · `INVALID_INPUT` · `VALIDATION_FAILED`",
+            "description": "`DUPLICATE_OVERRIDE` · `INVALID_INCIDENT` · `INVALID_INPUT` · `INVALID_OVERRIDE_EFFECT` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -29852,8 +29852,10 @@
               }
             },
             "x-codiq-error-codes": [
+              "DUPLICATE_OVERRIDE",
               "INVALID_INCIDENT",
               "INVALID_INPUT",
+              "INVALID_OVERRIDE_EFFECT",
               "VALIDATION_FAILED"
             ]
           },

@@ -27,6 +27,7 @@
  * 14. an order without a prescription product behaves exactly as before.
  */
 import assert from "node:assert/strict";
+import { applyPlanTermsNow } from "./helpers/plan-terms.js";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
@@ -559,8 +560,10 @@ try {
   const freePlanRow = await prisma.plan.findUniqueOrThrow({ where: { code: "free" }, select: { id: true } });
   const storageFeature = await prisma.planFeature.findFirstOrThrow({ where: { planId: freePlanRow.id, featureCode: "max_image_storage_mb" }, select: { id: true, limitValue: true } });
   await prisma.planFeature.update({ where: { id: storageFeature.id }, data: { limitValue: (await merchantUsage(prisma, merchantAId)).max_image_storage_mb } });
+  await applyPlanTermsNow(prisma, freePlanRow.id); // phase 30: publish + renew so the clamp applies
   const overCap = await request(`/store/${storeA.slug}/account/orders/${capOrder.id}/prescription`, { method: "POST", token: customerCap.token, form: pngForm() });
   await prisma.planFeature.update({ where: { id: storageFeature.id }, data: { limitValue: storageFeature.limitValue } });
+  await applyPlanTermsNow(prisma, freePlanRow.id); // phase 30: publish + renew so the clamp applies
   assert.equal(overCap.status, 403, `19-د: an upload past the plan's storage allowance must be refused — ${JSON.stringify(overCap.payload)}`);
   assert.equal(overCap.payload.error.code, "PLAN_LIMIT_EXCEEDED");
   // Refused BEFORE the put, so the refusal itself stores nothing.

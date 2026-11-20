@@ -12,6 +12,8 @@
  *   5. Audit 17-ب — a settlement states its amount before it is confirmed, the
  *                   amount equals the merchant's wallet, is stored, and a
  *                   stale amount is refused.
+ *   6. Phase 30   — editing a plan publishes a version; the existing subscriber
+ *                   keeps his terms until renewal; versions are immutable.
  */
 import assert from "node:assert/strict";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
@@ -28,6 +30,7 @@ const { createTypedSession } = await import("../src/auth/identity.ts");
 const { baghdadDay, recordVisit, flushVisits } = await import("../src/services/store-traffic.service.ts");
 const { platformOverview } = await import("../src/services/platform-overview.service.ts");
 const { merchantWallet } = await import("../src/services/merchant-wallet.service.ts");
+const { activePlanForMerchant } = await import("../src/services/entitlement.service.ts");
 
 const testId = `rvw-${Date.now()}`;
 const suffix = String(Date.now()).slice(-8);
@@ -165,6 +168,23 @@ try {
   const history = await call("/merchant/finance/settlements", { token });
   assert.equal(history.payload.settlements[0].netPayoutIqd, 51000, "…and the merchant's history shows the money he received");
   summary.settlementAmount = { previewed: 51000, staleRefused: 409, stored: 51000 };
+
+  // ── 6. plan versions (phase 30) ───────────────────────────────────────────
+  assert.equal((await activePlanForMerchant(prisma, merchantId)).limits.max_staff, 1);
+  const raised = await call(`/platform/plans/${plan.id}`, { method: "PATCH", token: ownerToken, body: { limits: { max_staff: 5 } } });
+  assert.equal(raised.status, 200, JSON.stringify(raised.payload));
+  assert.equal(raised.payload.plan.publishedVersion, 2, "phase 30: the edit publishes version 2");
+  const kept = await activePlanForMerchant(prisma, merchantId);
+  assert.deepEqual({ seats: kept.limits.max_staff, version: kept.version }, { seats: 1, version: 1 }, "phase 30: the existing subscriber keeps version 1 until renewal");
+  const listed = (await call("/platform/plans", { token: ownerToken })).payload.plans.find((row) => row.id === plan.id);
+  assert.deepEqual({ version: listed.version, ...listed.subscribers }, { version: 2, onCurrentVersion: 0, onOlderVersions: 1 }, "the owner sees who is still on an older version");
+  const unchanged = await call(`/platform/plans/${plan.id}`, { method: "PATCH", token: ownerToken, body: { name: "مقعد واحد (معدّلة)" } });
+  assert.equal(unchanged.payload.plan.publishedVersion, undefined, "renaming is presentation, not terms — no version");
+  assert.equal((await call(`/platform/merchants/${merchantId}/subscription`, { method: "PUT", token: ownerToken, body: { planCode: plan.code } })).status, 200);
+  const renewed = await activePlanForMerchant(prisma, merchantId);
+  assert.deepEqual({ seats: renewed.limits.max_staff, version: renewed.version }, { seats: 5, version: 2 }, "phase 30: renewal moves him onto the published terms");
+  await assert.rejects(prisma.$executeRawUnsafe(`UPDATE plan_versions SET commission_bps = 0 WHERE plan_id = '${plan.id}'`), /immutable/, "published terms cannot be edited in place");
+  summary.planVersions = { published: 2, keptUntilRenewal: true, immutable: true };
 
   console.log(JSON.stringify({ suite: "review-fixes", ok: true, summary }, null, 2));
 } finally {

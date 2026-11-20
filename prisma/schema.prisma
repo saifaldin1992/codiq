@@ -91,6 +91,8 @@ model Plan {
   createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
   features        PlanFeature[]
+  /// Phase 30: published terms; a subscription is pinned to one (plan_versions is append-only).
+  versions        PlanVersion[]
   subscriptions   MerchantSubscription[]
   upgradeRequests PlanUpgradeRequest[]
   featureFlagRules FeatureFlagRule[]
@@ -112,10 +114,31 @@ model PlanFeature {
   @@map("plan_features")
 }
 
+/// Phase 30: one published set of a plan's terms. Never updated — a term change
+/// publishes the next version. `limits` is {feature_code: limit}.
+model PlanVersion {
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId          String                 @map("plan_id") @db.Uuid
+  version         Int
+  monthlyPriceIqd Int                    @map("monthly_price_iqd")
+  commissionBps   Int                    @map("commission_bps")
+  limits          Json                   @default("{}") @db.JsonB
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan            Plan                   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  subscriptions   MerchantSubscription[]
+
+  @@unique([planId, version], map: "plan_versions_plan_version_key")
+  @@unique([id, planId], map: "plan_versions_id_plan_key")
+  @@map("plan_versions")
+}
+
 model MerchantSubscription {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   merchantId String    @map("merchant_id") @db.Uuid
   planId     String    @map("plan_id") @db.Uuid
+  /// Phase 30: filled by the `merchant_subscriptions_pin_version` trigger with the
+  /// plan's latest version when omitted. Never pass it from application code.
+  planVersionId String @default(dbgenerated()) @map("plan_version_id") @db.Uuid
   status     String    @default("active") @db.Text
   startedAt  DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
   endsAt     DateTime? @map("ends_at") @db.Timestamptz(6)
@@ -123,8 +146,10 @@ model MerchantSubscription {
   updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   merchant   Merchant  @relation(fields: [merchantId], references: [id], onDelete: Restrict)
   plan       Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  planVersion PlanVersion @relation(fields: [planVersionId, planId], references: [id, planId], onDelete: Restrict, map: "merchant_subscriptions_plan_version_fkey")
 
   @@index([merchantId], map: "merchant_subscriptions_merchant_idx")
+  @@index([planVersionId], map: "merchant_subscriptions_plan_version_idx")
   @@index([planId], map: "merchant_subscriptions_plan_idx")
   @@map("merchant_subscriptions")
 }

@@ -99,17 +99,27 @@ try {
   assert.equal(entryA!.planCode, "free");
   summary.completionEntry = { subtotal: 4000, commissionBps: 300, commission: entryA!.commissionIqd };
 
-  // A commission edit by the owner flows into the NEXT completion snapshot.
+  // Phase 30: a commission edit PUBLISHES a new plan version. A merchant already
+  // subscribed keeps the version he subscribed under — his next completion is
+  // still booked at 300 — and moves to the new terms on renewal (here: the owner
+  // re-assigns the plan), after which completions are booked at 500.
   const plansList = await request("/platform/plans", { headers: bearer(tokenOwner) });
   const freePlan = plansList.body.plans.find((plan: any) => plan.code === "free");
   const bpsUpdate = await request(`/platform/plans/${freePlan.id}`, { method: "PATCH", headers: bearer(tokenOwner), body: JSON.stringify({ commissionBps: 500 }) });
   assert.equal(bpsUpdate.status, 200);
+  assert.ok(bpsUpdate.body.plan.publishedVersion >= 2, "phase 30: a term change publishes a new version");
+  const { activePlanForMerchant } = await import("../src/services/entitlement.service.js");
+  assert.equal((await activePlanForMerchant(prisma, merchantId)).commissionBps, 300, "phase 30: editing the plan does not change an existing subscription's terms");
+  const renewed = await request(`/platform/merchants/${merchantId}/subscription`, { method: "PUT", headers: bearer(tokenOwner), body: JSON.stringify({ planCode: "free" }) });
+  assert.equal(renewed.status, 200, JSON.stringify(renewed.body));
   const orderB = await makeOrder(10000, 3000);
   await completeOrder(orderB.id);
   const entryB = await prisma.ledgerEntry.findFirst({ where: { orderId: orderB.id, entryType: "order_completed" } });
   assert.equal(entryB!.commissionBps, 500);
   assert.equal(entryB!.commissionIqd, 500, "5% of 10000 = 500");
   await request(`/platform/plans/${freePlan.id}`, { method: "PATCH", headers: bearer(tokenOwner), body: JSON.stringify({ commissionBps: 300 }) });
+  // …and back onto the 300 terms the rest of this suite was written against.
+  assert.equal((await request(`/platform/merchants/${merchantId}/subscription`, { method: "PUT", headers: bearer(tokenOwner), body: JSON.stringify({ planCode: "free" }) })).status, 200);
 
   // ---------- return inside the window reverses automatically ----------
   const returned = await transition(orderB.id, "returned", 5);

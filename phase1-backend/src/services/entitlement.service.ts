@@ -47,6 +47,40 @@ export interface PlanSummary {
   monthlyPriceIqd: number;
   commissionBps: number;
   limits: Record<PlanFeatureCode, number>;
+  /** Phase 30: the published version these terms come from; null only for an unversioned fallback. */
+  version: number | null;
+}
+
+/**
+ * Phase 30 — terms come from the subscription's PINNED version, not the plan
+ * row. The plan row (and plan_features) is the latest published terms, which is
+ * what the catalogue sells; a merchant who subscribed earlier keeps what he
+ * subscribed under until renewal.
+ */
+function versionSummary(plan: { id: string; code: string; name: string }, version: { version: number; monthlyPriceIqd: number; commissionBps: number; limits: unknown }): PlanSummary {
+  const limits = Object.fromEntries(PLAN_FEATURE_CODES.map((code) => [code, 0])) as Record<PlanFeatureCode, number>;
+  const stored = (version.limits && typeof version.limits === "object" ? version.limits : {}) as Record<string, unknown>;
+  for (const code of PLAN_FEATURE_CODES) {
+    if (Number.isInteger(stored[code])) limits[code] = stored[code] as number;
+  }
+  return { id: plan.id, code: plan.code, name: plan.name, monthlyPriceIqd: version.monthlyPriceIqd, commissionBps: version.commissionBps, limits, version: version.version };
+}
+
+/** The terms a plan currently sells, as a version snapshot (`limits` as stored on plan_versions). */
+async function currentTerms(tx: Prisma.TransactionClient, planId: string) {
+  const plan = await tx.plan.findUniqueOrThrow({ where: { id: planId }, select: { monthlyPriceIqd: true, commissionBps: true, features: { select: { featureCode: true, limitValue: true } } } });
+  return {
+    monthlyPriceIqd: plan.monthlyPriceIqd,
+    commissionBps: plan.commissionBps,
+    limits: Object.fromEntries(plan.features.map((feature) => [feature.featureCode, feature.limitValue])) as Record<string, number>,
+  };
+}
+
+/** Publishes the plan's current terms as its next version. Called inside the transaction that changed them. */
+async function publishPlanVersion(tx: Prisma.TransactionClient, planId: string) {
+  const latest = await tx.planVersion.findFirst({ where: { planId }, orderBy: { version: "desc" }, select: { version: true } });
+  const terms = await currentTerms(tx, planId);
+  return tx.planVersion.create({ data: { planId, version: (latest?.version ?? 0) + 1, ...terms }, select: { version: true } });
 }
 
 function planSummary(plan: { id: string; code: string; name: string; monthlyPriceIqd: number; commissionBps: number; features: { featureCode: string; limitValue: number }[] }): PlanSummary {
@@ -54,16 +88,19 @@ function planSummary(plan: { id: string; code: string; name: string; monthlyPric
   for (const feature of plan.features) {
     if ((PLAN_FEATURE_CODES as readonly string[]).includes(feature.featureCode)) limits[feature.featureCode as PlanFeatureCode] = feature.limitValue;
   }
-  return { id: plan.id, code: plan.code, name: plan.name, monthlyPriceIqd: plan.monthlyPriceIqd, commissionBps: plan.commissionBps, limits };
+  return { id: plan.id, code: plan.code, name: plan.name, monthlyPriceIqd: plan.monthlyPriceIqd, commissionBps: plan.commissionBps, limits, version: null };
 }
 
 export async function activePlanForMerchant(client: DbClient, merchantId: string): Promise<PlanSummary> {
   const subscription = await client.merchantSubscription.findFirst({
     where: { merchantId, status: "active", OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }] },
     orderBy: { startedAt: "desc" },
-    select: { plan: { select: { id: true, code: true, name: true, monthlyPriceIqd: true, commissionBps: true, features: { select: { featureCode: true, limitValue: true } } } } },
+    select: {
+      plan: { select: { id: true, code: true, name: true } },
+      planVersion: { select: { version: true, monthlyPriceIqd: true, commissionBps: true, limits: true } },
+    },
   });
-  if (subscription) return planSummary(subscription.plan);
+  if (subscription) return versionSummary(subscription.plan, subscription.planVersion);
 
   /**
    * ق-239 — A READ MUST NOT DEPEND ON A SWEEPER HAVING RUN.
@@ -256,7 +293,7 @@ export async function merchantEntitlementsView(merchantId: string) {
     select: { endsAt: true, plan: { select: { code: true } } },
   });
   return {
-    plan: { code: plan.code, name: plan.name, monthlyPriceIqd: plan.monthlyPriceIqd },
+    plan: { code: plan.code, name: plan.name, monthlyPriceIqd: plan.monthlyPriceIqd, version: plan.version },
     subscription: subscriptionSummary(row),
     entitlements: PLAN_FEATURE_CODES.map((code) => ({ feature: code, label: FEATURE_LABELS[code], limit: plan.limits[code], used: usage[code] })),
   };
@@ -268,7 +305,29 @@ const planInclude = { features: { select: { featureCode: true, limitValue: true 
 
 export async function listPlans() {
   const plans = await prisma.plan.findMany({ include: planInclude, orderBy: { sortOrder: "asc" } });
-  return plans.map((plan) => ({ ...planSummary(plan), isActive: plan.isActive, isRecommended: plan.isRecommended, sortOrder: plan.sortOrder }));
+  // Phase 30: per plan, its current version and how many ACTIVE subscriptions
+  // still run on an older one — what the owner must know before re-assigning.
+  const counts = await prisma.$queryRaw<Array<{ plan_id: string; current_version: number | null; on_current: bigint; on_older: bigint }>>(Prisma.sql`
+    SELECT p.id AS plan_id,
+           (SELECT max(v.version) FROM plan_versions v WHERE v.plan_id = p.id) AS current_version,
+           count(s.id) FILTER (WHERE sv.version = (SELECT max(v.version) FROM plan_versions v WHERE v.plan_id = p.id)) AS on_current,
+           count(s.id) FILTER (WHERE sv.version < (SELECT max(v.version) FROM plan_versions v WHERE v.plan_id = p.id)) AS on_older
+      FROM plans p
+      LEFT JOIN merchant_subscriptions s ON s.plan_id = p.id AND s.status = 'active'
+      LEFT JOIN plan_versions sv ON sv.id = s.plan_version_id
+     GROUP BY p.id`);
+  const byPlan = new Map(counts.map((row) => [row.plan_id, row]));
+  return plans.map((plan) => {
+    const count = byPlan.get(plan.id);
+    return {
+      ...planSummary(plan),
+      version: count?.current_version ?? null,
+      subscribers: { onCurrentVersion: Number(count?.on_current ?? 0), onOlderVersions: Number(count?.on_older ?? 0) },
+      isActive: plan.isActive,
+      isRecommended: plan.isRecommended,
+      sortOrder: plan.sortOrder,
+    };
+  });
 }
 
 /**
@@ -326,6 +385,7 @@ export async function updatePlan(planId: string, actor: PlatformActor, body: Rec
     throw new HttpError(422, "INVALID_INPUT", "isRecommended يجب أن يكون قيمة منطقية.");
   }
   const limitEntries = body.limits === undefined ? undefined : validatedLimitEntries(body.limits);
+  let publishedVersion: number | null = null;
   await prisma.$transaction(async (tx) => {
     await tx.plan.update({ where: { id: planId }, data });
     // Applied after the field write so an isActive:false in the same PATCH is
@@ -340,6 +400,17 @@ export async function updatePlan(planId: string, actor: PlatformActor, body: Rec
         });
       }
     }
+    // Phase 30: a change to what the plan SELLS (price, commission, limits) is a
+    // new published version; current subscribers keep theirs until renewal.
+    // Name, archive and recommendation are presentation, not terms.
+    const termsChanged = body.monthlyPriceIqd !== undefined || body.commissionBps !== undefined || limitEntries !== undefined;
+    if (termsChanged) {
+      const latest = await tx.planVersion.findFirst({ where: { planId }, orderBy: { version: "desc" }, select: { monthlyPriceIqd: true, commissionBps: true, limits: true } });
+      const now = await currentTerms(tx, planId);
+      const same = latest && latest.monthlyPriceIqd === now.monthlyPriceIqd && latest.commissionBps === now.commissionBps
+        && JSON.stringify(Object.entries(latest.limits as Record<string, number>).sort()) === JSON.stringify(Object.entries(now.limits).sort());
+      if (!same) publishedVersion = (await publishPlanVersion(tx, planId)).version;
+    }
     // 19-ب: the change and its record commit together.
     await recordPlatformAuditEvent(tx, {
       entityType: "plan",
@@ -347,11 +418,11 @@ export async function updatePlan(planId: string, actor: PlatformActor, body: Rec
       entityLabel: typeof body.name === "string" && body.name.trim() ? body.name.trim() : plan.name,
       action: "plan_updated",
       actor,
-      metadata: { changed: Object.keys(body) },
+      metadata: { changed: Object.keys(body), ...(publishedVersion ? { publishedVersion } : {}) },
     });
   });
   const updated = await prisma.plan.findUnique({ where: { id: planId }, include: planInclude });
-  return { ...planSummary(updated!), isActive: updated!.isActive, isRecommended: updated!.isRecommended, sortOrder: updated!.sortOrder };
+  return { ...planSummary(updated!), isActive: updated!.isActive, isRecommended: updated!.isRecommended, sortOrder: updated!.sortOrder, ...(publishedVersion ? { publishedVersion } : {}) };
 }
 
 /** Exported so `schemas/platform.schema.ts` asserts THIS rule rather than a copy of it. */
@@ -389,6 +460,8 @@ export async function createPlan(actor: PlatformActor, body: Record<string, unkn
       },
       include: planInclude,
     });
+    // Phase 30: a new plan is published as version 1 of its terms.
+    await publishPlanVersion(tx, plan.id);
     await recordPlatformAuditEvent(tx, {
       entityType: "plan",
       entityId: plan.id,

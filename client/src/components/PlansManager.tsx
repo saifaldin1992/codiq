@@ -19,6 +19,9 @@ type PlanRow = {
   /** The owner's «توصية المنصة» pick — server-enforced to at most one plan. */
   isRecommended: boolean;
   limits: Record<string, number>;
+  /** Phase 30: the latest published version, and who is still on an older one. */
+  version?: number | null;
+  subscribers?: { onCurrentVersion: number; onOlderVersions: number };
 };
 
 const LIMIT_LABELS: Record<string, string> = {
@@ -49,7 +52,7 @@ function PlanCard({ plan, onSaved, busy, setBusy }: { plan: PlanRow; onSaved: ()
     setFailure(null);
     setNotice(null);
     try {
-      await api(`/api/platform/plans/${plan.id}`, {
+      const saved = await api<{ plan: { publishedVersion?: number } }>(`/api/platform/plans/${plan.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           monthlyPriceIqd: Number(price),
@@ -57,7 +60,10 @@ function PlanCard({ plan, onSaved, busy, setBusy }: { plan: PlanRow; onSaved: ()
           limits: Object.fromEntries(Object.entries(limits).map(([key, value]) => [key, Number(value)])),
         }),
       });
-      setNotice("حُفظت الخطة.");
+      // Phase 30: a term change is a published version, not an edit in place.
+      setNotice(saved.plan.publishedVersion
+        ? `نُشر الإصدار ${saved.plan.publishedVersion}. المشتركون الحاليون يحتفظون بشروطهم حتى التجديد؛ الجدد يشتركون بهذا الإصدار.`
+        : "حُفظت الخطة.");
       await onSaved();
     } catch (error) {
       setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
@@ -163,7 +169,12 @@ function PlanCard({ plan, onSaved, busy, setBusy }: { plan: PlanRow; onSaved: ()
       >
         {plan.isActive ? <><Archive className="ml-1 h-4 w-4" /> أرشفة الخطة</> : <><ArchiveRestore className="ml-1 h-4 w-4" /> إلغاء الأرشفة</>}
       </Button>
-      <p className="mt-2 text-center text-[11px] text-[#8490A5]">{money.format(plan.monthlyPriceIqd)} د.ع / شهرياً حالياً</p>
+      <p className="mt-2 text-center text-[11px] text-[#8490A5]">{money.format(plan.monthlyPriceIqd)} د.ع / شهرياً حالياً{plan.version ? ` · الإصدار ${plan.version}` : ""}</p>
+      {plan.subscribers?.onOlderVersions ? (
+        <p data-testid={`plan-older-subscribers-${plan.code}`} className="mt-1 text-center text-[11px] font-semibold text-[var(--codiq-warning)]">
+          {plan.subscribers.onOlderVersions} مشترك على إصدار أقدم — يحتفظون بشروطهم حتى التجديد
+        </p>
+      ) : null}
     </div>
   );
 }

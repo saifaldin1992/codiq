@@ -37,6 +37,7 @@
  * not just the HTTP shape.
  */
 import assert from "node:assert/strict";
+import { applyPlanTermsNow } from "./helpers/plan-terms.js";
 import { ownStaffPassword } from "./helpers/own-staff-password.js";
 import { registerMerchantDirect } from "./helpers/register-merchant.js";
 import { readFileSync } from "node:fs";
@@ -411,6 +412,7 @@ try {
   // assertion here left the free plan permanently clamped and poisoned every
   // suite that ran afterwards — so the clamp lives inside try/finally.
   await prisma.planFeature.update({ where: { planId_featureCode: { planId: freePlan.id, featureCode: "max_products" } }, data: { limitValue: merchantAProducts } });
+  await applyPlanTermsNow(prisma, freePlan.id); // phase 30: publish + renew so the clamp applies
   try {
     const limited = await request(`${catalogA}/products/${shirtId}/duplicate`, { method: "POST", token: tokenA });
     assert.equal(limited.status, 403, JSON.stringify(limited.payload));
@@ -419,6 +421,7 @@ try {
     assert.equal(await prisma.productVariant.count({ where: { storeId: storeA.id } }), variantsBeforeLimit, "zero partial variant writes under the plan refusal");
   } finally {
     await prisma.planFeature.update({ where: { planId_featureCode: { planId: freePlan.id, featureCode: "max_products" } }, data: { limitValue: originalLimit } });
+    await applyPlanTermsNow(prisma, freePlan.id); // phase 30: publish + renew so the clamp applies
   }
   assert.equal((await prisma.planFeature.findUniqueOrThrow({ where: { planId_featureCode: { planId: freePlan.id, featureCode: "max_products" } } })).limitValue, originalLimit, "the shared free plan is left exactly as it was found");
 
