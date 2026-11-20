@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.github
+.env
+.env.*
+!.env.example
+docs
+**/*.md
+!README.md
+.test-artifacts
+phase1-backend/tests
+tools
+docker

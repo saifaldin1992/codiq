@@ -1,0 +1,39 @@
+// Cloudflare deployment: a Worker in front of the platform container.
+// Secrets are NOT here — set them with `wrangler secret put <NAME>` (see
+// docs/DEPLOY_SUPABASE_CLOUDFLARE.md); the Worker passes them to the container.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "codiq",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  "containers": [
+    {
+      "class_name": "PlatformContainer",
+      // Built from the repository Dockerfile by `wrangler deploy` (needs Docker).
+      "image": "../../Dockerfile",
+      "image_build_context": "../..",
+      // basic = 1/4 vCPU, 1 GiB. Use standard-1 (1/2 vCPU, 4 GiB) for heavier stores.
+      "instance_type": "basic",
+      "max_instances": 4
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "PLATFORM", "class_name": "PlatformContainer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PlatformContainer"] }],
+
+  // Keeps instance-0 (and the notification worker inside it) awake; see src/index.ts.
+  "triggers": { "crons": ["*/5 * * * *"] },
+
+  "vars": {
+    // How many container instances requests are spread over (<= max_instances).
+    "INSTANCES": "2",
+    "NODE_ENV": "production",
+    "CODIQ_TRUSTED_EDGE": "cloudflare",
+    "CODIQ_VISIT_FLUSH_MS": "5000"
+    // CODIQ_PUBLIC_BASE_URL: set per environment, e.g. "https://example.com"
+  }
+}

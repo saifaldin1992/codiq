@@ -21,6 +21,7 @@
  * Run: pnpm phase1:db:migrate
  */
 import { spawn } from "node:child_process";
+import pg from "pg";
 import { databaseHost, resolveCodiqMigrationDatabaseUrl } from "../src/db/database-url.js";
 
 const requested = process.env.CODIQ_POSTGRES_URL_UNPOOLED ?? process.env.CODIQ_POSTGRES_URL ?? process.env.DATABASE_URL ?? "";
@@ -37,6 +38,51 @@ if (before !== after) {
 } else {
   console.log(`[migrate] direct connection: ${after}`);
 }
+
+/**
+ * SUPABASE PREFLIGHT — an extension in another schema, behind a pinned search_path.
+ *
+ * Supabase installs extensions enabled from its dashboard into a schema named
+ * `extensions`, which its roles keep on their default search_path. A Prisma url
+ * carrying `?schema=public` REPLACES that search_path with `public` alone, and
+ * the search-index migration then dies half-way with
+ * `operator class "gin_trgm_ops" does not exist`. Measured 2026-11-20 against a
+ * database shaped exactly like that: the same url without `schema` migrates and
+ * every search suite passes.
+ *
+ * So the condition is checked BEFORE prisma runs, and the message names the fix.
+ */
+const EXTENSIONS_WE_USE = ["pg_trgm", "btree_gist"];
+async function preflightExtensionSchemas(url: string) {
+  const parsed = new URL(url);
+  const pinned = parsed.searchParams.get("schema");
+  if (!pinned) return;
+  for (const key of ["schema", "pgbouncer", "connection_limit", "pool_timeout", "connect_timeout", "statement_cache_size"]) parsed.searchParams.delete(key);
+  const client = new pg.Client({ connectionString: parsed.toString() });
+  try {
+    await client.connect();
+    const { rows } = await client.query<{ extname: string; schema: string }>(
+      "SELECT e.extname, n.nspname AS schema FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace WHERE e.extname = ANY($1)",
+      [EXTENSIONS_WE_USE],
+    );
+    const elsewhere = rows.filter((row) => row.schema !== pinned);
+    if (elsewhere.length) {
+      console.error(
+        `[migrate] ${elsewhere.map((row) => `${row.extname} is installed in schema "${row.schema}"`).join(", ")}, ` +
+          `but the url pins search_path to "${pinned}" (?schema=${pinned}), so its operators are invisible to the migrations.\n` +
+          `[migrate] Fix: remove "schema=${pinned}" from the database url (Supabase keeps "extensions" on the role's search_path), ` +
+          `or move the extension: ALTER EXTENSION <name> SET SCHEMA ${pinned};`,
+      );
+      process.exit(1);
+    }
+  } catch (error) {
+    // A preflight that cannot connect must not mask prisma's own, better, connection error.
+    console.warn(`[migrate] extension preflight skipped: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
+await preflightExtensionSchemas(resolved);
 
 const child = spawn(
   process.platform === "win32" ? "npx.cmd" : "npx",

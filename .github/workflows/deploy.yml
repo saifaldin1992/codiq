@@ -1,0 +1,82 @@
+name: deploy
+
+# Production deploy: Supabase (migrations) + Cloudflare (Worker + container).
+# Runs only after `ci` has passed on `release`, or by hand. Nothing here runs
+# until the repository has the secrets listed in docs/DEPLOY_SUPABASE_CLOUDFLARE.md.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [release]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy / production
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - name: Checkout the commit CI approved
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Migrations first and exactly once: the new code may need the new schema,
+      # and the old code keeps working against it (migrations are additive).
+      # The direct (unpooled, :5432) connection — prisma takes an advisory lock.
+      - name: Migrate database (Supabase)
+        env:
+          CODIQ_POSTGRES_URL_UNPOOLED: ${{ secrets.SUPABASE_DB_URL_DIRECT }}
+          CODIQ_POSTGRES_URL: ${{ secrets.SUPABASE_DB_URL_DIRECT }}
+          CODIQ_ENCRYPTION_KEY: ${{ secrets.CODIQ_ENCRYPTION_KEY }}
+          NODE_ENV: production
+        run: pnpm phase1:db:migrate
+
+      - name: Install Worker dependencies
+        working-directory: deploy/cloudflare
+        run: npm ci --no-audit --no-fund
+
+      # Builds the repository Dockerfile, pushes it to Cloudflare's registry and
+      # rolls the Worker + container out. Docker is preinstalled on the runner.
+      - name: Deploy to Cloudflare
+        working-directory: deploy/cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
+
+      - name: Smoke test
+        env:
+          PUBLIC_URL: ${{ vars.CODIQ_PUBLIC_BASE_URL }}
+        run: |
+          if [ -z "$PUBLIC_URL" ]; then echo "vars.CODIQ_PUBLIC_BASE_URL not set — skipping"; exit 0; fi
+          for i in $(seq 1 20); do
+            code=$(curl -s -o /tmp/ready.json -w '%{http_code}' "$PUBLIC_URL/api/ready" || true)
+            if [ "$code" = "200" ]; then cat /tmp/ready.json; exit 0; fi
+            echo "attempt $i: /api/ready -> $code"; sleep 15
+          done
+          cat /tmp/ready.json || true
+          exit 1
