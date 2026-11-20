@@ -396,6 +396,49 @@ try {
   await page.getByLabel("البحث برقم الطلب").waitFor();
   assertConsoleClean("landing and dashboard with the SW registered origin-wide");
 
+  // ----------- 6b: a sale rung under ANOTHER user waits for that user
+  // The server credits a sale to the session that SENDS it, so a queue that
+  // flushed whatever it held would credit one cashier's offline sales to the
+  // next one who signs in — and the owner's price-deviation queue names the
+  // seller. A queued sale is sent only under the session that rang it.
+  await page.goto(`${base}/merchant/stores/${store.slug}/till`);
+  await page.getByTestId(`till-add-${defaultVariant.id}`).waitFor();
+  const ordersBeforeOwnership = await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } });
+  await context.setOffline(true);
+  await ringLine(page, "OFF-SHIRT");
+  await page.getByTestId(`till-line-inc-${defaultVariant.id}`).waitFor();
+  await payAndConfirm(page, 10000);
+  await page.getByTestId("till-queue-pending-chip").waitFor();
+  const reown = (ownerKeyOrNull) => page.evaluate(async ({ slug, ownerKeyOrNull }) => {
+    const db = await new Promise((resolve, reject) => { const open = indexedDB.open(`codiq-till:${slug}`); open.onsuccess = () => resolve(open.result); open.onerror = () => reject(open.error); });
+    const read = (store, key) => new Promise((resolve) => { const r = db.transaction(store).objectStore(store)[key === undefined ? "getAll" : "get"](key); r.onsuccess = () => resolve(r.result); });
+    const owner = ownerKeyOrNull ?? await read("kv", "owner");
+    for (const record of await read("queue")) {
+      if (record.state !== "pending") continue;
+      await new Promise((resolve) => { const tx = db.transaction("queue", "readwrite"); tx.objectStore("queue").put({ ...record, ownerKey: owner }); tx.oncomplete = resolve; });
+    }
+    db.close();
+    return owner;
+  }, { slug: store.slug, ownerKeyOrNull });
+  const merchantOwner = await reown("staff:00000000-0000-4000-8000-000000000000");
+  // Rebooted while still offline, so the page holds the record as stored — the
+  // open page's in-memory copy would otherwise flush the moment it reconnects.
+  await page.reload();
+  await page.getByTestId("till-queue-others").waitFor({ timeout: 30000 });
+  await context.setOffline(false);
+  await page.reload();
+  await page.getByTestId("till-queue-others").waitFor({ timeout: 30000 });
+  await sleep(6000);
+  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), ordersBeforeOwnership, "a sale rung by another user is NOT sent under this session");
+  await page.screenshot({ path: `${artifactsDir}/pos-offline-other-owner.png`, fullPage: true });
+  // Handed back to the signed-in user, it is his sale and it goes.
+  await reown(null);
+  await page.reload();
+  await page.waitForFunction(() => !document.querySelector('[data-testid="till-queue-others"]'), undefined, { timeout: 30000 });
+  for (let tries = 0; tries < 60 && await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }) === ordersBeforeOwnership; tries += 1) await sleep(1000);
+  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), ordersBeforeOwnership + 1, `…and under its own session it syncs (${merchantOwner})`);
+  assertConsoleClean("queued sales wait for the user who rang them");
+
   // -------------------- 7: revoked mid-queue — LAST, revocation is forever
   await page.goto(`${base}/merchant/stores/${store.slug}/till`);
   await page.getByTestId(`till-add-${defaultVariant.id}`).waitFor();
@@ -407,7 +450,7 @@ try {
   await prisma.posDevice.update({ where: { id: device.id }, data: { revokedAt: new Date() } });
   await context.setOffline(false);
   await page.getByTestId("till-queue-revoked-count").waitFor({ timeout: 90000 });
-  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), 7, "a revoked device commits nothing new");
+  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), 8, "a revoked device commits nothing new");
   // The retained sale must survive a reboot — IDB, not React state.
   await page.reload();
   await page.getByTestId("till-queue-revoked-count").waitFor({ timeout: 90000 });
@@ -421,7 +464,7 @@ try {
   const replay = await json(`/api/merchant/stores/${store.slug}/pos/tickets`, { method: "POST", headers: { cookie: replayCookie, origin: base }, body: baselinePayload });
   assert.equal(replay.response.status, 200, `committed tickets replay from a revoked device: ${JSON.stringify(replay.body)}`);
   assert.equal(replay.body.replayed, true, "the replay says so honestly");
-  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), 7, "the replay minted nothing");
+  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), 8, "the replay minted nothing");
   assertConsoleClean("revoked-device drill");
 
   console.log("pos-offline OK");

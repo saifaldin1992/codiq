@@ -57,7 +57,10 @@ export function registerPosRoutes(app: Express) {
   app.get("/merchant/stores/:storeSlug/pos/devices", asyncRoute(async (request, response) => {
     const actor = await requireStoreActor(request, "pos.sell");
     await assertCapabilityAvailable("pos.devices", actor.store);
-    response.status(200).json({ storeSlug: actor.store.slug, ...(await listPosDevices(actor.store.id)) });
+    // `seller` is who this session is: the till stamps it on every sale it
+    // queues and sends a queued sale only under the session that rang it, so an
+    // offline sale is never credited to the next cashier who signs in.
+    response.status(200).json({ storeSlug: actor.store.slug, seller: { kind: actor.actor.kind, id: actor.actor.id }, ...(await listPosDevices(actor.store.id)) });
   }));
 
   app.post("/merchant/stores/:storeSlug/pos/devices/:deviceId/revoke", asyncRoute(async (request, response) => {

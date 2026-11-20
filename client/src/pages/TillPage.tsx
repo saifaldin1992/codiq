@@ -259,7 +259,14 @@ export default function TillPage() {
     setDevicesError(null);
     setDevices(null);
     try {
-      const data = await api<{ devices: PosDevice[] }>(`${base}/pos/devices`);
+      const data = await api<{ devices: PosDevice[]; seller?: { kind: string; id: string } }>(`${base}/pos/devices`);
+      // Whoever is signed in owns the sales rung from now on, and only their
+      // own queued sales are sent under this session (till-queue `ownerKey`).
+      if (data.seller) {
+        const ownerKey = `${data.seller.kind}:${data.seller.id}`;
+        queue.setActiveOwner(ownerKey);
+        void queue.saveOwner(ownerKey);
+      }
       const active = data.devices.filter((entry) => !entry.revokedAt);
       setDevices(active);
       if (active.length === 1) {
@@ -277,6 +284,7 @@ export default function TillPage() {
     } catch (error) {
       // Offline boot: the device OBJECT cached after the first successful load
       // restores a sellable till; pairing itself stays online-only.
+      queue.setActiveOwner(await queue.loadOwner());
       const cached = await queue.loadDevice<PosDevice>();
       if (cached) {
         setDevices([cached]);
@@ -516,6 +524,7 @@ export default function TillPage() {
         totalIqd: total,
         changeDue: Math.max(0, parseIqd(payment.received) - total),
         result: null,
+        ownerKey: queue.activeOwnerKey(),
       };
       const outcome = await queue.confirmEnqueue(record);
       if (outcome.kind === "unsaved") {
@@ -720,6 +729,11 @@ export default function TillPage() {
 
       {/* Session-family refusals PAUSE the queue — re-login drains it. Never a
           dead-letter: the sales behind this banner are real money. */}
+      {queueState.waitingForOthers > 0 && (
+        <div data-testid="till-queue-others" className="border-b border-[var(--codiq-border)] bg-[var(--codiq-surface)] px-4 py-2.5 text-center text-sm font-bold text-[var(--codiq-text-secondary)]">
+          يحفظ هذا الجهاز {salesPhrase(queueState.waitingForOthers)} سجّلها مستخدم آخر — تُرسَل باسمه حين يسجّل دخوله هنا.
+        </div>
+      )}
       {queueState.halt === "session" && (
         <div data-testid="till-queue-session" className="border-b border-[var(--codiq-border)] bg-[var(--codiq-warning-soft)] px-4 py-2.5 text-center text-sm font-bold text-[var(--codiq-warning)]">
           انتهت الجلسة — <Link href="/merchant/login" data-testid="till-queue-session-login" className="underline underline-offset-2">سجّل الدخول</Link> لمزامنة {salesPhrase(queueState.pending)} محفوظة
