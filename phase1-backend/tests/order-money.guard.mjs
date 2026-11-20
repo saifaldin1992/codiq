@@ -75,7 +75,7 @@ const TERMS = [
 // 1. The formula still contains exactly the terms this guard knows about. A new
 //    term makes this fail — which is the entire point.
 const unknown = formula
-  .split(/[+\-]/)
+  .split(/[+-]/)
   .map((part) => part.trim())
   .filter(Boolean)
   .filter((part) => !TERMS.some((term) => term.inFormula === part));

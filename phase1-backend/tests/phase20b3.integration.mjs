@@ -83,7 +83,7 @@ async function downloadCsv(path, token) {
   // response.text() strips a leading UTF-8 BOM per the encoding spec, so the
   // BOM must be asserted on the raw bytes.
   const bytes = Buffer.from(await response.arrayBuffer());
-  const text = bytes.toString("utf8").replace(/^﻿/, "");
+  const text = bytes.toString("utf8").replace(/^\uFEFF/, "");
   return { status: response.status, headers: response.headers, text, bytes };
 }
 

@@ -38,7 +38,7 @@ assert.ok(message.includes("تاجر"), "it says what he is signed in as");
 assert.ok(message.includes("مالك المنصة"), "it says what this area wants");
 assert.ok(message.includes("سجّل الخروج"), "it says what to do");
 assert.ok(message.includes("خفيّ"), "…and how to keep both sessions at once, which is the honest workaround while one cookie serves four identities");
-assert.ok(!/[A-Za-z]/.test(message.replace(/[‎‏⁨⁩]/g, "")), `Arabic only — ق-96: ${message}`);
+assert.ok(!/[A-Za-z]/.test(message.replace(/[\u200E\u200F\u2068\u2069]/g, "")), `Arabic only — ق-96: ${message}`);
 
 // Every kind produces a distinct, non-empty sentence — no fallthrough to undefined.
 const seen = new Set();

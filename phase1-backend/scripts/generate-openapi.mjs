@@ -409,7 +409,10 @@ function buildErrorCatalogue() {
     // at all: without it `VALIDATION_FAILED`, the single most common refusal on
     // the platform, was absent from the catalogue and from the code enum that
     // every error response in this document references.
-    if (message && !message.includes("${")) existing.messages.add(message);
+    // The message is read as SOURCE text, so decode the escapes JavaScript would:
+    // a direction mark written visibly as \u200E (lint: no hidden bidi characters
+    // in source) must reach the document as the character, not as six letters.
+    if (message && !message.includes("${")) existing.messages.add(message.replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))));
     catalogue.set(code, existing);
   };
   for (const file of allTsFiles(SRC)) {
@@ -852,7 +855,7 @@ export async function buildOpenApiDocument() {
     },
     servers: [
       { url: "/api/v1", description: "البادئة المُصدَّرة بنسخة — استخدمها لكل تكامل جديد. لا تشمل واجهة المتجر العام." },
-      { url: "/api", description: "البادئة الأصلية. باقية بلا موعد إزالة، وهي المسار الوحيد لواجهة المتجر العام (‎/api/store/*‎)." },
+      { url: "/api", description: "البادئة الأصلية. باقية بلا موعد إزالة، وهي المسار الوحيد لواجهة المتجر العام (\u200E/api/store/*\u200E)." },
     ],
     tags: [...tags].sort().map((name) => ({ name })),
     security: [],
@@ -1162,7 +1165,7 @@ function successSchema(keys, isList, unresolvedSpreads) {
   }
   const shape = { type: "object", properties };
   if (unresolvedSpreads?.length) {
-    shape.description = `يحمل أيضاً مفاتيح من نشرٍ (\`...${unresolvedSpreads.join("\`، \`...")}\`) لم يتيسّر تتبّعها من المسار — المفاتيح أعلاه مؤكَّدة، والقائمة ليست حصرية.`;
+    shape.description = `يحمل أيضاً مفاتيح من نشرٍ (\`...${unresolvedSpreads.join("`، `...")}\`) لم يتيسّر تتبّعها من المسار — المفاتيح أعلاه مؤكَّدة، والقائمة ليست حصرية.`;
   }
   return isList ? { allOf: [{ $ref: "#/components/schemas/ListEnvelope" }, shape] } : shape;
 }
@@ -1264,7 +1267,7 @@ function documentDescription(routeCount) {
     "",
     "`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.",
     "",
-    "**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.",
+    "**استثناء واحد ودائم**: واجهة المتجر العام `\u200E/api/store/*\u200E` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `\u200E/api/v1/store/*\u200E` يُرفض بـ 404 صريحة.",
     "",
     "## مسار غير معروف",
     "",

@@ -134,7 +134,7 @@ function normalizeContactMobile(value: unknown, field: "phone" | "whatsapp"): st
     throw new HttpError(
       422,
       "INVALID_PLATFORM_CONTACT_PHONE",
-      `${field === "phone" ? "رقم التواصل" : "رقم واتساب"} يجب أن يكون رقم موبايل عراقياً بصيغة 07XXXXXXXXX أو ‎+9647XXXXXXXXX.`,
+      `${field === "phone" ? "رقم التواصل" : "رقم واتساب"} يجب أن يكون رقم موبايل عراقياً بصيغة 07XXXXXXXXX أو \u200E+9647XXXXXXXXX.`,
     );
   }
   return normalized;

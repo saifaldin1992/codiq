@@ -43,13 +43,13 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
  * A Latin value — an address, a phone — inside an Arabic sentence, isolated so
  * the bidi algorithm cannot reorder it against the text around it.
  *
- * Without this, «تعرض ‎+964 770 123 4567.» renders with the full stop dragged
+ * Without this, «تعرض (LRM)+964 770 123 4567.» renders with the full stop dragged
  * into the middle of the number and the last group wrapped to the next line: the
  * number becomes unreadable at exactly the moment it is being shown as proof of
  * what was saved. U+2068/U+2069 are the characters this problem was invented for
  * — `dir="ltr"` on an element cannot help a value spliced into a template string.
  */
-const ltr = (value: string) => `⁨${value}⁩`;
+const ltr = (value: string) => `\u2068${value}\u2069`;
 
 const CARD = "max-w-[680px] rounded-[26px] border border-[var(--codiq-border)] bg-[var(--codiq-surface)] p-7 shadow-[0_16px_44px_rgba(31,55,98,0.055)] sm:p-9";
 const LABEL = "text-sm font-semibold text-[var(--codiq-text-secondary)]";
@@ -494,7 +494,7 @@ export function PlatformContactCard() {
           <div className="space-y-1.5">
             <label htmlFor="contact-phone" className={LABEL}>رقم التواصل</label>
             <Input id="contact-phone" data-testid="contact-phone" type="tel" dir="ltr" value={phone} onChange={(event) => setPhone(event.target.value)} required />
-            <p className={NOTE}>اكتبه بصيغة 07XXXXXXXXX أو ‎+9647XXXXXXXXX — كلاهما مقبول ويُحفظ بالصيغة الدولية.</p>
+            <p className={NOTE}>اكتبه بصيغة 07XXXXXXXXX أو {"\u200E"}+9647XXXXXXXXX — كلاهما مقبول ويُحفظ بالصيغة الدولية.</p>
           </div>
           <div className="space-y-1.5">
             <label htmlFor="contact-whatsapp" className={LABEL}>رقم واتساب <span className="font-normal text-[var(--codiq-text-muted)]">(اختياري)</span></label>

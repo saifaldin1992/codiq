@@ -75,7 +75,7 @@ export function normalizePhone(value: unknown): string {
   // BOTH refusals name the accepted shapes. A person reading either one is
   // looking at a field the form just rejected, and «مطلوب» alone answers «what
   // is wrong» without answering «what do I type».
-  const SHAPES = "بصيغة 07XXXXXXXXX أو ‎+9647XXXXXXXXX";
+  const SHAPES = "بصيغة 07XXXXXXXXX أو \u200E+9647XXXXXXXXX";
   if (typeof value !== "string") throw new HttpError(400, "INVALID_PHONE", `رقم الهاتف مطلوب — ${SHAPES}.`);
   const normalized = toE164(value);
   if (!normalized) throw new HttpError(400, "INVALID_PHONE", `اكتب رقم هاتفك ${SHAPES}.`);
@@ -124,7 +124,7 @@ export const IRAQI_MOBILE_E164 = /^\+9647[0-9]{9}$/;
 export function normalizeIraqiMobile(value: unknown): string {
   const normalized = toE164(value);
   if (!normalized || !IRAQI_MOBILE_E164.test(normalized)) {
-    throw new HttpError(422, "INVALID_MERCHANT_PHONE", "رقم الهاتف يجب أن يكون رقم موبايل عراقياً بصيغة 07XXXXXXXXX أو ‎+9647XXXXXXXXX.");
+    throw new HttpError(422, "INVALID_MERCHANT_PHONE", "رقم الهاتف يجب أن يكون رقم موبايل عراقياً بصيغة 07XXXXXXXXX أو \u200E+9647XXXXXXXXX.");
   }
   return normalized;
 }

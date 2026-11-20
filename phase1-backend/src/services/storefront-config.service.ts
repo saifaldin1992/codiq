@@ -212,7 +212,7 @@ function phoneOrThrow(value: string | null | undefined, code: string, label: str
   const cleared = clearable(value);
   if (cleared === undefined || cleared === null) return cleared;
   const normalized = toE164(cleared);
-  if (!normalized) throw new HttpError(422, code, `${label} غير صالح — اكتبه بصيغة 07XXXXXXXXX أو ‎+9647XXXXXXXXX.`);
+  if (!normalized) throw new HttpError(422, code, `${label} غير صالح — اكتبه بصيغة 07XXXXXXXXX أو \u200E+9647XXXXXXXXX.`);
   return normalized;
 }
 

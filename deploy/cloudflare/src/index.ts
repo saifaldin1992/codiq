@@ -74,6 +74,7 @@ export class PlatformContainer extends Container<Env> {
   /** The app has no `/ping`; `/api/health` answers as soon as the process listens. */
   pingEndpoint = "localhost/api/health";
 
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- the Container base class is typed DurableObjectState<{}>
   constructor(ctx: DurableObjectState<{}>, env: Env) {
     super(ctx, env);
     this.envVars = containerEnv(env);

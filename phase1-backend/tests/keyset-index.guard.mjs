@@ -82,7 +82,7 @@ function readSchema() {
   let match;
   while ((match = modelRe.exec(source))) {
     const [, name, body] = match;
-    const table = (body.match(/@@map\("([^"]+)"\)/) ?? [, name])[1];
+    const table = (body.match(/@@map\("([^"]+)"\)/) ?? [undefined, name])[1];
     const columns = {};
     const declared = [];
     const precision = {};

@@ -124,6 +124,9 @@ jobs:
       - name: Typecheck backend
         run: pnpm phase1:typecheck
 
+      - name: Lint — ESLint with security rules (errors fail; warnings may only fall)
+        run: pnpm lint:ratchet
+
       - name: Build composite application
         run: pnpm build
 

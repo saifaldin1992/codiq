@@ -149,14 +149,14 @@ try {
   assert.equal(manifest.status, 200);
   assert.match(manifest.headers.get("content-type") ?? "", /text\/csv/);
   assert.deepEqual([...manifest.bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], "BOM first — Excel in Arabic Windows reads UTF-8 only with it");
-  const lines = manifest.text.replace(/^﻿/, "").trim().split(/\r?\n/);
+  const lines = manifest.text.replace(/^\uFEFF/, "").trim().split(/\r?\n/);
   assert.equal(lines[0], "order_number,handed_over_at,courier_name,tracking_number,customer_name,recipient_phone,shipping_governorate,shipping_address_line1,shipping_address_line2,cod_amount_iqd,status,customer_note");
   assert.equal(lines.length - 1, 2, `two parcels went to this courier from this store (DLV-1001, DLV-1004): ${manifest.text}`);
   assert.ok(lines.some((line) => line.includes("DLV-1001") && line.includes("FHD-78") && line.includes(",45000,")), "the row carries the corrected waybill and the cash to collect");
   assert.ok(!manifest.text.includes("DLV-2001"), "store B's parcel with the SAME courier is not in store A's manifest");
   assert.ok(!manifest.text.includes("DLV-1002"), "the other courier's parcel is filtered out");
   const allCouriers = await request(`${ordersA}/manifest.csv`, { token: tokenA });
-  assert.equal(allCouriers.text.replace(/^﻿/, "").trim().split(/\r?\n/).length - 1, 3, "without a courier filter: every parcel handed over in the window");
+  assert.equal(allCouriers.text.replace(/^\uFEFF/, "").trim().split(/\r?\n/).length - 1, 3, "without a courier filter: every parcel handed over in the window");
   const badWindow = await request(`${ordersA}/manifest.csv?from=2026-01-01T00:00:00Z&to=2026-12-31T00:00:00Z`, { token: tokenA });
   assert.equal(badWindow.status, 422, "a year is a report nobody prints — the window is bounded");
   summary.manifest = "BOM + header + one row per parcel, courier-filtered, window-bounded, tenant-bound";
