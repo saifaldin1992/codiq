@@ -276,7 +276,12 @@ export function pointsForSubtotal(subtotalIqd: number, settings: LoyaltySettings
   if (!settings.enabled || settings.earnPer1000 <= 0 || subtotalIqd <= 0) return 0;
   // Floor: a shopper who spent 1,999 earns one thousand's worth, not two. Being
   // generous by rounding up would make the number impossible to predict.
-  return Math.floor((subtotalIqd / 1000) * settings.earnPer1000);
+  //
+  // INTEGER arithmetic, multiply first. `(subtotal / 1000) * rate` went through
+  // a binary fraction: 570 IQD at 100 per 1000 is 0.57 × 100 = 56.99999999999999,
+  // floored to 56 — one point short, silently, on about one combination in seven
+  // hundred. Both factors are integers well inside 2^53, so the product is exact.
+  return Math.floor((subtotalIqd * settings.earnPer1000) / 1000);
 }
 
 /**

@@ -44,6 +44,19 @@ const { prisma } = await import("../src/db/prisma.ts");
 const { pointsForSubtotal, LOYALTY_EARN_PER_1000_MAX, LOYALTY_POINT_VALUE_MAX } = await import("../src/services/loyalty.service.ts");
 const { merchantWallet } = await import("../src/services/merchant-wallet.service.ts");
 
+// The award is an EXACT integer floor, not a binary fraction. `(570 / 1000) * 100`
+// is 56.99999999999999 and used to floor to 56. Swept against BigInt arithmetic
+// so no rate × subtotal pair inside the programme bounds can drift again.
+assert.equal(pointsForSubtotal(570, { enabled: true, earnPer1000: 100, pointValueIqd: 10 }), 57, "570 IQD at 100 per 1000 earns 57 points, not 56");
+for (const earnPer1000 of [1, 5, 10, 25, 100, LOYALTY_EARN_PER_1000_MAX]) {
+  for (let subtotal = 1; subtotal <= 50_000; subtotal += 1) {
+    const exact = Number((BigInt(subtotal) * BigInt(earnPer1000)) / 1000n);
+    if (pointsForSubtotal(subtotal, { enabled: true, earnPer1000, pointValueIqd: 1 }) !== exact) {
+      assert.fail(`pointsForSubtotal(${subtotal}, ${earnPer1000}/1000) must be ${exact}`);
+    }
+  }
+}
+
 const sql = new Client({ connectionString: process.env.DATABASE_URL });
 await sql.connect();
 const app = createApp();
