@@ -35430,7 +35430,7 @@
             ]
           },
           "404": {
-            "description": "`RESOURCE_NOT_FOUND`",
+            "description": "`RESOURCE_NOT_FOUND` · `STORE_NOT_FOUND`",
             "content": {
               "application/json": {
                 "schema": {
@@ -35439,7 +35439,8 @@
               }
             },
             "x-codiq-error-codes": [
-              "RESOURCE_NOT_FOUND"
+              "RESOURCE_NOT_FOUND",
+              "STORE_NOT_FOUND"
             ]
           },
           "409": {
