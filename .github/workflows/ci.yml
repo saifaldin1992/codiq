@@ -53,6 +53,11 @@ jobs:
       CODIQ_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
       CODIQ_POSTGRES_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
       CODIQ_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/codiq_ci_test?schema=public
+      # Test coverage: every Node process in this job (suites, the servers they
+      # spawn, the worker) writes V8 coverage here; the last step merges it,
+      # maps it to the TypeScript source and enforces the floors.
+      NODE_V8_COVERAGE: /tmp/v8-coverage
+      NODE_OPTIONS: --enable-source-maps
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -775,6 +780,23 @@ jobs:
       # proving no regression) and flag on (the demo environment's enforcement).
       - name: Integration — P27-7 demo environment
         run: pnpm demo:test
+
+      # Floors sit just under the measured 2026-11-20 values (lines 93.6%,
+      # branches 83.1%, functions 93.5%). Line coverage counts comment lines in
+      # executed code, so BRANCHES is the number to watch.
+      - name: Coverage — merge, report, enforce floors
+        if: always()
+        env:
+          NODE_OPTIONS: ""
+        run: pnpm coverage:check
+
+      - name: Coverage — upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 14
 
   # This one STAYS non-blocking, deliberately — do not flip it to match the
   # browser job above. It probes a LIVE external environment: a Railway restart,

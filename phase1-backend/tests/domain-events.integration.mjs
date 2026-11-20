@@ -20,6 +20,7 @@ const { transitionOrderStatus } = await import("../src/services/order-lifecycle.
 const { registerMerchantWithStore } = await import("../src/services/registration.service.ts");
 const { installModuleSubscriptions } = await import("../src/modules/registry.ts");
 const { createApp } = await import("../src/http/app.ts");
+const { installedModules } = await import("../src/modules/platform-modules/service.ts");
 
 const testId = `evt-${Date.now()}`;
 const suffix = String(Date.now()).slice(-8);
@@ -80,6 +81,13 @@ try {
   assert.ok(mine[0].storeId, "the event names the first store");
   assert.equal(signup.store.id, undefined, "the public response shape is unchanged (no store id leaked into it)");
   summary.merchantRegistered = true;
+
+  // ── the owner's «الوحدات» list reports subscriptions ─────────────────────
+  const listed = installedModules();
+  assert.equal(listed.modules[0].id, "auth", "listed in mount order");
+  assert.ok(listed.modules.some((m) => m.id === "platform-modules"), "extension modules are listed");
+  assert.deepEqual(listed.modules.find((m) => m.id === "orders").listensTo, [], "a module with no subscriptions lists none");
+  summary.modulesListed = listed.modules.length;
 
   console.log(JSON.stringify({ suite: "domain-events", ok: true, summary }, null, 2));
 } finally {
