@@ -256,6 +256,31 @@ export function contentSecurityPolicy(surface: SecuritySurface): string {
 export const HSTS_VALUE = "max-age=31536000";
 
 /**
+ * ASVS 5.0 V3.4.1 (L2) asks HSTS to cover subdomains — and on the PLATFORM'S
+ * OWN domain it safely can: every host under it is ours (the landing, the
+ * dashboards, `<store>.<platform>` storefronts), all served over https. So the
+ * platform host and its subdomains get `includeSubDomains`; a merchant's custom
+ * domain keeps the bare value above, for every reason given there.
+ */
+export const HSTS_PLATFORM_VALUE = "max-age=31536000; includeSubDomains";
+
+function platformHostFromEnv(): string | null {
+  try {
+    const raw = process.env.CODIQ_PUBLIC_BASE_URL;
+    return raw ? new URL(raw).hostname.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Exported for the guard: the HSTS value a response to `host` carries. */
+export function hstsValueFor(host: string | undefined, platformHost: string | null = platformHostFromEnv()): string {
+  const name = (host ?? "").split(":")[0]!.toLowerCase();
+  if (platformHost && (name === platformHost || name.endsWith(`.${platformHost}`))) return HSTS_PLATFORM_VALUE;
+  return HSTS_VALUE;
+}
+
+/**
  * HSTS goes out only on https. RFC 6797 §8.1 makes a UA ignore the header when
  * it arrives over plain http anyway, so sending it there is noise that makes the
  * header set harder to reason about — and the browser suites all run over http.
@@ -324,7 +349,7 @@ const HELMET_BY_SURFACE: Record<SecuritySurface, RequestHandler> = {
  */
 export function securityHeaders(): RequestHandler {
   return (request: Request, response: Response, next: NextFunction) => {
-    if (isHttps(request)) response.setHeader("Strict-Transport-Security", HSTS_VALUE);
+    if (isHttps(request)) response.setHeader("Strict-Transport-Security", hstsValueFor(request.hostname));
     HELMET_BY_SURFACE[surfaceForPath(request.originalUrl || request.url)](request, response, next);
   };
 }

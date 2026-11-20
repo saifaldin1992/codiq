@@ -35,6 +35,7 @@ const {
   surfaceForPath,
   normaliseSurfacePath,
   HSTS_VALUE,
+  hstsValueFor,
   SECURITY_HEADER_NAMES,
 } = await import("../src/http/security-headers.ts");
 
@@ -374,4 +375,10 @@ console.log(
     2,
   ),
 );
+// ASVS 5.0 V3.4.1 (L2): subdomains are covered on the platform's OWN domain only.
+assert.equal(hstsValueFor("codiqos.com", "codiqos.com"), "max-age=31536000; includeSubDomains", "the platform apex covers its subdomains");
+assert.equal(hstsValueFor("demo-store.codiqos.com", "codiqos.com"), "max-age=31536000; includeSubDomains", "…and so do its store subdomains");
+assert.equal(hstsValueFor("shop.merchant-own.com", "codiqos.com"), HSTS_VALUE, "a merchant's custom domain never gets includeSubDomains");
+assert.equal(hstsValueFor("evilcodiqos.com", "codiqos.com"), HSTS_VALUE, "a look-alike host is not the platform");
+assert.equal(hstsValueFor("codiqos.com", null), HSTS_VALUE, "no configured platform host: the safe bare value");
 console.log("headers:guard OK");

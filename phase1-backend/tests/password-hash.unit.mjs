@@ -95,4 +95,17 @@ const lagMs = timerFiredAt - armed;
 assert.ok(lagMs < compareMs / 2, `D-36: the 1 ms timer fired after ${lagMs.toFixed(0)} ms while the compare took ${compareMs.toFixed(0)} ms — the loop was BLOCKED for the compare's whole duration. Native bcrypt must hash on the threadpool.`);
 summary.loopStaysResponsive = `1 ms timer fired after ${lagMs.toFixed(1)} ms during a ${compareMs.toFixed(0)} ms compare`;
 
+// ── ASVS 5.0 V6.2.8: no silent truncation at bcrypt's 72 bytes ──────────────
+// 36 Arabic letters are exactly 72 bytes; everything after them used to be ignored.
+const prefix72 = "كلمة".repeat(9);
+const longPassword = `${prefix72}-سرّي-الحقيقي-2026`;
+const longHash = await createPasswordHash(longPassword);
+assert.ok(longHash.startsWith("v2$$2b$12$"), "a password over 72 bytes is pre-hashed (v2) at the same cost");
+assert.equal(await verifyPassword(longPassword, longHash), true, "the exact long password verifies");
+assert.equal(await verifyPassword(`${prefix72}-شيء-آخر-تماماً`, longHash), false, "V6.2.8: a DIFFERENT password sharing the first 72 bytes is refused");
+assert.equal(await verifyPassword(prefix72, longHash), false, "…and so is the 72-byte prefix alone");
+const shortHash = await createPasswordHash("Codiq-Short-2026!");
+assert.ok(shortHash.startsWith("$2b$12$"), "a password of ≤ 72 bytes keeps the plain format — the previous build still reads it");
+summary.noTruncation = "a different password sharing the first 72 bytes is refused; ≤ 72-byte passwords keep the rollback-safe format";
+
 console.log(JSON.stringify({ suite: "password-hash", status: "passed", summary }, null, 2));

@@ -145,13 +145,45 @@ export function normalizeOwnerName(value: unknown): string {
  * refusal of the passwords people actually pick, which is the half that does
  * the work. See that file for why that is stricter than what it replaced.
  */
+/**
+ * ASVS 5.0 V6.2.8 — the password is verified EXACTLY as received.
+ *
+ * bcrypt reads only the first 72 BYTES of its input and ignores the rest
+ * without error. Passwords up to 200 characters are accepted and an Arabic
+ * letter is two bytes, so two different passwords sharing their first 36 Arabic
+ * letters used to open the same account (measured 2026-11-20).
+ *
+ * A password of more than 72 bytes is therefore hashed as bcrypt(base64(
+ * SHA-256(password))) — 44 bytes, every byte of the password counts, no NUL
+ * byte for bcrypt to stop at — and stored with the `v2$` prefix. A password of
+ * 72 bytes or fewer, which bcrypt never truncates, keeps the plain bcrypt format
+ * byte for byte: the previous build reads it, so rolling a deploy back locks
+ * nobody out (`password:hash` holds that), and the change touches only the
+ * accounts that were exposed.
+ *
+ * There is deliberately NO re-hash at sign-in. For an old hash of a long
+ * password the compare that just succeeded was itself truncated — the string
+ * typed may share only the first 72 bytes with the real one — so writing a new
+ * hash from it could hand the account to whoever typed it. Those few accounts
+ * become exact when their owners next change the password.
+ */
+const PASSWORD_HASH_V2 = "v2$";
+const BCRYPT_MAX_BYTES = 72;
+
+function passwordDigest(password: string): string {
+  return crypto.createHash("sha256").update(password, "utf8").digest("base64");
+}
+
 export async function createPasswordHash(password: unknown): Promise<string> {
   const accepted = assertPasswordAcceptable(password);
-  return bcrypt.hash(accepted, 12);
+  if (Buffer.byteLength(accepted, "utf8") <= BCRYPT_MAX_BYTES) return bcrypt.hash(accepted, 12);
+  return PASSWORD_HASH_V2 + (await bcrypt.hash(passwordDigest(accepted), 12));
 }
 
 export async function verifyPassword(password: unknown, passwordHash: string): Promise<boolean> {
-  return typeof password === "string" && bcrypt.compare(password, passwordHash);
+  if (typeof password !== "string") return false;
+  if (passwordHash.startsWith(PASSWORD_HASH_V2)) return bcrypt.compare(passwordDigest(password), passwordHash.slice(PASSWORD_HASH_V2.length));
+  return bcrypt.compare(password, passwordHash);
 }
 
 /**
