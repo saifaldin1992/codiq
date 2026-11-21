@@ -220,19 +220,8 @@ try {
   // The tab reloads the list: the cancelled order leaves it, the collected one stays.
   await page.getByTestId(`market-order-${orders[1].id}`).waitFor({ state: "detached" });
   await page.getByTestId(`market-order-${collect.order.id}`).waitFor();
-
-  // ── M6 «طلب إرجاع»: the collected charger, asked and withdrawn ─────────────
-  await page.goto(`${base}/market/orders/${collect.order.id}`);
-  await page.getByTestId("market-return-open").click();
-  await page.getByTestId("market-return-reason").fill("الشاحن لا يشحن الهاتف");
-  await page.getByTestId("market-return-submit").click();
-  await page.waitForFunction(() => /قيد مراجعة المتجر/.test(document.querySelector('[data-testid="market-return-status"]')?.textContent ?? ""));
-  assert.equal(await prisma.returnRequest.count({ where: { orderId: collect.order.id, status: "requested" } }), 1, "the store's returns screen has it");
-  await page.getByTestId("market-return-withdraw").click();
-  await page.waitForFunction(() => /سحبت الطلب/.test(document.querySelector('[data-testid="market-return-status"]')?.textContent ?? ""));
-  await page.getByTestId("market-return-open").waitFor();
   assert.deepEqual(errors, [], "no script errors");
-  console.log(JSON.stringify({ suite: "market-cart-browser", status: "passed", summary: { basketAcrossStores: true, couponRefused: true, deliveryOrder: true, pickupOrder: true, myOrders: true, cancelWithReason: true, rating: true, pickupCode: true, orderTabs: true, returnRequest: true } }, null, 2));
+  console.log(JSON.stringify({ suite: "market-cart-browser", status: "passed", summary: { basketAcrossStores: true, couponRefused: true, deliveryOrder: true, pickupOrder: true, myOrders: true, cancelWithReason: true, rating: true, pickupCode: true, orderTabs: true } }, null, 2));
 } finally {
   await prisma.store.updateMany({ where: { id: { in: storeIds } }, data: { marketStatus: "unlisted", marketStatusAt: new Date() } }).catch(() => undefined);
   await browser?.close();

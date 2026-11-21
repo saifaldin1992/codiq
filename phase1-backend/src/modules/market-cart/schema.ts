@@ -43,5 +43,3 @@ export const rateOrderSchema = z.object({
   tags: z.array(z.enum(ORDER_RATING_TAG_CODES)).max(12).default([]),
   note: z.string().trim().max(1000).nullable().optional(),
 });
-
-export const returnRequestSchema = z.object({ reason: z.string().trim().min(3, "اكتب سبب الإرجاع").max(1000) });

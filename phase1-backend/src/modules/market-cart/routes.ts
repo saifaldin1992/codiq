@@ -8,8 +8,8 @@ import { parseOrThrow } from "../../http/validate.js";
 import { requireShopper } from "../market-account/shopper-auth.js";
 import { acceptCartPrices, addCartLine, clearCart, marketCartView, removeCartLine, updateCartLine } from "./cart.service.js";
 import { checkoutSummary, latestOpenOrder, placeMarketOrder, shopperOrder, shopperOrders } from "./checkout.service.js";
-import { addItemSchema, cancelOrderSchema, placeOrderSchema, rateOrderSchema, returnRequestSchema, summaryQuerySchema, updateItemSchema } from "./schema.js";
-import { cancelShopperOrder, myOrderRatings, ordersAwaitingRating, rateShopperOrder, requestShopperReturn, withdrawShopperReturn } from "./after-sale.service.js";
+import { addItemSchema, cancelOrderSchema, placeOrderSchema, rateOrderSchema, summaryQuerySchema, updateItemSchema } from "./schema.js";
+import { cancelShopperOrder, myOrderRatings, ordersAwaitingRating, rateShopperOrder } from "./after-sale.service.js";
 
 export function registerMarketCartRoutes(app: Express) {
   app.get("/market/cart", asyncRoute(async (request, response) => {
@@ -95,20 +95,6 @@ export function registerMarketCartRoutes(app: Express) {
   app.get("/market/me/ratings", asyncRoute(async (request, response) => {
     const { shopper } = await requireShopper(request);
     response.status(200).json(await myOrderRatings(shopper.id, request.query.cursor, request.query.limit));
-  }));
-
-  // M6 «طلب إرجاع»: the store's own return request (CD-3) for a received order, and its withdrawal.
-  app.post("/market/orders/:orderId/return", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const { shopper } = await requireShopper(request);
-    const input = parseOrThrow(returnRequestSchema, request.body ?? {});
-    response.status(201).json(await requestShopperReturn(shopper.id, request.params.orderId, input.reason));
-  }));
-
-  app.post("/market/orders/:orderId/return/withdraw", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const { shopper } = await requireShopper(request);
-    response.status(200).json(await withdrawShopperReturn(shopper.id, request.params.orderId));
   }));
 
   // M6 «إلغاء الطلب»: a reason from the list, through the store's own self-cancel (PG-1).

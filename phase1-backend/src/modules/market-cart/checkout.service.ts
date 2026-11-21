@@ -21,7 +21,7 @@ import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../.
 import { governorateLabel } from "../../services/governorates.js";
 import { listedStoreTenant } from "../market-stores/directory.service.js";
 import { marketCartView, repriceMarketLines } from "./cart.service.js";
-import { CANCEL_REASONS, ORDER_RATING_TAGS, SHOPPER_CANCELLABLE_STATUS, orderRatingView, shopperReturnView } from "./after-sale.service.js";
+import { CANCEL_REASONS, ORDER_RATING_TAGS, SHOPPER_CANCELLABLE_STATUS, orderRatingView } from "./after-sale.service.js";
 import { PICKUP_READY_STATUS, pickupCode } from "../../services/pickup-code.service.js";
 
 type ShopperRef = { id: string; phoneNormalized: string; fullName: string | null };
@@ -245,8 +245,6 @@ export async function shopperOrder(shopperId: string, orderId: string) {
       rateable: order.status === "completed",
       // M6 (G5): a pick-up ready at the counter shows its code (and the QR the merchant scans).
       pickupCode: order.fulfilment === "pickup" && order.status === PICKUP_READY_STATUS ? pickupCode(order.id) : null,
-      // M6 (G7): the latest return request, if any — the store answers it from its returns screen.
-      returnRequest: customerId && (order.status === "completed" || order.status === "returned") ? await shopperReturnView(storeId, customerId, order.id) : null,
       rating: order.status === "completed" && customerId ? await orderRatingView(storeId, customerId, order.id) : null,
     },
     cancelReasons: order.status === SHOPPER_CANCELLABLE_STATUS ? CANCEL_REASONS : [],

@@ -337,34 +337,6 @@ try {
   assert.match((await shopper.request(`/market/orders/${collect.id}`)).payload.order.statusHint, /من المتجر/, "a collected pick-up speaks of the store, not a courier");
   summary.tabs = true;
 
-  // ── 13. M6 «طلب إرجاع» — the store's own returns (CD-3) ───────────────────
-  // `collect` was completed through the real transition, so its completion entry exists.
-  const returnUrl = `/market/orders/${collect.id}/return`;
-  assert.equal((await shopper.request(`/market/orders/${preordered.id}/return`, { method: "POST", body: { reason: "لم يعجبني" } })).payload.error.code, "ORDER_NOT_RETURNABLE", "an order not received cannot be returned");
-  assert.equal((await stranger.shopper.request(returnUrl, { method: "POST", body: { reason: "ليس طلبي" } })).status, 404);
-  assert.equal((await shopper.request(returnUrl, { method: "POST", body: { reason: "" } })).status, 422, "a reason is needed");
-  const asked = await shopper.request(returnUrl, { method: "POST", body: { reason: "الشاحن لا يعمل" } });
-  assert.equal(asked.status, 201, JSON.stringify(asked.payload));
-  assert.equal(asked.payload.returnRequest.status, "requested");
-  assert.equal(asked.payload.returnRequest.statusLabel, "قيد مراجعة المتجر");
-  assert.equal((await shopper.request(returnUrl, { method: "POST", body: { reason: "مرة أخرى" } })).payload.error.code, "RETURN_ALREADY_REQUESTED", "one open request per order");
-  assert.equal((await prisma.storeOrder.findUniqueOrThrow({ where: { id: collect.id } })).status, "completed", "asking moves no order");
-  assert.equal((await shopper.request(`/market/orders/${collect.id}`)).payload.order.returnRequest.reason, "الشاحن لا يعمل", "the order page shows it");
-  const withdrawnReturn = await shopper.request(`${returnUrl}/withdraw`, { method: "POST" });
-  assert.equal(withdrawnReturn.payload.returnRequest.status, "withdrawn");
-  assert.equal((await shopper.request(`${returnUrl}/withdraw`, { method: "POST" })).status, 409, "nothing left to withdraw");
-  // Asked again; the merchant approves on his own returns screen: the order is returned and its money reversed there.
-  const again = await shopper.request(returnUrl, { method: "POST", body: { reason: "الشاحن لا يعمل فعلاً" } });
-  assert.equal(again.status, 201);
-  const openRequest = await prisma.returnRequest.findFirstOrThrow({ where: { orderId: collect.id, status: "requested" } });
-  const approvedResponse = await fetch(`${base}/merchant/stores/${A.slug}/returns/${openRequest.id}/decision`, { method: "POST", headers: { authorization: `Bearer ${merchantToken}`, "content-type": "application/json", origin: base }, body: JSON.stringify({ approve: true }) });
-  const approved = { status: approvedResponse.status, payload: await approvedResponse.json() };
-  assert.equal(approved.status, 200, JSON.stringify(approved.payload));
-  assert.equal((await prisma.storeOrder.findUniqueOrThrow({ where: { id: collect.id } })).status, "returned");
-  assert.equal(await prisma.ledgerEntry.count({ where: { orderId: collect.id, entryType: "order_returned" } }), 1, "the store's reversal ran");
-  assert.equal((await shopper.request(`/market/orders/${collect.id}`)).payload.order.returnRequest.statusLabel, "وافق المتجر على الإرجاع");
-  summary.returns = true;
-
   console.log(JSON.stringify({ suite: "market-cart", ok: true, summary }, null, 2));
 } finally {
   setOtpProviderForTests(null);

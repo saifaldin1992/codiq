@@ -60,9 +60,7 @@ type OrderDetail = {
   rating: OrderRating | null;
   pickupCode: string | null;
   statusHint: string | null;
-  returnRequest: ReturnRequestView | null;
 };
-type ReturnRequestView = { id: string; status: string; statusLabel: string; reason: string; decisionNote: string | null; createdAt: string; reversalDeadline: string };
 type CancelReason = { code: string; label: string };
 const STEPS = [{ key: "new", label: "الطلب" }, { key: "processing", label: "القبول" }, { key: "out_for_delivery", label: "التوصيل" }, { key: "completed", label: "التسليم" }];
 const RANK: Record<string, number> = { new: 0, processing: 1, preparation: 1, out_for_delivery: 2, completed: 3 };
@@ -124,7 +122,6 @@ export function MarketOrderPage() {
       </section>
       {order.pickupCode ? <PickupCodeCard orderId={order.id} storeSlug={order.store.slug} code={order.pickupCode} /> : null}
       {order.rateable ? <OrderRatingForm key={order.id} orderId={order.id} items={order.items} fulfilment={order.fulfilment} tags={ratingTags} rating={order.rating} onSaved={(rating) => setOrder((current) => (current ? { ...current, rating } : current))} /> : null}
-      {order.status === "completed" || order.returnRequest ? <ReturnSection orderId={order.id} status={order.status} current={order.returnRequest} onChanged={() => void load()} /> : null}
       {order.cancellable && reasons.length ? (
         cancelling
           ? <CancelOrderSheet orderId={order.id} reasons={reasons} onClose={() => setCancelling(false)} onCancelled={() => { setCancelling(false); void load(); }} />
@@ -224,47 +221,5 @@ export function CurrentOrderStrip() {
       </span>
       <span className="text-xs font-bold text-[var(--codiq-accent)]">التفاصيل ←</span>
     </Link>
-  );
-}
-
-/**
- * «طلب إرجاع» on a received order — the store's own returns (CD-3). The store
- * answers from its returns screen; an approval returns the order and its money.
- * Delivery fees and spent points are not refunded, and he is told so before asking.
- */
-function ReturnSection({ orderId, status, current, onChanged }: { orderId: string; status: string; current: ReturnRequestView | null; onChanged: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const call = async (path: string, body?: unknown) => {
-    setBusy(true); setProblem(null);
-    try { await accountCall(path, { method: "POST", body: JSON.stringify(body ?? {}) }); setOpen(false); onChanged(); }
-    catch (error) { setProblem((error as Error).message); }
-    finally { setBusy(false); }
-  };
-  const canAsk = status === "completed" && (!current || current.status === "rejected" || current.status === "withdrawn");
-  return (
-    <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid="market-order-return">
-      {current ? (
-        <div className="space-y-1 text-xs">
-          <p className="flex justify-between text-sm font-black text-[var(--codiq-text)]"><span>طلب الإرجاع</span><span className="text-[var(--codiq-accent)]" data-testid="market-return-status">{current.statusLabel}</span></p>
-          <p className="text-[var(--codiq-text-secondary)]">السبب: {current.reason}</p>
-          {current.decisionNote ? <p className="text-[var(--codiq-text-secondary)]">ردّ المتجر: {current.decisionNote}</p> : null}
-          {current.status === "requested" ? <button type="button" disabled={busy} onClick={() => void call(`/api/market/orders/${encodeURIComponent(orderId)}/return/withdraw`)} className="font-bold text-[var(--codiq-danger)]" data-testid="market-return-withdraw">سحب الطلب</button> : null}
-        </div>
-      ) : null}
-      {canAsk ? (open ? (
-        <div className="space-y-2">
-          <p className="text-[11px] leading-5 text-[var(--codiq-text-muted)]">يراجع المتجر طلبك ويردّ عليه. رسوم التوصيل والنقاط المستخدمة لا تُسترد.</p>
-          <textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={1000} rows={3} placeholder="لماذا تريد إرجاع الطلب؟ صف المشكلة للمتجر." className="w-full rounded-2xl border border-[var(--codiq-border)] bg-[var(--codiq-surface)] p-3 text-sm" data-testid="market-return-reason" />
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-[var(--codiq-border)] py-2.5 text-sm font-bold text-[var(--codiq-text)]">تراجع</button>
-            <button type="button" disabled={reason.trim().length < 3 || busy} onClick={() => void call(`/api/market/orders/${encodeURIComponent(orderId)}/return`, { reason: reason.trim() })} className="rounded-full bg-[var(--codiq-accent)] py-2.5 text-sm font-bold text-[var(--codiq-surface)] disabled:opacity-50" data-testid="market-return-submit">إرسال طلب الإرجاع</button>
-          </div>
-        </div>
-      ) : <button type="button" onClick={() => setOpen(true)} className="w-full rounded-full border border-[var(--codiq-border)] py-2.5 text-sm font-bold text-[var(--codiq-text)]" data-testid="market-return-open">طلب إرجاع</button>) : null}
-      {problem ? <p className="text-xs text-[var(--codiq-danger)]">{problem}</p> : null}
-    </section>
   );
 }
