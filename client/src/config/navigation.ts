@@ -91,6 +91,7 @@ export const ownerNavGroups: NavGroup[] = [
       { label: "السوق", path: "/platform/dashboard/market", status: "implemented" },
       // Marketplace M3: the market's front page, banners, collections, malls and category tree.
       { label: "محتوى السوق", path: "/platform/dashboard/market-content", status: "implemented" },
+      { label: "دعم السوق", path: "/platform/dashboard/market-support", status: "implemented" },
       { label: "إضافة متجر", path: "/platform/dashboard/stores/add", status: { phase: "الدفعة B" } },
     ],
   },

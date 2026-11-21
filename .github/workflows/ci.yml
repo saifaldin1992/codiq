@@ -399,6 +399,9 @@ jobs:
       - name: Integration — marketplace M6 (cancel reasons, receipt code hand-over, delivery stages, ratings, returns)
         run: pnpm market:orders
 
+      - name: Integration — marketplace M7a (favourites, derived inbox, help search, contact, app feedback)
+        run: pnpm market:help
+
       - name: Guard — every implemented merchant menu entry has a screen
         run: pnpm screens:guard
 
@@ -1029,6 +1032,9 @@ jobs:
 
       - name: Browser — marketplace after the order (cancel, stage, receipt code, rating, return)
         run: node --import tsx phase1-backend/tests/market-orders.browser-acceptance.mjs
+
+      - name: Browser — marketplace favourites, notifications bell, help, contact and feedback
+        run: node --import tsx phase1-backend/tests/market-help.browser-acceptance.mjs
 
       # PG-2: the sheet's ق-10 promise («the movement count comes from the
       # server or is not shown») and the no-silent-rename rule are UI contracts,

@@ -412,5 +412,29 @@
       }
     ],
     "missingStoreSlug": []
+  },
+  "modules/market-help/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/favourites/flags",
+        "reason": "BOUNDED — answers which of at most 48 given products and 48 given stores the shopper saved: the hearts for one page of cards, never the whole list (that is /market/favourites/products|stores, paged)."
+      },
+      {
+        "route": "GET /market/me/purchased-from",
+        "reason": "BOUNDED — the twelve stores the shopper bought from most recently, a home-page shelf (LIMIT 12 in the query)."
+      },
+      {
+        "route": "GET /market/inbox/unread",
+        "reason": "NOT A LIST — returns one number, the unread count, itself capped at 100 in the query."
+      },
+      {
+        "route": "GET /market/help",
+        "reason": "BOUNDED — the FAQ: at most 30 sections of at most 100 published answers, or at most 50 search matches; read whole as one help page."
+      },
+      {
+        "route": "GET /platform/market/help",
+        "reason": "BOUNDED — the owner's editor of the same FAQ: at most 30 sections of at most 100 answers each."
+      }
+    ]
   }
 }

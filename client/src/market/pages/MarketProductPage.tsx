@@ -5,6 +5,7 @@
  * the store). Buying happens in the store's own checkout until the unified
  * cart (M5); the button goes there.
  */
+import { FavouriteHeart } from "../components/FavouriteButtons";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { BadgeCheck, CalendarClock, ChevronLeft, CircleAlert, CircleCheck, Flame, LoaderCircle, Minus, Package, Plus, Share2, ShieldCheck, ShoppingBag, Star, Store, X } from "lucide-react";
@@ -106,7 +107,7 @@ export function MarketProductPage() {
           {product.condition !== "new" ? <Chip tone="neutral">{CONDITION_LABELS[product.condition]}</Chip> : null}
           {product.tags.map((tag) => <Chip key={tag} tone="success"><ShieldCheck className="h-3 w-3" /> {TAG_LABELS[tag] ?? tag}</Chip>)}
         </div>
-        <h1 className="text-lg font-black leading-7 text-[var(--codiq-text)]" data-testid="market-product-name">{product.name}</h1>
+        <div className="flex items-start justify-between gap-2"><h1 className="text-lg font-black leading-7 text-[var(--codiq-text)]" data-testid="market-product-name">{product.name}</h1><FavouriteHeart productId={product.id} className="shrink-0" /></div>
         <div className="flex flex-wrap items-baseline gap-2" data-testid="market-product-price">
           <span className="text-2xl font-black text-[var(--codiq-text)]">{iqd(price)}</span>
           {compare ? <><span className="text-sm text-[var(--codiq-text-muted)] line-through">{iqd(compare)}</span><span className="rounded-full bg-[var(--codiq-danger-soft)] px-2 py-0.5 text-xs font-black text-[var(--codiq-danger)]">خصم {discount.toLocaleString("ar-IQ")}%</span></> : null}

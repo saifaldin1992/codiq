@@ -11,6 +11,7 @@ import { MarketNotFoundPage } from "./pages/MarketNotFoundPage";
 import { MarketCartPage } from "./pages/MarketCartPage";
 import { MarketCheckoutPage } from "./pages/MarketCheckoutPage";
 import { MarketOrderPage, MarketOrdersPage, MarketRatingsPage } from "./pages/MarketOrdersPages";
+import { MarketContactPage, MarketFavouritesPage, MarketFeedbackPage, MarketHelpPage, MarketNotificationsPage } from "./pages/MarketHelpPages";
 import { MarketAccountInfoPage, MarketAccountPage, MarketAddressesPage, MarketAddressFormPage } from "./pages/MarketAccountPages";
 import { MarketCategoriesPage } from "./pages/MarketCategoriesPage";
 import { MarketCategoryPage } from "./pages/MarketCategoryPage";
@@ -42,6 +43,11 @@ export default function MarketApp() {
         <Route path="/orders" component={MarketOrdersPage} />
         <Route path="/orders/:id" component={MarketOrderPage} />
         <Route path="/ratings" component={MarketRatingsPage} />
+        <Route path="/favourites" component={MarketFavouritesPage} />
+        <Route path="/notifications" component={MarketNotificationsPage} />
+        <Route path="/help" component={MarketHelpPage} />
+        <Route path="/help/contact" component={MarketContactPage} />
+        <Route path="/feedback" component={MarketFeedbackPage} />
         <Route path="/account" component={MarketAccountPage} />
         <Route path="/account/info" component={MarketAccountInfoPage} />
         <Route path="/account/addresses" component={MarketAddressesPage} />

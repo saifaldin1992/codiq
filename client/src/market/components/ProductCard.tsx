@@ -2,6 +2,7 @@
 import { Link } from "wouter";
 import { BadgeCheck, Clock, Flame, Package, Star } from "lucide-react";
 import { iqd, TAG_LABELS, type MarketProductCard } from "../market-products";
+import { FavouriteHeart } from "./FavouriteButtons";
 
 export function ProductCard({ product, width }: { product: MarketProductCard; width?: string }) {
   const tag = product.tags.find((code) => code === "free_delivery" || code === "original" || code === "warranty");
@@ -12,6 +13,7 @@ export function ProductCard({ product, width }: { product: MarketProductCard; wi
         {product.discountPercent > 0 ? <span className="absolute right-2 top-2 rounded-full bg-[var(--codiq-danger)] px-2 py-0.5 text-[10px] font-black text-[var(--codiq-surface)]">خصم {product.discountPercent.toLocaleString("ar-IQ")}%</span> : null}
         {product.isPreorder ? <span className="absolute bottom-2 right-2 inline-flex items-center gap-0.5 rounded-full bg-[var(--codiq-accent)] px-2 py-0.5 text-[10px] font-bold text-[var(--codiq-surface)]"><Clock className="h-3 w-3" /> طلب مسبق</span>
           : product.sellsFast ? <span className="absolute bottom-2 right-2 inline-flex items-center gap-0.5 rounded-full bg-[var(--codiq-warning-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--codiq-warning)]"><Flame className="h-3 w-3" /> ينفد قريباً</span> : null}
+        <FavouriteHeart productId={product.id} className="absolute left-2 top-2" />
         {!product.isAvailable ? <span className="absolute inset-0 flex items-center justify-center bg-[var(--codiq-surface)]/60 text-xs font-black text-[var(--codiq-text)]">نفد</span> : null}
       </div>
       <div className="space-y-1 p-2.5">

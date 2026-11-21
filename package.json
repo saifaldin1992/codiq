@@ -198,6 +198,8 @@
     "market:cart:browser": "pnpm build && node --import tsx phase1-backend/tests/market-cart.browser-acceptance.mjs",
     "market:orders": "tsx phase1-backend/tests/market-orders.integration.mjs",
     "market:orders:browser": "pnpm build && node --import tsx phase1-backend/tests/market-orders.browser-acceptance.mjs",
+    "market:help": "tsx phase1-backend/tests/market-help.integration.mjs",
+    "market:help:browser": "pnpm build && node --import tsx phase1-backend/tests/market-help.browser-acceptance.mjs",
     "market:foundation": "tsx phase1-backend/tests/market-foundation.integration.mjs",
     "market:shell:browser": "pnpm build && node --import tsx phase1-backend/tests/market-shell.browser-acceptance.mjs",
     "events:test": "node --import tsx phase1-backend/tests/domain-events.integration.mjs",

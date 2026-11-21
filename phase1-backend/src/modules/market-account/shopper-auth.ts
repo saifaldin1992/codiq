@@ -39,3 +39,14 @@ export function setShopperCookie(response: Response, token: string) {
 export function clearShopperCookie(response: Response) {
   response.clearCookie(SHOPPER_COOKIE, { httpOnly: true, sameSite: "lax", secure: config.cookieSecure, path: "/" });
 }
+
+/** The signed-in shopper when there is one; `null` for a visitor or a stale session. Never throws for that. */
+export async function optionalShopper(request: Request) {
+  if (!shopperToken(request)) return null;
+  try {
+    return (await requireShopper(request)).shopper;
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 401) return null;
+    throw error;
+  }
+}

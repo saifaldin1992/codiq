@@ -131,6 +131,18 @@ export async function listMarketStores(query: MarketStoreQuery) {
   return { stores: page.map((row) => cardOf(row, now)), nextCursor, sort: query.sort };
 }
 
+/** Store cards for given ids (favourites, «اشتريت منها»), in the order asked. Unlisted stores drop out. */
+export async function marketStoreCardsByIds(ids: string[]) {
+  if (!ids.length) return [];
+  const rows = await prisma.$queryRaw<DirectoryRow[]>`
+    SELECT ${SELECT_CARD}, NULL::float8 AS distance_km, 0::float8 AS sort_key
+    ${FROM_LISTED}
+    WHERE ${LISTED} AND st.id = ANY(${ids}::uuid[])`;
+  const now = new Date();
+  const byId = new Map(rows.map((row) => [row.id, cardOf(row, now)]));
+  return ids.map((id) => byId.get(id)).filter((card): card is NonNullable<typeof card> => Boolean(card));
+}
+
 async function listedStoreRow(slug: string): Promise<DirectoryRow> {
   const [row] = await prisma.$queryRaw<DirectoryRow[]>`
     SELECT ${SELECT_CARD}, NULL::float8 AS distance_km, 0::float8 AS sort_key

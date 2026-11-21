@@ -309,6 +309,7 @@ model Store {
   @@map("stores")
   productReviews ProductReview[]
   wishlistItems  WishlistItem[]
+  marketFollowers ShopperFollowedStore[]
   returnRequests ReturnRequest[]
   /// CD-5: off until the merchant turns it on — nobody discovers he has been
   /// giving discounts because an update defaulted a programme on.
@@ -626,6 +627,7 @@ model Product {
   @@map("products")
   reviews        ProductReview[]
   wishlistItems  WishlistItem[]
+  marketFavourites ShopperFavouriteProduct[]
 }
 
 model ProductVariant {
@@ -2317,6 +2319,12 @@ model Shopper {
   addresses         ShopperAddress[]
   customers         Customer[]
   orderRatings      OrderRating[]
+  favouriteProducts ShopperFavouriteProduct[]
+  followedStores    ShopperFollowedStore[]
+  inboxState        ShopperInboxState?
+  inboxReads        ShopperInboxRead[]
+  contactMessages   MarketContactMessage[]
+  appFeedback       MarketAppFeedback[]
   marketCart        MarketCart?
 
   @@map("shoppers")
@@ -2443,4 +2451,125 @@ model OrderRating {
   @@index([storeId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([shopperId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("order_ratings")
+}
+
+/// Marketplace M7: «المفضّلة» — a product the shopper saved.
+model ShopperFavouriteProduct {
+  shopperId String   @map("shopper_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade)
+
+  @@id([shopperId, productId])
+  @@index([shopperId, createdAt(sort: Desc), productId(sort: Desc)], map: "shopper_favourite_products_page_idx")
+  @@index([productId], map: "shopper_favourite_products_product_idx")
+  @@map("shopper_favourite_products")
+}
+
+/// Marketplace M7: a store the shopper follows.
+model ShopperFollowedStore {
+  shopperId String   @map("shopper_id") @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([shopperId, storeId])
+  @@index([shopperId, createdAt(sort: Desc), storeId(sort: Desc)], map: "shopper_followed_stores_page_idx")
+  @@index([storeId], map: "shopper_followed_stores_store_idx")
+  @@map("shopper_followed_stores")
+}
+
+/// Marketplace M7: the inbox's «read everything» mark. The inbox itself is derived, not stored.
+model ShopperInboxState {
+  shopperId String   @id @map("shopper_id") @db.Uuid
+  readAllAt DateTime @default(now()) @map("read_all_at") @db.Timestamptz(6)
+  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@map("shopper_inbox_state")
+}
+
+model ShopperInboxRead {
+  shopperId String   @map("shopper_id") @db.Uuid
+  itemKey   String   @map("item_key") @db.Text
+  readAt    DateTime @default(now()) @map("read_at") @db.Timestamptz(6)
+  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@id([shopperId, itemKey])
+  @@map("shopper_inbox_reads")
+}
+
+/// Marketplace M7: FAQ sections and articles, managed by the platform owner.
+model HelpSection {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String        @unique @db.Text
+  title     String        @db.Text
+  position  Int           @default(0)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  articles  HelpArticle[]
+
+  @@map("help_sections")
+}
+
+model HelpArticle {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectionId   String      @map("section_id") @db.Uuid
+  question    String      @db.Text
+  answer      String      @db.Text
+  isQuick     Boolean     @default(false) @map("is_quick")
+  isPublished Boolean     @default(true) @map("is_published")
+  position    Int         @default(0)
+  /// GENERATED ALWAYS AS (codiq_ar_normalize_v1(question || ' ' || answer)) STORED. Read-only.
+  searchText  String?     @default(dbgenerated()) @map("search_text") @db.Text
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  section     HelpSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId, position, id], map: "help_articles_section_idx")
+  @@map("help_articles")
+}
+
+/// Marketplace M7: «تواصل معنا».
+model MarketContactMessage {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId   String?   @map("shopper_id") @db.Uuid
+  kind        String    @db.Text
+  name        String    @db.Text
+  phone       String    @db.Text
+  body        String    @db.Text
+  status      String    @default("new") @db.Text
+  handledAt   DateTime? @map("handled_at") @db.Timestamptz(6)
+  handledNote String?   @map("handled_note") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper     Shopper?  @relation(fields: [shopperId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)], map: "market_contact_messages_queue_idx")
+  @@map("market_contact_messages")
+}
+
+/// Marketplace M7: «قيّم التطبيق».
+model MarketAppFeedback {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId String?  @map("shopper_id") @db.Uuid
+  stars     Int      @db.SmallInt
+  liked     String[] @default([])
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper   Shopper? @relation(fields: [shopperId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "market_app_feedback_page_idx")
+  @@index([shopperId, createdAt(sort: Desc)], map: "market_app_feedback_shopper_idx")
+  @@map("market_app_feedback")
+}
+
+/// Marketplace M7: small owner-set values, e.g. the support contacts.
+model MarketSetting {
+  key       String   @id @db.Text
+  value     Json
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("market_settings")
 }

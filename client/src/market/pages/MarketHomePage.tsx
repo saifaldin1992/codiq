@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Building2, ChevronLeft, Percent, ShoppingBag, Sparkles, Store, Truck, Wallet } from "lucide-react";
 import { marketGet } from "../market-api";
+import { useShopper } from "../market-shopper";
 import { useMarketLocation } from "../market-location";
 import { marketStoresUrl } from "../use-market-stores";
 import { queryString } from "../use-market-list";
@@ -28,6 +29,7 @@ export function MarketHomePage() {
   const [failure, setFailure] = useState(false);
   const [location] = useMarketLocation();
   const recent = useMemo(() => readRecentProducts(), []);
+  const { shopper } = useShopper();
 
   useEffect(() => { marketGet<{ sections: Section[] }>("/api/market/home").then((body) => setSections(body.sections)).catch(() => setFailure(true)); }, []);
   const hasHero = sections?.some((section) => section.kind === "banners" && (section.banners?.length ?? 0) > 0);
@@ -90,6 +92,8 @@ export function MarketHomePage() {
           default: return null;
         }
       })}
+      {sections && shopper ? <StoreShelf testId="market-home-purchased-from" title="اشتريت منها" subtitle="المتاجر التي طلبت منها سابقاً" url="/api/market/me/purchased-from" /> : null}
+      {sections && shopper ? <StoreShelf testId="market-home-followed" title="متاجر تتابعها" url="/api/market/favourites/stores?limit=10" action={<Link href="/favourites?tab=stores" className="text-xs font-bold text-[var(--codiq-accent)]">عرض الكل</Link>} /> : null}
       {sections ? <Link href="/categories" className="flex items-center justify-between rounded-[22px] bg-[var(--codiq-surface)] p-4 text-sm font-bold text-[var(--codiq-text)] shadow-sm">تصفّح كل الفئات <ChevronLeft className="h-4 w-4" /></Link> : null}
     </div>
   );
