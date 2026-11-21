@@ -174,8 +174,46 @@ try {
   await page.goto(`${base}/market/ratings`);
   await page.getByTestId(`market-rating-${orders[0].id}`).waitFor();
   assert.equal(await page.getByTestId("market-pending-ratings").count(), 0, "nothing waits for a rating any more");
+
+  // ── M6 «رمز الاستلام»: a pick-up at store B, confirmed by the merchant ──────
+  // From inside the page: the shopper's cookie is Secure, which the browser honours on 127.0.0.1 and a bare request client does not.
+  const inPage = (path, init) => page.evaluate(async ([url, options]) => (await fetch(url, { credentials: "same-origin", ...options })).json(), [path, init]);
+  const { addresses: [address] } = await inPage("/api/market/me/addresses", {});
+  await inPage("/api/market/cart/items", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ productId: charger.id, quantity: 1 }) });
+  const collect = await inPage(`/api/market/checkout/${B.slug}`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": `${runId}-collect` }, body: JSON.stringify({ addressId: address.id, fulfilment: "pickup" }) });
+  assert.ok(collect.order?.id, JSON.stringify(collect));
+  await prisma.merchant.update({ where: { id: registered.payload.account.id }, data: { approvalStatus: "approved" } });
+  const merchantLogin = await (await fetch(`${base}/api/auth/merchant/login`, { method: "POST", headers: { "content-type": "application/json", origin: base }, body: JSON.stringify({ identifier: `${runId}@codiq.test`, password: "MarketCartUi!2026" }) })).json();
+  // A merchant session is bound to one store: switch it to B, the pick-up store.
+  const atB = await (await fetch(`${base}/api/merchant/stores/switch`, { method: "POST", headers: { authorization: `Bearer ${merchantLogin.accessToken}`, "content-type": "application/json", origin: base }, body: JSON.stringify({ storeSlug: B.slug }) })).json();
+  for (const toStatus of ["processing", "preparation", "out_for_delivery"]) {
+    const { version } = await prisma.storeOrder.findUniqueOrThrow({ where: { id: collect.order.id }, select: { version: true } });
+    const moved = await fetch(`${base}/api/merchant/stores/${B.slug}/orders/${collect.order.id}/status`, { method: "POST", headers: { authorization: `Bearer ${atB.accessToken}`, "content-type": "application/json", origin: base }, body: JSON.stringify({ toStatus, expectedVersion: version }) });
+    assert.equal(moved.status, 200, `${toStatus}: ${await moved.text()}`);
+  }
+  await page.goto(`${base}/market/orders/${collect.order.id}`);
+  await page.getByTestId("market-order-pickup-qr").waitFor();
+  const shownCode = (await page.getByTestId("market-order-pickup-code").innerText()).trim();
+  assert.match(shownCode, /^\d{6}$/, "six digits to read out at the counter");
+  assert.match(await page.getByTestId("market-order-status").innerText(), /جاهز للاستلام/);
+  // The merchant's phone opens the QR's link: his order page with the code filled in.
+  const merchantPage = await (await browser.newContext()).newPage();
+  await merchantPage.goto(`${base}/merchant/login`);
+  await merchantPage.getByLabel("البريد الإلكتروني أو رقم الهاتف").fill(`${runId}@codiq.test`);
+  await merchantPage.getByLabel("كلمة المرور", { exact: true }).fill("MarketCartUi!2026");
+  await merchantPage.getByRole("button", { name: "تسجيل الدخول" }).click();
+  await merchantPage.waitForURL((url) => url.pathname.includes("/dashboard"));
+  // His session opened on store A; the pick-up is at B (the store switcher's own call).
+  const switchedInBrowser = await merchantPage.evaluate(async (slug) => (await fetch("/api/merchant/stores/switch", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeSlug: slug }) })).status, B.slug);
+  assert.equal(switchedInBrowser, 200);
+  await merchantPage.goto(`${base}/merchant/stores/${B.slug}/dashboard/orders/${collect.order.id}?pickupCode=${shownCode}`);
+  await merchantPage.getByTestId("pickup-confirm").waitFor();
+  assert.equal(await merchantPage.getByTestId("pickup-code-input").inputValue(), shownCode, "the scanned link fills the code in");
+  await merchantPage.getByTestId("pickup-confirm-button").click();
+  await merchantPage.getByTestId("pickup-confirm").waitFor({ state: "detached" });
+  assert.equal((await prisma.storeOrder.findUniqueOrThrow({ where: { id: collect.order.id } })).status, "completed", "the pick-up is complete");
   assert.deepEqual(errors, [], "no script errors");
-  console.log(JSON.stringify({ suite: "market-cart-browser", status: "passed", summary: { basketAcrossStores: true, couponRefused: true, deliveryOrder: true, pickupOrder: true, myOrders: true, cancelWithReason: true, rating: true } }, null, 2));
+  console.log(JSON.stringify({ suite: "market-cart-browser", status: "passed", summary: { basketAcrossStores: true, couponRefused: true, deliveryOrder: true, pickupOrder: true, myOrders: true, cancelWithReason: true, rating: true, pickupCode: true } }, null, 2));
 } finally {
   await prisma.store.updateMany({ where: { id: { in: storeIds } }, data: { marketStatus: "unlisted", marketStatusAt: new Date() } }).catch(() => undefined);
   await browser?.close();

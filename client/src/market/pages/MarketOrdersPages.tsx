@@ -58,6 +58,7 @@ type OrderDetail = {
   cancellable: boolean;
   rateable: boolean;
   rating: OrderRating | null;
+  pickupCode: string | null;
 };
 type CancelReason = { code: string; label: string };
 const STEPS = [{ key: "new", label: "الطلب" }, { key: "processing", label: "القبول" }, { key: "out_for_delivery", label: "التوصيل" }, { key: "completed", label: "التسليم" }];
@@ -117,6 +118,7 @@ export function MarketOrderPage() {
           ? <p>{order.store.addressLine ?? "سيتواصل معك المتجر بموعد الاستلام."}{order.store.latitude !== null ? <> — <a href={`https://www.openstreetmap.org/?mlat=${order.store.latitude}&mlon=${order.store.longitude}#map=17/${order.store.latitude}/${order.store.longitude}`} target="_blank" rel="noopener noreferrer" className="font-bold text-[var(--codiq-accent)]">الاتجاهات</a></> : null}</p>
           : <p>{order.customerName} · {order.governorateName} — {order.shippingAddressLine1}</p>}
       </section>
+      {order.pickupCode ? <PickupCodeCard orderId={order.id} storeSlug={order.store.slug} code={order.pickupCode} /> : null}
       {order.rateable ? <OrderRatingForm key={order.id} orderId={order.id} items={order.items} fulfilment={order.fulfilment} tags={ratingTags} rating={order.rating} onSaved={(rating) => setOrder((current) => (current ? { ...current, rating } : current))} /> : null}
       {order.cancellable && reasons.length ? (
         cancelling
@@ -167,6 +169,30 @@ function CancelOrderSheet({ orderId, reasons, onClose, onCancelled }: { orderId:
         <button type="button" onClick={onClose} className="rounded-full border border-[var(--codiq-border)] py-2.5 text-sm font-bold text-[var(--codiq-text)]">تراجع</button>
         <button type="button" disabled={!code || (needsNote && !note.trim()) || busy} onClick={() => void submit()} className="rounded-full bg-[var(--codiq-danger)] py-2.5 text-sm font-bold text-[var(--codiq-surface)] disabled:opacity-50" data-testid="market-cancel-confirm">{busy ? <LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> : null} تأكيد الإلغاء</button>
       </div>
+    </section>
+  );
+}
+
+/**
+ * «جاهز للاستلام»: the six digits the shopper reads out at the counter, and a QR
+ * of the merchant's own order page with them filled in — the merchant's phone
+ * camera opens it, he presses «تأكيد الاستلام», and the order completes.
+ */
+function PickupCodeCard({ orderId, storeSlug, code }: { orderId: string; storeSlug: string; code: string }) {
+  const [qr, setQr] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    const link = `${window.location.origin}/merchant/stores/${encodeURIComponent(storeSlug)}/dashboard/orders/${encodeURIComponent(orderId)}?pickupCode=${code}`;
+    // Loaded on demand: only a shopper standing at a counter needs it.
+    import("qrcode").then(({ toDataURL }) => toDataURL(link, { margin: 1, width: 220 })).then((url) => { if (live) setQr(url); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [orderId, storeSlug, code]);
+  return (
+    <section className="space-y-3 rounded-[24px] bg-[var(--codiq-surface)] p-4 text-center shadow-sm" data-testid="market-order-pickup">
+      <p className="text-sm font-black text-[var(--codiq-text)]">طلبك جاهز للاستلام</p>
+      <p className="text-xs text-[var(--codiq-text-secondary)]">عند المتجر، أرِهم هذا الرمز أو اقرأه لهم ليؤكّدوا استلامك.</p>
+      <p dir="ltr" className="text-3xl font-black tracking-[0.3em] text-[var(--codiq-accent)]" data-testid="market-order-pickup-code">{code}</p>
+      {qr ? <img src={qr} alt="رمز QR للاستلام" className="mx-auto h-44 w-44 rounded-xl" data-testid="market-order-pickup-qr" /> : null}
     </section>
   );
 }

@@ -21,6 +21,7 @@ import { governorateLabel } from "../../services/governorates.js";
 import { listedStoreTenant } from "../market-stores/directory.service.js";
 import { marketCartView, repriceMarketLines } from "./cart.service.js";
 import { CANCEL_REASONS, ORDER_RATING_TAGS, SHOPPER_CANCELLABLE_STATUS, orderRatingView } from "./after-sale.service.js";
+import { PICKUP_READY_STATUS, pickupCode } from "../../services/pickup-code.service.js";
 
 type ShopperRef = { id: string; phoneNormalized: string; fullName: string | null };
 
@@ -177,7 +178,7 @@ export async function shopperOrders(shopperId: string, rawCursor: unknown, rawLi
   });
   const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(ORDERS_KIND, last.createdAt, last.id));
   return {
-    orders: page.map((row) => ({ id: row.id, orderNumber: row.orderNumber, status: row.status, statusLabel: STATUS_LABELS[row.status] ?? row.status, fulfilment: row.fulfilment, totalIqd: row.totalIqd, createdAt: row.createdAt, store: row.store, itemCount: row._count.items, preview: row.items.map((item) => item.productName) })),
+    orders: page.map((row) => ({ id: row.id, orderNumber: row.orderNumber, status: row.status, statusLabel: row.fulfilment === "pickup" && row.status === PICKUP_READY_STATUS ? "جاهز للاستلام" : STATUS_LABELS[row.status] ?? row.status, fulfilment: row.fulfilment, totalIqd: row.totalIqd, createdAt: row.createdAt, store: row.store, itemCount: row._count.items, preview: row.items.map((item) => item.productName) })),
     nextCursor,
   };
 }
@@ -201,13 +202,15 @@ export async function shopperOrder(shopperId: string, orderId: string) {
   return {
     order: {
       ...visible,
-      statusLabel: STATUS_LABELS[order.status] ?? order.status,
+      statusLabel: order.fulfilment === "pickup" && order.status === PICKUP_READY_STATUS ? "جاهز للاستلام" : STATUS_LABELS[order.status] ?? order.status,
       governorateName: order.shippingGovernorate ? governorateLabel(order.shippingGovernorate) : null,
       timeline: order.statusEvents.map((event) => ({ status: event.toStatus, label: STATUS_LABELS[event.toStatus] ?? event.toStatus, at: event.createdAt })),
       // M6: whether «إلغاء الطلب» is offered, and the reasons to choose from.
       cancellable: order.status === SHOPPER_CANCELLABLE_STATUS,
       // M6: a completed order can be rated (and the rating revised).
       rateable: order.status === "completed",
+      // M6 (G5): a pick-up ready at the counter shows its code (and the QR the merchant scans).
+      pickupCode: order.fulfilment === "pickup" && order.status === PICKUP_READY_STATUS ? pickupCode(order.id) : null,
       rating: order.status === "completed" && customerId ? await orderRatingView(storeId, customerId, order.id) : null,
     },
     cancelReasons: order.status === SHOPPER_CANCELLABLE_STATUS ? CANCEL_REASONS : [],

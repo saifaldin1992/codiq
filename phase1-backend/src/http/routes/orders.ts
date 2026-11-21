@@ -12,12 +12,13 @@ import { listDeliveryRates, updateDeliveryRate } from "../../services/delivery-r
 import { SEARCH_PERMISSIONS, authorizedSearchScopes, searchStore } from "../../services/merchant-search.service.js";
 import { bulkTransitionOrderStatus } from "../../services/order-bulk.service.js";
 import { listPlatformOrders, listStoreOrders, orderForStore, orderHistoryForStore, platformOrder, transitionOrderStatus } from "../../services/order-lifecycle.service.js";
+import { confirmPickup } from "../../services/pickup-code.service.js";
 import { createOrderNote, listOrderNotes, listOrderTags, replaceOrderTags } from "../../services/order-notes.service.js";
 import { merchantPrescriptionFile, reviewOrderPrescription } from "../../services/prescription.service.js";
 import { recordWhatsappSend, whatsappPanelForOrder } from "../../services/whatsapp-manual.service.js";
 import { recordWhatsappSendSchema } from "../schemas/whatsapp.schema.js";
 import { listSearchQuerySchema } from "../schemas/search.schema.js";
-import { bulkOrderStatusSchema, codCollectedSchema, createOrderNoteSchema, orderDeliverySchema, replaceOrderTagsSchema, reviewPrescriptionSchema, transitionOrderStatusSchema, updateDeliveryRateSchema } from "../schemas/orders.schema.js";
+import { bulkOrderStatusSchema, codCollectedSchema, createOrderNoteSchema, orderDeliverySchema, pickupConfirmSchema, replaceOrderTagsSchema, reviewPrescriptionSchema, transitionOrderStatusSchema, updateDeliveryRateSchema } from "../schemas/orders.schema.js";
 import { parseOrThrow } from "../validate.js";
 import { LIVE } from "../../services/soft-delete/constants.js";
 import { encodeListCursor, keysetWhere, pageOf, readListCursor } from "../../services/list-page.js";
@@ -172,6 +173,8 @@ export function registerOrderRoutes(app: Express) {
   }));
   app.get("/merchant/stores/:storeSlug/orders/:orderId", asyncRoute(async (request, response) => { const { store } = await requireStoreActor(request, "orders.view"); response.status(200).json({ storeSlug: store.slug, order: await orderForStore(store.id, request.params.orderId) }); }));
   app.post("/merchant/stores/:storeSlug/orders/:orderId/status", asyncRoute(async (request, response) => { requireTrustedWriteOrigin(request); const { store, actor } = await requireStoreActor(request, "orders.update"); response.status(200).json({ order: await transitionOrderStatus(store.id, { kind: actor.kind, id: actor.id }, request.params.orderId, parseOrThrow(transitionOrderStatusSchema, request.body ?? {})) }); }));
+  // M6 (G5) «تأكيد الاستلام»: the shopper's six-digit code completes a pick-up order through the same transition.
+  app.post("/merchant/stores/:storeSlug/orders/:orderId/pickup-confirm", asyncRoute(async (request, response) => { requireTrustedWriteOrigin(request); const { store, actor } = await requireStoreActor(request, "orders.update"); const input = parseOrThrow(pickupConfirmSchema, request.body ?? {}); response.status(200).json({ order: await confirmPickup(store.id, { kind: actor.kind, id: actor.id }, request.params.orderId, input.code) }); }));
   app.get("/merchant/stores/:storeSlug/orders/:orderId/history", asyncRoute(async (request, response) => { const { store } = await requireStoreActor(request, "orders.view"); response.status(200).json({ storeSlug: store.slug, events: await orderHistoryForStore(store.id, request.params.orderId) }); }));
   // 19-ب: the platform-wide order/product READS ride orders.oversee. The
   // kind-probe GET /platform/dashboard above stays requireKind("platform_owner")

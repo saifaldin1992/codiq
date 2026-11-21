@@ -4,7 +4,7 @@
     "title": "CODIQ — واجهة المنصة",
     "version": "1.0.0",
     "summary": "وثيقة مولّدة آلياً من جدول التوجيه الفعلي ومن مخططات zod. لا تُحرَّر بخط اليد.",
-    "description": "## وثيقة مولّدة، لا مكتوبة\n\nهذه الوثيقة تصف 375 مسار endpoint، وكلُّ حقيقةٍ فيها مقروءة من الشيفرة التي تعمل:\n\n- **المسارات والأفعال** من جدول توجيه Express الذي يبنيه `createApp()` — لا من قائمة تُحدَّث باليد.\n- **أشكال الطلب** من مخططات zod في `src/http/schemas/` عبر `z.toJSONSchema` من zod نفسها.\n- **الباب المطلوب** من الحارس الذي يستدعيه المعالج، ومعه رمز الصلاحية إن وُجد.\n- **رموز الأخطاء** من كل موضع `new HttpError(...)` في الواجهة الخلفية.\n\nولأن قراءتين مستقلتين للشيفرة يجب أن تتطابقا قبل أن يُكتب أي شيء، فإن مساراً يعرفه الموجِّه ولا يراه الماسح — أو العكس — يُسقِط التوليد بدل أن يُنتج وثيقةً ناقصة بهدوء.\n\n## بابان، تطبيق واحد\n\n`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.\n\n**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.\n\n## مسار غير معروف\n\nأي مسار تحت البادئتين لا يطابق شيئاً هنا يُجيب `404 RESOURCE_NOT_FOUND` — بالمغلّف نفسه وبمعرّف الطلب نفسه، لا بصفحة HTML. هذا مقصود: قبل المرحلة 20-2 كان يسقط إلى الصدفة ويُجيب `200 text/html`، فيقرأه العميل نجاحاً ويسلّم `null`، وتظهر النتيجة شاشةً فارغة بعد أيام و200 في كل سجل.\n\n## الأخطاء عقد\n\nالرسائل عربية وهي جزء من العقد: المرحلة 22 تترجمها **بالرمز**. ابنِ على `error.code`، لا على نص `error.message`. المجموعة كاملة في `x-codiq-error-catalogue`، وكل استجابة خطأ هنا تُسمّي الرموز التي يمكن أن تصل منها.\n\n## القوائم\n\nكل قائمة تُجيب بمَغلَّف `ListEnvelope` نفسه — موصوف مرة واحدة ومُشار إليه — بمؤشر معتم واحد. لا تبنِ مؤشراً بيدك: الوثيقة تصفه سلسلةً معتمة لأنه كذلك.",
+    "description": "## وثيقة مولّدة، لا مكتوبة\n\nهذه الوثيقة تصف 376 مسار endpoint، وكلُّ حقيقةٍ فيها مقروءة من الشيفرة التي تعمل:\n\n- **المسارات والأفعال** من جدول توجيه Express الذي يبنيه `createApp()` — لا من قائمة تُحدَّث باليد.\n- **أشكال الطلب** من مخططات zod في `src/http/schemas/` عبر `z.toJSONSchema` من zod نفسها.\n- **الباب المطلوب** من الحارس الذي يستدعيه المعالج، ومعه رمز الصلاحية إن وُجد.\n- **رموز الأخطاء** من كل موضع `new HttpError(...)` في الواجهة الخلفية.\n\nولأن قراءتين مستقلتين للشيفرة يجب أن تتطابقا قبل أن يُكتب أي شيء، فإن مساراً يعرفه الموجِّه ولا يراه الماسح — أو العكس — يُسقِط التوليد بدل أن يُنتج وثيقةً ناقصة بهدوء.\n\n## بابان، تطبيق واحد\n\n`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.\n\n**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.\n\n## مسار غير معروف\n\nأي مسار تحت البادئتين لا يطابق شيئاً هنا يُجيب `404 RESOURCE_NOT_FOUND` — بالمغلّف نفسه وبمعرّف الطلب نفسه، لا بصفحة HTML. هذا مقصود: قبل المرحلة 20-2 كان يسقط إلى الصدفة ويُجيب `200 text/html`، فيقرأه العميل نجاحاً ويسلّم `null`، وتظهر النتيجة شاشةً فارغة بعد أيام و200 في كل سجل.\n\n## الأخطاء عقد\n\nالرسائل عربية وهي جزء من العقد: المرحلة 22 تترجمها **بالرمز**. ابنِ على `error.code`، لا على نص `error.message`. المجموعة كاملة في `x-codiq-error-catalogue`، وكل استجابة خطأ هنا تُسمّي الرموز التي يمكن أن تصل منها.\n\n## القوائم\n\nكل قائمة تُجيب بمَغلَّف `ListEnvelope` نفسه — موصوف مرة واحدة ومُشار إليه — بمؤشر معتم واحد. لا تبنِ مؤشراً بيدك: الوثيقة تصفه سلسلةً معتمة لأنه كذلك.",
     "license": {
       "name": "MIT"
     }
@@ -353,6 +353,7 @@
                   "INVALID_PASSWORD",
                   "INVALID_PERMISSION_CODE",
                   "INVALID_PHONE",
+                  "INVALID_PICKUP_CODE",
                   "INVALID_PIXEL_FORMAT",
                   "INVALID_PLATFORM_CONTACT_PHONE",
                   "INVALID_PLATFORM_LOGO",
@@ -415,6 +416,7 @@
                   "MISSING_SESSION",
                   "MISSING_STAFF_MEMBERSHIP_CONTEXT",
                   "NOTHING_TO_UPDATE",
+                  "NOT_A_PICKUP_ORDER",
                   "NO_ACTIVE_SUBSCRIPTION",
                   "NO_DELIVERY_TO_RATE",
                   "ORDER_LIMIT_EXCEEDED",
@@ -441,6 +443,7 @@
                   "PAYMENT_METHOD_NOT_SUPPORTED",
                   "PAYMENT_METHOD_UNAVAILABLE",
                   "PICKUP_NOT_AVAILABLE",
+                  "PICKUP_NOT_READY",
                   "PLAN_LIMIT_EXCEEDED",
                   "PLAN_NOT_AVAILABLE",
                   "PLAN_NOT_FOUND",
@@ -525,7 +528,8 @@
                   "WEBHOOK_NOT_CONFIGURED",
                   "WEBHOOK_SIGNATURE_INVALID",
                   "WHATSAPP_NO_RECIPIENT_PHONE",
-                  "WISHLIST_FULL"
+                  "WISHLIST_FULL",
+                  "WRONG_PICKUP_CODE"
                 ],
                 "description": "رمز ثابت. المجموعة كاملة في `x-codiq-error-catalogue`."
               },
@@ -3131,6 +3135,18 @@
           "trackingNumber": {},
           "expectedVersion": {}
         }
+      },
+      "orders.pickupConfirmSchema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "code"
+        ]
       },
       "orders.replaceOrderTagsSchema": {
         "type": "object",
@@ -43333,6 +43349,198 @@
         ]
       }
     },
+    "/merchant/stores/{storeSlug}/orders/{orderId}/pickup-confirm": {
+      "post": {
+        "operationId": "postMerchantStoresByStoreSlugOrdersByOrderIdPickupConfirm",
+        "tags": [
+          "orders"
+        ],
+        "summary": "POST /merchant/stores/{storeSlug}/orders/{orderId}/pickup-confirm",
+        "description": "**الباب**: merchant أو staff.\n\n**الصلاحية**: `orders.update`.\n\n**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order": {}
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY` · `INVALID_ORDER_VERSION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY",
+              "INVALID_ORDER_VERSION"
+            ]
+          },
+          "401": {
+            "description": "`MISSING_SESSION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "MISSING_SESSION"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "MERCHANT_DISABLED",
+              "STAFF_PERMISSION_DENIED",
+              "STORE_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`RESOURCE_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "RESOURCE_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "description": "`NOT_A_PICKUP_ORDER` · `ORDER_VERSION_CONFLICT` · `PICKUP_NOT_READY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "NOT_A_PICKUP_ORDER",
+              "ORDER_VERSION_CONFLICT",
+              "PICKUP_NOT_READY"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT` · `INVALID_ORDER_TRANSITION` · `INVALID_PICKUP_CODE` · `PRESCRIPTION_NOT_APPROVED` · `VALIDATION_FAILED` · `WRONG_PICKUP_CODE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT",
+              "INVALID_ORDER_TRANSITION",
+              "INVALID_PICKUP_CODE",
+              "PRESCRIPTION_NOT_APPROVED",
+              "VALIDATION_FAILED",
+              "WRONG_PICKUP_CODE"
+            ]
+          },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "merchant",
+          "staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/http/routes/orders.ts",
+        "x-codiq-permissions": [
+          "orders.update"
+        ],
+        "x-codiq-rate-limited": true,
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/orders.pickupConfirmSchema"
+              }
+            }
+          }
+        }
+      }
+    },
     "/merchant/stores/{storeSlug}/orders/{orderId}/prescription/review": {
       "post": {
         "operationId": "postMerchantStoresByStoreSlugOrdersByOrderIdPrescriptionReview",
@@ -55341,6 +55549,14 @@
         "رقم الهاتف غير صحيح — أدخل رقماً عراقياً مثل 07701234567."
       ]
     },
+    "INVALID_PICKUP_CODE": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "رمز الاستلام ستّة أرقام."
+      ]
+    },
     "INVALID_PIXEL_FORMAT": {
       "statuses": [
         422
@@ -55861,6 +56077,14 @@
         "هذا الطلب استُلم من المتجر، فلا توصيل لتقييمه."
       ]
     },
+    "NOT_A_PICKUP_ORDER": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "هذا الطلب للتوصيل، لا للاستلام من المتجر."
+      ]
+    },
     "NOTHING_TO_UPDATE": {
       "statuses": [
         422
@@ -56061,6 +56285,14 @@
       ],
       "messages": [
         "هذا المتجر لا يتيح الاستلام من المتجر."
+      ]
+    },
+    "PICKUP_NOT_READY": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "علّم الطلب «جاهز للاستلام» أوّلاً، ثم أكّد الاستلام بالرمز."
       ]
     },
     "PLAN_LIMIT_EXCEEDED": {
@@ -56773,6 +57005,14 @@
         422
       ],
       "messages": []
+    },
+    "WRONG_PICKUP_CODE": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "رمز الاستلام غير صحيح. اطلبه من الزبون من صفحة طلبه."
+      ]
     }
   },
   "x-codiq-generated": {
@@ -56782,8 +57022,8 @@
       "the zod schemas in src/http/schemas",
       "every new HttpError(...) throw site in src"
     ],
-    "routesInRoutingTable": 374,
-    "operations": 375,
+    "routesInRoutingTable": 375,
+    "operations": 376,
     "note": "مولّدة آلياً — أي تحرير يدوي يسقط في أول تشغيل لـ `pnpm openapi:guard`."
   }
 }

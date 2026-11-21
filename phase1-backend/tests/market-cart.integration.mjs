@@ -279,6 +279,36 @@ try {
   await assert.rejects(prisma.orderRating.update({ where: { orderId: order.id }, data: { tags: ["lovely"] } }), "order_ratings_known_tags");
   summary.rating = true;
 
+  // ── 11. M6 «رمز الاستلام» ────────────────────────────────────────────────
+  await shopper.request("/market/cart/items", { method: "POST", body: { productId: a1.id, quantity: 1 } });
+  const collect = (await shopper.request(`/market/checkout/${A.slug}`, { method: "POST", body: { addressId: home.id, fulfilment: "pickup" }, headers: { "idempotency-key": key("collect") } })).payload.order;
+  assert.equal((await shopper.request(`/market/orders/${collect.id}`)).payload.order.pickupCode, null, "no code before the order is ready");
+  const asMerchantPost = async (path, body) => {
+    const response = await fetch(`${base}/merchant/stores/${A.slug}/orders/${path}`, { method: "POST", headers: { authorization: `Bearer ${merchantToken}`, "content-type": "application/json", origin: base }, body: JSON.stringify(body) });
+    return { status: response.status, payload: await response.json() };
+  };
+  for (const toStatus of ["processing", "preparation", "out_for_delivery"]) {
+    const { version } = await prisma.storeOrder.findUniqueOrThrow({ where: { id: collect.id }, select: { version: true } });
+    assert.equal((await asMerchantPost(`${collect.id}/status`, { toStatus, expectedVersion: version })).status, 200, toStatus);
+  }
+  const ready = (await shopper.request(`/market/orders/${collect.id}`)).payload.order;
+  assert.match(ready.pickupCode ?? "", /^\d{6}$/, "a ready pick-up shows six digits");
+  assert.equal(ready.statusLabel, "جاهز للاستلام");
+  assert.equal((await shopper.request("/market/orders?limit=50")).payload.orders.find((row) => row.id === collect.id).statusLabel, "جاهز للاستلام", "…in «طلباتي» too");
+  const wrong = String((Number(ready.pickupCode) + 1) % 1_000_000).padStart(6, "0");
+  assert.equal((await asMerchantPost(`${collect.id}/pickup-confirm`, { code: "12ab" })).status, 422, "six digits");
+  assert.equal((await asMerchantPost(`${collect.id}/pickup-confirm`, { code: wrong })).payload.error.code, "WRONG_PICKUP_CODE");
+  assert.equal((await prisma.storeOrder.findUniqueOrThrow({ where: { id: collect.id } })).status, "out_for_delivery", "a wrong code changes nothing");
+  assert.equal((await asMerchantPost(`${order.id}/pickup-confirm`, { code: ready.pickupCode })).payload.error.code, "NOT_A_PICKUP_ORDER", "a delivery order has no pick-up code");
+  const confirmedPickup = await asMerchantPost(`${collect.id}/pickup-confirm`, { code: ready.pickupCode });
+  assert.equal(confirmedPickup.status, 200, JSON.stringify(confirmedPickup.payload));
+  assert.equal(confirmedPickup.payload.order.status, "completed");
+  const handedOver = await prisma.orderStatusEvent.findFirst({ where: { orderId: collect.id, toStatus: "completed" } });
+  assert.match(handedOver.note, /رمز الاستلام/, "the history says how it was confirmed");
+  assert.equal((await shopper.request(`/market/orders/${collect.id}`)).payload.order.pickupCode, null, "a collected order shows no code");
+  assert.equal((await asMerchantPost(`${collect.id}/pickup-confirm`, { code: ready.pickupCode })).payload.error.code, "PICKUP_NOT_READY", "a second confirmation is refused");
+  summary.pickupCode = true;
+
   console.log(JSON.stringify({ suite: "market-cart", ok: true, summary }, null, 2));
 } finally {
   setOtpProviderForTests(null);
