@@ -138,12 +138,12 @@ try {
   await page.goto(`${base}/market/s/${store.slug}`);
   await page.getByTestId("market-reels-shelf").getByText("ريلز المتجر").waitFor();
   await page.getByTestId("market-reels-shelf-item").first().click();
-  await page.waitForURL(new RegExp(`/market/reels/${reel.id}$`));
+  await page.waitForURL((url) => url.pathname === `/market/reels/${reel.id}`);
   const slide = page.locator(`[data-testid="market-reel"][data-reel-id="${reel.id}"]`);
   await slide.waitFor();
   assert.equal(await page.getByTestId("market-reel").first().getAttribute("data-reel-id"), reel.id, "the shared link opens it first");
   assert.match(await slide.getByTestId("market-reel-caption").innerText(), /القماش على الضوء/);
-  assert.match(await slide.getByTestId("market-reel-product").innerText(), new RegExp(dress.name));
+  assert.ok((await slide.getByTestId("market-reel-product").innerText()).includes(dress.name));
   for (let attempt = 0; attempt < 50 && (await prisma.marketReel.findUniqueOrThrow({ where: { id: reel.id } })).viewCount < 1; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 200));
   assert.equal((await prisma.marketReel.findUniqueOrThrow({ where: { id: reel.id } })).viewCount, 1, "a view after it played a moment");
   summary.watched = true;
@@ -156,7 +156,7 @@ try {
   summary.liked = true;
 
   await page.locator(`[data-reel-id="${reel.id}"]`).getByTestId("market-reel-product").click();
-  await page.waitForURL(new RegExp(`/market/p/${dress.id}$`));
+  await page.waitForURL((url) => url.pathname === `/market/p/${dress.id}`);
   summary.toProduct = true;
 
   // ── the store takes it down ─────────────────────────────────────────────────
