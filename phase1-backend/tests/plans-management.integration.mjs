@@ -240,6 +240,14 @@ try {
   assert.equal(approveStale.body.error.code, "PLAN_NOT_AVAILABLE");
   const rejectStale = await request(`/platform/upgrade-requests/${staleRequest.body.request.id}/reject`, { method: "POST", headers: bearer(tokenOwner) });
   assert.equal(rejectStale.status, 200);
+  // An approve and a reject racing on one request: one stands, and the plan agrees with it.
+  const racedUpgrade = await request("/merchant/subscription/upgrade-request", { method: "POST", headers: bearer(tokenMerchantB), body: JSON.stringify({ planCode: "pro" }) });
+  assert.equal(racedUpgrade.status, 201, JSON.stringify(racedUpgrade.body));
+  const racedVerdicts = await Promise.all(["approve", "reject", "approve", "reject"].map((verb) => request(`/platform/upgrade-requests/${racedUpgrade.body.request.id}/${verb}`, { method: "POST", headers: bearer(tokenOwner) })));
+  assert.equal(racedVerdicts.filter((answer) => answer.status === 200).length, 1, `exactly one racing decision stands · ${racedVerdicts.map((answer) => answer.status)}`);
+  const racedFinal = racedVerdicts.find((answer) => answer.status === 200).body.request.status;
+  const planAfterRace = (await request("/merchant/subscription", { headers: bearer(tokenMerchantB) })).body.plan.code;
+  assert.equal(planAfterRace, racedFinal === "approved" ? "pro" : "growth", `the subscription follows the decision that stood (${racedFinal}) — never a rejected request with a changed plan`);
   summary.upgradeRequests = {
     anonymous: 401, samePlan: 422, unknownPlan: 404, created: 201, duplicatePending: 409,
     merchantReadsQueue: 403, merchantApproves: 403, approved: 200, entitlementsAfterApprove: "growth",

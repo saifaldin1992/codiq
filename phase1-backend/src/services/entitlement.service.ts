@@ -663,6 +663,13 @@ export async function decideUpgradeRequest(requestId: string, actor: PlatformAct
   if (!request) throw new HttpError(404, "RESOURCE_NOT_FOUND", "طلب الترقية غير موجود.");
   if (request.status !== "pending") throw new HttpError(409, "ALREADY_DECIDED", "هذا الطلب محسوم بالفعل.");
   return prisma.$transaction(async (tx) => {
+    // The guarded claim comes FIRST, inside the transaction: the read above is
+    // only a friendly early answer. An approve and a reject racing on one request
+    // both passed it, so the merchant could be moved to the new plan by one while
+    // the other stamped the request «rejected». The loser now matches nothing,
+    // and its transaction rolls back before touching the subscription.
+    const claimed = await tx.planUpgradeRequest.updateMany({ where: { id: requestId, status: "pending" }, data: { status: action === "approve" ? "approved" : "rejected" } });
+    if (claimed.count !== 1) throw new HttpError(409, "ALREADY_DECIDED", "هذا الطلب محسوم بالفعل.");
     if (action === "approve") {
       // Re-checked inside the transaction: an archive racing this approval must
       // not assign a just-archived plan.
