@@ -7,6 +7,7 @@ import { iqd } from "../market-products";
 import { useMarketList } from "../use-market-list";
 import { MarketSignIn } from "./MarketAccountPages";
 import { MarketEmptyState } from "../MarketEmptyState";
+import { OrderTicketLink } from "./MarketTicketsPages";
 import { CancelOrder, HandoverCode, RateOrder, ReturnOrder, Stars, type AfterSales } from "../components/OrderAfterSales";
 
 type OrderCard = { id: string; orderNumber: string; status: string; statusLabel: string; fulfilment: string; totalIqd: number; createdAt: string; store: { slug: string; name: string }; itemCount: number; preview: string[] };
@@ -115,6 +116,7 @@ export function MarketOrderPage() {
       </section>
       {afterSales.canRate || afterSales.rating ? (afterSales.canRate ? <RateOrder key={afterSales.rating ? "edit" : "new"} orderId={order.id} items={order.items} pickup={order.fulfilment === "pickup"} current={afterSales.rating} rateBy={afterSales.rateBy} onDone={() => void load()} /> : <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm"><p className="text-sm font-black text-[var(--codiq-text)]">تقييمك</p><Stars value={afterSales.rating?.storeStars ?? 0} label="تقييم المتجر" /></section>) : null}
       <ReturnOrder orderId={order.id} state={afterSales} onDone={() => void load()} />
+      {order.status === "completed" ? <OrderTicketLink orderId={order.id} /> : null}
       {afterSales.canCancel ? <CancelOrder orderId={order.id} onDone={() => void load()} /> : null}
       {whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-full border border-[var(--codiq-border)] bg-[var(--codiq-surface)] py-3 text-sm font-bold text-[var(--codiq-text)]"><MessageCircle className="h-4 w-4" /> تواصل مع التاجر</a> : null}
     </div>

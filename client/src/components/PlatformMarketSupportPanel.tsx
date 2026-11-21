@@ -6,9 +6,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { CircleAlert, CircleCheck, LoaderCircle, Plus, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SupportTicketsWorkspace } from "@/components/SupportTicketsWorkspace";
 
-type Tab = "help" | "messages" | "feedback";
-const TABS: { id: Tab; label: string }[] = [{ id: "help", label: "الأسئلة الشائعة" }, { id: "messages", label: "رسائل تواصل معنا" }, { id: "feedback", label: "تقييم التطبيق" }];
+type Tab = "tickets" | "help" | "messages" | "feedback";
+const TABS: { id: Tab; label: string }[] = [{ id: "tickets", label: "التذاكر" }, { id: "help", label: "الأسئلة الشائعة" }, { id: "messages", label: "رسائل تواصل معنا" }, { id: "feedback", label: "تقييم التطبيق" }];
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { credentials: "same-origin", ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -21,7 +22,7 @@ const card = "space-y-3 rounded-[24px] border border-[var(--codiq-border)] bg-[v
 type Report = { ok: (message: string) => void; fail: (message: string) => void };
 
 export function PlatformMarketSupportPanel() {
-  const [tab, setTab] = useState<Tab>("help");
+  const [tab, setTab] = useState<Tab>("tickets");
   const [failure, setFailure] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const report: Report = { ok: (message) => { setNotice(message); setFailure(null); }, fail: (message) => { setFailure(message); setNotice(null); } };
@@ -32,7 +33,7 @@ export function PlatformMarketSupportPanel() {
       </div>
       {failure ? <p className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold text-[var(--codiq-danger)]" data-testid="market-support-error"><CircleAlert className="h-4 w-4" /> {failure}</p> : null}
       {notice ? <p className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-success-soft)] px-4 py-3 text-sm font-semibold text-[var(--codiq-success)]" data-testid="market-support-notice"><CircleCheck className="h-4 w-4" /> {notice}</p> : null}
-      {tab === "help" ? <HelpTab report={report} /> : tab === "messages" ? <MessagesTab report={report} /> : <FeedbackTab />}
+      {tab === "tickets" ? <SupportTicketsWorkspace kind="platform" /> : tab === "help" ? <HelpTab report={report} /> : tab === "messages" ? <MessagesTab report={report} /> : <FeedbackTab />}
     </div>
   );
 }

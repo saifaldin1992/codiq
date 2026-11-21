@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, Camera, ChevronLeft, CircleAlert, Copy, Crosshair, Heart, LifeBuoy, LoaderCircle, LogOut, MapPin, MessageCircle, Package, Phone, Plus, Star, ThumbsUp, Trash2, UserRound } from "lucide-react";
+import { Bell, Camera, ChevronLeft, CircleAlert, Copy, Crosshair, Heart, LifeBuoy, LoaderCircle, LogOut, MapPin, MessageCircle, Package, Phone, Plus, Star, ThumbsUp, Ticket, Trash2, UserRound } from "lucide-react";
 import { accountCall, displayPhone, setShopper, signOut, useShopper, type Shopper } from "../market-shopper";
 import { loadMarketGeography, marketGet, type MarketGeography } from "../market-api";
 import { writeMarketLocation } from "../market-location";
@@ -99,6 +99,7 @@ export function MarketAccountPage() {
         <MenuLink href="/account/addresses" icon={MapPin} label="العناوين" testId="market-account-addresses-link" />
       </nav>
       <nav className="divide-y divide-[var(--codiq-border)] overflow-hidden rounded-[26px] bg-[var(--codiq-surface)] shadow-sm">
+        <MenuLink href="/tickets" icon={Ticket} label="تذاكر الدعم" testId="market-account-tickets-link" />
         <MenuLink href="/help" icon={LifeBuoy} label="المساعدة والأسئلة الشائعة" testId="market-account-help-link" />
         <MenuLink href="/help/contact" icon={MessageCircle} label="تواصل معنا" testId="market-account-contact-link" />
         <MenuLink href="/feedback" icon={ThumbsUp} label="قيّم التطبيق" testId="market-account-feedback-link" />

@@ -1,12 +1,12 @@
 /**
  * Marketplace M7 «الإشعارات» — the shopper's inbox.
  *
- * DERIVED, NOT STORED. Every notice is a fact the system already keeps durably:
- * a step in an order's status history, a store's answer to a return. The inbox
- * reads them directly, so a notice cannot be lost between a commit and an event
- * handler, and the money path is not edited to write one. Only the read marks
- * are stored: a «read everything up to here» instant, and the items opened
- * one by one after it.
+ * DERIVED, NOT STORED. Every notice is a fact the system already keeps
+ * durably: a step in an order's status history, a store's answer to a return,
+ * a support reply on one of his tickets (M7b). The inbox reads them directly,
+ * so a notice cannot be lost between a commit and an event handler, and the
+ * money path is not edited to write one. Only the read marks are stored: a
+ * «read everything up to here» instant, and the items opened one by one after.
  *
  * His own actions (cancelling his order) are not notices to himself.
  */
@@ -15,26 +15,33 @@ import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
 import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../../services/list-page.js";
 
-type Row = { item_id: string; source: "o" | "r"; at: Date; status: string; order_id: string; order_number: string; fulfilment: string; store_name: string; note: string | null; read: boolean };
+type Row = { item_id: string; source: "o" | "r" | "t"; ticket_id: string | null; ticket_number: number | null; at: Date; status: string; order_id: string; order_number: string; fulfilment: string; store_name: string; note: string | null; read: boolean };
 
 const KIND = "market-inbox";
-const KEY = /^([or]):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const KEY = /^([ort]):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 function itemsSql(shopperId: string) {
   return Prisma.sql`
-    SELECT e.id AS item_id, 'o' AS source, e.created_at AS at, e.to_status AS status, o.id AS order_id, o.order_number, o.fulfilment, st.name AS store_name, NULL::text AS note
+    SELECT e.id AS item_id, 'o' AS source, NULL::uuid AS ticket_id, NULL::int AS ticket_number, e.created_at AS at, e.to_status AS status, o.id AS order_id, o.order_number, o.fulfilment, st.name AS store_name, NULL::text AS note
       FROM order_status_events e
       JOIN store_orders o ON o.id = e.order_id AND o.store_id = e.store_id
       JOIN customers c ON c.id = o.customer_id AND c.store_id = o.store_id
       JOIN stores st ON st.id = o.store_id
      WHERE c.shopper_id = ${shopperId}::uuid AND e.actor_kind <> 'customer' AND e.from_status IS NOT NULL
     UNION ALL
-    SELECT r.id, 'r', r.decided_at, r.status, o.id, o.order_number, o.fulfilment, st.name, r.decision_note
+    SELECT r.id, 'r', NULL::uuid, NULL::int, r.decided_at, r.status, o.id, o.order_number, o.fulfilment, st.name, r.decision_note
       FROM return_requests r
       JOIN store_orders o ON o.id = r.order_id AND o.store_id = r.store_id
       JOIN customers c ON c.id = o.customer_id AND c.store_id = o.store_id
       JOIN stores st ON st.id = o.store_id
-     WHERE c.shopper_id = ${shopperId}::uuid AND r.status IN ('approved', 'rejected') AND r.decided_at IS NOT NULL`;
+     WHERE c.shopper_id = ${shopperId}::uuid AND r.status IN ('approved', 'rejected') AND r.decided_at IS NOT NULL
+    UNION ALL
+    SELECT tc.id, 't', t.id, t.number, tc.created_at, t.status, o.id, o.order_number, o.fulfilment, st.name, left(tc.body, 160)
+      FROM support_ticket_comments tc
+      JOIN support_tickets t ON t.id = tc.ticket_id
+      JOIN store_orders o ON o.id = t.order_id AND o.store_id = t.store_id
+      JOIN stores st ON st.id = t.store_id
+     WHERE t.shopper_id = ${shopperId}::uuid AND tc.author_kind <> 'shopper'`;
 }
 
 function readAllAtSql(shopperId: string) {
@@ -54,6 +61,9 @@ const ORDER_TEXT: Record<string, (row: Row) => { title: string; body: string }> 
 };
 
 function present(row: Row) {
+  if (row.source === "t") {
+    return { key: `t:${row.item_id}`, kind: "ticket", at: row.at, read: row.read, title: "ردّ جديد من الدعم", body: `التذكرة رقم ${row.ticket_number}: ${row.note ?? ""}`, orderId: row.order_id, link: `/tickets/${row.ticket_id}` };
+  }
   const text = row.source === "r"
     ? row.status === "approved"
       ? { title: "وافق المتجر على الإرجاع", body: `${row.store_name} وافق على إرجاع الطلب رقم ${row.order_number}.${row.note ? ` ${row.note}` : ""}` }

@@ -310,6 +310,7 @@ model Store {
   productReviews ProductReview[]
   wishlistItems  WishlistItem[]
   marketFollowers ShopperFollowedStore[]
+  supportTickets SupportTicket[]
   returnRequests ReturnRequest[]
   /// CD-5: off until the merchant turns it on — nobody discovers he has been
   /// giving discounts because an update defaulted a programme on.
@@ -841,6 +842,7 @@ model StoreOrder {
   // store's order payload never names it, so the store never sees the code.
   handoverCode      OrderHandoverCode?
   rating            OrderRating?
+  supportTickets    SupportTicket[]
 
   @@unique([storeId, orderNumber])
   @@unique([id, storeId])
@@ -2325,6 +2327,7 @@ model Shopper {
   inboxReads        ShopperInboxRead[]
   contactMessages   MarketContactMessage[]
   appFeedback       MarketAppFeedback[]
+  supportTickets    SupportTicket[]
   marketCart        MarketCart?
 
   @@map("shoppers")
@@ -2572,4 +2575,61 @@ model MarketSetting {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("market_settings")
+}
+
+/// Marketplace M7b: a support ticket, opened from a delivered order.
+model SupportTicket {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number        Int       @unique @default(dbgenerated("nextval('support_ticket_number_seq'::regclass)"))
+  shopperId     String?   @map("shopper_id") @db.Uuid
+  storeId       String    @map("store_id") @db.Uuid
+  orderId       String    @map("order_id") @db.Uuid
+  type          String    @db.Text
+  subject       String?   @db.Text
+  description   String    @db.Text
+  status        String    @default("open") @db.Text
+  escalatedAt   DateTime? @map("escalated_at") @db.Timestamptz(6)
+  resolvedAt    DateTime? @map("resolved_at") @db.Timestamptz(6)
+  closedAt      DateTime? @map("closed_at") @db.Timestamptz(6)
+  lastSupportAt DateTime? @map("last_support_at") @db.Timestamptz(6)
+  shopperReadAt DateTime  @default(now()) @map("shopper_read_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  shopper       Shopper?  @relation(fields: [shopperId], references: [id], onDelete: SetNull)
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order         StoreOrder @relation(fields: [orderId, storeId], references: [id, storeId], onDelete: Cascade)
+  comments      SupportTicketComment[]
+  attachments   SupportTicketAttachment[]
+
+  @@index([shopperId, updatedAt(sort: Desc), id(sort: Desc)], map: "support_tickets_shopper_idx")
+  @@index([storeId, status, updatedAt(sort: Desc), id(sort: Desc)], map: "support_tickets_store_idx")
+  @@index([status, updatedAt(sort: Desc), id(sort: Desc)], map: "support_tickets_platform_idx")
+  @@map("support_tickets")
+}
+
+model SupportTicketComment {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId   String        @map("ticket_id") @db.Uuid
+  authorKind String        @map("author_kind") @db.Text
+  authorId   String?       @map("author_id") @db.Uuid
+  body       String        @db.Text
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt, id], map: "support_ticket_comments_ticket_idx")
+  @@map("support_ticket_comments")
+}
+
+model SupportTicketAttachment {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId    String        @map("ticket_id") @db.Uuid
+  authorKind  String        @map("author_kind") @db.Text
+  objectKey   String        @unique @map("object_key") @db.Text
+  contentType String        @map("content_type") @db.Text
+  byteSize    Int           @map("byte_size")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt], map: "support_ticket_attachments_ticket_idx")
+  @@map("support_ticket_attachments")
 }

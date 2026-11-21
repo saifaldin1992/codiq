@@ -84,6 +84,7 @@ try {
   await owner.getByRole("button", { name: "تسجيل الدخول" }).click();
   await owner.waitForURL(/\/platform\/dashboard/);
   await owner.goto(`${base}/platform/dashboard/market-support`);
+  await owner.getByTestId("market-support-tab-help").click();
   await owner.getByTestId("market-support-add-orders").click();
   await owner.getByTestId("market-support-question").fill(`متى يصل طلب ${runId}؟`);
   await owner.getByTestId("market-support-answer").fill("خلال يومين في بغداد.");

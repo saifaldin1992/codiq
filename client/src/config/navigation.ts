@@ -211,6 +211,8 @@ export const merchantNavGroups: NavGroup[] = [
       { label: "بحاجة لإجراء", path: "/merchant/dashboard/orders/action-needed", status: "implemented" },
       { label: "جميع الطلبات", path: "/merchant/dashboard/orders", status: "implemented" },
       { label: "الإرجاع", path: "/merchant/dashboard/orders/returns", status: "implemented", capability: "cx.returns" },
+      // Marketplace M7b: complaints shoppers open from a delivered market order.
+      { label: "تذاكر الدعم", path: "/merchant/dashboard/orders/support-tickets", status: "implemented" },
     ],
   },
   {
