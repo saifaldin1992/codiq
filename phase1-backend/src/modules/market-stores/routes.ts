@@ -109,16 +109,16 @@ export function registerMarketStoreRoutes(app: Express) {
 
   app.put("/platform/market/stores/:storeId/decision", asyncRoute(async (request, response) => {
     requireTrustedWriteOrigin(request);
-    await requirePlatformActor(request, "merchants.manage");
+    const { actor } = await requirePlatformActor(request, "merchants.manage");
     const input = parseOrThrow(marketDecisionSchema, request.body ?? {});
-    response.status(200).json(await decideMarketListing(request.params.storeId, input));
+    response.status(200).json(await decideMarketListing(request.params.storeId, input, actor));
   }));
 
   app.put("/platform/market/stores/:storeId/flags", asyncRoute(async (request, response) => {
     requireTrustedWriteOrigin(request);
-    await requirePlatformActor(request, "merchants.manage");
+    const { actor } = await requirePlatformActor(request, "merchants.manage");
     const input = parseOrThrow(marketFlagsSchema, request.body ?? {});
-    response.status(200).json(await setMarketFlags(request.params.storeId, input));
+    response.status(200).json(await setMarketFlags(request.params.storeId, input, actor));
   }));
 
   app.post("/platform/market/metrics/recompute", asyncRoute(async (request, response) => {
