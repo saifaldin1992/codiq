@@ -161,6 +161,26 @@ export async function listMarketProducts(query: MarketProductQuery) {
   if (query.preorder) where.push(Prisma.sql`p.is_preorder`);
   if (query.inStock) where.push(Prisma.sql`(v.in_stock OR p.is_preorder)`);
   if (query.exclude) where.push(Prisma.sql`p.id <> ${query.exclude}::uuid`);
+  if (query.collection) {
+    // Only a collection that is live now; an expired event shows nothing rather than stale prices.
+    where.push(Prisma.sql`EXISTS (
+      SELECT 1 FROM market_collection_items ci JOIN market_collections mc ON mc.id = ci.collection_id
+       WHERE ci.product_id = p.id AND mc.slug = ${query.collection} AND mc.is_active
+         AND (mc.starts_at IS NULL OR mc.starts_at <= now()) AND (mc.ends_at IS NULL OR mc.ends_at > now()))`);
+  }
+  if (query.mall) {
+    where.push(Prisma.sql`EXISTS (SELECT 1 FROM market_mall_stores ms JOIN market_malls mm ON mm.id = ms.mall_id WHERE ms.store_id = st.id AND mm.slug = ${query.mall} AND mm.is_active)`);
+  }
+  if (query.ids) where.push(Prisma.sql`p.id = ANY(${query.ids}::uuid[])`);
+  if (query.relatedTo) {
+    // Same market category as any of these products, and not one of them.
+    where.push(Prisma.sql`COALESCE(p.market_category_id, pc.market_category_id) IN (
+      SELECT COALESCE(rp.market_category_id, rpc.market_category_id) FROM products rp
+        LEFT JOIN product_categories rpc ON rpc.id = rp.category_id AND rpc.store_id = rp.store_id
+       WHERE rp.id = ANY(${query.relatedTo}::uuid[]) AND rp.deleted_at IS NULL)
+      AND NOT (p.id = ANY(${query.relatedTo}::uuid[]))`);
+  }
+  if (query.sellsFast) where.push(Prisma.sql`v.low_stock`);
   if (cursor) where.push(Prisma.sql`(${key}, p.id) < (${cursorValue}::float8, ${cursor.id}::uuid)`);
 
   const rows = await prisma.$queryRaw<Row[]>`

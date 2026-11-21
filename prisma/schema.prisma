@@ -266,6 +266,7 @@ model Store {
   boostedUntil         DateTime? @map("boosted_until") @db.Timestamptz(6)
   ambassadorUntil      DateTime? @map("ambassador_until") @db.Timestamptz(6)
   marketMetrics        StoreMarketMetrics?
+  mallMemberships      MarketMallStore[]
   merchant             Merchant              @relation(fields: [merchantId], references: [id], onDelete: Restrict)
   customers            Customer[]
   paymentMethods       PaymentMethod[]
@@ -583,6 +584,7 @@ model Product {
   marketCategory    MarketCategory? @relation(fields: [marketCategoryId], references: [id], onDelete: SetNull)
   addons            ProductAddon[]
   marketStats       ProductMarketStats?
+  collectionItems   MarketCollectionItem[]
   viewsDaily  ProductViewDaily[]
   isActive    Boolean     @default(true) @map("is_active")
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -2177,4 +2179,99 @@ model MarketSearchTerm {
   @@id([term, day])
   @@index([day], map: "market_search_terms_day_idx")
   @@map("market_search_terms")
+}
+
+/// Marketplace M3: a slide or an ad on a market page, scheduled, with where it leads and how it performed.
+model MarketBanner {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  placement        String    @db.Text
+  title            String    @db.Text
+  subtitle         String?   @db.Text
+  imageObjectKey   String?   @unique @map("image_object_key") @db.Text
+  imageContentType String?   @map("image_content_type") @db.Text
+  imageByteSize    Int?      @map("image_byte_size")
+  linkKind         String    @default("none") @map("link_kind") @db.Text
+  linkTarget       String?   @map("link_target") @db.Text
+  startsAt         DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt           DateTime? @map("ends_at") @db.Timestamptz(6)
+  sortOrder        Int       @default(0) @map("sort_order")
+  isActive         Boolean   @default(true) @map("is_active")
+  isAd             Boolean   @default(false) @map("is_ad")
+  views            Int       @default(0)
+  clicks           Int       @default(0)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("market_banners")
+}
+
+/// Marketplace M3: a curated product list, or a discount event.
+model MarketCollection {
+  id                      String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                    String                 @unique @db.Text
+  kind                    String                 @default("collection") @db.Text
+  title                   String                 @db.Text
+  subtitle                String?                @db.Text
+  headlineDiscountPercent Int?                   @map("headline_discount_percent")
+  startsAt                DateTime?              @map("starts_at") @db.Timestamptz(6)
+  endsAt                  DateTime?              @map("ends_at") @db.Timestamptz(6)
+  sortOrder               Int                    @default(0) @map("sort_order")
+  isActive                Boolean                @default(true) @map("is_active")
+  createdAt               DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  items                   MarketCollectionItem[]
+
+  @@map("market_collections")
+}
+
+model MarketCollectionItem {
+  collectionId String           @map("collection_id") @db.Uuid
+  productId    String           @map("product_id") @db.Uuid
+  storeId      String           @map("store_id") @db.Uuid
+  sortOrder    Int              @default(0) @map("sort_order")
+  collection   MarketCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product          @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade, map: "market_collection_items_product_fk")
+
+  @@id([collectionId, productId])
+  @@index([productId], map: "market_collection_items_product_idx")
+  @@map("market_collection_items")
+}
+
+/// Marketplace M3: a group of stores («مول»).
+model MarketMall {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String            @unique @db.Text
+  name        String            @db.Text
+  description String?           @db.Text
+  sortOrder   Int               @default(0) @map("sort_order")
+  isActive    Boolean           @default(true) @map("is_active")
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  stores      MarketMallStore[]
+
+  @@map("market_malls")
+}
+
+model MarketMallStore {
+  mallId    String     @map("mall_id") @db.Uuid
+  storeId   String     @map("store_id") @db.Uuid
+  sortOrder Int        @default(0) @map("sort_order")
+  mall      MarketMall @relation(fields: [mallId], references: [id], onDelete: Cascade)
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([mallId, storeId])
+  @@index([storeId], map: "market_mall_stores_store_idx")
+  @@map("market_mall_stores")
+}
+
+/// Marketplace M3: the market's front page, block by block, in order.
+model MarketHomeSection {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind     String  @db.Text
+  title    String? @db.Text
+  config   Json    @default("{}") @db.JsonB
+  position Int     @unique(map: "market_home_sections_position_key")
+  isActive Boolean @default(true) @map("is_active")
+
+  @@map("market_home_sections")
 }

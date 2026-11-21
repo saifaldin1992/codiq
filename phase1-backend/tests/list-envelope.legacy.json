@@ -357,5 +357,38 @@
       }
     ],
     "missingStoreSlug": []
+  },
+  "modules/market-home/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/home",
+        "reason": "AGGREGATE — the market's front page in one payload: at most forty owner-arranged blocks, each resolved to a fixed top-N (twelve banners per placement, twenty collections, twenty malls with four logos). Product and store shelves page through their own list routes."
+      },
+      {
+        "route": "GET /market/malls/:slug",
+        "reason": "NOT A LIST of malls — one mall with its member stores, capped at a hundred by mallStoresSchema. Its products page through GET /market/products?mall=…"
+      },
+      {
+        "route": "GET /platform/market/banners",
+        "reason": "BOUNDED — the owner's banner board, capped at two hundred, across four placements; the editor shows them all to schedule and reorder."
+      },
+      {
+        "route": "GET /platform/market/collections",
+        "reason": "BOUNDED — the owner's collections (capped at two hundred), each with its product list (capped at two hundred by collectionItemsSchema); edited on one screen."
+      },
+      {
+        "route": "GET /platform/market/malls",
+        "reason": "BOUNDED — the owner's malls (capped at a hundred), each with up to a hundred stores."
+      },
+      {
+        "route": "GET /platform/market/home-sections",
+        "reason": "BOUNDED — the front page's blocks, at most forty by homeSectionsSchema; reordering needs the whole page in hand."
+      },
+      {
+        "route": "GET /platform/market/categories",
+        "reason": "BOUNDED — the market category tree, two levels, about fifty rows, edited as one tree."
+      }
+    ],
+    "missingStoreSlug": []
   }
 }

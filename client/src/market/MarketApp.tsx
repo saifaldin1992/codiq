@@ -12,6 +12,7 @@ import { MarketCategoriesPage } from "./pages/MarketCategoriesPage";
 import { MarketCategoryPage } from "./pages/MarketCategoryPage";
 import { MarketSearchPage } from "./pages/MarketSearchPage";
 import { MarketProductPage } from "./pages/MarketProductPage";
+import { MarketCollectionPage, MarketMallPage, MarketSectionPage } from "./pages/MarketSectionPages";
 import { MarketStoresPage } from "./pages/MarketStoresPage";
 import { MarketStorePage } from "./pages/MarketStorePage";
 import { MarketStoreReviewsPage } from "./pages/MarketStoreReviewsPage";
@@ -29,6 +30,9 @@ export default function MarketApp() {
         <Route path="/categories" component={MarketCategoriesPage} />
         <Route path="/c/:slug" component={MarketCategoryPage} />
         <Route path="/p/:id" component={MarketProductPage} />
+        <Route path="/section/:key" component={MarketSectionPage} />
+        <Route path="/collection/:slug" component={MarketCollectionPage} />
+        <Route path="/mall/:slug" component={MarketMallPage} />
         <Route path="/cart" component={MarketCartPage} />
         <Route path="/account" component={MarketAccountPage} />
         <Route path="/search" component={MarketSearchPage} />

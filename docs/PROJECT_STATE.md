@@ -36,7 +36,7 @@
 
 | المحور | الحالة الحالية |
 |---|---|
-| قاعدة البيانات | PostgreSQL 18 على Neon مع Prisma · **٩٠ هجرة** في المستودع حتى `20261121110000_m2_market_catalog` — والمطبَّق في الإنتاج **يُقرأ من سجلّ النشر وحده** (مقيسة من `_prisma_migrations`، لا مفترضة) |
+| قاعدة البيانات | PostgreSQL 18 على Neon مع Prisma · **٩١ هجرة** في المستودع حتى `20261121120000_m3_market_home` — والمطبَّق في الإنتاج **يُقرأ من سجلّ النشر وحده** (مقيسة من `_prisma_migrations`، لا مفترضة) |
 | الهويات | **خمس هويات جلسات منفصلة**: `platform_owner` · `platform_staff` · `merchant` · `staff` · `customer` — وكل تبديل هوية يسقط إلى الزبون بصمت |
 | الخلفية | Express REST تحت `/api` · طبقة HTTP مفكَّكة إلى وحدات `routes/` · تسجيل مُهيكل بمعرّف ارتباط (D-41) · outbox بعامل مستقل بـrespawn تلقائي |
 | العزل | `requireStoreActor` و`requireMerchantStore` و`requireStorefrontCustomer` · قراءة مُنطّقة ثم 404 لكل IDOR · التعطيل وتغيير الدور يقطعان الجلسة فوراً |

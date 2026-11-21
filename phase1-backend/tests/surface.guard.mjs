@@ -102,6 +102,7 @@ const EXEMPT = {
   "/api/store/*/banners/*/image": "ق-198: the slide's URL is minted by the server inside the banner payload and reaches the browser as an <img src>; the client never spells it",
   "/api/store/*/logo": "ق-199: the logo's URL is minted by the server inside public-config and reaches the browser as an <img src>; the client never spells it",
   "/api/market/stores/*/cover": "Marketplace M1: the cover's URL is minted by the server inside every store card and page (coverUrl) and reaches the browser as an <img src>; the client never spells it",
+  "/api/market/banners/*/image": "Marketplace M3: the banner's URL is minted by the server inside GET /market/home (imageUrl) and reaches the browser as an <img src>; the client never spells it",
   "/api/platform/dashboard": "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",
   "/api/merchant/stores/*/dashboard": "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",
   "/api/staff/stores/*/dashboard": "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",

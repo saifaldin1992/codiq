@@ -304,6 +304,22 @@ export async function deleteStoreCoverObjects(objectKeys: readonly string[]) {
   await deleteStoredObjects(objectKeys, "store-cover");
 }
 
+/**
+ * Marketplace M3 — the platform's own market images (banners). Same validator
+ * and bucket as every store image; no plan meter, because the platform pays.
+ */
+export async function putMarketImage(kind: "banners", file: Express.Multer.File) {
+  const detected = validateStoreImage(file);
+  const config = s3Config();
+  const objectKey = `market/${kind}/${randomUUID()}.${detected.extension}`;
+  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
+  return { objectKey, contentType: detected.contentType, byteSize: file.size };
+}
+
+export async function deleteMarketImageObjects(objectKeys: readonly string[]) {
+  await deleteStoredObjects(objectKeys, "market-image");
+}
+
 export const productImageConstraints = { maxBytes: MAX_IMAGE_BYTES, allowedContentTypes };
 export const prescriptionImageConstraints = { maxBytes: MAX_PRESCRIPTION_BYTES, allowedContentTypes };
 export const storeImageConstraints = { maxBytes: MAX_STORE_IMAGE_BYTES, allowedContentTypes };

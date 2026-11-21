@@ -7,6 +7,9 @@ export const SALES_PERIODS = ["day", "week", "month", "quarter"] as const;
 export const PRODUCT_TAGS = ["original", "imported", "warranty", "limited_edition", "exclusive", "free_delivery", "free_returns"] as const;
 export const PRODUCT_CONDITIONS = ["new", "used", "refurbished"] as const;
 
+const uuidList = (max: number) => z.string().max(max * 37).optional()
+  .transform((value) => (value ? value.split(",").map((part) => part.trim()).filter(Boolean) : undefined))
+  .refine((value) => value === undefined || (value.length <= max && value.every((part) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(part))), { message: "قائمة معرّفات غير صالحة" });
 const flag = z.enum(["1", "true", "0", "false"]).optional().transform((value) => value === "1" || value === "true");
 const price = z.coerce.number().int().min(0).max(2_147_483_647).optional();
 
@@ -26,6 +29,13 @@ export const marketProductQuerySchema = z.object({
   preorder: flag,
   inStock: flag,
   exclude: z.string().uuid().optional(),
+  // Marketplace M3: a curated collection, a mall's stores, explicit products («شاهدته مؤخراً»),
+  // products like these («مقترح لك»), and the ones running out.
+  collection: z.string().trim().max(60).optional(),
+  mall: z.string().trim().max(60).optional(),
+  ids: uuidList(24),
+  relatedTo: uuidList(10),
+  sellsFast: flag,
   cursor: z.string().max(512).optional(),
   limit: z.unknown().optional(),
 }).refine((value) => value.minPrice === undefined || value.maxPrice === undefined || value.minPrice <= value.maxPrice, { message: "أقلّ سعر أكبر من أعلى سعر", path: ["minPrice"] })
