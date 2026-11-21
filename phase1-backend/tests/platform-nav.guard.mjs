@@ -111,7 +111,7 @@ assert.deepEqual(
 const storeNav = read("client/src/config/navigation.ts");
 const storeShell = read("client/src/pages/StaffDashboard.tsx");
 const storeBlock = storeNav.slice(storeNav.indexOf("export const staffNavEntries"), storeNav.indexOf("];", storeNav.indexOf("export const staffNavEntries")));
-const storeEntries = Array.from(storeBlock.matchAll(/\{\s*id:\s*"([^"]+)".*?segment:\s*"([^"]*)"/g), (m) => ({ id: m[1], segment: m[2] }));
+const storeEntries = Array.from(storeBlock.matchAll(/\{\s*id:\s*"([^"]+)".*?segment:\s*"([^"]*)"/gs), (m) => ({ id: m[1], segment: m[2] }));
 assert.ok(storeEntries.length >= 8, `expected the staff navigation entries, read ${storeEntries.length}`);
 const storeUnrendered = storeEntries
   .filter((e) => e.segment !== "")

@@ -57,8 +57,14 @@ function block(text, open) {
   throw new Error("unbalanced braces — the file does not have the shape this guard assumes");
 }
 
-const member = source.split(/\r?\n/).find((line) => /^\s*checkout:\s*\(/.test(line));
-assert.ok(member, "the `checkout` member must exist in storefrontApi — if it was renamed, rename it here too");
+// The member is every line from `checkout: (` to the next member at the same indentation —
+// one line or many, however a formatter wraps it (review batch 1: it was read as one line).
+const lines = source.split(/\r?\n/);
+const first = lines.findIndex((line) => /^\s*checkout:\s*\(/.test(line));
+assert.ok(first >= 0, "the `checkout` member must exist in storefrontApi — if it was renamed, rename it here too");
+const indent = lines[first].match(/^\s*/)[0].length;
+const nextMember = lines.findIndex((line, index) => index > first && line.trim() && line.match(/^\s*/)[0].length <= indent);
+const member = lines.slice(first, nextMember < 0 ? undefined : nextMember).join("\n");
 
 // ── what the call SAYS it accepts ────────────────────────────────────────────
 const typeStart = member.indexOf("{", member.indexOf("body:"));

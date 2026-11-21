@@ -54,7 +54,7 @@ const HOUSE_CURSOR = /encodeListCursor|pageOf\s*\(/;
 
 /** Every route registration; a single-line route's body ends where the next begins. */
 const ANY_ROUTE = /\n {2}app\.(get|post|put|patch|delete)\(/g;
-const GET_ROUTE = /app\.get\((["'`])(.*?)\1/g;
+const GET_ROUTE = /app\.get\(\s*(["'`])(.*?)\1/g;
 
 /**
  * Lifted verbatim from `validation-adoption.guard.mjs`, including the blind-spot

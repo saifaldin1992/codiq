@@ -17,7 +17,7 @@ const screens = read("client/src/dashboard/merchant-screens.tsx");
 const dashboard = read("client/src/pages/MerchantDashboard.tsx");
 
 const merchantNav = navigation.slice(navigation.indexOf("export const merchantNavGroups"), navigation.indexOf("];", navigation.indexOf("export const merchantNavGroups")));
-const implemented = [...merchantNav.matchAll(/path: "([^"]+)", status: "implemented"/g)].map((m) => m[1]);
+const implemented = [...merchantNav.matchAll(/path:\s*"([^"]+)",\s*status:\s*"implemented"/g)].map((m) => m[1]);
 const screenPaths = new Set([...screens.matchAll(/^\s+"(\/merchant\/dashboard[^"]*)": /gm)].map((m) => m[1]));
 const productModes = new Set([...dashboard.matchAll(/resolvedLocation === "(\/merchant\/dashboard\/products[^"]*)"/g)].map((m) => m[1]));
 const orderScreens = new Set(["delivery", "settlements", "reports", "returns"].map((s) => `/merchant/dashboard/orders/${s}`));

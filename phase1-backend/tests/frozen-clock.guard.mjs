@@ -55,16 +55,19 @@ const testsDir = fileURLToPath(new URL(".", import.meta.url));
 const legacyPath = path.join(testsDir, "frozen-clock.legacy.json");
 
 /** `new Date("2026-09-07…")` and `Date.UTC(2026, 8, 7)`. */
-const LITERAL_DATE = /new Date\("20\d\d-|Date\.UTC\(20\d\d\s*,/;
+const LITERAL_DATES = /new Date\("20\d\d-|Date\.UTC\(20\d\d\s*,/g;
 const isComment = (line) => /^\s*(\/\/|\*|\/\*)/.test(line);
 
 const counts = {};
 for (const entry of readdirSync(testsDir)) {
   if (!/\.(mjs|js)$/.test(entry)) continue;
   if (entry === "frozen-clock.guard.mjs") continue;
+  // Every literal date counts, however many share a line: counting LINES made a formatter
+  // that wraps one line into two look like a new date (review batch 1).
   const hits = readFileSync(path.join(testsDir, entry), "utf8")
     .split(/\r?\n/)
-    .filter((line) => !isComment(line) && LITERAL_DATE.test(line)).length;
+    .filter((line) => !isComment(line))
+    .reduce((sum, line) => sum + (line.match(LITERAL_DATES) ?? []).length, 0);
   if (hits > 0) counts[entry] = hits;
 }
 
