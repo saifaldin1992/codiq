@@ -241,44 +241,6 @@ try {
   assert.deepEqual((await shopper.request(`/market/orders/${bOrder.id}`)).payload.cancelReasons, [], "no reasons are offered once the store has started");
   summary.cancel = true;
 
-  // ── 10. M6 «قيّم طلبك» ───────────────────────────────────────────────────
-  // `order` (store A, delivery) was completed in section 8.
-  const rateUrl = `/market/orders/${order.id}/rating`;
-  assert.equal((await shopper.request(`/market/orders/${toCancel.id}/rating`, { method: "PUT", body: { tags: ["fast_delivery"] } })).payload.error.code, "ORDER_NOT_RATEABLE", "only a completed order is rated");
-  const before = (await shopper.request(`/market/orders/${order.id}`)).payload;
-  assert.equal(before.order.rateable, true);
-  assert.equal(before.order.rating, null, "not rated yet");
-  assert.ok(before.ratingTags.some((tag) => tag.code === "great_service"), "the tags to choose from");
-  assert.ok((await shopper.request("/market/me/ratings/pending")).payload.orders.some((row) => row.id === order.id), "«بانتظار تقييمك» lists it");
-  assert.equal((await stranger.shopper.request(rateUrl, { method: "PUT", body: { tags: ["fast_delivery"] } })).status, 404, "another shopper cannot rate it");
-  assert.equal((await shopper.request(rateUrl, { method: "PUT", body: {} })).payload.error.code, "EMPTY_RATING");
-  assert.equal((await shopper.request(rateUrl, { method: "PUT", body: { tags: ["lovely"] } })).status, 422, "a tag off the list is refused");
-  assert.equal((await shopper.request(rateUrl, { method: "PUT", body: { products: [{ productId: b1.id, rating: 5 }] } })).payload.error.code, "PRODUCT_NOT_IN_ORDER");
-  assert.equal((await shopper.request(rateUrl, { method: "PUT", body: { deliveryRating: 6 } })).status, 422, "stars are one to five");
-  const rated = await shopper.request(rateUrl, { method: "PUT", body: { products: [{ productId: a1.id, rating: 4, comment: "رائحة جميلة" }], deliveryRating: 5, tags: ["fast_delivery", "as_described"], note: "شكراً" } });
-  assert.equal(rated.status, 200, JSON.stringify(rated.payload));
-  assert.deepEqual(rated.payload.rating.tags.map((tag) => tag.code), ["fast_delivery", "as_described"]);
-  const review = await prisma.productReview.findFirst({ where: { productId: a1.id, customerId: order.customerId, withdrawnAt: null } });
-  assert.equal(review.rating, 4, "the product's stars are a verified-buyer review of the store");
-  assert.equal(review.orderId, order.id);
-  assert.equal(review.body, "رائحة جميلة");
-  assert.ok(!(await shopper.request("/market/me/ratings/pending")).payload.orders.some((row) => row.id === order.id), "…and leaves «بانتظار تقييمك»");
-  // Revised: still one review, now two stars; the comment kept when none is sent.
-  await shopper.request(rateUrl, { method: "PUT", body: { products: [{ productId: a1.id, rating: 2 }], deliveryRating: 3, tags: ["late_delivery"] } });
-  const reviews = await prisma.productReview.findMany({ where: { productId: a1.id, customerId: order.customerId, withdrawnAt: null } });
-  assert.deepEqual(reviews.map((row) => [row.rating, row.body]), [[2, "رائحة جميلة"]], "one review per product, revised in place");
-  assert.equal(await prisma.orderRating.count({ where: { orderId: order.id } }), 1);
-  const mine = (await shopper.request("/market/me/ratings")).payload;
-  assert.deepEqual(mine.ratings.map((row) => [row.order.id, row.deliveryRating, row.tags.map((tag) => tag.code)]), [[order.id, 3, ["late_delivery"]]], "«تقييماتي»");
-  assert.deepEqual((await stranger.shopper.request("/market/me/ratings")).payload.ratings, []);
-  // A pick-up has no delivery to rate.
-  await prisma.storeOrder.update({ where: { id: pickupOrder.id }, data: { status: "completed" } });
-  assert.equal((await shopper.request(`/market/orders/${pickupOrder.id}/rating`, { method: "PUT", body: { deliveryRating: 5 } })).payload.error.code, "NO_DELIVERY_TO_RATE");
-  assert.equal((await shopper.request(`/market/orders/${pickupOrder.id}/rating`, { method: "PUT", body: { tags: ["great_service"] } })).status, 200, "…its service can still be rated");
-  // The database holds the list too: a tag the code does not know cannot be written past it.
-  await assert.rejects(prisma.orderRating.update({ where: { orderId: order.id }, data: { tags: ["lovely"] } }), "order_ratings_known_tags");
-  summary.rating = true;
-
   console.log(JSON.stringify({ suite: "market-cart", ok: true, summary }, null, 2));
 } finally {
   setOtpProviderForTests(null);

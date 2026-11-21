@@ -847,8 +847,6 @@ model StoreOrder {
   @@map("store_orders")
   productReviews ProductReview[]
   returnRequests ReturnRequest[]
-  /// Marketplace M6: the shopper's rating of the order (at most one: order_ratings_order_key).
-  orderRatings   OrderRating[]
   /// CD-5: what this order actually redeemed, so a receipt explains its own total.
   loyaltyPointsSpent Int @default(0) @map("loyalty_points_spent")
   loyaltyDiscountIqd Int @default(0) @map("loyalty_discount_iqd")
@@ -2425,23 +2423,4 @@ model MarketCartItem {
   @@index([cartId, storeId, createdAt], map: "market_cart_items_cart_idx")
   @@index([variantId], map: "market_cart_items_variant_idx")
   @@map("market_cart_items")
-}
-
-/// Marketplace M6 (G6): what a shopper says about an ORDER — delivery stars,
-/// tags from a fixed list (CHECK in the migration), a note. Product stars live
-/// in product_reviews. One per order.
-model OrderRating {
-  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orderId        String     @unique(map: "order_ratings_order_key") @map("order_id") @db.Uuid
-  storeId        String     @map("store_id") @db.Uuid
-  customerId     String     @map("customer_id") @db.Uuid
-  deliveryRating Int?       @map("delivery_rating") @db.SmallInt
-  tags           String[]   @default([])
-  note           String?    @db.Text
-  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  order          StoreOrder @relation(fields: [orderId, storeId], references: [id, storeId], onDelete: Cascade, map: "order_ratings_order_fk")
-
-  @@index([storeId, createdAt(sort: Desc), id(sort: Desc)], map: "order_ratings_store_created_idx")
-  @@map("order_ratings")
 }

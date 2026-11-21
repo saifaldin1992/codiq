@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Camera, ChevronLeft, CircleAlert, Copy, Crosshair, LoaderCircle, LogOut, MapPin, MessageSquareHeart, Package, Phone, Plus, Star, Trash2, UserRound } from "lucide-react";
+import { Camera, ChevronLeft, CircleAlert, Copy, Crosshair, LoaderCircle, LogOut, MapPin, Package, Phone, Plus, Star, Trash2, UserRound } from "lucide-react";
 import { accountCall, displayPhone, setShopper, signOut, useShopper, type Shopper } from "../market-shopper";
 import { loadMarketGeography, marketGet, type MarketGeography } from "../market-api";
 import { writeMarketLocation } from "../market-location";
@@ -92,7 +92,6 @@ export function MarketAccountPage() {
       </section>
       <nav className="divide-y divide-[var(--codiq-border)] overflow-hidden rounded-[26px] bg-[var(--codiq-surface)] shadow-sm">
         <MenuLink href="/orders" icon={Package} label="طلباتي" testId="market-account-orders-link" />
-        <MenuLink href="/ratings" icon={MessageSquareHeart} label="تقييماتي" testId="market-account-ratings-link" />
         <MenuLink href="/account/info" icon={UserRound} label="بياناتي" testId="market-account-info-link" />
         <MenuLink href="/account/addresses" icon={MapPin} label="العناوين" testId="market-account-addresses-link" />
       </nav>

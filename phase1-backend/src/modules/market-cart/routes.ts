@@ -8,8 +8,8 @@ import { parseOrThrow } from "../../http/validate.js";
 import { requireShopper } from "../market-account/shopper-auth.js";
 import { acceptCartPrices, addCartLine, clearCart, marketCartView, removeCartLine, updateCartLine } from "./cart.service.js";
 import { checkoutSummary, placeMarketOrder, shopperOrder, shopperOrders } from "./checkout.service.js";
-import { addItemSchema, cancelOrderSchema, placeOrderSchema, rateOrderSchema, summaryQuerySchema, updateItemSchema } from "./schema.js";
-import { cancelShopperOrder, myOrderRatings, ordersAwaitingRating, rateShopperOrder } from "./after-sale.service.js";
+import { addItemSchema, cancelOrderSchema, placeOrderSchema, summaryQuerySchema, updateItemSchema } from "./schema.js";
+import { cancelShopperOrder } from "./after-sale.service.js";
 
 export function registerMarketCartRoutes(app: Express) {
   app.get("/market/cart", asyncRoute(async (request, response) => {
@@ -69,25 +69,6 @@ export function registerMarketCartRoutes(app: Express) {
   app.get("/market/orders/:orderId", asyncRoute(async (request, response) => {
     const { shopper } = await requireShopper(request);
     response.status(200).json(await shopperOrder(shopper.id, request.params.orderId));
-  }));
-
-  // M6 «قيّم طلبك»: product stars (verified-buyer reviews), delivery stars, tags, a note. Revisable.
-  app.put("/market/orders/:orderId/rating", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const { shopper } = await requireShopper(request);
-    const input = parseOrThrow(rateOrderSchema, request.body ?? {});
-    response.status(200).json(await rateShopperOrder(shopper.id, request.params.orderId, input));
-  }));
-
-  // «بانتظار تقييمك» — a bounded shelf (twenty). «تقييماتي» — paged.
-  app.get("/market/me/ratings/pending", asyncRoute(async (request, response) => {
-    const { shopper } = await requireShopper(request);
-    response.status(200).json(await ordersAwaitingRating(shopper.id));
-  }));
-
-  app.get("/market/me/ratings", asyncRoute(async (request, response) => {
-    const { shopper } = await requireShopper(request);
-    response.status(200).json(await myOrderRatings(shopper.id, request.query.cursor, request.query.limit));
   }));
 
   // M6 «إلغاء الطلب»: a reason from the list, through the store's own self-cancel (PG-1).
