@@ -122,6 +122,7 @@
 | `csrf-origin` | `pnpm csrf:guard` | كلّ مسار كتابةٍ يفحص الأصل الموثوق |
 | `security-headers` | `pnpm headers:guard` | الترويسات مؤكَّدة على **استجابةٍ حقيقيّة** |
 | `logging` | `pnpm logging:guard` | السجلّ المُهيكل مؤكَّدٌ لا موصوف (D-41) |
+| `ci-workflow` | `pnpm ci:workflow:guard` | ملفّ الـCI يُقرأ YAML صالحاً (ملفّ غير صالح لا يشغّل شيئاً ولا يُبلّغ)، وكلّ أمر وملفّ اختبار يسمّيه موجود، وكلّ اختبار سوق يشغّله خطوة (مراجعة ٢٠٢٦-١١-٢١) |
 | `login-counter` | `pnpm login:counter:guard` | حزمةٌ تفرّغ الجداول تُفرّغ عدّاد الدخول أيضاً |
 | `ledger-sign` | `pnpm ledger:sign` | قاعدة إشارة الدفتر — والّلغم تحتها |
 | `merchant-screens` | `pnpm screens:guard` | كلّ عنصرٍ «implemented» في قائمة التاجر يفتح شاشةً حقيقيّة من `client/src/dashboard/merchant-screens.tsx` — لا طريقاً مسدوداً إلى «قريباً» |
