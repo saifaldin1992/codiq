@@ -15,6 +15,7 @@
 | `a8ced5d` | خمسة حرّاس تقرأ الكود ببنيته لا بتخطيط أسطره | تعديل حرّاس، تحقّق على التخطيطين القديم والجديد |
 | `1f32194` | حارس `checkout:payload` يقف عند المفتاح التالي لا عند `) =>` | تصحيح للكومِت السابق |
 | `8b0956f` | **التنسيق نفسه** | لا شيء غيره فيه |
+| `dfb90bd` | اختبار ق-١٩٦ يقرأ استدعاء حدّ المعدّل أيّاً كان التفاف معاملاته | وجده CI الكامل بعد التنسيق |
 
 ### ما تغيّر خارج التنسيق الآليّ (كلّه تعليقات)
 
@@ -34,6 +35,10 @@
   منهما تاريخان). لم يُضَف تاريخ؛ الوحدة كانت خاطئة.
 - أربعة حرّاس أخرى (`list:guard`، `checkout:payload`، `platform:nav`، `screens:guard`) كانت تفترض أنّ الجملة على سطر واحد — كانت ستنكسر
   عند أوّل تنسيق، أو ستعمى عن كود مكتوب على أسطر.
+- **اختبار ق-١٩٦** (`rate-limit-key.integration.mjs`) كان يبحث عن `limitStorefrontWriteWithAddressCeiling(request, "cart_write"` في سطر
+  واحد. **والأخطر:** توأمه الذي يتأكّد أنّ المحدِّد **العاديّ** غير مستعمل في هذه المسارات كان سيمرّ بصمت بعد التنسيق — أعمى لا راضياً.
+  صار النمطان يقبلان المسافات والأسطر بين المعاملات. وفُحصت بقيّة الفحوص التي تقرأ الكود نصّاً: ما يتحقّق منها من **غياب** شيءٍ
+  يطابق كلمة واحدة (`settings.pass`، `main().catch`) لا يخفيها الالتفاف.
 
 ### الأرقام
 
@@ -53,13 +58,16 @@
 
 ### التحقّق
 
-فحص الأنواع (الواجهة والخادم)، والبناء، وكلّ الحرّاس، والمدقّق: ناجحة. **CI كامل محلّيّاً:** يُكتب هنا عند انتهائه.
+فحص الأنواع (الواجهة والخادم)، والبناء، وكلّ الحرّاس، والمدقّق: ناجحة.
+
+**CI كامل محلّيّاً (٢٠١ خطوة):** ٢٠٠ نجحت من أوّل تشغيل، وفشلت واحدة (ق-١٩٤، الاختبار أعلاه) — أُصلحت في `dfb90bd` وأُعيد
+تشغيلها فنجحت. **الدفعة ١ مغلقة.**
 
 ---
 
-**الكومِتات:** ٤ · **الملفّات:** ٧٣٢ · **أسطر أُضيفت:** ١١٩٬٢٨٥ · **أسطر حُذفت:** ٢٧٬٤٩١
+**الكومِتات:** ٧ · **الملفّات:** ٧٣٣ · **أسطر أُضيفت:** ١٢٠٬٤٣٨ · **أسطر حُذفت:** ٢٧٬٤٩٧
 
-المدى: `c1377de..8b0956f` — أعيد توليده بـ `node tools/review-report.mjs --from c1377de --to 8b0956f …`
+المدى: `c1377de..dfb90bd` — أعيد توليده بـ `node tools/review-report.mjs --from c1377de --to dfb90bd …`
 
 ## dc01a9c — Review batch 1 (tooling): the syntax-tree proof reads JSX and keys as the runtime does; Prettier keeps (x) =>
 
@@ -1140,4 +1148,106 @@ index c2bd80b..96dc754 100644
 **إثبات أنّ المنطق لم يتغيّر:** شجرة الصياغة متطابقة قبل وبعد في ٧٢٥ من ٧٢٥ ملفّاً.
 
 هذا الكومِت غيّر ١٤٦٬٦١٣ سطراً — كلّ سطر منها: `git show 8b0956f`.
+
+## b037750 — Review report tool: the syntax-tree proof only for commits that format
+
+التاريخ: 2026-11-21
+
+> A commit that changes code on purpose is expected to change its syntax tree;
+> printing «0 of 1 the same» for it said nothing and read like a failure.
+
+| الملفّ | التغيير | أُضيف | حُذف | الأسطر (قبل ← بعد) |
+|---|---|---|---|---|
+| `tools/review-report.mjs` | عُدّل | 7 | 4 | 14–16 ← 14–16، — ← 76–78، 111 ← 114 |
+
+**إثبات أنّ المنطق لم يتغيّر:** شجرة الصياغة متطابقة قبل وبعد في ٠ من ١ ملفّاً.
+
+ملفّات تختلف شجرتها (تُراجع واحداً واحداً):
+- `tools/review-report.mjs`
+
+<details><summary>كلّ سطر تغيّر (قبل/بعد)</summary>
+
+```diff
+diff --git a/tools/review-report.mjs b/tools/review-report.mjs
+index 8dfa1e2..6586f58 100644
+--- a/tools/review-report.mjs
++++ b/tools/review-report.mjs
+@@ -13,5 +13,5 @@
+  * before and after. A bigger one (a formatting pass) is summarised per file,
+- * and `--ast-proof` adds, per changed TypeScript/JavaScript file, the proof that
+- * its syntax tree is the same before and after (see tools/ast-same.mjs) —
+- * which is what «no behaviour changed» means for a formatting commit.
++ * and `--ast-proof` adds, for every commit whose title says it formats, per changed
++ * TypeScript/JavaScript file, the proof that its syntax tree is the same before and
++ * after (see tools/ast-same.mjs) — which is what «no behaviour changed» means there.
+  */
+@@ -75,2 +75,5 @@ for (const hash of commits) {
+   const proofs = [];
++  // The proof is for FORMATTING commits only: a commit that changes code on purpose is
++  // expected to change its syntax tree, so «0 of 1 the same» there would say nothing.
++  const proveThis = astProof && /\bformat/i.test(subject);
+   for (const row of status) {
+@@ -110,3 +113,3 @@ for (const hash of commits) {
+     );
+-    if (astProof && code[0] === "M" && /\.(ts|tsx|mjs|js)$/.test(path)) {
++    if (proveThis && code[0] === "M" && /\.(ts|tsx|mjs|js)$/.test(path)) {
+       const before = show(`${hash}^`, path);
+```
+
+</details>
+
+## a00e908 — Review batch 1 report: every commit, file and changed line range, with the per-file proof
+
+التاريخ: 2026-11-21
+
+> docs/review/batch-01-formatting.md: the four commits of batch 1, the five
+> moved ESLint directives by file and line, the guard defects found (the clock
+> guard counted lines, not dates), the numbers before and after, and the
+> syntax-tree proof — 725 of 725 files unchanged in logic. The full CI result
+> is added when the local run finishes.
+
+| الملفّ | التغيير | أُضيف | حُذف | الأسطر (قبل ← بعد) |
+|---|---|---|---|---|
+| `docs/review/README.md` | عُدّل | 1 | 0 | — ← 10 |
+| `docs/review/batch-01-formatting.md` | أُضيف | 1143 | 0 | — ← 1–1143 |
+
+هذا الكومِت غيّر ١٬١٤٤ سطراً — كلّ سطر منها: `git show a00e908`.
+
+## dfb90bd — Review batch 1 (tests): the ق-196 check reads a rate-limit call however its arguments wrap
+
+التاريخ: 2026-11-21
+
+> rate-limit-key.integration.mjs read `limitStorefrontWriteWithAddressCeiling(request, "cart_write"`
+> as one line; formatted, the arguments are on their own lines, so the check
+> failed. Worse, its twin — the check that the PLAIN limiter is NOT used on
+> these scopes — would have passed silently, blind rather than satisfied. Both
+> patterns now allow whitespace and line breaks between the arguments.
+> Searched the other source-reading checks for the same assumption: those that
+> assert an absence match a single token (settings.pass, main().catch), which
+> wrapping cannot hide.
+
+| الملفّ | التغيير | أُضيف | حُذف | الأسطر (قبل ← بعد) |
+|---|---|---|---|---|
+| `phase1-backend/tests/rate-limit-key.integration.mjs` | عُدّل | 2 | 2 | 222 ← 222، 232 ← 232 |
+
+<details><summary>كلّ سطر تغيّر (قبل/بعد)</summary>
+
+```diff
+diff --git a/phase1-backend/tests/rate-limit-key.integration.mjs b/phase1-backend/tests/rate-limit-key.integration.mjs
+index b763438..c8fcd24 100644
+--- a/phase1-backend/tests/rate-limit-key.integration.mjs
++++ b/phase1-backend/tests/rate-limit-key.integration.mjs
+@@ -221,3 +221,3 @@ try {
+   const unguarded = mustCarryCeiling.filter(({ file, scope }) =>
+-    new RegExp(`limitStorefrontWrite\\(request, "${scope}"`).test(routeSources[file])
++    new RegExp(`limitStorefrontWrite\\(\\s*request,\\s*"${scope}"`).test(routeSources[file])
+   );
+@@ -231,3 +231,3 @@ try {
+     assert.ok(
+-      new RegExp(`limitStorefrontWriteWithAddressCeiling\\(request, "${scope}"`).test(
++      new RegExp(`limitStorefrontWriteWithAddressCeiling\\(\\s*request,\\s*"${scope}"`).test(
+         routeSources[file]
+```
+
+</details>
 
