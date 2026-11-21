@@ -366,7 +366,16 @@ try {
     await request(`/platform/merchants/${rejectId}/approval`, { method: "POST", headers: bearer(tokenOwner), body: JSON.stringify({ action: "reject" }) });
     const rejectedLogin = await request("/auth/merchant/login", { method: "POST", body: JSON.stringify({ identifier: "rejected.phase17@codiq.test", password: "rejected-phase17-pass" }) });
     assert.equal(rejectedLogin.status, 401, "a rejected merchant cannot sign in");
-    summary.registration = { auto: autoLogin.status, pendingBlocked: pendingLogin.status, approvedUnlocked: approvedLogin.status, rejectedBlocked: rejectedLogin.status };
+    // Two operators answering the same request at once: exactly one decision stands.
+    const racedRegister = await request("/public/merchants/register", { method: "POST", body: JSON.stringify({ ownerName: "صاحب المتجر", phone: "+9647100576405", businessName: "تاجر متنازع عليه", storeName: "متجر متنازع عليه", storeSlug: "phase17-raced-store", email: "raced.phase17@codiq.test", password: "raced-phase17-pass" }) });
+    assert.equal(racedRegister.status, 201, JSON.stringify(racedRegister.body));
+    const racedId = (await request("/platform/merchants/registration-requests", { headers: bearer(tokenOwner) })).body.requests[0].id;
+    const racedAnswers = await Promise.all(["approve", "reject", "approve", "reject"].map((action) => request(`/platform/merchants/${racedId}/approval`, { method: "POST", headers: bearer(tokenOwner), body: JSON.stringify({ action }) })));
+    assert.equal(racedAnswers.filter((answer) => answer.status === 200).length, 1, `exactly one of four racing decisions stands · ${racedAnswers.map((answer) => answer.status)}`);
+    assert.ok(racedAnswers.filter((answer) => answer.status !== 200).every((answer) => answer.body.error?.code === "ALREADY_DECIDED"), "…the rest are told it is decided");
+    const racedDecisions = await prisma.platformAuditEvent.count({ where: { entityType: "merchant", entityId: racedId, action: "registration_decided" } });
+    assert.equal(racedDecisions, 1, "…and the audit log holds one decision, not a contradiction");
+    summary.registration = { auto: autoLogin.status, pendingBlocked: pendingLogin.status, approvedUnlocked: approvedLogin.status, rejectedBlocked: rejectedLogin.status, racedDecisions };
   } finally {
     await request("/platform/settings/registration", { method: "PUT", headers: bearer(tokenOwner), body: JSON.stringify({ mode: "auto" }) });
   }
