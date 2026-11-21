@@ -10,6 +10,7 @@ import { Link } from "wouter";
 import { Building2, ChevronLeft, Percent, ShoppingBag, Sparkles, Store, Truck, Wallet } from "lucide-react";
 import { marketGet } from "../market-api";
 import { useShopper } from "../market-shopper";
+import { CampaignCards } from "./MarketCampaignPage";
 import { useMarketLocation } from "../market-location";
 import { marketStoresUrl } from "../use-market-stores";
 import { queryString } from "../use-market-list";
@@ -36,6 +37,7 @@ export function MarketHomePage() {
 
   return (
     <div className="space-y-6" data-testid="market-home">
+      <CampaignCards />
       {sections && !hasHero ? <Welcome /> : null}
       {failure ? <Welcome /> : null}
       {sections?.map((section) => {

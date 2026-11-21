@@ -5,10 +5,11 @@
  * the store). Buying happens in the store's own checkout until the unified
  * cart (M5); the button goes there.
  */
+import { Countdown } from "../components/Countdown";
 import { FavouriteHeart } from "../components/FavouriteButtons";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "wouter";
-import { BadgeCheck, CalendarClock, ChevronLeft, CircleAlert, CircleCheck, Flame, LoaderCircle, Minus, Package, Plus, Share2, ShieldCheck, ShoppingBag, Star, Store, X } from "lucide-react";
+import { BadgeCheck, CalendarClock, ChevronLeft, CircleAlert, CircleCheck, Flame, LoaderCircle, Minus, Package, Plus, Share2, ShieldCheck, ShoppingBag, Star, Store, X, Zap } from "lucide-react";
 import { marketGet, MarketApiError } from "../market-api";
 import { CONDITION_LABELS, iqd, rememberProduct, TAG_LABELS, type MarketProductDetail } from "../market-products";
 import { queryString } from "../use-market-list";
@@ -55,7 +56,9 @@ export function MarketProductPage() {
 
   const variant = product.variants.find((row) => row.id === variantId) ?? product.variants[0];
   const price = variant?.priceIqd ?? product.priceIqd;
-  const compare = product.compareAtPriceIqd && product.compareAtPriceIqd > price ? product.compareAtPriceIqd : null;
+  // Marketplace M8a: during «عرض الساعة» the struck-through price is at least the list price.
+  const before = Math.max(product.compareAtPriceIqd ?? 0, variant?.listPriceIqd ?? 0);
+  const compare = before > price ? before : null;
   const discount = compare ? Math.round(((compare - price) / compare) * 100) : 0;
   const images = product.images.length ? product.images : product.imageUrl ? [product.imageUrl] : [];
   const long = (product.description?.length ?? 0) > 240;
@@ -112,6 +115,7 @@ export function MarketProductPage() {
           <span className="text-2xl font-black text-[var(--codiq-text)]">{iqd(price)}</span>
           {compare ? <><span className="text-sm text-[var(--codiq-text-muted)] line-through">{iqd(compare)}</span><span className="rounded-full bg-[var(--codiq-danger-soft)] px-2 py-0.5 text-xs font-black text-[var(--codiq-danger)]">خصم {discount.toLocaleString("ar-IQ")}%</span></> : null}
         </div>
+        {product.deal ? <p className="inline-flex items-center gap-1 rounded-full bg-[var(--codiq-danger-soft)] px-3 py-1 text-xs font-black text-[var(--codiq-danger)]" data-testid="market-product-deal"><Zap className="h-4 w-4" /> عرض الساعة ينتهي خلال <Countdown until={product.deal.endsAt} /></p> : null}
         <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--codiq-text-secondary)]">
           {product.rating !== null ? <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 fill-[var(--codiq-rating)] text-[var(--codiq-rating)]" /> {product.rating.toLocaleString("ar-IQ", { maximumFractionDigits: 1 })} ({product.ratingCount.toLocaleString("ar-IQ")} تقييم)</span> : <span>لا تقييمات بعد</span>}
           {product.productScore !== null ? <span className="font-bold text-[var(--codiq-accent)]">تقييم المنتج {product.productScore.toLocaleString("ar-IQ")} من ١٠٠</span> : null}

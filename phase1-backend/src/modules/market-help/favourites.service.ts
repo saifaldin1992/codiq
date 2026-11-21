@@ -24,7 +24,7 @@ export async function addFavouriteProduct(shopperId: string, productId: string) 
   assertUuid(productId, "PRODUCT");
   const [card] = (await listMarketProducts({ ids: [productId], limit: 1, period: "month" } as MarketProductQuery)).products;
   if (!card) throw new HttpError(404, "PRODUCT_NOT_FOUND", "هذا المنتج غير متاح في السوق.");
-  const product = await prisma.product.findUniqueOrThrow({ where: { id: productId }, select: { storeId: true } });
+  const product = await prisma.product.findFirstOrThrow({ where: { id: productId, deletedAt: null }, select: { storeId: true } });
   if (await prisma.shopperFavouriteProduct.count({ where: { shopperId } }) >= FAVOURITES_CAP) {
     const exists = await prisma.shopperFavouriteProduct.findUnique({ where: { shopperId_productId: { shopperId, productId } }, select: { productId: true } });
     if (!exists) throw new HttpError(409, "FAVOURITES_FULL", `المفضّلة ممتلئة (${FAVOURITES_CAP} منتج). احذف بعضها أولاً.`);

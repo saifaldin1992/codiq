@@ -436,5 +436,29 @@
         "reason": "BOUNDED — the owner's editor of the same FAQ: at most 30 sections of at most 100 answers each."
       }
     ]
+  },
+  "modules/market-campaigns/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/campaigns/live",
+        "reason": "BOUNDED — at most three campaigns running or starting within a day, for the front page (take: 3)."
+      },
+      {
+        "route": "GET /market/campaigns/:slug",
+        "reason": "BOUNDED — one campaign's page: at most 60 days, the hours (take 500, a campaign lasts ≤ 60 days with hours that do not overlap), 24 products per hour shown, 24 stores."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/market-campaigns",
+        "reason": "BOUNDED — the at most ten open campaigns a store can join, each with its future hours (≤ 200) and the store's own deals in them."
+      },
+      {
+        "route": "GET /platform/market/campaigns",
+        "reason": "BOUNDED — the owner's last fifty campaigns (take: 50); campaigns are a handful a year."
+      },
+      {
+        "route": "GET /platform/market/campaigns/:campaignId",
+        "reason": "BOUNDED — one campaign's editor: ≤ 60 days and its hours (take 500); the deals are paged separately at /deals."
+      }
+    ]
   }
 }

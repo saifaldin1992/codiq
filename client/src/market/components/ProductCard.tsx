@@ -1,6 +1,6 @@
 /** A product in a grid or a shelf: picture with its badges, name, price (and the price before), stars, store. */
 import { Link } from "wouter";
-import { BadgeCheck, Clock, Flame, Package, Star } from "lucide-react";
+import { BadgeCheck, Clock, Flame, Package, Star, Zap } from "lucide-react";
 import { iqd, TAG_LABELS, type MarketProductCard } from "../market-products";
 import { FavouriteHeart } from "./FavouriteButtons";
 
@@ -10,7 +10,8 @@ export function ProductCard({ product, width }: { product: MarketProductCard; wi
     <Link href={`/p/${product.id}`} className={`block overflow-hidden rounded-[20px] bg-[var(--codiq-surface)] shadow-sm ${width ?? ""}`} data-testid={`market-product-card-${product.id}`}>
       <div className="relative aspect-square bg-[var(--codiq-surface-sunken)]">
         {product.imageUrl ? <img src={product.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center text-[var(--codiq-text-muted)]"><Package className="h-8 w-8" /></span>}
-        {product.discountPercent > 0 ? <span className="absolute right-2 top-2 rounded-full bg-[var(--codiq-danger)] px-2 py-0.5 text-[10px] font-black text-[var(--codiq-surface)]">خصم {product.discountPercent.toLocaleString("ar-IQ")}%</span> : null}
+        {product.deal ? <span className="absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-[var(--codiq-danger)] px-2 py-0.5 text-[10px] font-black text-[var(--codiq-surface)]" data-testid={`market-product-deal-${product.id}`}><Zap className="h-3 w-3" /> عرض الساعة {product.deal.percentOff.toLocaleString("ar-IQ")}%</span>
+          : product.discountPercent > 0 ? <span className="absolute right-2 top-2 rounded-full bg-[var(--codiq-danger)] px-2 py-0.5 text-[10px] font-black text-[var(--codiq-surface)]">خصم {product.discountPercent.toLocaleString("ar-IQ")}%</span> : null}
         {product.isPreorder ? <span className="absolute bottom-2 right-2 inline-flex items-center gap-0.5 rounded-full bg-[var(--codiq-accent)] px-2 py-0.5 text-[10px] font-bold text-[var(--codiq-surface)]"><Clock className="h-3 w-3" /> طلب مسبق</span>
           : product.sellsFast ? <span className="absolute bottom-2 right-2 inline-flex items-center gap-0.5 rounded-full bg-[var(--codiq-warning-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--codiq-warning)]"><Flame className="h-3 w-3" /> ينفد قريباً</span> : null}
         <FavouriteHeart productId={product.id} className="absolute left-2 top-2" />

@@ -4,7 +4,7 @@
     "title": "CODIQ — واجهة المنصة",
     "version": "1.0.0",
     "summary": "وثيقة مولّدة آلياً من جدول التوجيه الفعلي ومن مخططات zod. لا تُحرَّر بخط اليد.",
-    "description": "## وثيقة مولّدة، لا مكتوبة\n\nهذه الوثيقة تصف 426 مسار endpoint، وكلُّ حقيقةٍ فيها مقروءة من الشيفرة التي تعمل:\n\n- **المسارات والأفعال** من جدول توجيه Express الذي يبنيه `createApp()` — لا من قائمة تُحدَّث باليد.\n- **أشكال الطلب** من مخططات zod في `src/http/schemas/` عبر `z.toJSONSchema` من zod نفسها.\n- **الباب المطلوب** من الحارس الذي يستدعيه المعالج، ومعه رمز الصلاحية إن وُجد.\n- **رموز الأخطاء** من كل موضع `new HttpError(...)` في الواجهة الخلفية.\n\nولأن قراءتين مستقلتين للشيفرة يجب أن تتطابقا قبل أن يُكتب أي شيء، فإن مساراً يعرفه الموجِّه ولا يراه الماسح — أو العكس — يُسقِط التوليد بدل أن يُنتج وثيقةً ناقصة بهدوء.\n\n## بابان، تطبيق واحد\n\n`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.\n\n**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.\n\n## مسار غير معروف\n\nأي مسار تحت البادئتين لا يطابق شيئاً هنا يُجيب `404 RESOURCE_NOT_FOUND` — بالمغلّف نفسه وبمعرّف الطلب نفسه، لا بصفحة HTML. هذا مقصود: قبل المرحلة 20-2 كان يسقط إلى الصدفة ويُجيب `200 text/html`، فيقرأه العميل نجاحاً ويسلّم `null`، وتظهر النتيجة شاشةً فارغة بعد أيام و200 في كل سجل.\n\n## الأخطاء عقد\n\nالرسائل عربية وهي جزء من العقد: المرحلة 22 تترجمها **بالرمز**. ابنِ على `error.code`، لا على نص `error.message`. المجموعة كاملة في `x-codiq-error-catalogue`، وكل استجابة خطأ هنا تُسمّي الرموز التي يمكن أن تصل منها.\n\n## القوائم\n\nكل قائمة تُجيب بمَغلَّف `ListEnvelope` نفسه — موصوف مرة واحدة ومُشار إليه — بمؤشر معتم واحد. لا تبنِ مؤشراً بيدك: الوثيقة تصفه سلسلةً معتمة لأنه كذلك.",
+    "description": "## وثيقة مولّدة، لا مكتوبة\n\nهذه الوثيقة تصف 440 مسار endpoint، وكلُّ حقيقةٍ فيها مقروءة من الشيفرة التي تعمل:\n\n- **المسارات والأفعال** من جدول توجيه Express الذي يبنيه `createApp()` — لا من قائمة تُحدَّث باليد.\n- **أشكال الطلب** من مخططات zod في `src/http/schemas/` عبر `z.toJSONSchema` من zod نفسها.\n- **الباب المطلوب** من الحارس الذي يستدعيه المعالج، ومعه رمز الصلاحية إن وُجد.\n- **رموز الأخطاء** من كل موضع `new HttpError(...)` في الواجهة الخلفية.\n\nولأن قراءتين مستقلتين للشيفرة يجب أن تتطابقا قبل أن يُكتب أي شيء، فإن مساراً يعرفه الموجِّه ولا يراه الماسح — أو العكس — يُسقِط التوليد بدل أن يُنتج وثيقةً ناقصة بهدوء.\n\n## بابان، تطبيق واحد\n\n`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.\n\n**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.\n\n## مسار غير معروف\n\nأي مسار تحت البادئتين لا يطابق شيئاً هنا يُجيب `404 RESOURCE_NOT_FOUND` — بالمغلّف نفسه وبمعرّف الطلب نفسه، لا بصفحة HTML. هذا مقصود: قبل المرحلة 20-2 كان يسقط إلى الصدفة ويُجيب `200 text/html`، فيقرأه العميل نجاحاً ويسلّم `null`، وتظهر النتيجة شاشةً فارغة بعد أيام و200 في كل سجل.\n\n## الأخطاء عقد\n\nالرسائل عربية وهي جزء من العقد: المرحلة 22 تترجمها **بالرمز**. ابنِ على `error.code`، لا على نص `error.message`. المجموعة كاملة في `x-codiq-error-catalogue`، وكل استجابة خطأ هنا تُسمّي الرموز التي يمكن أن تصل منها.\n\n## القوائم\n\nكل قائمة تُجيب بمَغلَّف `ListEnvelope` نفسه — موصوف مرة واحدة ومُشار إليه — بمؤشر معتم واحد. لا تبنِ مؤشراً بيدك: الوثيقة تصفه سلسلةً معتمة لأنه كذلك.",
     "license": {
       "name": "MIT"
     }
@@ -34,6 +34,9 @@
     },
     {
       "name": "market-account"
+    },
+    {
+      "name": "market-campaigns"
     },
     {
       "name": "market-cart"
@@ -216,6 +219,10 @@
                   "BANNER_LIMIT_REACHED",
                   "BANNER_NOT_FOUND",
                   "BULK_LIMIT_EXCEEDED",
+                  "CAMPAIGN_DAY_OUTSIDE",
+                  "CAMPAIGN_NOT_FOUND",
+                  "CAMPAIGN_SLOTS_OUTSIDE",
+                  "CAMPAIGN_SLUG_TAKEN",
                   "CANNOT_REVOKE_CURRENT_SESSION",
                   "CAPABILITY_NOT_FOUND",
                   "CAPABILITY_UNAVAILABLE",
@@ -255,6 +262,11 @@
                   "CUSTOMER_PHONE_TAKEN",
                   "CUSTOMER_PHONE_UNVERIFIED",
                   "CUSTOMER_SESSION_REQUIRED",
+                  "DEAL_EXISTS",
+                  "DEAL_NOT_FOUND",
+                  "DEAL_PERCENT_TOO_LOW",
+                  "DEAL_REJECTION_NOTE_REQUIRED",
+                  "DEAL_WITHDRAWN",
                   "DEFAULT_PLAN_MISSING",
                   "DEFAULT_PLAN_PROTECTED",
                   "DEFAULT_VARIANT_PROTECTED",
@@ -508,6 +520,10 @@
                   "SHOPPER_DISABLED",
                   "SHOPPER_SESSION_REQUIRED",
                   "SKU_TAKEN_BY_ACTIVE_PRODUCT",
+                  "SLOT_NOT_FOUND",
+                  "SLOT_OUTSIDE_CAMPAIGN",
+                  "SLOT_OVERLAP",
+                  "SLOT_STARTED",
                   "SLUG_TAKEN",
                   "STAFF_ACCESS_REVOKED",
                   "STAFF_ALREADY_ON_TEAM",
@@ -520,6 +536,7 @@
                   "STORE_IN_MAINTENANCE",
                   "STORE_NOT_ACCEPTING_ORDERS",
                   "STORE_NOT_FOUND",
+                  "STORE_NOT_LISTED",
                   "STORE_ON_VACATION",
                   "STORE_SUSPENDED",
                   "SUSPENSION_REASON_REQUIRED",
@@ -1568,6 +1585,172 @@
         "required": [
           "challengeId",
           "code"
+        ]
+      },
+      "modules.market-campaigns.schema.campaignDaysSchema": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "maxItems": 60,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "day": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "note": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "day",
+                "title"
+              ]
+            }
+          }
+        },
+        "required": [
+          "days"
+        ]
+      },
+      "modules.market-campaigns.schema.campaignSchema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "startsAt": {},
+          "endsAt": {},
+          "minPercent": {
+            "default": 10,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 90
+          },
+          "isPublished": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "startsAt",
+          "endsAt"
+        ]
+      },
+      "modules.market-campaigns.schema.dealDecisionSchema": {
+        "type": "object",
+        "properties": {
+          "approve": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "approve"
+        ]
+      },
+      "modules.market-campaigns.schema.dealsQuerySchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "withdrawn"
+            ]
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "limit": {}
+        }
+      },
+      "modules.market-campaigns.schema.proposeDealSchema": {
+        "type": "object",
+        "properties": {
+          "slotId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "percentOff": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 90
+          }
+        },
+        "required": [
+          "slotId",
+          "productId",
+          "percentOff"
+        ]
+      },
+      "modules.market-campaigns.schema.slotSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "startsAt": {},
+          "endsAt": {}
+        },
+        "required": [
+          "startsAt",
+          "endsAt"
         ]
       },
       "modules.market-cart.schema.addItemSchema": {
@@ -8348,6 +8531,144 @@
         ]
       }
     },
+    "/merchant/stores/{storeSlug}/market-deals/{dealId}": {
+      "delete": {
+        "operationId": "deleteMerchantStoresByStoreSlugMarketDealsByDealId",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "DELETE /merchant/stores/{storeSlug}/market-deals/{dealId}",
+        "description": "**الباب**: merchant أو staff.\n\n**الصلاحية**: `catalog.products.update`.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "description": "`MISSING_SESSION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "MISSING_SESSION"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "MERCHANT_DISABLED",
+              "STAFF_PERMISSION_DENIED",
+              "STORE_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`DEAL_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "DEAL_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "description": "`SLOT_STARTED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "SLOT_STARTED"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "merchant",
+          "staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "catalog.products.update"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
+      }
+    },
     "/merchant/stores/{storeSlug}/market-profile/cover": {
       "delete": {
         "operationId": "deleteMerchantStoresByStoreSlugMarketProfileCover",
@@ -10666,6 +10987,145 @@
             }
           }
         }
+      }
+    },
+    "/platform/market/campaigns/{campaignId}/slots/{slotId}": {
+      "delete": {
+        "operationId": "deletePlatformMarketCampaignsByCampaignIdSlotsBySlotId",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "DELETE /platform/market/campaigns/{campaignId}/slots/{slotId}",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `brand.manage`.",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "slotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PLATFORM_ACCESS_REVOKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PLATFORM_ACCESS_REVOKED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `PLATFORM_PERMISSION_DENIED` · `SECOND_FACTOR_ENROLMENT_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "PLATFORM_PERMISSION_DENIED",
+              "SECOND_FACTOR_ENROLMENT_REQUIRED"
+            ]
+          },
+          "404": {
+            "description": "`SLOT_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "SLOT_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "description": "`SLOT_STARTED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "SLOT_STARTED"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "platform_owner",
+          "platform_staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "brand.manage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
       }
     },
     "/platform/market/collections/{collectionId}": {
@@ -13214,6 +13674,136 @@
           "public"
         ],
         "x-codiq-source": "phase1-backend/src/modules/market-home/routes.ts",
+        "security": []
+      }
+    },
+    "/market/campaigns/{slug}": {
+      "get": {
+        "operationId": "getMarketCampaignsBySlug",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "GET /market/campaigns/{slug}",
+        "description": "**الباب**: مفتوح بلا جلسة.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "404": {
+            "description": "`CAMPAIGN_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CAMPAIGN_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "security": []
+      }
+    },
+    "/market/campaigns/live": {
+      "get": {
+        "operationId": "getMarketCampaignsLive",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "GET /market/campaigns/live",
+        "description": "**الباب**: مفتوح بلا جلسة.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
         "security": []
       }
     },
@@ -21477,6 +22067,115 @@
             }
           }
         }
+      }
+    },
+    "/merchant/stores/{storeSlug}/market-campaigns": {
+      "get": {
+        "operationId": "getMerchantStoresByStoreSlugMarketCampaigns",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "GET /merchant/stores/{storeSlug}/market-campaigns",
+        "description": "**الباب**: merchant أو staff.\n\n**الصلاحية**: `catalog.products.update`.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "storeSlug": {
+                      "type": "string",
+                      "description": "المتجر الذي تخص هذه القائمة — صدىً مقصود يجعل الاستجابة واصفةً لنفسها."
+                    }
+                  },
+                  "description": "يحمل أيضاً مفاتيح من نشرٍ (`...…`) لم يتيسّر تتبّعها من المسار — المفاتيح أعلاه مؤكَّدة، والقائمة ليست حصرية."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "description": "`MISSING_SESSION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "MISSING_SESSION"
+            ]
+          },
+          "403": {
+            "description": "`IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "IDENTITY_BOUNDARY_DENIED",
+              "MERCHANT_DISABLED",
+              "STAFF_PERMISSION_DENIED",
+              "STORE_BOUNDARY_DENIED"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "merchant",
+          "staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "catalog.products.update"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
       }
     },
     "/merchant/stores/{storeSlug}/market-catalog/categories": {
@@ -31327,6 +32026,681 @@
             }
           }
         }
+      }
+    },
+    "/platform/market/campaigns": {
+      "get": {
+        "operationId": "getPlatformMarketCampaigns",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "GET /platform/market/campaigns",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `brand.manage`.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PLATFORM_ACCESS_REVOKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PLATFORM_ACCESS_REVOKED"
+            ]
+          },
+          "403": {
+            "description": "`IDENTITY_BOUNDARY_DENIED` · `PLATFORM_PERMISSION_DENIED` · `SECOND_FACTOR_ENROLMENT_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "IDENTITY_BOUNDARY_DENIED",
+              "PLATFORM_PERMISSION_DENIED",
+              "SECOND_FACTOR_ENROLMENT_REQUIRED"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "platform_owner",
+          "platform_staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "brand.manage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "postPlatformMarketCampaigns",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "POST /platform/market/campaigns",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `brand.manage`.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PLATFORM_ACCESS_REVOKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PLATFORM_ACCESS_REVOKED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `PLATFORM_PERMISSION_DENIED` · `SECOND_FACTOR_ENROLMENT_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "PLATFORM_PERMISSION_DENIED",
+              "SECOND_FACTOR_ENROLMENT_REQUIRED"
+            ]
+          },
+          "409": {
+            "description": "`CAMPAIGN_SLUG_TAKEN`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CAMPAIGN_SLUG_TAKEN"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "platform_owner",
+          "platform_staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "brand.manage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-campaigns.schema.campaignSchema"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/market/campaigns/{campaignId}": {
+      "get": {
+        "operationId": "getPlatformMarketCampaignsByCampaignId",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "GET /platform/market/campaigns/{campaignId}",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `brand.manage`.",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PLATFORM_ACCESS_REVOKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PLATFORM_ACCESS_REVOKED"
+            ]
+          },
+          "403": {
+            "description": "`IDENTITY_BOUNDARY_DENIED` · `PLATFORM_PERMISSION_DENIED` · `SECOND_FACTOR_ENROLMENT_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "IDENTITY_BOUNDARY_DENIED",
+              "PLATFORM_PERMISSION_DENIED",
+              "SECOND_FACTOR_ENROLMENT_REQUIRED"
+            ]
+          },
+          "404": {
+            "description": "`CAMPAIGN_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CAMPAIGN_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "platform_owner",
+          "platform_staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "brand.manage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putPlatformMarketCampaignsByCampaignId",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "PUT /platform/market/campaigns/{campaignId}",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `brand.manage`.",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PLATFORM_ACCESS_REVOKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PLATFORM_ACCESS_REVOKED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `PLATFORM_PERMISSION_DENIED` · `SECOND_FACTOR_ENROLMENT_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "PLATFORM_PERMISSION_DENIED",
+              "SECOND_FACTOR_ENROLMENT_REQUIRED"
+            ]
+          },
+          "404": {
+            "description": "`CAMPAIGN_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CAMPAIGN_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "description": "`CAMPAIGN_SLOTS_OUTSIDE` · `CAMPAIGN_SLUG_TAKEN`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CAMPAIGN_SLOTS_OUTSIDE",
+              "CAMPAIGN_SLUG_TAKEN"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "platform_owner",
+          "platform_staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "brand.manage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-campaigns.schema.campaignSchema"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/market/campaigns/{campaignId}/deals": {
+      "get": {
+        "operationId": "getPlatformMarketCampaignsByCampaignIdDeals",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "GET /platform/market/campaigns/{campaignId}/deals",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `brand.manage`.\n\n**قائمة**: تُجيب بمَغلَّف المرحلة 20-2 — `{ <resource>: T[], nextCursor, …facets }` مع مؤشر معتم واحد.",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "withdrawn"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_LIMIT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_LIMIT"
+            ]
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PLATFORM_ACCESS_REVOKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PLATFORM_ACCESS_REVOKED"
+            ]
+          },
+          "403": {
+            "description": "`IDENTITY_BOUNDARY_DENIED` · `PLATFORM_PERMISSION_DENIED` · `SECOND_FACTOR_ENROLMENT_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "IDENTITY_BOUNDARY_DENIED",
+              "PLATFORM_PERMISSION_DENIED",
+              "SECOND_FACTOR_ENROLMENT_REQUIRED"
+            ]
+          },
+          "404": {
+            "description": "`CAMPAIGN_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CAMPAIGN_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "platform_owner",
+          "platform_staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "brand.manage"
+        ],
+        "x-codiq-list-envelope": true,
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
       }
     },
     "/platform/market/categories": {
@@ -48071,6 +49445,171 @@
         }
       }
     },
+    "/merchant/stores/{storeSlug}/market-deals": {
+      "post": {
+        "operationId": "postMerchantStoresByStoreSlugMarketDeals",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "POST /merchant/stores/{storeSlug}/market-deals",
+        "description": "**الباب**: merchant أو staff.\n\n**الصلاحية**: `catalog.products.update`.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`MISSING_SESSION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "MISSING_SESSION"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "MERCHANT_DISABLED",
+              "STAFF_PERMISSION_DENIED",
+              "STORE_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`PRODUCT_NOT_FOUND` · `SLOT_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PRODUCT_NOT_FOUND",
+              "SLOT_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "description": "`DEAL_EXISTS` · `SLOT_STARTED` · `STORE_NOT_LISTED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "DEAL_EXISTS",
+              "SLOT_STARTED",
+              "STORE_NOT_LISTED"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`DEAL_PERCENT_TOO_LOW` · `INVALID_INCIDENT` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "DEAL_PERCENT_TOO_LOW",
+              "INVALID_INCIDENT",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "merchant",
+          "staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "catalog.products.update"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-campaigns.schema.proposeDealSchema"
+              }
+            }
+          }
+        }
+      }
+    },
     "/merchant/stores/{storeSlug}/marketing/coupons/{couponId}/restore": {
       "post": {
         "operationId": "postMerchantStoresByStoreSlugMarketingCouponsByCouponIdRestore",
@@ -51796,6 +53335,169 @@
         }
       }
     },
+    "/platform/market/campaigns/{campaignId}/slots": {
+      "post": {
+        "operationId": "postPlatformMarketCampaignsByCampaignIdSlots",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "POST /platform/market/campaigns/{campaignId}/slots",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `brand.manage`.",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PLATFORM_ACCESS_REVOKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PLATFORM_ACCESS_REVOKED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `PLATFORM_PERMISSION_DENIED` · `SECOND_FACTOR_ENROLMENT_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "PLATFORM_PERMISSION_DENIED",
+              "SECOND_FACTOR_ENROLMENT_REQUIRED"
+            ]
+          },
+          "404": {
+            "description": "`CAMPAIGN_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CAMPAIGN_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "description": "`SLOT_OVERLAP`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "SLOT_OVERLAP"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT` · `SLOT_OUTSIDE_CAMPAIGN` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT",
+              "SLOT_OUTSIDE_CAMPAIGN",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "platform_owner",
+          "platform_staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "brand.manage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-campaigns.schema.slotSchema"
+              }
+            }
+          }
+        }
+      }
+    },
     "/platform/market/contact-messages/{messageId}/handled": {
       "post": {
         "operationId": "postPlatformMarketContactMessagesByMessageIdHandled",
@@ -51939,6 +53641,170 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/modules.market-help.schema.contactHandleSchema"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/market/deals/{dealId}/decision": {
+      "post": {
+        "operationId": "postPlatformMarketDealsByDealIdDecision",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "POST /platform/market/deals/{dealId}/decision",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `brand.manage`.",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PLATFORM_ACCESS_REVOKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PLATFORM_ACCESS_REVOKED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `PLATFORM_PERMISSION_DENIED` · `SECOND_FACTOR_ENROLMENT_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "PLATFORM_PERMISSION_DENIED",
+              "SECOND_FACTOR_ENROLMENT_REQUIRED"
+            ]
+          },
+          "404": {
+            "description": "`DEAL_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "DEAL_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "description": "`DEAL_WITHDRAWN` · `SLOT_STARTED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "DEAL_WITHDRAWN",
+              "SLOT_STARTED"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`DEAL_REJECTION_NOTE_REQUIRED` · `INVALID_INCIDENT` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "DEAL_REJECTION_NOTE_REQUIRED",
+              "INVALID_INCIDENT",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "platform_owner",
+          "platform_staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "brand.manage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-campaigns.schema.dealDecisionSchema"
               }
             }
           }
@@ -59605,6 +61471,156 @@
         }
       }
     },
+    "/platform/market/campaigns/{campaignId}/days": {
+      "put": {
+        "operationId": "putPlatformMarketCampaignsByCampaignIdDays",
+        "tags": [
+          "market-campaigns"
+        ],
+        "summary": "PUT /platform/market/campaigns/{campaignId}/days",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `brand.manage`.",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PLATFORM_ACCESS_REVOKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PLATFORM_ACCESS_REVOKED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `PLATFORM_PERMISSION_DENIED` · `SECOND_FACTOR_ENROLMENT_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "PLATFORM_PERMISSION_DENIED",
+              "SECOND_FACTOR_ENROLMENT_REQUIRED"
+            ]
+          },
+          "404": {
+            "description": "`CAMPAIGN_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CAMPAIGN_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`CAMPAIGN_DAY_OUTSIDE` · `INVALID_INCIDENT` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CAMPAIGN_DAY_OUTSIDE",
+              "INVALID_INCIDENT",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "platform_owner",
+          "platform_staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-campaigns/routes.ts",
+        "x-codiq-permissions": [
+          "brand.manage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-campaigns.schema.campaignDaysSchema"
+              }
+            }
+          }
+        }
+      }
+    },
     "/platform/market/categories/{categoryId}": {
       "put": {
         "operationId": "putPlatformMarketCategoriesByCategoryId",
@@ -60927,6 +62943,37 @@
       ],
       "messages": []
     },
+    "CAMPAIGN_DAY_OUTSIDE": {
+      "statuses": [
+        422
+      ],
+      "messages": []
+    },
+    "CAMPAIGN_NOT_FOUND": {
+      "statuses": [
+        404
+      ],
+      "messages": [
+        "الحملة غير موجودة.",
+        "هذه الحملة غير موجودة أو انتهت."
+      ]
+    },
+    "CAMPAIGN_SLOTS_OUTSIDE": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "بعض ساعات العروض تقع خارج المدّة الجديدة. احذفها أو عدّل المدّة."
+      ]
+    },
+    "CAMPAIGN_SLUG_TAKEN": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "يوجد حملة بهذا المعرّف."
+      ]
+    },
     "CANNOT_REVOKE_CURRENT_SESSION": {
       "statuses": [
         422
@@ -61233,6 +63280,44 @@
       ],
       "messages": [
         "A customer session is required."
+      ]
+    },
+    "DEAL_EXISTS": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "هذا المنتج مقترح في هذه الساعة بالفعل."
+      ]
+    },
+    "DEAL_NOT_FOUND": {
+      "statuses": [
+        404
+      ],
+      "messages": [
+        "العرض غير موجود."
+      ]
+    },
+    "DEAL_PERCENT_TOO_LOW": {
+      "statuses": [
+        422
+      ],
+      "messages": []
+    },
+    "DEAL_REJECTION_NOTE_REQUIRED": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "اكتب سبب الرفض — يراه المتجر."
+      ]
+    },
+    "DEAL_WITHDRAWN": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "سحب المتجر هذا العرض."
       ]
     },
     "DEFAULT_PLAN_MISSING": {
@@ -63078,6 +65163,7 @@
         422
       ],
       "messages": [
+        "المنتج غير موجود في متجرك.",
         "المنتج غير موجود في هذا المتجر.",
         "منتجات غير موجودة في الكتالوج.",
         "هذا المنتج غير متاح في السوق.",
@@ -63383,6 +65469,41 @@
       ],
       "messages": []
     },
+    "SLOT_NOT_FOUND": {
+      "statuses": [
+        404
+      ],
+      "messages": [
+        "الساعة غير موجودة."
+      ]
+    },
+    "SLOT_OUTSIDE_CAMPAIGN": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "الساعة خارج مدّة الحملة."
+      ]
+    },
+    "SLOT_OVERLAP": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "تتداخل هذه الساعة مع ساعة أخرى في الحملة."
+      ]
+    },
+    "SLOT_STARTED": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "بدأت ساعة هذا العرض؛ لا يتغيّر قراره الآن.",
+        "بدأت ساعة هذا العرض؛ لا يُسحب الآن.",
+        "بدأت هذه الساعة أو انتهت؛ اختر ساعة قادمة.",
+        "بدأت هذه الساعة وفيها عروض معتمدة؛ لا تُحذف."
+      ]
+    },
     "SLUG_TAKEN": {
       "statuses": [
         409
@@ -63480,6 +65601,14 @@
         "لا يوجد متجر مرتبط بهذا النطاق.",
         "متاجر غير موجودة.",
         "هذا المتجر غير موجود في السوق."
+      ]
+    },
+    "STORE_NOT_LISTED": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "متجرك ليس معروضاً في السوق بعد."
       ]
     },
     "STORE_ON_VACATION": {
@@ -63735,8 +65864,8 @@
       "the zod schemas in src/http/schemas",
       "every new HttpError(...) throw site in src"
     ],
-    "routesInRoutingTable": 425,
-    "operations": 426,
+    "routesInRoutingTable": 439,
+    "operations": 440,
     "note": "مولّدة آلياً — أي تحرير يدوي يسقط في أول تشغيل لـ `pnpm openapi:guard`."
   }
 }

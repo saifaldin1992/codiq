@@ -11,6 +11,7 @@
  * «cheapest first» is the negated price — so one cursor shape pages them all,
  * and the cursor's kind names the sort (and period) it belongs to.
  */
+import { livePrices } from "../../services/live-price.js";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
@@ -30,7 +31,7 @@ const SOLD_COLUMN: Record<string, Prisma.Sql> = {
 };
 
 type Row = {
-  id: string; name: string; created_at: Date; compare_at_price_iqd: number | null; condition: string; tags: string[];
+  id: string; name: string; created_at: Date; compare_at_price_iqd: number | null; deal_percent: number | null; deal_ends_at: Date | null; condition: string; tags: string[];
   is_preorder: boolean; preorder_release_on: Date | null; preorder_ships_by: Date | null; max_per_order: number | null;
   store_id: string; store_slug: string; store_name: string; store_verified: boolean;
   min_price: number; max_price: number; in_stock: boolean; low_stock: boolean; variant_count: number; image_id: string | null;
@@ -52,7 +53,7 @@ function sortKey(sort: MarketProductSort, period: string, match: MarketProductMa
     case "rating": return Prisma.sql`(CASE WHEN COALESCE(s.rating_count, 0) > 0 THEN (s.rating_avg::float8 * s.rating_count + 20) / (s.rating_count + 5) ELSE 0 END)`;
     case "best_selling": return Prisma.sql`COALESCE(${SOLD_COLUMN[period] ?? SOLD_COLUMN.month}, 0)::float8`;
     case "trending": return Prisma.sql`COALESCE(s.views_7d, 0)::float8`;
-    case "discount": return Prisma.sql`(CASE WHEN p.compare_at_price_iqd > v.min_price THEN (p.compare_at_price_iqd - v.min_price)::float8 / p.compare_at_price_iqd ELSE 0 END)`;
+    case "discount": return Prisma.sql`(CASE WHEN ${COMPARE} > v.min_price THEN (${COMPARE} - v.min_price)::float8 / ${COMPARE} ELSE 0 END)`;
   }
 }
 
@@ -71,6 +72,8 @@ function cardOf(row: Row) {
     priceIqd: row.min_price,
     maxPriceIqd: row.max_price,
     compareAtPriceIqd: row.compare_at_price_iqd !== null && row.compare_at_price_iqd > row.min_price ? row.compare_at_price_iqd : null,
+    // Marketplace M8a: «عرض الساعة» — its percentage and when the price ends.
+    deal: row.deal_percent !== null ? { percentOff: row.deal_percent, endsAt: row.deal_ends_at } : null,
     discountPercent: row.discount_percent,
     rating,
     ratingCount: count,
@@ -97,7 +100,9 @@ const BASE_FROM = Prisma.sql`
   LEFT JOIN product_categories pc ON pc.id = p.category_id AND pc.store_id = p.store_id
   LEFT JOIN product_market_stats s ON s.product_id = p.id
   JOIN LATERAL (
-    SELECT min(pv.price_iqd) AS min_price, max(pv.price_iqd) AS max_price,
+    SELECT min(codiq_live_price(pv.product_id, pv.price_iqd, now())) AS min_price,
+           max(codiq_live_price(pv.product_id, pv.price_iqd, now())) AS max_price,
+           min(pv.price_iqd) AS list_min_price,
            bool_or(pv.stock_quantity > 0) AS in_stock,
            bool_or(pv.stock_quantity > 0 AND pv.stock_quantity <= GREATEST(pv.low_stock_threshold, 3)) AS low_stock,
            count(*)::int AS variant_count
@@ -105,17 +110,29 @@ const BASE_FROM = Prisma.sql`
      WHERE pv.product_id = p.id AND pv.store_id = p.store_id AND pv.is_active AND pv.deleted_at IS NULL
   ) v ON v.min_price IS NOT NULL
   LEFT JOIN LATERAL (
+    -- Marketplace M8a: the hourly deal running on this product now, if any.
+    SELECT d.percent_off AS deal_percent, ds.ends_at AS deal_ends_at
+      FROM market_deals d
+      JOIN market_deal_slots ds ON ds.id = d.slot_id
+      JOIN market_campaigns dc ON dc.id = ds.campaign_id
+     WHERE d.product_id = p.id AND d.status = 'approved' AND dc.is_published AND ds.starts_at <= now() AND ds.ends_at > now()
+     ORDER BY d.percent_off DESC, ds.ends_at ASC
+     LIMIT 1
+  ) dl ON true
+  LEFT JOIN LATERAL (
     SELECT pi.id FROM product_images pi WHERE pi.product_id = p.id AND pi.store_id = p.store_id ORDER BY pi.sort_order, pi.id LIMIT 1
   ) img ON true`;
 
 /** Visible in the market: listed store, active store and merchant, live product. */
 const VISIBLE = Prisma.sql`st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND p.is_active AND p.deleted_at IS NULL`;
 
-const DISCOUNT = Prisma.sql`(CASE WHEN p.compare_at_price_iqd > v.min_price THEN round((p.compare_at_price_iqd - v.min_price) * 100.0 / p.compare_at_price_iqd)::int ELSE 0 END)`;
+/** The «before» price: the store's compare-at, or during an hourly deal at least the list price. */
+const COMPARE = Prisma.sql`(CASE WHEN dl.deal_percent IS NOT NULL THEN GREATEST(COALESCE(p.compare_at_price_iqd, 0), v.list_min_price) ELSE p.compare_at_price_iqd END)`;
+const DISCOUNT = Prisma.sql`(CASE WHEN ${COMPARE} > v.min_price THEN round((${COMPARE} - v.min_price) * 100.0 / ${COMPARE})::int ELSE 0 END)`;
 
 function selectCard(match: MarketProductMatch | null, key: Prisma.Sql) {
   return Prisma.sql`
-    SELECT p.id, p.name, p.created_at, p.compare_at_price_iqd, p.condition, p.tags, p.is_preorder, p.preorder_release_on, p.preorder_ships_by, p.max_per_order,
+    SELECT p.id, p.name, p.created_at, ${COMPARE} AS compare_at_price_iqd, dl.deal_percent, dl.deal_ends_at, p.condition, p.tags, p.is_preorder, p.preorder_release_on, p.preorder_ships_by, p.max_per_order,
            st.id AS store_id, st.slug AS store_slug, st.name AS store_name, (st.verified_at IS NOT NULL) AS store_verified,
            v.min_price, v.max_price, COALESCE(v.in_stock, false) AS in_stock, COALESCE(v.low_stock, false) AS low_stock, v.variant_count, img.id AS image_id,
            s.rating_avg, s.rating_count, s.sold_30d,
@@ -226,6 +243,7 @@ export async function marketProductPage(productId: string, options: { countView:
   ]);
   if (options.countView) void recordVisit(store.id, { day: baghdadDay(), newVisitor: false, productId: row.id }).catch(() => undefined);
   const category = product.marketCategory ?? product.category?.marketCategory ?? null;
+  const livePriceBy = await livePrices(prisma, product.variants.map((variant) => variant.id));
   return {
     product: {
       ...cardOf(row),
@@ -234,7 +252,7 @@ export async function marketProductPage(productId: string, options: { countView:
       requiresPrescription: product.requiresPrescription,
       category: category ? { slug: category.slug, name: category.nameAr } : null,
       images: product.images.map((image) => imageUrl(row.store_slug, row.id, image.id) as string),
-      variants: product.variants.map((variant) => ({ id: variant.id, name: variant.name, isDefault: variant.isDefault, priceIqd: variant.priceIqd, options: variant.options, isAvailable: variant.stockQuantity > 0 })),
+      variants: product.variants.map((variant) => ({ id: variant.id, name: variant.name, isDefault: variant.isDefault, priceIqd: livePriceBy.get(variant.id) ?? variant.priceIqd, listPriceIqd: (livePriceBy.get(variant.id) ?? variant.priceIqd) < variant.priceIqd ? variant.priceIqd : null, options: variant.options, isAvailable: variant.stockQuantity > 0 })),
       addons: product.addons,
       preorder: row.is_preorder ? { releaseOn: dateOnly(row.preorder_release_on), shipsBy: dateOnly(row.preorder_ships_by) } : null,
       maxPerOrder: row.max_per_order,

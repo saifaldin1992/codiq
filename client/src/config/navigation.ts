@@ -92,6 +92,7 @@ export const ownerNavGroups: NavGroup[] = [
       // Marketplace M3: the market's front page, banners, collections, malls and category tree.
       { label: "محتوى السوق", path: "/platform/dashboard/market-content", status: "implemented" },
       { label: "دعم السوق", path: "/platform/dashboard/market-support", status: "implemented" },
+      { label: "الحملات وعروض الساعة", path: "/platform/dashboard/market-campaigns", status: "implemented" },
       { label: "إضافة متجر", path: "/platform/dashboard/stores/add", status: { phase: "الدفعة B" } },
     ],
   },
@@ -225,6 +226,8 @@ export const merchantNavGroups: NavGroup[] = [
       { label: "التصنيفات", path: "/merchant/dashboard/products/categories", status: "implemented" },
       // Marketplace M2: market category mapping and each product's market details and add-ons.
       { label: "بيانات السوق", path: "/merchant/dashboard/products/market", status: "implemented" },
+      // Marketplace M8a: put products forward for an hour of a market campaign.
+      { label: "عروض الساعة", path: "/merchant/dashboard/products/market-deals", status: "implemented" },
       { label: "المخزون", path: "/merchant/dashboard/products/inventory", status: "implemented" },
       // Kept beside stock rather than filed under reports: it answers a stock
       // question, and it is the one thing none of the three rivals has.

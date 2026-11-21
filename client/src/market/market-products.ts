@@ -20,6 +20,8 @@ export type MarketProductCard = {
   tags: string[];
   matchPercent: number | null;
   createdAt: string;
+  /** Marketplace M8a: «عرض الساعة» running on it now. */
+  deal: { percentOff: number; endsAt: string } | null;
 };
 
 export type MarketProductDetail = MarketProductCard & {
@@ -28,7 +30,7 @@ export type MarketProductDetail = MarketProductCard & {
   requiresPrescription: boolean;
   category: { slug: string; name: string } | null;
   images: string[];
-  variants: { id: string; name: string; isDefault: boolean; priceIqd: number; options: Record<string, string>; isAvailable: boolean }[];
+  variants: { id: string; name: string; isDefault: boolean; priceIqd: number; listPriceIqd: number | null; options: Record<string, string>; isAvailable: boolean }[];
   addons: { id: string; name: string; priceIqd: number }[];
   preorder: { releaseOn: string | null; shipsBy: string | null } | null;
   maxPerOrder: number | null;

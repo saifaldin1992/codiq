@@ -8,6 +8,7 @@
  * add-ons are checked here for a fast, honest answer, and checked AGAIN under
  * lock by the store's checkout — which is the only place that decides.
  */
+import { livePriceOf, livePrices } from "../../services/live-price.js";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
@@ -76,7 +77,8 @@ export async function addCartLine(shopperId: string, input: { productId?: string
     const quantity = (existing?.quantity ?? 0) + input.quantity;
     await assertQuantity(tx, cart.id, variant, quantity, existing?.id ?? null);
     // Adding again re-prices the line at what the shopper sees right now (the store cart's rule, 19-د).
-    const data = { quantity, addonIds: input.addonIds, priceSnapshotIqd: variant.priceIqd, addonsSnapshotIqd: addons };
+    // Marketplace M8a: the LIVE price — an hourly deal's while it runs.
+    const data = { quantity, addonIds: input.addonIds, priceSnapshotIqd: await livePriceOf(tx, variant.id, variant.priceIqd), addonsSnapshotIqd: addons };
     if (existing) await tx.marketCartItem.update({ where: { id: existing.id }, data });
     else await tx.marketCartItem.create({ data: { ...data, cartId: cart.id, storeId: variant.storeId, productId: variant.productId, variantId: variant.id } });
     await tx.marketCart.update({ where: { id: cart.id }, data: { version: { increment: 1 } } });
@@ -102,7 +104,7 @@ export async function updateCartLine(shopperId: string, lineId: string, input: {
     const reprice = changedChoice || quantity > line.quantity;
     await tx.marketCartItem.update({
       where: { id: line.id },
-      data: { quantity, variantId, addonIds, ...(reprice ? { priceSnapshotIqd: variant.priceIqd, addonsSnapshotIqd: await addonsTotal(tx, line.productId, addonIds) } : {}) },
+      data: { quantity, variantId, addonIds, ...(reprice ? { priceSnapshotIqd: await livePriceOf(tx, variant.id, variant.priceIqd), addonsSnapshotIqd: await addonsTotal(tx, line.productId, addonIds) } : {}) },
     });
     await tx.marketCart.update({ where: { id: cart.id }, data: { version: { increment: 1 } } });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(() => marketCartView(shopperId));
@@ -155,6 +157,7 @@ export async function marketCartView(shopperId: string, onlyStoreId?: string) {
     ? await prisma.inventoryReservation.groupBy({ by: ["variantId"], where: { variantId: { in: lines.map((line) => line.variantId) }, status: "active" }, _sum: { quantity: true } })
     : [];
   const reservedBy = new Map(reserved.map((row) => [row.variantId, row._sum.quantity ?? 0]));
+  const livePriceBy = await livePrices(prisma, lines.map((line) => line.variantId));
   const groups = new Map<string, { store: { slug: string; name: string; logoUrl: string | null; pickupEnabled: boolean }; lines: unknown[]; subtotalIqd: number; ready: boolean }>();
   for (const line of lines) {
     const product = line.variant.product;
@@ -164,10 +167,11 @@ export async function marketCartView(shopperId: string, onlyStoreId?: string) {
     const addons = line.addonIds.map((id) => addonById.get(id)).filter((addon): addon is { id: string; name: string; priceIqd: number } => Boolean(addon));
     const liveAddons = addons.reduce((sum, addon) => sum + addon.priceIqd, 0);
     const available = Math.max(0, line.variant.stockQuantity - (reservedBy.get(line.variantId) ?? 0));
+    const livePrice = livePriceBy.get(line.variantId) ?? line.variant.priceIqd;
     const problem = !live ? "unavailable"
       : addons.length !== line.addonIds.length ? "addon_unavailable"
       : !product.isPreorder && available < line.quantity ? (available === 0 ? "out_of_stock" : "insufficient_stock")
-      : line.variant.priceIqd !== line.priceSnapshotIqd || liveAddons !== line.addonsSnapshotIqd ? "price_changed"
+      : livePrice !== line.priceSnapshotIqd || liveAddons !== line.addonsSnapshotIqd ? "price_changed"
       : null;
     const unitPriceIqd = line.priceSnapshotIqd + line.addonsSnapshotIqd;
     const group = groups.get(store.id) ?? { store: { slug: store.slug, name: store.name, logoUrl: logoUrl(store.slug, store.logoObjectKey), pickupEnabled: store.pickupEnabled }, lines: [], subtotalIqd: 0, ready: true };
@@ -178,7 +182,9 @@ export async function marketCartView(shopperId: string, onlyStoreId?: string) {
       addons,
       quantity: line.quantity,
       unitPriceIqd,
-      livePriceIqd: line.variant.priceIqd + liveAddons,
+      livePriceIqd: livePrice + liveAddons,
+      // Marketplace M8a: the list price while an hourly deal lowers it, for the struck-through price.
+      listPriceIqd: livePrice < line.variant.priceIqd ? line.variant.priceIqd + liveAddons : null,
       lineTotalIqd: unitPriceIqd * line.quantity,
       available: product.isPreorder ? null : available,
       problem,
@@ -198,9 +204,10 @@ export async function marketCartView(shopperId: string, onlyStoreId?: string) {
 export async function repriceMarketLines(shopperId: string, storeId: string) {
   const cart = await cartFor(shopperId);
   const lines = await prisma.marketCartItem.findMany({ where: { cartId: cart.id, storeId }, include: { variant: { select: { priceIqd: true } } } });
+  const livePriceBy = await livePrices(prisma, lines.map((line) => line.variantId));
   for (const line of lines) {
     const addons = line.addonIds.length ? await prisma.productAddon.findMany({ where: { id: { in: line.addonIds }, isActive: true }, select: { priceIqd: true } }) : [];
-    await prisma.marketCartItem.update({ where: { id: line.id }, data: { priceSnapshotIqd: line.variant.priceIqd, addonsSnapshotIqd: addons.reduce((sum, row) => sum + row.priceIqd, 0) } });
+    await prisma.marketCartItem.update({ where: { id: line.id }, data: { priceSnapshotIqd: livePriceBy.get(line.variantId) ?? line.variant.priceIqd, addonsSnapshotIqd: addons.reduce((sum, row) => sum + row.priceIqd, 0) } });
   }
   await prisma.marketCart.update({ where: { id: cart.id }, data: { version: { increment: 1 } } });
 }

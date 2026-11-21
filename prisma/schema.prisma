@@ -629,6 +629,7 @@ model Product {
   reviews        ProductReview[]
   wishlistItems  WishlistItem[]
   marketFavourites ShopperFavouriteProduct[]
+  marketDeals MarketDeal[]
 }
 
 model ProductVariant {
@@ -2632,4 +2633,70 @@ model SupportTicketAttachment {
 
   @@index([ticketId, createdAt], map: "support_ticket_attachments_ticket_idx")
   @@map("support_ticket_attachments")
+}
+
+/// Marketplace M8a: a seasonal campaign with its own page.
+model MarketCampaign {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String              @unique @db.Text
+  title       String              @db.Text
+  subtitle    String?             @db.Text
+  startsAt    DateTime            @map("starts_at") @db.Timestamptz(6)
+  endsAt      DateTime            @map("ends_at") @db.Timestamptz(6)
+  isPublished Boolean             @default(false) @map("is_published")
+  minPercent  Int                 @default(10) @map("min_percent") @db.SmallInt
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  days        MarketCampaignDay[]
+  slots       MarketDealSlot[]
+
+  @@map("market_campaigns")
+}
+
+model MarketCampaignDay {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String         @map("campaign_id") @db.Uuid
+  day        DateTime       @db.Date
+  title      String         @db.Text
+  note       String?        @db.Text
+  campaign   MarketCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, day], map: "market_campaign_days_unique")
+  @@map("market_campaign_days")
+}
+
+/// Marketplace M8a: one hour of «عرض الساعة».
+model MarketDealSlot {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String         @map("campaign_id") @db.Uuid
+  title      String?        @db.Text
+  startsAt   DateTime       @map("starts_at") @db.Timestamptz(6)
+  endsAt     DateTime       @map("ends_at") @db.Timestamptz(6)
+  campaign   MarketCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  deals      MarketDeal[]
+
+  @@index([campaignId, startsAt], map: "market_deal_slots_campaign_idx")
+  @@index([startsAt, endsAt], map: "market_deal_slots_window_idx")
+  @@map("market_deal_slots")
+}
+
+/// Marketplace M8a: a store's product at a percentage off for one hour, once the owner approves.
+model MarketDeal {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slotId       String         @map("slot_id") @db.Uuid
+  storeId      String         @map("store_id") @db.Uuid
+  productId    String         @map("product_id") @db.Uuid
+  percentOff   Int            @map("percent_off") @db.SmallInt
+  status       String         @default("pending") @db.Text
+  decisionNote String?        @map("decision_note") @db.Text
+  decidedAt    DateTime?      @map("decided_at") @db.Timestamptz(6)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  slot         MarketDealSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  product      Product        @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade)
+
+  @@unique([slotId, productId], map: "market_deals_unique")
+  @@index([slotId, status], map: "market_deals_slot_idx")
+  @@index([storeId, createdAt(sort: Desc), id(sort: Desc)], map: "market_deals_store_idx")
+  @@map("market_deals")
 }

@@ -24,6 +24,7 @@ import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor, 
 import { searchEngine } from "./search/index.js";
 import { LIVE } from "./soft-delete/constants.js";
 import { domainEvents } from "../events/domain-events.js";
+import { livePriceOf, livePrices } from "./live-price.js";
 
 const GUEST_CART_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CART_QUANTITY = 99;
@@ -368,9 +369,11 @@ export async function publicProducts(storeId: string, rawLimit: unknown, rawCurs
   const variantIds = page.flatMap((product) => product.variants.map((variant) => variant.id));
   const reservations = variantIds.length ? await prisma.inventoryReservation.groupBy({ by: ["variantId"], where: { storeId, variantId: { in: variantIds }, status: "active" }, _sum: { quantity: true } }) : [];
   const reservedByVariant = new Map(reservations.map((reservation) => [reservation.variantId, reservation._sum.quantity ?? 0]));
+  // Marketplace M8a: the range is of LIVE prices — an hourly deal shows where it runs.
+  const livePriceByVariant = await livePrices(prisma, variantIds);
   return {
     products: page.map((product) => {
-      const prices = product.variants.map((variant) => variant.priceIqd);
+      const prices = product.variants.map((variant) => livePriceByVariant.get(variant.id) ?? variant.priceIqd);
       return {
         id: product.id, name: product.name, sku: product.sku, description: product.description, priceIqd: product.priceIqd,
         minPriceIqd: prices.length ? Math.min(...prices) : product.priceIqd,
@@ -446,7 +449,9 @@ export async function publicProduct(storeId: string, productId: string) {
   // stock quantities to the public storefront.
   const reservations = product.variants.length ? await prisma.inventoryReservation.groupBy({ by: ["variantId"], where: { storeId, variantId: { in: product.variants.map((variant) => variant.id) }, status: "active" }, _sum: { quantity: true } }) : [];
   const reservedByVariant = new Map(reservations.map((reservation) => [reservation.variantId, reservation._sum.quantity ?? 0]));
-  const variants = product.variants.map((variant) => ({ id: variant.id, name: variant.name, sku: variant.sku, priceIqd: variant.priceIqd, options: variant.options, position: variant.position, isDefault: variant.isDefault, isAvailable: isAvailable(variant.stockQuantity, reservedByVariant.get(variant.id)) }));
+  // Marketplace M8a: `priceIqd` is what the variant sells at now; `listPriceIqd` is set only while a deal lowers it.
+  const livePriceByVariant = await livePrices(prisma, product.variants.map((variant) => variant.id));
+  const variants = product.variants.map((variant) => ({ id: variant.id, name: variant.name, sku: variant.sku, priceIqd: livePriceByVariant.get(variant.id) ?? variant.priceIqd, listPriceIqd: (livePriceByVariant.get(variant.id) ?? variant.priceIqd) < variant.priceIqd ? variant.priceIqd : null, options: variant.options, position: variant.position, isDefault: variant.isDefault, isAvailable: isAvailable(variant.stockQuantity, reservedByVariant.get(variant.id)) }));
   return { id: product.id, name: product.name, sku: product.sku, description: product.description, priceIqd: product.priceIqd, category: product.category, images: product.images, isActive: product.isActive, requiresPrescription: product.requiresPrescription, isAvailable: variants.some((variant) => variant.isAvailable), variants, createdAt: product.createdAt, attributes: product.attributes };
 }
 
@@ -461,7 +466,8 @@ export async function currentCart(storeId: string, context: CartContext) {
  * variant of the product already in this cart.
  */
 async function assertWithinOrderLimit(tx: Prisma.TransactionClient, cartId: string, productId: string, adding: number) {
-  const product = await tx.product.findUnique({ where: { id: productId }, select: { maxPerOrder: true } });
+  // LIVE: a trashed product has no limit to apply — checkout's lock refuses it anyway.
+  const product = await tx.product.findFirst({ where: { id: productId, ...LIVE }, select: { maxPerOrder: true } });
   if (!product?.maxPerOrder) return;
   const inCart = await tx.cartItem.aggregate({ where: { cartId, productId }, _sum: { quantity: true } });
   if ((inCart._sum.quantity ?? 0) + adding > product.maxPerOrder) {
@@ -494,8 +500,10 @@ export async function addCartItem(storeId: string, context: CartContext, input: 
     // 19-د: adding to an existing line ALWAYS raises its quantity, so the line
     // is re-priced from the variant that was just read. See `updateCartItem`
     // for the rule and why it is bounded to increases.
-    if (existing) await tx.cartItem.update({ where: { id: existing.id }, data: { quantity: nextQuantity, priceSnapshotIqd: variant.priceIqd } });
-    else await tx.cartItem.create({ data: { cartId: cart.id, storeId, productId: variant.productId, variantId: variant.id, quantity: requestedQuantity, priceSnapshotIqd: variant.priceIqd } });
+    // Marketplace M8a: the snapshot is the LIVE price — an hourly deal's price while it runs.
+    const livePrice = await livePriceOf(tx, variant.id, variant.priceIqd);
+    if (existing) await tx.cartItem.update({ where: { id: existing.id }, data: { quantity: nextQuantity, priceSnapshotIqd: livePrice } });
+    else await tx.cartItem.create({ data: { cartId: cart.id, storeId, productId: variant.productId, variantId: variant.id, quantity: requestedQuantity, priceSnapshotIqd: livePrice } });
     return tx.shoppingCart.update({ where: { id: cart.id }, data: { version: { increment: 1 }, lastActivityAt: new Date(), ...(cart.ownerKind === "guest" ? { expiresAt: nowPlusGuestLifetime() } : {}) }, include: { items: { include: { product: { include: { images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 } } }, variant: true }, orderBy: { createdAt: "asc" } } } });
   });
   return { cart: cartPayload(updated), issuedGuestToken, guestExpiresAt: updated.expiresAt };
@@ -532,9 +540,10 @@ export async function updateCartItem(storeId: string, context: CartContext, item
   // quote. Without it a soft-deleted line would be re-priced from a row the
   // shopper can no longer buy — and checkout's FOR UPDATE lock would then
   // refuse it anyway, after we had already rewritten his snapshot.
-  const livePriceIqd = requestedQuantity > item.quantity
-    ? (await prisma.productVariant.findFirst({ where: { id: item.variantId, storeId, ...LIVE }, select: { priceIqd: true } }))?.priceIqd
-    : undefined;
+  const listed = requestedQuantity > item.quantity
+    ? await prisma.productVariant.findFirst({ where: { id: item.variantId, storeId, ...LIVE }, select: { id: true, priceIqd: true } })
+    : null;
+  const livePriceIqd = listed ? await livePriceOf(prisma, listed.id, listed.priceIqd) : undefined;
   const updated = await prisma.$transaction(async (tx) => {
     if (requestedQuantity > item.quantity) await assertWithinOrderLimit(tx, cart.id, item.productId, requestedQuantity - item.quantity);
     await tx.cartItem.update({ where: { id: item.id }, data: { quantity: requestedQuantity, ...(livePriceIqd === undefined ? {} : { priceSnapshotIqd: livePriceIqd }) } });
@@ -574,7 +583,7 @@ export async function mergeGuestCartIntoCustomer(storeId: string, customerId: st
       const existing = await tx.cartItem.findUnique({ where: { cartId_variantId: { cartId: customerCart.id, variantId: guestItem.variantId } } });
       const mergedQuantity = (existing?.quantity ?? 0) + guestItem.quantity;
       if (mergedQuantity > MAX_CART_QUANTITY) throw new HttpError(422, "INVALID_CART_QUANTITY", `Merged quantity cannot exceed ${MAX_CART_QUANTITY}.`);
-      const snapshot = variant?.isActive && variant.product.isActive ? variant.priceIqd : guestItem.priceSnapshotIqd;
+      const snapshot = variant?.isActive && variant.product.isActive ? await livePriceOf(tx, variant.id, variant.priceIqd) : guestItem.priceSnapshotIqd;
       if (existing) await tx.cartItem.update({ where: { id: existing.id }, data: { quantity: mergedQuantity, priceSnapshotIqd: snapshot } });
       else await tx.cartItem.create({ data: { cartId: customerCart.id, storeId, productId: guestItem.productId, variantId: guestItem.variantId, quantity: guestItem.quantity, priceSnapshotIqd: snapshot } });
     }
@@ -933,12 +942,15 @@ export async function checkout(storeId: string, customerId: string, input: Check
     // row here lands in the same 422 PRODUCT_UNAVAILABLE as a deactivated one,
     // which is exactly what a shopper checking out mid-delete must see.
     const variantIds = [...cart.items.map((item) => item.variantId)].sort();
+    // Marketplace M8a: `price_iqd` here is the LIVE price (codiq_live_price): the list
+    // price, or an approved hourly deal's while its hour runs. A cart priced during
+    // the hour and paid after it fails the snapshot check below and is re-priced.
     // 19-د: `v.price_iqd` joins the columns this lock already fetches. The price
     // that decides money must be read under the SAME lock as the stock that
     // decides availability — a price read outside it is a price that can move
     // between the read and the order.
     const lockedVariants = await tx.$queryRaw<Array<{ id: string; product_id: string; sku: string; name: string; is_default: boolean; product_name: string; variant_active: boolean; product_active: boolean; requires_prescription: boolean; stock_quantity: number; price_iqd: number; max_per_order: number | null; is_preorder: boolean }>>(Prisma.sql`
-      SELECT v.id, v.product_id, v.sku, v.name, v.is_default, p.name AS product_name, v.is_active AS variant_active, p.is_active AS product_active, p.requires_prescription, v.stock_quantity, v.price_iqd, p.max_per_order, p.is_preorder
+      SELECT v.id, v.product_id, v.sku, v.name, v.is_default, p.name AS product_name, v.is_active AS variant_active, p.is_active AS product_active, p.requires_prescription, v.stock_quantity, codiq_live_price(v.product_id, v.price_iqd, now()) AS price_iqd, p.max_per_order, p.is_preorder
       FROM product_variants v
       JOIN products p ON p.id = v.product_id AND p.store_id = v.store_id
       WHERE v.store_id = ${storeId}::uuid
@@ -1197,6 +1209,7 @@ export async function reorderIntoCart(storeId: string, customerId: string, order
   const reservedByVariant = new Map(reservations.map((reservation) => [reservation.variantId, reservation._sum.quantity ?? 0]));
 
   const additions: Array<{ variantId: string; productId: string; priceIqd: number; quantity: number; productName: string; variantName: string | null }> = [];
+  const livePriceByVariant = await livePrices(prisma, Array.from(variantById.keys()));
   for (const line of Array.from(requested.values())) {
     const variant = variantById.get(line.variantId);
     if (!variant || !variant.isActive || !variant.product.isActive) {
@@ -1207,7 +1220,7 @@ export async function reorderIntoCart(storeId: string, customerId: string, order
       skipped.push({ productName: variant.product.name, variantName: variant.name, reason: "insufficient_stock" });
       continue;
     }
-    additions.push({ variantId: variant.id, productId: variant.productId, priceIqd: variant.priceIqd, quantity: line.quantity, productName: variant.product.name, variantName: variant.name });
+    additions.push({ variantId: variant.id, productId: variant.productId, priceIqd: livePriceByVariant.get(variant.id) ?? variant.priceIqd, quantity: line.quantity, productName: variant.product.name, variantName: variant.name });
   }
 
   // Everything went stale: report honestly against the cart the customer already
