@@ -219,6 +219,7 @@
     "market:payments": "tsx phase1-backend/tests/market-payments.integration.mjs",
     "market:payments:browser": "pnpm build && node --import tsx phase1-backend/tests/market-payments.browser-acceptance.mjs",
     "market:payments:expire": "tsx phase1-backend/scripts/expire-market-payments.ts",
+    "ci:workflow:guard": "node phase1-backend/tests/ci-workflow.guard.mjs",
     "market:partner": "tsx phase1-backend/tests/market-partner.integration.mjs",
     "market:partner:browser": "pnpm build && node --import tsx phase1-backend/tests/market-partner.browser-acceptance.mjs",
     "security:pass": "pnpm build && node --import tsx phase1-backend/tests/security-pass.acceptance.mjs",
@@ -318,7 +319,8 @@
     "typescript": "5.6.3",
     "typescript-eslint": "8.72.1",
     "vite": "^7.3.8",
-    "vitest": "^4.1.12"
+    "vitest": "^4.1.12",
+    "yaml": "2.8.3"
   },
   "pnpm": {
     "overrides": {
