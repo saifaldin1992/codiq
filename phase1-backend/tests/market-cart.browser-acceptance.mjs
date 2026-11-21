@@ -155,8 +155,27 @@ try {
   assert.equal(await page.getByTestId("market-order-cancel").count(), 0, "a cancelled order offers no second cancel");
   const cancelEvent = await prisma.orderStatusEvent.findFirst({ where: { orderId: orders[1].id, toStatus: "cancelled" } });
   assert.equal(cancelEvent?.note, "سبب الإلغاء: سبب آخر — سأشتريه من الفرع مباشرة");
+
+  // ── M6 «قيّم طلبك»: store A's order, once delivered ─────────────────────────
+  await prisma.storeOrder.update({ where: { id: orders[0].id }, data: { status: "completed", statusUpdatedAt: new Date() } });
+  await page.goto(`${base}/market/orders`);
+  await page.getByTestId(`market-pending-rating-${orders[0].id}`).click();
+  await page.getByTestId("market-order-rating").waitFor();
+  await page.getByTestId(`market-rate-product-${perfume.id}-4`).click();
+  await page.getByTestId("market-rate-delivery-5").click();
+  await page.getByTestId("market-rate-tag-fast_delivery").click();
+  await page.getByTestId("market-rate-note").fill("وصل مغلّفاً بعناية");
+  await page.getByTestId("market-rate-save").click();
+  await page.getByTestId("market-rate-saved").waitFor();
+  const review = await prisma.productReview.findFirst({ where: { productId: perfume.id, withdrawnAt: null } });
+  assert.equal(review?.rating, 4, "the product's stars became the store's verified-buyer review");
+  const orderRating = await prisma.orderRating.findUnique({ where: { orderId: orders[0].id } });
+  assert.deepEqual([orderRating?.deliveryRating, orderRating?.tags, orderRating?.note], [5, ["fast_delivery"], "وصل مغلّفاً بعناية"]);
+  await page.goto(`${base}/market/ratings`);
+  await page.getByTestId(`market-rating-${orders[0].id}`).waitFor();
+  assert.equal(await page.getByTestId("market-pending-ratings").count(), 0, "nothing waits for a rating any more");
   assert.deepEqual(errors, [], "no script errors");
-  console.log(JSON.stringify({ suite: "market-cart-browser", status: "passed", summary: { basketAcrossStores: true, couponRefused: true, deliveryOrder: true, pickupOrder: true, myOrders: true, cancelWithReason: true } }, null, 2));
+  console.log(JSON.stringify({ suite: "market-cart-browser", status: "passed", summary: { basketAcrossStores: true, couponRefused: true, deliveryOrder: true, pickupOrder: true, myOrders: true, cancelWithReason: true, rating: true } }, null, 2));
 } finally {
   await prisma.store.updateMany({ where: { id: { in: storeIds } }, data: { marketStatus: "unlisted", marketStatusAt: new Date() } }).catch(() => undefined);
   await browser?.close();

@@ -7,6 +7,7 @@ import { iqd } from "../market-products";
 import { useMarketList } from "../use-market-list";
 import { MarketSignIn } from "./MarketAccountPages";
 import { MarketEmptyState } from "../MarketEmptyState";
+import { OrderRatingForm, PendingRatingsStrip, type OrderRating, type RatingTag } from "./MarketRatingPages";
 
 type OrderCard = { id: string; orderNumber: string; status: string; statusLabel: string; fulfilment: string; totalIqd: number; createdAt: string; store: { slug: string; name: string }; itemCount: number; preview: string[] };
 const TABS = [{ value: "", label: "الكل" }, { value: "active", label: "الجارية" }, { value: "done", label: "المنتهية" }];
@@ -27,6 +28,7 @@ export function MarketOrdersPage() {
   return (
     <div className="space-y-4" data-testid="market-orders">
       <h1 className="text-xl font-black text-[var(--codiq-text)]">طلباتي</h1>
+      <PendingRatingsStrip />
       <div className="flex gap-2">{TABS.map((entry) => <button key={entry.value} type="button" aria-pressed={tab === entry.value} onClick={() => setTab(entry.value)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${tab === entry.value ? "bg-[var(--codiq-accent)] text-[var(--codiq-surface)]" : "bg-[var(--codiq-surface)] text-[var(--codiq-text-secondary)]"}`}>{entry.label}</button>)}</div>
       {!list.items ? <p className="text-center text-sm text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ التحميل…</p> : null}
       {list.items?.length === 0 ? <MarketEmptyState icon={Package} title="لا توجد طلبات هنا" body="جرّب تبويباً آخر أو ابدأ التسوّق من الرئيسيّة." /> : null}
@@ -54,6 +56,8 @@ type OrderDetail = {
   items: { id: string; productId: string | null; productName: string; variantName: string | null; quantity: number; unitPriceIqd: number; lineTotalIqd: number; addons: { name: string; priceIqd: number }[] }[];
   timeline: { status: string; label: string; at: string }[];
   cancellable: boolean;
+  rateable: boolean;
+  rating: OrderRating | null;
 };
 type CancelReason = { code: string; label: string };
 const STEPS = [{ key: "new", label: "الطلب" }, { key: "processing", label: "القبول" }, { key: "out_for_delivery", label: "التوصيل" }, { key: "completed", label: "التسليم" }];
@@ -65,9 +69,10 @@ export function MarketOrderPage() {
   const { status, shopper } = useShopper();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [reasons, setReasons] = useState<CancelReason[]>([]);
+  const [ratingTags, setRatingTags] = useState<RatingTag[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
-  const load = useCallback(() => accountCall<{ order: OrderDetail; cancelReasons: CancelReason[] }>(`/api/market/orders/${encodeURIComponent(id)}`).then((body) => { setOrder(body.order); setReasons(body.cancelReasons ?? []); }).catch((error: Error) => setFailure(error.message)), [id]);
+  const load = useCallback(() => accountCall<{ order: OrderDetail; cancelReasons: CancelReason[]; ratingTags: RatingTag[] }>(`/api/market/orders/${encodeURIComponent(id)}`).then((body) => { setOrder(body.order); setReasons(body.cancelReasons ?? []); setRatingTags(body.ratingTags ?? []); }).catch((error: Error) => setFailure(error.message)), [id]);
   useEffect(() => { if (shopper) void load(); }, [shopper, load]);
   if (status === "loading") return null;
   if (!shopper) return <MarketSignIn />;
@@ -112,6 +117,7 @@ export function MarketOrderPage() {
           ? <p>{order.store.addressLine ?? "سيتواصل معك المتجر بموعد الاستلام."}{order.store.latitude !== null ? <> — <a href={`https://www.openstreetmap.org/?mlat=${order.store.latitude}&mlon=${order.store.longitude}#map=17/${order.store.latitude}/${order.store.longitude}`} target="_blank" rel="noopener noreferrer" className="font-bold text-[var(--codiq-accent)]">الاتجاهات</a></> : null}</p>
           : <p>{order.customerName} · {order.governorateName} — {order.shippingAddressLine1}</p>}
       </section>
+      {order.rateable ? <OrderRatingForm key={order.id} orderId={order.id} items={order.items} fulfilment={order.fulfilment} tags={ratingTags} rating={order.rating} onSaved={(rating) => setOrder((current) => (current ? { ...current, rating } : current))} /> : null}
       {order.cancellable && reasons.length ? (
         cancelling
           ? <CancelOrderSheet orderId={order.id} reasons={reasons} onClose={() => setCancelling(false)} onCancelled={() => { setCancelling(false); void load(); }} />

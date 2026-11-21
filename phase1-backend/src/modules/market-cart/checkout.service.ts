@@ -20,7 +20,7 @@ import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../.
 import { governorateLabel } from "../../services/governorates.js";
 import { listedStoreTenant } from "../market-stores/directory.service.js";
 import { marketCartView, repriceMarketLines } from "./cart.service.js";
-import { CANCEL_REASONS, SHOPPER_CANCELLABLE_STATUS } from "./after-sale.service.js";
+import { CANCEL_REASONS, ORDER_RATING_TAGS, SHOPPER_CANCELLABLE_STATUS, orderRatingView } from "./after-sale.service.js";
 
 type ShopperRef = { id: string; phoneNormalized: string; fullName: string | null };
 
@@ -187,6 +187,7 @@ export async function shopperOrder(shopperId: string, orderId: string) {
   const order = await prisma.storeOrder.findFirst({
     where: { id: orderId, customer: { shopperId } },
     select: {
+      storeId: true, customerId: true,
       id: true, orderNumber: true, status: true, fulfilment: true, createdAt: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, loyaltyDiscountIqd: true, totalIqd: true,
       couponCode: true, paymentMethodCode: true, customerName: true, recipientPhone: true, shippingGovernorate: true, shippingAddressLine1: true, customerNote: true,
       store: { select: { slug: true, name: true, supportWhatsapp: true, addressLine: true, latitude: true, longitude: true } },
@@ -195,15 +196,21 @@ export async function shopperOrder(shopperId: string, orderId: string) {
     },
   });
   if (!order) throw new HttpError(404, "ORDER_NOT_FOUND", "الطلب غير موجود.");
+  // The store and customer ids are read for the rating lookup only; the shopper's view does not carry them.
+  const { storeId, customerId, ...visible } = order;
   return {
     order: {
-      ...order,
+      ...visible,
       statusLabel: STATUS_LABELS[order.status] ?? order.status,
       governorateName: order.shippingGovernorate ? governorateLabel(order.shippingGovernorate) : null,
       timeline: order.statusEvents.map((event) => ({ status: event.toStatus, label: STATUS_LABELS[event.toStatus] ?? event.toStatus, at: event.createdAt })),
       // M6: whether «إلغاء الطلب» is offered, and the reasons to choose from.
       cancellable: order.status === SHOPPER_CANCELLABLE_STATUS,
+      // M6: a completed order can be rated (and the rating revised).
+      rateable: order.status === "completed",
+      rating: order.status === "completed" && customerId ? await orderRatingView(storeId, customerId, order.id) : null,
     },
     cancelReasons: order.status === SHOPPER_CANCELLABLE_STATUS ? CANCEL_REASONS : [],
+    ratingTags: order.status === "completed" ? ORDER_RATING_TAGS : [],
   };
 }
