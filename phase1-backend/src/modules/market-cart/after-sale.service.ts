@@ -12,6 +12,9 @@ import { HttpError } from "../../auth/auth.errors.js";
 import { cancelOwnOrder } from "../../services/order-self-cancel.service.js";
 import { REVIEW_BODY_MAX, REVIEW_RATING_MAX, REVIEW_RATING_MIN } from "../../services/product-review.service.js";
 import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../../services/list-page.js";
+import { requestReturn, withdrawReturnRequest } from "../../services/return-request.service.js";
+import { assertCapabilityAvailable } from "../../services/availability.service.js";
+import { consumeStorefrontRateLimit } from "../../services/storefront.service.js";
 
 /** Why a shopper calls an order off. The code is stable; the label is what both he and the merchant read. */
 export const CANCEL_REASONS = [
@@ -199,4 +202,39 @@ export async function myOrderRatings(shopperId: string, rawCursor: unknown, rawL
     })),
     nextCursor,
   };
+}
+
+// ── «طلب إرجاع» (G7, whole order) ─────────────────────────────────────────
+
+const RETURN_LABELS: Record<string, string> = { requested: "قيد مراجعة المتجر", approved: "وافق المتجر على الإرجاع", rejected: "رفض المتجر الإرجاع", withdrawn: "سحبت الطلب" };
+
+/** The order's latest return request as the shopper reads it, or null. */
+export async function shopperReturnView(storeId: string, customerId: string, orderId: string) {
+  const row = await prisma.returnRequest.findFirst({ where: { storeId, customerId, orderId }, orderBy: { createdAt: "desc" }, select: { id: true, status: true, reason: true, decisionNote: true, createdAt: true, reversalDeadline: true } });
+  return row ? { ...row, statusLabel: RETURN_LABELS[row.status] ?? row.status } : null;
+}
+
+/**
+ * The store's own return request (CD-3), from the market: the same 15-day
+ * finance window, one open request per order, and an approval that returns
+ * the order and reverses its money in one transaction on the merchant's side.
+ */
+export async function requestShopperReturn(shopperId: string, orderId: string, reason: string) {
+  const order = await shopperOrderRef(shopperId, orderId);
+  // The storefront's own rules for this door: the store has returns switched on, and twenty asks a window.
+  const store = await prisma.store.findUniqueOrThrow({ where: { id: order.storeId }, select: { id: true, slug: true, merchantId: true } });
+  await assertCapabilityAvailable("cx.returns", store);
+  // The same bucket as the storefront's door (limitStorefrontWrite), so two doors are not two allowances.
+  await consumeStorefrontRateLimit({ scope: "return_request", rawKey: `${store.slug}:customer:${order.customerId}`, limit: 20, windowMs: 10 * 60 * 1000 });
+  await requestReturn(order.storeId, order.customerId, order.id, { reason });
+  return { returnRequest: await shopperReturnView(order.storeId, order.customerId, order.id) };
+}
+
+/** Withdraw the open request, while the store has not answered it. */
+export async function withdrawShopperReturn(shopperId: string, orderId: string) {
+  const order = await shopperOrderRef(shopperId, orderId);
+  const open = await prisma.returnRequest.findFirst({ where: { storeId: order.storeId, customerId: order.customerId, orderId: order.id, status: "requested" }, select: { id: true } });
+  if (!open) throw new HttpError(409, "RETURN_ALREADY_DECIDED", "لا يوجد طلب إرجاع مفتوح لهذا الطلب.");
+  await withdrawReturnRequest(order.storeId, order.customerId, open.id);
+  return { returnRequest: await shopperReturnView(order.storeId, order.customerId, order.id) };
 }
