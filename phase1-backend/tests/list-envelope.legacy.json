@@ -396,6 +396,10 @@
       {
         "route": "GET /market/me/addresses",
         "reason": "BOUNDED — one shopper's own delivery addresses, capped at MAX_ADDRESSES (20) by the service; the address book and the checkout picker show them all."
+      },
+      {
+        "route": "GET /market/me/stores",
+        "reason": "BOUNDED — the «اشتريت منها» shelf: at most twenty stores, the most recent purchase first (LIMIT 20 in storesBoughtFrom). A sideways shelf, not a list to page; every store's full order history is in «طلباتي», which is paged."
       }
     ],
     "missingStoreSlug": []
