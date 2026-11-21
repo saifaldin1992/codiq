@@ -118,7 +118,8 @@ try {
   // Summaries do not come back in order. Hold every DELIVERY summary back from
   // here on, then go pick-up → delivery → pick-up: the slow delivery answer
   // lands last and must not paint its 18,000 (15,000 + 3,000) under pick-up.
-  await page.route(new RegExp(`/api/market/checkout/${B.slug}\\?.*fulfilment=delivery`), async (route) => {
+  const deliverySummaryOfB = (url) => url.pathname === `/api/market/checkout/${B.slug}` && url.searchParams.get("fulfilment") === "delivery";
+  await page.route(deliverySummaryOfB, async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 2500));
     await route.continue();
   });
@@ -130,7 +131,7 @@ try {
   await page.waitForTimeout(3200); // past the held-back delivery summary
   await page.waitForFunction(() => /الاستلام من المتجر/.test(document.querySelector('[data-testid="market-checkout-totals"]')?.textContent ?? ""));
   assert.match(await page.getByTestId("market-checkout-total").innerText(), /١٥٬٠٠٠|15,000/, "no delivery fee for a pick-up");
-  await page.unroute(new RegExp(`/api/market/checkout/${B.slug}\\?.*fulfilment=delivery`));
+  await page.unroute(deliverySummaryOfB);
   await page.getByTestId("market-checkout-place").click();
   await page.getByTestId("market-order-placed").waitFor();
   assert.equal(await page.getByTestId("market-cart-badge").count(), 0, "the basket is empty");
