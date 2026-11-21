@@ -39,6 +39,11 @@ export const TICKET_WINDOW_HOURS = 24;
 export const TICKET_ATTACHMENTS_PER_SIDE = 3;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** How many comments a ticket's page carries — the newest ones. */
+export const TICKET_COMMENTS_SHOWN = 200;
+/** A shopper's replies across his tickets, per hour. */
+export const TICKET_REPLIES_PER_HOUR = 30;
+
 export type SupportActor = { kind: "merchant" | "staff" | "platform"; id: string };
 type Scope = { shopperId: string } | { storeId: string } | { platform: true };
 
@@ -135,14 +140,19 @@ async function detail(ticketId: string) {
     where: { id: ticketId },
     select: {
       ...CARD_SELECT, description: true, resolvedAt: true, closedAt: true,
-      comments: { orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 200, select: { id: true, authorKind: true, body: true, createdAt: true } },
+      // The NEWEST two hundred, shown oldest first. Taking the first two hundred
+      // in ascending order froze a long ticket at its 200th comment: every later
+      // reply — the one each side was waiting for — never reached the screen.
+      comments: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: TICKET_COMMENTS_SHOWN, select: { id: true, authorKind: true, body: true, createdAt: true } },
       attachments: { orderBy: { createdAt: "asc" }, take: 2 * TICKET_ATTACHMENTS_PER_SIDE, select: { id: true, authorKind: true, contentType: true, byteSize: true, createdAt: true } },
     },
   });
   return {
     ...cardOf(ticket),
     description: ticket.description, resolvedAt: ticket.resolvedAt, closedAt: ticket.closedAt,
-    comments: ticket.comments.map((comment) => ({ ...comment, side: comment.authorKind === "shopper" ? "shopper" : "support" })),
+    comments: ticket.comments.slice().reverse().map((comment) => ({ ...comment, side: comment.authorKind === "shopper" ? "shopper" : "support" })),
+    /** Older comments exist beyond the ones shown. */
+    earlierComments: ticket.comments.length === TICKET_COMMENTS_SHOWN,
     attachments: ticket.attachments,
   };
 }
@@ -166,6 +176,9 @@ export async function shopperTicket(shopperId: string, ticketId: string) {
 
 export async function shopperReply(shopperId: string, ticketId: string, body: string) {
   const ticket = await ticketIn({ shopperId }, ticketId);
+  // Opening is capped (five a day); replying was not, so one ticket could take
+  // replies without end — each one a row on the store's and the owner's screen.
+  await consumeStorefrontRateLimit({ scope: "market_ticket_reply", rawKey: shopperId, limit: TICKET_REPLIES_PER_HOUR, windowMs: 60 * 60 * 1000 });
   if (ticket.status === "closed") throw new HttpError(409, "TICKET_CLOSED", "التذكرة مغلقة، لا يمكن الردّ عليها.");
   if (!ticket.lastSupportAt) throw new HttpError(409, "TICKET_AWAITING_SUPPORT", "انتظر ردّ فريق الدعم أوّلاً.");
   if (ticket.status === "resolved") throw new HttpError(409, "TICKET_RESOLVED", "أخبرنا أوّلاً: هل حُلّت مشكلتك؟");

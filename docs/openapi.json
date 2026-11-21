@@ -25126,7 +25126,7 @@
             ]
           },
           "403": {
-            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -25138,6 +25138,7 @@
               "CSRF_ORIGIN_DENIED",
               "IDENTITY_BOUNDARY_DENIED",
               "MERCHANT_DISABLED",
+              "PLAN_LIMIT_EXCEEDED",
               "STAFF_PERMISSION_DENIED",
               "STORE_BOUNDARY_DENIED"
             ]
@@ -52511,7 +52512,7 @@
           "market-support"
         ],
         "summary": "POST /market/tickets/{ticketId}/replies",
-        "description": "**الباب**: shopper.",
+        "description": "**الباب**: shopper.\n\n**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً.",
         "parameters": [
           {
             "name": "ticketId",
@@ -52631,6 +52632,19 @@
               "VALIDATION_FAILED"
             ]
           },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "RATE_LIMITED"
+            ]
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           },
@@ -52642,6 +52656,7 @@
           "shopper"
         ],
         "x-codiq-source": "phase1-backend/src/modules/market-support/routes.ts",
+        "x-codiq-rate-limited": true,
         "security": [
           {
             "sessionCookie": []

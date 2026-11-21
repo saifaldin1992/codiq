@@ -211,6 +211,18 @@ try {
   assert.deepEqual([openTab.tickets.length, openTab.summary.closed, closedTab.tickets.length, Boolean(closedTab.nextCursor)], [0, 2, 1, true]);
   summary.tabs = true;
 
+  // ── a long ticket still shows its latest message ──────────────────────────
+  // Two hundred and five comments: the page carries the NEWEST two hundred.
+  const long = await prisma.supportTicket.findUniqueOrThrow({ where: { id: ticketId } });
+  const base = Date.now() + 60_000; // after every comment the ticket already has
+  await prisma.supportTicketComment.createMany({ data: Array.from({ length: 205 }, (_, i) => ({ ticketId: long.id, authorKind: i % 2 ? "shopper" : "merchant", body: `رسالة ${i + 1}`, createdAt: new Date(base + i * 60_000) })) });
+  const longView = (await shopper.request(t(`/${ticketId}`))).payload.ticket;
+  assert.equal(longView.comments.at(-1).body, "رسالة 205", "the newest message is on the page");
+  assert.equal(longView.comments.length, 200);
+  assert.equal(longView.earlierComments, true, "…and the page says older ones exist");
+  assert.ok(new Date(longView.comments[0].createdAt) < new Date(longView.comments.at(-1).createdAt), "still read oldest to newest");
+  summary.longTicket = true;
+
   console.log(JSON.stringify({ suite: "market-support", ok: true, summary }, null, 2));
 } finally {
   setOtpProviderForTests(null);

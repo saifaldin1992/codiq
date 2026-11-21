@@ -8,7 +8,7 @@ import { ArrowRight, CircleAlert, ImagePlus, LoaderCircle, ShieldAlert } from "l
 import { Button } from "@/components/ui/button";
 
 type Card = { id: string; number: number; typeLabel: string; subject: string | null; status: string; statusLabel: string; escalated: boolean; createdAt: string; updatedAt: string; order: { id: string; orderNumber: string }; store: { slug: string; name: string } };
-type Detail = Card & { description: string; comments: { id: string; authorKind: string; side: string; body: string; createdAt: string }[]; attachments: { id: string; authorKind: string; contentType: string }[] };
+type Detail = Card & { description: string; earlierComments?: boolean; comments: { id: string; authorKind: string; side: string; body: string; createdAt: string }[]; attachments: { id: string; authorKind: string; contentType: string }[] };
 type View = { ticket: Detail; order: { orderNumber: string; totalIqd: number; customerName: string; recipientPhone: string | null; status: string; items: { productName: string; quantity: number }[] }; canReply: boolean };
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
@@ -123,6 +123,7 @@ function TicketDetail({ kind, storeSlug, ticketId, onBack }: { kind: "store" | "
         <h3 className="font-bold text-[var(--codiq-text)]">المحادثة</h3>
         {ticket.comments.length === 0 ? <p className="text-sm text-[var(--codiq-text-muted)]">لا ردود بعد. الزبون ينتظر ردّك الأوّل.</p> : (
           <ul className="space-y-2">
+            {ticket.earlierComments ? <p className="text-center text-[11px] text-[var(--codiq-text-muted)]" data-testid="ticket-earlier-comments">تظهر آخر ٢٠٠ رسالة فقط.</p> : null}
             {ticket.comments.map((comment) => <li key={comment.id} className={`rounded-2xl p-3 text-sm ${comment.side === "shopper" ? "bg-[var(--codiq-surface-sunken)]" : "bg-[var(--codiq-accent-soft)]"}`}><p className="text-xs font-bold text-[var(--codiq-text-secondary)]">{AUTHOR[comment.authorKind] ?? comment.authorKind} — {new Date(comment.createdAt).toLocaleString("ar-IQ")}</p><p className="whitespace-pre-line text-[var(--codiq-text)]">{comment.body}</p></li>)}
           </ul>
         )}

@@ -12,7 +12,7 @@ import { MarketSignIn } from "./MarketAccountPages";
 
 type TicketCard = { id: string; number: number; typeLabel: string; subject: string | null; status: string; statusLabel: string; newReplies: boolean; updatedAt: string; order: { id: string; orderNumber: string }; store: { slug: string; name: string } };
 type TicketView = {
-  ticket: TicketCard & { description: string; comments: { id: string; side: "shopper" | "support"; body: string; createdAt: string }[]; attachments: { id: string; authorKind: string }[] };
+  ticket: TicketCard & { description: string; earlierComments?: boolean; comments: { id: string; side: "shopper" | "support"; body: string; createdAt: string }[]; attachments: { id: string; authorKind: string }[] };
   canReply: boolean; replyHint: string | null; askResolved: boolean; canAttach: boolean;
 };
 type Options = { types: { code: string; label: string }[]; windowHours: number; attachmentsPerSide: number };
@@ -158,6 +158,7 @@ export function MarketTicketPage() {
         {ticket.attachments.length ? <div className="flex flex-wrap gap-2">{ticket.attachments.map((attachment) => <a key={attachment.id} href={`${url}/attachments/${attachment.id}`} target="_blank" rel="noopener noreferrer"><img src={`${url}/attachments/${attachment.id}`} alt="مرفق" className="h-16 w-16 rounded-xl object-cover" /></a>)}</div> : null}
       </section>
       <section className="space-y-2" data-testid="market-ticket-thread">
+        {ticket.earlierComments ? <p className="text-center text-[11px] text-[var(--codiq-text-muted)]" data-testid="ticket-earlier-comments">تظهر آخر ٢٠٠ رسالة فقط.</p> : null}
         {ticket.comments.map((comment) => (
           <div key={comment.id} className={`max-w-[85%] rounded-[20px] p-3 text-xs leading-6 ${comment.side === "shopper" ? "mr-auto bg-[var(--codiq-accent)] text-[var(--codiq-surface)]" : "ml-auto bg-[var(--codiq-surface)] text-[var(--codiq-text)] shadow-sm"}`}>
             <p className="text-[10px] font-bold opacity-80">{comment.side === "shopper" ? "أنت" : "فريق الدعم"} — {new Date(comment.createdAt).toLocaleString("ar-IQ")}</p>
