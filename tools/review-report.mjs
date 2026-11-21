@@ -90,9 +90,11 @@ for (const hash of commits) {
       .split("\n")
       .filter(line => line.startsWith("@@"))
       .map(line => {
-        const match = line.match(/@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
-        if (!match) return "";
-        const [, a, b = "1", c, d = "1"] = match;
+        // "@@ -12,3 +14,5 @@" — split, no regular expression to backtrack on.
+        const [, minus = "", plus = ""] = line.split(" ");
+        if (!minus.startsWith("-") || !plus.startsWith("+")) return "";
+        const [a, b = "1"] = minus.slice(1).split(",");
+        const [c, d = "1"] = plus.slice(1).split(",");
         const range = (start, count) =>
           Number(count) === 0
             ? "—"
