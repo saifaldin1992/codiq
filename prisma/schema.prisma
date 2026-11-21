@@ -311,6 +311,7 @@ model Store {
   wishlistItems  WishlistItem[]
   marketFollowers ShopperFollowedStore[]
   supportTickets SupportTicket[]
+  platformCouponStores PlatformCouponStore[]
   returnRequests ReturnRequest[]
   /// CD-5: off until the merchant turns it on — nobody discovers he has been
   /// giving discounts because an update defaulted a programme on.
@@ -778,6 +779,10 @@ model StoreOrder {
   deliveryStageAt   DateTime?          @map("delivery_stage_at") @db.Timestamptz(6)
   /// Marketplace M6: why the shopper cancelled, from a fixed list.
   cancelReasonCode  String?            @map("cancel_reason_code") @db.Text
+  /// Marketplace M8b: what a PLATFORM coupon took off. The platform's cost, not the store's:
+  /// never part of `discountIqd` (commission base) and never subtracted from the payout.
+  platformDiscountIqd    Int           @default(0) @map("platform_discount_iqd")
+  platformCouponWalletId String?       @map("platform_coupon_wallet_id") @db.Uuid
   customerName      String             @map("customer_name") @db.Text
   /// PG-6 (ق-74): GENERATED ALWAYS AS (codiq_ar_normalize_v1(order_number)) STORED — migration 20260904090000.
   /// Read-only. NEVER name this field in a `data:` object; Postgres rejects a write to a generated column.
@@ -1416,6 +1421,9 @@ model LedgerEntry {
   /// net (decision §8.4). Nullable because rows written before the column
   /// existed cannot be corrected: the ledger is append-only.
   loyaltyDiscountIqd Int?  @default(0) @map("loyalty_discount_iqd")
+  /// Marketplace M8b: the platform coupon on this order — the platform's cost. NOT subtracted
+  /// from the payout: the store is paid as if the shopper had paid it.
+  platformDiscountIqd Int  @default(0) @map("platform_discount_iqd")
   commissionIqd Int        @map("commission_iqd")
   commissionBps Int        @map("commission_bps")
   planCode      String     @map("plan_code") @db.Text
@@ -2329,6 +2337,8 @@ model Shopper {
   contactMessages   MarketContactMessage[]
   appFeedback       MarketAppFeedback[]
   supportTickets    SupportTicket[]
+  platformCoupons   ShopperCoupon[]
+  pointsEntries     ShopperPointsEntry[]
   marketCart        MarketCart?
 
   @@map("shoppers")
@@ -2699,4 +2709,74 @@ model MarketDeal {
   @@index([slotId, status], map: "market_deals_slot_idx")
   @@index([storeId, createdAt(sort: Desc), id(sort: Desc)], map: "market_deals_store_idx")
   @@map("market_deals")
+}
+
+/// Marketplace M8b: a coupon the PLATFORM funds.
+model PlatformCoupon {
+  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String                @unique @db.Text
+  title          String                @db.Text
+  description    String?               @db.Text
+  kind           String                @db.Text
+  percentOff     Int?                  @map("percent_off") @db.SmallInt
+  amountOffIqd   Int?                  @map("amount_off_iqd")
+  maxDiscountIqd Int?                  @map("max_discount_iqd")
+  minSubtotalIqd Int                   @default(0) @map("min_subtotal_iqd")
+  startsAt       DateTime              @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime              @map("ends_at") @db.Timestamptz(6)
+  totalLimit     Int?                  @map("total_limit")
+  issuedCount    Int                   @default(0) @map("issued_count")
+  pointsCost     Int                   @default(0) @map("points_cost")
+  allStores      Boolean               @default(true) @map("all_stores")
+  isActive       Boolean               @default(true) @map("is_active")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  stores         PlatformCouponStore[]
+  wallet         ShopperCoupon[]
+  pointsEntries  ShopperPointsEntry[]
+
+  @@map("platform_coupons")
+}
+
+model PlatformCouponStore {
+  couponId String         @map("coupon_id") @db.Uuid
+  storeId  String         @map("store_id") @db.Uuid
+  coupon   PlatformCoupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  store    Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([couponId, storeId])
+  @@index([storeId], map: "platform_coupon_stores_store_idx")
+  @@map("platform_coupon_stores")
+}
+
+/// Marketplace M8b: «كوبوناتي» — a platform coupon a shopper holds; used once.
+model ShopperCoupon {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId   String         @map("shopper_id") @db.Uuid
+  couponId    String         @map("coupon_id") @db.Uuid
+  source      String         @db.Text
+  usedOrderId String?        @map("used_order_id") @db.Uuid
+  usedAt      DateTime?      @map("used_at") @db.Timestamptz(6)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper     Shopper        @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  coupon      PlatformCoupon @relation(fields: [couponId], references: [id], onDelete: Restrict)
+
+  @@index([shopperId, createdAt(sort: Desc), id(sort: Desc)], map: "shopper_coupons_wallet_idx")
+  @@map("shopper_coupons")
+}
+
+/// Marketplace M8b: the platform points ledger. Append-only; the balance is the sum.
+model ShopperPointsEntry {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId String          @map("shopper_id") @db.Uuid
+  delta     Int
+  reason    String          @db.Text
+  orderId   String?         @map("order_id") @db.Uuid
+  couponId  String?         @map("coupon_id") @db.Uuid
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper   Shopper         @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  coupon    PlatformCoupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  @@index([shopperId, createdAt(sort: Desc), id(sort: Desc)], map: "shopper_points_entries_shopper_idx")
+  @@map("shopper_points_entries")
 }

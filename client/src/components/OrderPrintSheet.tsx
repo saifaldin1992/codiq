@@ -18,7 +18,7 @@ type PrintOrder = {
   id: string; orderNumber: string; status: string; createdAt: string;
   customerName: string; recipientPhone: string;
   shippingGovernorate: string; shippingAddressLine1: string; shippingAddressLine2: string | null;
-  subtotalIqd: number; deliveryFeeIqd: number; discountIqd: number; totalIqd: number; loyaltyPointsSpent: number; loyaltyDiscountIqd: number;
+  subtotalIqd: number; deliveryFeeIqd: number; discountIqd: number; totalIqd: number; loyaltyPointsSpent: number; loyaltyDiscountIqd: number; platformDiscountIqd?: number;
   couponCode: string | null; customerNote: string | null; paymentStatus: string;
   items: Item[];
 };
@@ -171,6 +171,7 @@ function Invoice({ sheet, order }: { sheet: Sheet; order: PrintOrder }) {
         <Row label="التوصيل" value={`${money.format(order.deliveryFeeIqd)} د.ع`} />
         {order.discountIqd > 0 ? <Row label={`الخصم${order.couponCode ? ` (${order.couponCode})` : ""}`} value={`− ${money.format(order.discountIqd)} د.ع`} /> : null}
         {order.loyaltyDiscountIqd > 0 ? <Row label={`خصم النقاط${order.loyaltyPointsSpent ? ` (${order.loyaltyPointsSpent} نقطة)` : ""}`} value={`− ${money.format(order.loyaltyDiscountIqd)} د.ع`} /> : null}
+        {order.platformDiscountIqd ? <Row label="كوبون السوق (تتحمّله المنصّة)" value={`− ${money.format(order.platformDiscountIqd)} د.ع`} /> : null}
         <div className="flex items-baseline justify-between border-t border-[#12233C] pt-1.5">
           <dt className="text-sm font-black">الإجمالي</dt>
           <dd className="text-base font-black tabular-nums">{money.format(order.totalIqd)} د.ع</dd>

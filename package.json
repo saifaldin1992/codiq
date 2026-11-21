@@ -204,6 +204,8 @@
     "market:support:browser": "pnpm build && node --import tsx phase1-backend/tests/market-support.browser-acceptance.mjs",
     "market:campaigns": "tsx phase1-backend/tests/market-campaigns.integration.mjs",
     "market:campaigns:browser": "pnpm build && node --import tsx phase1-backend/tests/market-campaigns.browser-acceptance.mjs",
+    "market:rewards": "tsx phase1-backend/tests/market-rewards.integration.mjs",
+    "market:rewards:browser": "pnpm build && node --import tsx phase1-backend/tests/market-rewards.browser-acceptance.mjs",
     "market:foundation": "tsx phase1-backend/tests/market-foundation.integration.mjs",
     "market:shell:browser": "pnpm build && node --import tsx phase1-backend/tests/market-shell.browser-acceptance.mjs",
     "events:test": "node --import tsx phase1-backend/tests/domain-events.integration.mjs",

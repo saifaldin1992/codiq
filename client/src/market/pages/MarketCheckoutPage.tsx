@@ -22,6 +22,10 @@ type Summary = {
   delivery: { available: boolean; amountIqd: number | null; reason: string | null };
   coupon: { code: string; discountIqd: number; freeShipping: boolean } | { error: string } | null;
   discountIqd: number;
+  /** Marketplace M8b: the market coupons he holds, and the one chosen. The platform pays them. */
+  platformCoupons: { walletId: string; code: string; title: string; usable: boolean; reason: string | null; discountIqd: number }[];
+  platformCoupon: { walletId: string; discountIqd: number } | null;
+  platformDiscountIqd: number;
   totalIqd: number;
   paymentMethods: { code: string; displayName: string; kind: string }[];
 };
@@ -37,6 +41,7 @@ export function MarketCheckoutPage() {
   const [fulfilment, setFulfilment] = useState<"delivery" | "pickup">("delivery");
   const [couponDraft, setCouponDraft] = useState("");
   const [coupon, setCoupon] = useState("");
+  const [platformCoupon, setPlatformCoupon] = useState("");
   const [payment, setPayment] = useState("cod");
   const [note, setNote] = useState("");
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -53,8 +58,9 @@ export function MarketCheckoutPage() {
     const params = new URLSearchParams({ fulfilment });
     if (addressId) params.set("addressId", addressId);
     if (coupon) params.set("coupon", coupon);
+    if (platformCoupon) params.set("platformCoupon", platformCoupon);
     try { setSummary(await accountCall<Summary>(`/api/market/checkout/${encodeURIComponent(slug)}?${params}`)); } catch (error) { setFailure((error as Error).message); }
-  }, [slug, addressId, fulfilment, coupon]);
+  }, [slug, addressId, fulfilment, coupon, platformCoupon]);
   useEffect(() => { if (shopper && addresses) void load(); }, [shopper, addresses, load]);
 
   const fee = useMemo(() => (summary?.delivery.available ? (summary.coupon && "freeShipping" in summary.coupon && summary.coupon.freeShipping ? 0 : summary.delivery.amountIqd ?? 0) : 0), [summary]);
@@ -69,7 +75,7 @@ export function MarketCheckoutPage() {
         method: "POST",
         headers: { "idempotency-key": key },
         // Only a coupon the summary accepted travels: a refused one stays on screen as an explanation, never blocks the order.
-        body: JSON.stringify({ addressId, fulfilment, paymentMethodCode: payment, couponCode: summary.coupon && "code" in summary.coupon ? summary.coupon.code : null, note: note.trim() || null }),
+        body: JSON.stringify({ addressId, fulfilment, paymentMethodCode: payment, couponCode: summary.coupon && "code" in summary.coupon ? summary.coupon.code : null, note: note.trim() || null, platformCouponWalletId: summary.platformCoupon?.walletId ?? null }),
       });
       await refreshCart();
       navigate(`/orders/${result.order.id}?placed=1`);
@@ -141,11 +147,24 @@ export function MarketCheckoutPage() {
         {summary?.coupon && "code" in summary.coupon ? <p className="text-xs font-semibold text-[var(--codiq-success)]" data-testid="market-checkout-coupon-ok">طُبّق {summary.coupon.code}{summary.coupon.freeShipping ? " — توصيل مجانيّ" : ` — وفّرت ${iqd(summary.coupon.discountIqd)}`} <button type="button" onClick={() => { setCoupon(""); setCouponDraft(""); }} className="mr-2 text-[var(--codiq-danger)]">إزالة</button></p> : null}
         <textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} rows={2} placeholder="ملاحظات للمتجر (اختياريّ)" className="w-full rounded-2xl border border-[var(--codiq-border)] px-3 py-2 text-sm" />
       </section>
+      {summary?.platformCoupons.length ? (
+        <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid="market-checkout-platform-coupons">
+          <p className="text-sm font-black text-[var(--codiq-text)]">كوبونات السوق</p>
+          {summary.platformCoupons.map((entry) => (
+            <label key={entry.walletId} className={`flex items-center justify-between gap-2 rounded-2xl border px-3 py-2.5 text-xs ${platformCoupon === entry.walletId ? "border-[var(--codiq-accent)] bg-[var(--codiq-accent-soft)]" : "border-[var(--codiq-border)]"} ${entry.usable ? "" : "opacity-60"}`}>
+              <span className="flex items-center gap-2"><input type="radio" name="platform-coupon" disabled={!entry.usable} checked={platformCoupon === entry.walletId} onChange={() => setPlatformCoupon(entry.walletId)} data-testid={`market-checkout-platform-${entry.code}`} /><span><span className="block font-bold text-[var(--codiq-text)]">{entry.title}</span>{entry.reason ? <span className="text-[11px] text-[var(--codiq-text-muted)]">{entry.reason}</span> : null}</span></span>
+              {entry.usable ? <span className="font-black text-[var(--codiq-success)]">− {iqd(entry.discountIqd)}</span> : null}
+            </label>
+          ))}
+          {platformCoupon ? <button type="button" onClick={() => setPlatformCoupon("")} className="text-xs font-bold text-[var(--codiq-danger)]">بدون كوبون السوق</button> : null}
+        </section>
+      ) : null}
 
       {summary ? (
         <section className="space-y-1.5 rounded-[24px] bg-[var(--codiq-surface)] p-4 text-sm shadow-sm" data-testid="market-checkout-totals">
           <Row label="المجموع الفرعيّ" value={iqd(summary.subtotalIqd)} />
           {summary.discountIqd ? <Row label="خصم الكوبون" value={`− ${iqd(summary.discountIqd)}`} /> : null}
+          {summary.platformDiscountIqd ? <Row label="كوبون السوق" value={`− ${iqd(summary.platformDiscountIqd)}`} /> : null}
           <Row label={fulfilment === "pickup" ? "الاستلام من المتجر" : "رسوم التوصيل"} value={summary.delivery.available ? (fee === 0 ? "مجاناً" : iqd(fee)) : "—"} />
           {!summary.delivery.available && summary.delivery.reason ? <p className="text-xs text-[var(--codiq-danger)]" data-testid="market-checkout-delivery-problem">{summary.delivery.reason}</p> : null}
           <div className="flex justify-between border-t border-[var(--codiq-border)] pt-2 text-base font-black text-[var(--codiq-text)]"><span>الإجماليّ</span><span data-testid="market-checkout-total">{iqd(summary.totalIqd)}</span></div>

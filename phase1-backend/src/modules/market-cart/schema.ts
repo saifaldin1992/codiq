@@ -20,6 +20,7 @@ export const summaryQuerySchema = z.object({
   addressId: z.string().uuid().optional(),
   fulfilment: z.enum(["delivery", "pickup"]).optional().default("delivery"),
   coupon: z.string().trim().max(40).optional(),
+  platformCoupon: z.string().uuid().optional(),
 });
 
 export const placeOrderSchema = z.object({
@@ -28,4 +29,5 @@ export const placeOrderSchema = z.object({
   paymentMethodCode: z.string().trim().min(1).max(40).default("cod"),
   couponCode: z.string().trim().max(40).nullable().optional(),
   note: z.string().trim().max(500).nullable().optional(),
+  platformCouponWalletId: z.string().uuid().nullable().optional(),
 });

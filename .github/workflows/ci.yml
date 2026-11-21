@@ -408,6 +408,9 @@ jobs:
       - name: Integration — marketplace M8a (campaigns, hourly deals priced through the one live-price rule, refused after the hour)
         run: pnpm market:campaigns
 
+      - name: Integration — marketplace M8b (platform-funded coupons, points and tiers, concurrency: no double spend)
+        run: pnpm market:rewards
+
       - name: Guard — every implemented merchant menu entry has a screen
         run: pnpm screens:guard
 
@@ -1047,6 +1050,9 @@ jobs:
 
       - name: Browser — marketplace campaign and «عرض الساعة» (owner, store, shopper)
         run: node --import tsx phase1-backend/tests/market-campaigns.browser-acceptance.mjs
+
+      - name: Browser — marketplace coupons and points (owner, shopper, store)
+        run: node --import tsx phase1-backend/tests/market-rewards.browser-acceptance.mjs
 
       # PG-2: the sheet's ق-10 promise («the movement count comes from the
       # server or is not shown») and the no-silent-rename rule are UI contracts,

@@ -460,5 +460,25 @@
         "reason": "BOUNDED — one campaign's editor: ≤ 60 days and its hours (take 500); the deals are paged separately at /deals."
       }
     ]
+  },
+  "modules/market-rewards/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/coupons",
+        "reason": "BOUNDED — the coupons the market offers right now (take: 100); the platform issues a handful at a time."
+      },
+      {
+        "route": "GET /market/coupons/:code",
+        "reason": "BOUNDED — one coupon and the stores it works in (take: 60)."
+      },
+      {
+        "route": "GET /platform/market/coupons",
+        "reason": "BOUNDED — the owner's last hundred coupons (take: 100)."
+      },
+      {
+        "route": "GET /platform/market/rewards/report",
+        "reason": "NOT A LIST — four totals of the programme's cost."
+      }
+    ]
   }
 }

@@ -1,4 +1,5 @@
 import { parseDeliveryFields } from "./delivery.service.js";
+import { awardPlatformPoints, clawbackPlatformPoints, releasePlatformCoupon } from "./platform-rewards.service.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
 import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor, type ListCursor } from "./list-page.js";
@@ -114,6 +115,8 @@ function orderPayload(order: any) {
     // shopper redeemed, on the screen he trusts to tell him what the courier
     // owes him. The columns were on the row the whole time.
     loyaltyPointsSpent: order.loyaltyPointsSpent ?? 0, loyaltyDiscountIqd: order.loyaltyDiscountIqd ?? 0,
+    // Marketplace M8b: a market coupon the PLATFORM paid — the courier collects less, the store is still paid it.
+    platformDiscountIqd: order.platformDiscountIqd ?? 0,
     couponCode: order.couponCode ?? null, prescriptionStatus: order.prescriptionStatus ?? null,
     // PG-5: a note stored and never shown is worse than no note — the customer
     // believes he has been heard and the courier still knocks on the wrong door.
@@ -257,7 +260,7 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
   const note = orderTransitionNote(input.note);
   let fromStatusForEvent = "";
   const payload = await prisma.$transaction(async (tx) => {
-    const current = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, status: true, version: true, source: true, orderNumber: true, customerEmail: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, prescriptionStatus: true, customerId: true, loyaltyDiscountIqd: true } });
+    const current = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, status: true, version: true, source: true, orderNumber: true, customerEmail: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, prescriptionStatus: true, customerId: true, loyaltyDiscountIqd: true, platformDiscountIqd: true } });
     if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
     if (current.version !== expectedVersion) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "The order was changed by another request.");
     const fromStatus = orderStatus(current.status);
@@ -306,7 +309,10 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
       // the merchant sold himself on an earlier order. Loyalty is therefore
       // carried as its own deduction on the entry and subtracted in the payout,
       // never folded into the base here. See `recordOrderCompletion`.
-      await recordOrderCompletion(tx, { storeId, orderId, subtotalIqd: current.subtotalIqd - current.discountIqd, deliveryFeeIqd: current.deliveryFeeIqd, loyaltyDiscountIqd: current.loyaltyDiscountIqd });
+      // Marketplace M8b: the platform coupon rides the entry for the record only —
+      // the platform's cost. It is in neither the commission base nor the payout's
+      // deductions: the store is paid as if the shopper had paid it.
+      await recordOrderCompletion(tx, { storeId, orderId, subtotalIqd: current.subtotalIqd - current.discountIqd, deliveryFeeIqd: current.deliveryFeeIqd, loyaltyDiscountIqd: current.loyaltyDiscountIqd, platformDiscountIqd: current.platformDiscountIqd });
       // CD-5: points are decided in the SAME transaction as the money, on what
       // the shopper actually paid IN MONEY for goods — subtotal less the coupon
       // AND less any points he redeemed. Awarding on the pre-redemption figure
@@ -319,13 +325,17 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
       // about the same order.
       await awardLoyaltyPoints(tx, {
         storeId, orderId, customerId: current.customerId ?? null,
-        subtotalIqd: current.subtotalIqd - current.discountIqd - current.loyaltyDiscountIqd,
+        subtotalIqd: current.subtotalIqd - current.discountIqd - current.loyaltyDiscountIqd - current.platformDiscountIqd,
       });
+      // Marketplace M8b: the platform's points, on the same money-paid base, once per order.
+      await awardPlatformPoints(tx, { orderId, customerId: current.customerId ?? null, paidGoodsIqd: current.subtotalIqd - current.discountIqd - current.loyaltyDiscountIqd - current.platformDiscountIqd });
     } else if (toStatus === "returned") {
       await recordOrderReturn(tx, { storeId, orderId });
       // CD-5: both sides. Without the clawback, buy → return prints points;
       // without the refund, points spent on a returned order are simply kept.
       await reverseLoyaltyForReturn(tx, { storeId, orderId });
+      // Marketplace M8b: and the platform's points too. The coupon is not given back — it was used.
+      await clawbackPlatformPoints(tx, orderId);
     } else if (toStatus === "cancelled" || toStatus === "rejected") {
       // ق-191 — the order dies before it is paid, and the points must come back.
       //
@@ -348,6 +358,8 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
       // side and the points side are independent here, which is why the defect
       // could hide — the money path was correct.
       await reverseLoyaltyForReturn(tx, { storeId, orderId });
+      // Marketplace M8b: an order that died before it was paid gives the platform coupon back.
+      await releasePlatformCoupon(tx, orderId);
     }
     const updated = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, include: orderInclude });
     if (!updated) throw new HttpError(500, "ORDER_TRANSITION_FAILED", "Order transition could not be completed.");

@@ -20,6 +20,7 @@ import { marketOrdersModule } from "./market-orders/index.js";
 import { marketHelpModule } from "./market-help/index.js";
 import { marketSupportModule } from "./market-support/index.js";
 import { marketCampaignsModule } from "./market-campaigns/index.js";
+import { marketRewardsModule } from "./market-rewards/index.js";
 
 /** New modules, appended after the core so the core's matching order never moves. */
 export const EXTENSION_MODULES: readonly PlatformModule[] = [
@@ -34,6 +35,7 @@ export const EXTENSION_MODULES: readonly PlatformModule[] = [
   marketHelpModule,
   marketSupportModule,
   marketCampaignsModule,
+  marketRewardsModule,
 ];
 
 export const PLATFORM_MODULES: readonly PlatformModule[] = [...CORE_MODULES, ...EXTENSION_MODULES];

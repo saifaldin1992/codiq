@@ -21,6 +21,7 @@ import { governorateLabel } from "../../services/governorates.js";
 import { listedStoreTenant } from "../market-stores/directory.service.js";
 import { marketCartView, repriceMarketLines } from "./cart.service.js";
 import { afterSalesState, ensureHandoverCode } from "../market-orders/after-sales.service.js";
+import { applicableCoupons } from "../market-rewards/rewards.service.js";
 
 type ShopperRef = { id: string; phoneNormalized: string; fullName: string | null };
 
@@ -54,7 +55,7 @@ export async function customerForShopper(storeId: string, shopper: ShopperRef, n
 }
 
 /** What paying this store would cost, before committing to it. Advisory: checkout re-decides everything under lock. */
-export async function checkoutSummary(shopper: ShopperRef, storeSlug: string, input: { addressId?: string; fulfilment: "delivery" | "pickup"; coupon?: string }) {
+export async function checkoutSummary(shopper: ShopperRef, storeSlug: string, input: { addressId?: string; fulfilment: "delivery" | "pickup"; coupon?: string; platformCoupon?: string }) {
   const store = await listedStoreTenant(storeSlug);
   const [view, storeRow, methods, anyRate] = await Promise.all([
     marketCartView(shopper.id, store.id),
@@ -88,6 +89,10 @@ export async function checkoutSummary(shopper: ShopperRef, storeSlug: string, in
   }
   const discount = coupon && "discountIqd" in coupon ? coupon.discountIqd : 0;
   const fee = delivery.available ? (coupon && "freeShipping" in coupon && coupon.freeShipping ? 0 : delivery.amountIqd ?? 0) : 0;
+  // Marketplace M8b: the platform coupons he holds that work here, on what is left after the store's coupon.
+  const platformCoupons = await applicableCoupons(shopper.id, store.id, group.subtotalIqd - discount);
+  const chosen = input.platformCoupon ? platformCoupons.find((entry) => entry.walletId === input.platformCoupon && entry.usable) ?? null : null;
+  const platformDiscount = chosen?.discountIqd ?? 0;
   return {
     storeSlug: store.slug,
     store: { name: storeRow.name, pickupEnabled: storeRow.pickupEnabled, location: storeRow.latitude !== null ? { latitude: storeRow.latitude, longitude: storeRow.longitude, addressLine: storeRow.addressLine } : null },
@@ -97,12 +102,15 @@ export async function checkoutSummary(shopper: ShopperRef, storeSlug: string, in
     delivery,
     coupon,
     discountIqd: discount,
-    totalIqd: group.subtotalIqd - discount + fee,
+    platformCoupons,
+    platformCoupon: chosen,
+    platformDiscountIqd: platformDiscount,
+    totalIqd: group.subtotalIqd - discount - platformDiscount + fee,
     paymentMethods: methods.map((method) => ({ code: method.code, displayName: method.displayName, kind: method.kind })),
   };
 }
 
-export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, input: { addressId: string; fulfilment: "delivery" | "pickup"; paymentMethodCode: string; couponCode?: string | null; note?: string | null }, idempotencyKey: unknown) {
+export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, input: { addressId: string; fulfilment: "delivery" | "pickup"; paymentMethodCode: string; couponCode?: string | null; note?: string | null; platformCouponWalletId?: string | null }, idempotencyKey: unknown) {
   const store = await listedStoreTenant(storeSlug);
   const address = await shopperAddress(shopper.id, input.addressId);
   const customerId = await customerForShopper(store.id, shopper, address.recipientName);
@@ -136,6 +144,7 @@ export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, i
       couponCode: input.couponCode ?? undefined,
       note: extra || undefined,
       fulfilment: input.fulfilment,
+      platformCouponWalletId: input.platformCouponWalletId ?? undefined,
     });
     // The shopper's receipt code, issued with the order (idempotent on a replay).
     await ensureHandoverCode(result.order.id, store.id);

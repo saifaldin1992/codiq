@@ -47,7 +47,7 @@ function commissionFor(subtotalIqd: number, commissionBps: number): number {
  * and MOVES REAL MONEY out of the platform's commission on every redemption.
  * Do not make it without a new owner decision replacing the one above.
  */
-export async function recordOrderCompletion(tx: DbClient, input: { storeId: string; orderId: string; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number }) {
+export async function recordOrderCompletion(tx: DbClient, input: { storeId: string; orderId: string; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number; platformDiscountIqd?: number }) {
   const store = await tx.store.findUnique({ where: { id: input.storeId }, select: { merchantId: true } });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
   const plan = await activePlanForMerchant(tx, store.merchantId);
@@ -60,6 +60,8 @@ export async function recordOrderCompletion(tx: DbClient, input: { storeId: stri
       subtotalIqd: input.subtotalIqd,
       deliveryFeeIqd: input.deliveryFeeIqd,
       loyaltyDiscountIqd: input.loyaltyDiscountIqd,
+      // Marketplace M8b: recorded, never deducted — the platform pays it.
+      platformDiscountIqd: input.platformDiscountIqd ?? 0,
       commissionIqd: commissionFor(input.subtotalIqd, bps),
       commissionBps: bps,
       planCode: plan.code,
@@ -88,6 +90,7 @@ export async function recordOrderReturn(tx: DbClient, input: { storeId: string; 
       subtotalIqd: completion.subtotalIqd,
       deliveryFeeIqd: completion.deliveryFeeIqd,
       loyaltyDiscountIqd: completion.loyaltyDiscountIqd ?? 0,
+      platformDiscountIqd: completion.platformDiscountIqd,
       commissionIqd: completion.commissionIqd,
       commissionBps: completion.commissionBps,
       planCode: completion.planCode,
@@ -115,6 +118,7 @@ export async function createManualReturnAdjustment(actor: PlatformActor, input: 
         subtotalIqd: completion.subtotalIqd,
         deliveryFeeIqd: completion.deliveryFeeIqd,
         loyaltyDiscountIqd: completion.loyaltyDiscountIqd ?? 0,
+        platformDiscountIqd: completion.platformDiscountIqd,
         commissionIqd: completion.commissionIqd,
         commissionBps: completion.commissionBps,
         planCode: completion.planCode,

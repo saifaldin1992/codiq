@@ -431,6 +431,7 @@ export const ORDER_CSV_COLUMNS = [
   "coupon_code",
   "loyalty_points_spent",
   "loyalty_discount_iqd",
+  "platform_discount_iqd",
   "total_iqd",
   "product_name",
   "variant_name",
@@ -502,7 +503,7 @@ export async function exportOrdersCsv(storeId: string, query: Record<string, unk
         // ق-187: without these the exported total is short by whatever the
         // shopper redeemed, and the accountant reconciling the file has no
         // column that explains the difference.
-        loyaltyPointsSpent: true, loyaltyDiscountIqd: true,
+        loyaltyPointsSpent: true, loyaltyDiscountIqd: true, platformDiscountIqd: true,
         items: { select: { productName: true, variantName: true, sku: true, quantity: true, unitPriceIqd: true, lineTotalIqd: true }, orderBy: { createdAt: "asc" } },
       },
     });
@@ -528,6 +529,7 @@ export async function exportOrdersCsv(storeId: string, query: Record<string, unk
           order.couponCode ?? "",
           order.loyaltyPointsSpent,
           order.loyaltyDiscountIqd,
+          order.platformDiscountIqd,
           order.totalIqd,
           item.productName,
           item.variantName ?? "",

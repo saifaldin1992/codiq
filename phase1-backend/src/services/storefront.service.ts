@@ -25,13 +25,14 @@ import { searchEngine } from "./search/index.js";
 import { LIVE } from "./soft-delete/constants.js";
 import { domainEvents } from "../events/domain-events.js";
 import { livePriceOf, livePrices } from "./live-price.js";
+import { lockPlatformCouponForCheckout, markPlatformCouponUsed } from "./platform-rewards.service.js";
 
 const GUEST_CART_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CART_QUANTITY = 99;
 const CART_STATUS_ACTIVE = "active";
 
 type CartContext = { customerId?: string; guestToken?: string };
-type CheckoutInput = { idempotencyKey?: unknown; cartVersion?: unknown; addressId?: unknown; address?: unknown; paymentMethodCode?: unknown; couponCode?: unknown; note?: unknown; loyaltyPoints?: unknown; fulfilment?: unknown };
+type CheckoutInput = { idempotencyKey?: unknown; cartVersion?: unknown; addressId?: unknown; address?: unknown; paymentMethodCode?: unknown; couponCode?: unknown; note?: unknown; loyaltyPoints?: unknown; fulfilment?: unknown; platformCouponWalletId?: unknown };
 
 /**
  * PG-5 (ق-73) — what the customer asks for at checkout: «اتصل قبل الوصول»,
@@ -742,7 +743,9 @@ export function checkoutFingerprint(input: CheckoutInput, cartVersion: number) {
   const loyaltyPoints = Number.isInteger(Number(input.loyaltyPoints)) && Number(input.loyaltyPoints) > 0 ? Number(input.loyaltyPoints) : 0;
   // Marketplace M5: pick-up joins CONDITIONALLY too — delivery, the default, leaves every earlier fingerprint unchanged.
   const pickup = input.fulfilment === "pickup";
-  return hash(JSON.stringify({ cartVersion, addressId: typeof input.addressId === "string" ? input.addressId : null, address: input.address ?? null, paymentMethodCode: input.paymentMethodCode ?? "cod", ...(couponCode ? { couponCode } : {}), ...(note ? { note } : {}), ...(loyaltyPoints ? { loyaltyPoints } : {}), ...(pickup ? { fulfilment: "pickup" } : {}) }));
+  // Marketplace M8b: a platform coupon joins CONDITIONALLY, like every term before it.
+  const platformCoupon = typeof input.platformCouponWalletId === "string" && input.platformCouponWalletId ? input.platformCouponWalletId : null;
+  return hash(JSON.stringify({ cartVersion, addressId: typeof input.addressId === "string" ? input.addressId : null, address: input.address ?? null, paymentMethodCode: input.paymentMethodCode ?? "cod", ...(couponCode ? { couponCode } : {}), ...(note ? { note } : {}), ...(loyaltyPoints ? { loyaltyPoints } : {}), ...(pickup ? { fulfilment: "pickup" } : {}), ...(platformCoupon ? { platformCoupon } : {}) }));
 }
 
 function orderNumber() { return `SF-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`; }
@@ -1070,9 +1073,24 @@ export async function checkout(storeId: string, customerId: string, input: Check
     const loyaltyPreview = loyaltyRequest > 0
       ? await previewLoyaltyRedemption(tx, { storeId, customerId, requestedPoints: loyaltyRequest, subtotalIqd, couponDiscountIqd: discountIqd })
       : { points: 0, discountIqd: 0 };
+    // Marketplace M8b: a PLATFORM coupon, on what is left after the store's own
+    // coupon and points. The platform's cost — kept out of `discountIqd`, so it
+    // lowers neither the commission base nor the store's payout. Its wallet row
+    // is locked here, so two checkouts cannot both spend one coupon.
+    const platformWalletId = typeof input.platformCouponWalletId === "string" && input.platformCouponWalletId ? input.platformCouponWalletId : null;
+    const platformCoupon = platformWalletId
+      ? await lockPlatformCouponForCheckout(tx, {
+        walletId: platformWalletId,
+        shopperId: (await tx.customer.findFirst({ where: { id: customerId, storeId }, select: { shopperId: true } }))?.shopperId ?? null,
+        storeId,
+        baseIqd: subtotalIqd - discountIqd - loyaltyPreview.discountIqd,
+        now: new Date(),
+      })
+      : null;
+    const platformDiscountIqd = platformCoupon?.discountIqd ?? 0;
     // The delivery fee is deliberately OUTSIDE what points may cover: a courier
     // is paid in money whatever the shopper redeems.
-    const totalIqd = subtotalIqd - discountIqd - loyaltyPreview.discountIqd + deliveryFeeIqd;
+    const totalIqd = subtotalIqd - discountIqd - loyaltyPreview.discountIqd - platformDiscountIqd + deliveryFeeIqd;
     // ASVS 5.0 V1.4.2: 99 units of a very expensive item can exceed the 32-bit
     // order columns; refuse it plainly instead of failing inside the write.
     if (subtotalIqd > 2_147_483_647 || totalIqd > 2_147_483_647) {
@@ -1083,11 +1101,13 @@ export async function checkout(storeId: string, customerId: string, input: Check
     // Phase 20B-1: a product requiring a prescription stamps the order into the
     // pending_upload state at creation; the upload itself happens after checkout.
     const requiresPrescription = variants.some((variant) => variant.requiresPrescription);
-    const order = await tx.storeOrder.create({ data: { storeId, customerId, loyaltyPointsSpent: loyaltyPreview.points, loyaltyDiscountIqd: loyaltyPreview.discountIqd, orderNumber: orderNumber(), status: "new", fulfilment: pickup ? "pickup" : "delivery", customerName: address.recipientName || customer.fullName, customerEmail: customer.email, customerNote: normalizeCustomerNote(input.note), recipientPhone: address.phoneContactNormalized, shippingGovernorate: address.governorate, shippingAddressLine1: address.fullAddress, shippingAddressLine2: address.city, subtotalIqd, deliveryFeeIqd, discountIqd, couponId: coupon?.id ?? null, couponCode: coupon?.code ?? null, prescriptionStatus: requiresPrescription ? "pending_upload" : null, totalIqd, paymentStatus: paymentMethod.kind === "manual_transfer" ? "awaiting_transfer" : "unpaid", paymentMethodCode: paymentMethod.code, source: "storefront", updatedByKind: "customer", items: { create: cart.items.map((item) => { const variant = variantById.get(item.variantId)!; return { productId: item.productId, variantId: item.variantId, sku: variant.sku, productName: variant.productName, variantName: variant.name, quantity: item.quantity, unitPriceIqd: unitPrice(item), lineTotalIqd: item.quantity * unitPrice(item), addons: item.addonIds.map((id) => { const addon = addonById.get(id)!; return { id, name: addon.name, priceIqd: addon.priceIqd }; }) }; }) }, statusEvents: { create: { storeId, fromStatus: null, toStatus: "new", actorKind: "customer", actorId: customerId, note: null } } }, include: { items: true, statusEvents: true } });
+    const order = await tx.storeOrder.create({ data: { storeId, customerId, loyaltyPointsSpent: loyaltyPreview.points, loyaltyDiscountIqd: loyaltyPreview.discountIqd, orderNumber: orderNumber(), status: "new", fulfilment: pickup ? "pickup" : "delivery", customerName: address.recipientName || customer.fullName, customerEmail: customer.email, customerNote: normalizeCustomerNote(input.note), recipientPhone: address.phoneContactNormalized, shippingGovernorate: address.governorate, shippingAddressLine1: address.fullAddress, shippingAddressLine2: address.city, subtotalIqd, deliveryFeeIqd, discountIqd, platformDiscountIqd, platformCouponWalletId: platformCoupon && platformDiscountIqd > 0 ? platformCoupon.walletId : null, couponId: coupon?.id ?? null, couponCode: coupon?.code ?? null, prescriptionStatus: requiresPrescription ? "pending_upload" : null, totalIqd, paymentStatus: paymentMethod.kind === "manual_transfer" ? "awaiting_transfer" : "unpaid", paymentMethodCode: paymentMethod.code, source: "storefront", updatedByKind: "customer", items: { create: cart.items.map((item) => { const variant = variantById.get(item.variantId)!; return { productId: item.productId, variantId: item.variantId, sku: variant.sku, productName: variant.productName, variantName: variant.name, quantity: item.quantity, unitPriceIqd: unitPrice(item), lineTotalIqd: item.quantity * unitPrice(item), addons: item.addonIds.map((id) => { const addon = addonById.get(id)!; return { id, name: addon.name, priceIqd: addon.priceIqd }; }) }; }) }, statusEvents: { create: { storeId, fromStatus: null, toStatus: "new", actorKind: "customer", actorId: customerId, note: null } } }, include: { items: true, statusEvents: true } });
     // CD-5: the spend row is written the moment the order it belongs to exists,
     // inside the same transaction that priced it — so a checkout that fails
     // later can never leave a shopper charged points for an order he has not got.
     await commitLoyaltyRedemption(tx, { storeId, customerId, orderId: order.id, redemption: loyaltyPreview });
+    // Marketplace M8b: the platform coupon is spent with the order or not at all.
+    if (platformCoupon && platformDiscountIqd > 0) await markPlatformCouponUsed(tx, platformCoupon.walletId, order.id, new Date());
     // Phase 20B-1: the append-only redemption commits or rolls back with the
     // order; UNIQUE(order_id) makes "one coupon per order" structural.
     if (coupon) await tx.couponRedemption.create({ data: { storeId, couponId: coupon.id, orderId: order.id, customerId, discountIqd, waivedDeliveryFeeIqd: couponResult.freeShipping ? deliveryRate.amountIqd : 0 } });
