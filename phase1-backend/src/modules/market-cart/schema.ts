@@ -30,4 +30,17 @@ export const placeOrderSchema = z.object({
   couponCode: z.string().trim().max(40).nullable().optional(),
   note: z.string().trim().max(500).nullable().optional(),
   platformCouponWalletId: z.string().uuid().nullable().optional(),
+  /** Marketplace M13a: the plan the lender's code approves (market_instalments only). */
+  instalmentPaymentId: z.string().uuid().nullable().optional(),
+  instalmentCode: z.string().trim().regex(/^\d{6}$/, "الرمز ستة أرقام").nullable().optional(),
+});
+
+/** Marketplace M13a: open an instalment plan for this store's part of the cart. */
+export const instalmentStartSchema = z.object({
+  lender: z.string().trim().min(1).max(40),
+  months: z.number().int().min(2).max(36),
+  addressId: z.string().uuid().optional(),
+  fulfilment: z.enum(["delivery", "pickup"]).default("delivery"),
+  couponCode: z.string().trim().max(40).nullable().optional(),
+  platformCouponWalletId: z.string().uuid().nullable().optional(),
 });

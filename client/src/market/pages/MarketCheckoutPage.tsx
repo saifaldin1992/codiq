@@ -11,6 +11,7 @@ import { accountCall, displayPhone, useShopper } from "../market-shopper";
 import { refreshCart, type CartLine } from "../market-cart";
 import { iqd } from "../market-products";
 import { MarketSignIn } from "./MarketAccountPages";
+import { InstalmentChooser, type InstalmentOffer, type InstalmentPlan } from "../components/InstalmentChooser";
 
 type Address = { id: string; label: string; recipientName: string; phone: string; governorate: { name: string }; district: { name: string }; addressLine: string; isDefault: boolean };
 type Summary = {
@@ -28,6 +29,8 @@ type Summary = {
   platformDiscountIqd: number;
   totalIqd: number;
   paymentMethods: { code: string; displayName: string; kind: string }[];
+  /** Marketplace M13a: the market's online methods, when a provider is on. */
+  online: { card: { id: string; name: string } | null; instalments: InstalmentOffer | null };
 };
 
 const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`) + "-market-checkout";
@@ -48,6 +51,8 @@ export function MarketCheckoutPage() {
   const [failure, setFailure] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [key, setKey] = useState(newKey);
+  const [plan, setPlan] = useState<InstalmentPlan | null>(null);
+  const [planCode, setPlanCode] = useState("");
 
   useEffect(() => {
     if (!shopper) return;
@@ -71,25 +76,29 @@ export function MarketCheckoutPage() {
     if (!addressId || !summary) return;
     setPlacing(true); setFailure(null);
     try {
-      const result = await accountCall<{ order: { id: string } }>(`/api/market/checkout/${encodeURIComponent(slug)}`, {
+      const result = await accountCall<{ order: { id: string }; payment?: { paymentId: string; redirectUrl: string } }>(`/api/market/checkout/${encodeURIComponent(slug)}`, {
         method: "POST",
         headers: { "idempotency-key": key },
         // Only a coupon the summary accepted travels: a refused one stays on screen as an explanation, never blocks the order.
-        body: JSON.stringify({ addressId, fulfilment, paymentMethodCode: payment, couponCode: summary.coupon && "code" in summary.coupon ? summary.coupon.code : null, note: note.trim() || null, platformCouponWalletId: summary.platformCoupon?.walletId ?? null }),
+        body: JSON.stringify({ addressId, fulfilment, paymentMethodCode: payment, couponCode: summary.coupon && "code" in summary.coupon ? summary.coupon.code : null, note: note.trim() || null, platformCouponWalletId: summary.platformCoupon?.walletId ?? null, ...(payment === "market_instalments" && plan ? { instalmentPaymentId: plan.paymentId, instalmentCode: planCode } : {}) }),
       });
       await refreshCart();
+      // A card order goes to the gateway's page; it comes back to the order once paid.
+      if (result.payment) { window.location.assign(result.payment.redirectUrl); return; }
       navigate(`/orders/${result.order.id}?placed=1`);
     } catch (error) {
       const code = (error as { code?: string }).code;
       setFailure((error as Error).message);
       // The cart moved under the shopper: show him the corrected numbers and let the next tap be a new attempt.
       if (code === "CART_PRICE_CHANGED" || code === "CART_VERSION_CONFLICT" || code === "IDEMPOTENCY_KEY_REUSED") { setKey(newKey()); await refreshCart(); await load(); }
+      // The plan is gone (amount changed, expired, locked): choose the term again.
+      if (code?.startsWith("INSTALMENT_") && code !== "INSTALMENT_CODE_WRONG") { setPlan(null); setPlanCode(""); setKey(newKey()); await load(); }
     } finally {
       setPlacing(false);
     }
   };
 
-  const canPlace = summary?.ready && summary.delivery.available && addressId && !placing;
+  const canPlace = summary?.ready && summary.delivery.available && addressId && !placing && (payment !== "market_instalments" || (plan && planCode.length === 6));
   return (
     <div className="space-y-4" data-testid="market-checkout">
       <Link href="/cart" className="text-xs font-bold text-[var(--codiq-accent)]">← السلة</Link>
@@ -135,6 +144,12 @@ export function MarketCheckoutPage() {
         {(summary?.paymentMethods.length ? summary.paymentMethods : [{ code: "cod", displayName: "الدفع عند الاستلام", kind: "cash" }]).map((method) => (
           <label key={method.code} className="flex items-center gap-2 text-sm text-[var(--codiq-text)]"><input type="radio" name="payment" checked={payment === method.code} onChange={() => setPayment(method.code)} /> {method.displayName}</label>
         ))}
+        {summary?.online.card ? <label className="flex items-center gap-2 text-sm text-[var(--codiq-text)]"><input type="radio" name="payment" checked={payment === "market_card"} onChange={() => setPayment("market_card")} data-testid="market-checkout-pay-card" /> بطاقة إلكترونيّة <span className="text-[11px] text-[var(--codiq-text-muted)]">({summary.online.card.name})</span></label> : null}
+        {summary?.online.instalments ? <label className="flex items-center gap-2 text-sm text-[var(--codiq-text)]"><input type="radio" name="payment" checked={payment === "market_instalments"} onChange={() => setPayment("market_instalments")} data-testid="market-checkout-pay-instalments" /> أقساط شهريّة</label> : null}
+        {payment === "market_instalments" && summary?.online.instalments ? (
+          <InstalmentChooser slug={slug} offer={summary.online.instalments} plan={plan} onPlan={setPlan} code={planCode} onCode={setPlanCode}
+            request={{ addressId, fulfilment, couponCode: summary.coupon && "code" in summary.coupon ? summary.coupon.code : null, platformCouponWalletId: summary.platformCoupon?.walletId ?? null }} />
+        ) : null}
       </section>
 
       <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm">
@@ -169,6 +184,8 @@ export function MarketCheckoutPage() {
           {!summary.delivery.available && summary.delivery.reason ? <p className="text-xs text-[var(--codiq-danger)]" data-testid="market-checkout-delivery-problem">{summary.delivery.reason}</p> : null}
           <div className="flex justify-between border-t border-[var(--codiq-border)] pt-2 text-base font-black text-[var(--codiq-text)]"><span>الإجماليّ</span><span data-testid="market-checkout-total">{iqd(summary.totalIqd)}</span></div>
           {payment === "cod" ? <p className="text-[11px] text-[var(--codiq-text-muted)]">تدفع نقداً عند الاستلام.</p> : null}
+          {payment === "market_card" ? <p className="text-[11px] text-[var(--codiq-text-muted)]">تدفع المبلغ كاملاً على صفحة بوابة الدفع بعد التأكيد.</p> : null}
+          {payment === "market_instalments" ? <p className="text-[11px] text-[var(--codiq-text-muted)]">ثمن المنتجات بالأقساط، ورسوم التوصيل {iqd(fee)} نقداً عند الاستلام.</p> : null}
         </section>
       ) : <p className="text-center text-sm text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ التحميل…</p>}
 

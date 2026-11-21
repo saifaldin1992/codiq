@@ -11,6 +11,7 @@
  * «cheapest first» is the negated price — so one cursor shape pages them all,
  * and the cursor's kind names the sort (and period) it belongs to.
  */
+import { instalmentTeaser } from "../market-payments/payments.service.js";
 import { livePrices } from "../../services/live-price.js";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
@@ -231,7 +232,7 @@ export async function marketProductPage(productId: string, options: { countView:
     prisma.product.findUniqueOrThrow({
       where: { id: row.id },
       select: {
-        description: true, specs: true, requiresPrescription: true,
+        description: true, specs: true, requiresPrescription: true, instalmentsEligible: true, instalmentsCashPrice: true,
         marketCategory: { select: { slug: true, nameAr: true } },
         category: { select: { marketCategory: { select: { slug: true, nameAr: true } } } },
         images: { select: { id: true }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], take: 12 },
@@ -257,6 +258,8 @@ export async function marketProductPage(productId: string, options: { countView:
       preorder: row.is_preorder ? { releaseOn: dateOnly(row.preorder_release_on), shipsBy: dateOnly(row.preorder_ships_by) } : null,
       maxPerOrder: row.max_per_order,
       storefrontPath: `/store/${encodeURIComponent(row.store_slug)}/products/${encodeURIComponent(row.id)}`,
+      // Marketplace M13a (E6): «أو من X د.ع شهرياً» beside the cash price, when a lender is on.
+      instalments: instalmentTeaser(row.min_price, product),
     },
   };
 }

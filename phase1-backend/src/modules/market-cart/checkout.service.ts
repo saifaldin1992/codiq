@@ -11,6 +11,9 @@
  * customers row with shopper_id set (or, if the store already knew his phone,
  * that existing row is linked — his phone is proven by the one-time code).
  */
+import { abandonInstalmentPlan, attachInstalmentPlan, confirmInstalmentPlan, onlineOptions, openCardSession } from "../market-payments/payments.service.js";
+import { paymentsMode } from "../market-payments/providers.js";
+import { transitionOrderStatus } from "../../services/order-lifecycle.service.js";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
 import { checkout, priorSucceededCheckout } from "../../services/storefront.service.js";
@@ -52,6 +55,12 @@ export async function customerForShopper(storeId: string, shopper: ShopperRef, n
     if (raced) return raced.id;
     throw error;
   }
+}
+
+/** Marketplace M13a: what an instalment plan covers — the goods after both coupons; the delivery fee is paid in cash. */
+export async function goodsToCover(shopper: ShopperRef, storeSlug: string, input: { addressId?: string | null; fulfilment: "delivery" | "pickup"; couponCode?: string | null; platformCouponWalletId?: string | null }) {
+  const summary = await checkoutSummary(shopper, storeSlug, { addressId: input.addressId ?? undefined, fulfilment: input.fulfilment, coupon: input.couponCode ?? undefined, platformCoupon: input.platformCouponWalletId ?? undefined });
+  return summary.subtotalIqd - summary.discountIqd - summary.platformDiscountIqd;
 }
 
 /** What paying this store would cost, before committing to it. Advisory: checkout re-decides everything under lock. */
@@ -107,11 +116,16 @@ export async function checkoutSummary(shopper: ShopperRef, storeSlug: string, in
     platformDiscountIqd: platformDiscount,
     totalIqd: group.subtotalIqd - discount - platformDiscount + fee,
     paymentMethods: methods.map((method) => ({ code: method.code, displayName: method.displayName, kind: method.kind })),
+    // Marketplace M13a: the market's online methods, when a provider is on.
+    online: await onlineOptions(shopper, store.id, group.subtotalIqd - discount - platformDiscount),
   };
 }
 
-export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, input: { addressId: string; fulfilment: "delivery" | "pickup"; paymentMethodCode: string; couponCode?: string | null; note?: string | null; platformCouponWalletId?: string | null }, idempotencyKey: unknown) {
+export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, input: { addressId: string; fulfilment: "delivery" | "pickup"; paymentMethodCode: string; couponCode?: string | null; note?: string | null; platformCouponWalletId?: string | null; instalmentPaymentId?: string | null; instalmentCode?: string | null }, idempotencyKey: unknown) {
   const store = await listedStoreTenant(storeSlug);
+  // Marketplace M13a: an online method is the market's, not the store's.
+  const marketPayment = input.paymentMethodCode === "market_card" ? "card" as const : input.paymentMethodCode === "market_instalments" ? "instalments" as const : undefined;
+  if (marketPayment && paymentsMode() === "off") throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "الدفع الإلكترونيّ غير متاح الآن.");
   const address = await shopperAddress(shopper.id, input.addressId);
   const customerId = await customerForShopper(store.id, shopper, address.recipientName);
 
@@ -133,6 +147,13 @@ export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, i
     return bumped.version;
   });
 
+  // Instalments: the lender's code approves the plan BEFORE the order is placed, on the goods it will cover.
+  let plan: { id: string; amountIqd: number } | null = null;
+  if (marketPayment === "instalments") {
+    const goods = await goodsToCover(shopper, storeSlug, input);
+    plan = await confirmInstalmentPlan(shopper, store.id, input.instalmentPaymentId, input.instalmentCode, goods);
+  }
+
   // The alternate number reaches the store on the order itself, where the courier reads it.
   const extra = [address.altPhoneNormalized ? `رقم بديل: 0${address.altPhoneNormalized.slice(4)}` : null, input.note?.trim() || null].filter(Boolean).join(" — ");
   try {
@@ -145,6 +166,7 @@ export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, i
       note: extra || undefined,
       fulfilment: input.fulfilment,
       platformCouponWalletId: input.platformCouponWalletId ?? undefined,
+      marketPayment,
     });
     // The shopper's receipt code, issued with the order (idempotent on a replay).
     await ensureHandoverCode(result.order.id, store.id);
@@ -154,8 +176,20 @@ export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, i
       await prisma.marketCartItem.deleteMany({ where: { cartId: cart.id, storeId: store.id, variantId: { in: Array.from(bought).filter((id): id is string => Boolean(id)) } } });
       await prisma.marketCart.update({ where: { id: cart.id }, data: { version: { increment: 1 } } });
     }
-    return { replayed: result.replayed, order: result.order };
+    if (plan) {
+      const order = result.order;
+      const covered = order.subtotalIqd - order.discountIqd - order.loyaltyDiscountIqd - order.platformDiscountIqd;
+      if (covered !== plan.amountIqd) {
+        await transitionOrderStatus(store.id, { kind: "system", id: plan.id }, order.id, { toStatus: "cancelled", expectedVersion: order.version, note: "تغيّر مبلغ التقسيط." }).catch(() => undefined);
+        await abandonInstalmentPlan(plan.id);
+        throw new HttpError(422, "INSTALMENT_AMOUNT_CHANGED", "تغيّر مبلغ الطلب منذ اخترت التقسيط — اختر المدّة من جديد.");
+      }
+      await attachInstalmentPlan(plan.id, order.id);
+    }
+    const payment = marketPayment === "card" ? await openCardSession({ id: result.order.id, storeId: store.id, totalIqd: result.order.totalIqd, orderNumber: result.order.orderNumber, version: result.order.version }, shopper.id) : null;
+    return { replayed: result.replayed, order: result.order, ...(payment ? { payment } : {}) };
   } catch (error) {
+    if (plan) await abandonInstalmentPlan(plan.id).catch(() => undefined);
     if (error instanceof HttpError && error.code === "CART_PRICE_CHANGED") await repriceMarketLines(shopper.id, store.id);
     throw error;
   }
@@ -214,6 +248,8 @@ export async function shopperOrder(shopperId: string, orderId: string) {
       statusLabel: STATUS_LABELS[order.status] ?? order.status,
       governorateName: order.shippingGovernorate ? governorateLabel(order.shippingGovernorate) : null,
       timeline: order.statusEvents.map((event) => ({ status: event.toStatus, label: STATUS_LABELS[event.toStatus] ?? event.toStatus, at: event.createdAt })),
+      // Marketplace M13a: how it is paid online, if it is.
+      onlinePayment: await prisma.marketPayment.findUnique({ where: { orderId: order.id }, select: { id: true, method: true, status: true, amountIqd: true, months: true, monthlyIqd: true, refundedIqd: true } }),
     },
   };
 }

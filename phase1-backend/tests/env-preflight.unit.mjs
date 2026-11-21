@@ -43,6 +43,8 @@ const COMPLETE = {
   SENTRY_DSN: "https://k@o0.ingest.de.sentry.io/1",
   PRODUCT_S3_BUCKET: "b",
   CODIQ_MAP_TILE_URL: "https://tiles.example/{z}/{x}/{y}.png?key=k",
+  CODIQ_PAYMENTS_PROVIDER: "provider-x",
+  CODIQ_PAYMENTS_WEBHOOK_SECRET: "a-webhook-signing-secret-of-48-characters-length",
   PRODUCT_S3_REGION: "r",
   PRODUCT_S3_ACCESS_KEY_ID: "id",
   PRODUCT_S3_SECRET_ACCESS_KEY: "secret",
@@ -73,6 +75,9 @@ summary.baseline = "a complete production environment passes with every group ok
   assert.equal(otpLog.ok, false, "sign-in codes written to the log fail a deployed preflight");
   const ownerOpen = reportEnvironment({ ...COMPLETE, CODIQ_ALLOW_OWNER_REGISTRATION: "true" });
   assert.deepEqual(ownerOpen.groups.find((group) => group.key === "session").missing, ["CODIQ_ALLOW_OWNER_REGISTRATION"], "open owner registration is named, under sign-in");
+  const fakePayments = reportEnvironment({ ...COMPLETE, CODIQ_PAYMENTS_PROVIDER: "fake" });
+  assert.deepEqual(fakePayments.groups.find((group) => group.key === "session").missing, ["CODIQ_PAYMENTS_PROVIDER"], "the test payment provider in a deployment is named");
+  assert.equal(reportEnvironment({ ...COMPLETE, CODIQ_PAYMENTS_WEBHOOK_SECRET: "short" }).groups.find((group) => group.key === "payments").verdict, "incomplete", "a short signing secret is not a configured one");
   assert.equal(reportEnvironment({ ...COMPLETE, NODE_ENV: "development", CODIQ_OTP_PROVIDER: "insecure-log", CODIQ_ALLOW_OWNER_REGISTRATION: "true" }).groups.find((group) => group.key === "session").verdict, "ok", "development may use them");
   summary.securityPass = "plaintext database URLs and test switches left on fail a deployed preflight";
 }

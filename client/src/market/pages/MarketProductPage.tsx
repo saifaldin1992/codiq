@@ -115,6 +115,12 @@ export function MarketProductPage() {
           <span className="text-2xl font-black text-[var(--codiq-text)]">{iqd(price)}</span>
           {compare ? <><span className="text-sm text-[var(--codiq-text-muted)] line-through">{iqd(compare)}</span><span className="rounded-full bg-[var(--codiq-danger-soft)] px-2 py-0.5 text-xs font-black text-[var(--codiq-danger)]">خصم {discount.toLocaleString("ar-IQ")}%</span></> : null}
         </div>
+        {product.instalments ? (
+          <p className="text-xs font-semibold text-[var(--codiq-text-secondary)]" data-testid="market-product-instalments">
+            أو من <span className="font-black text-[var(--codiq-accent)]">{iqd(product.instalments.fromMonthlyIqd)}</span> شهرياً · أقساط حتى {product.instalments.maxMonths.toLocaleString("ar-IQ")} شهراً
+            {product.instalments.cashPrice ? <span className="mr-2 rounded-full bg-[var(--codiq-success-soft)] px-2 py-0.5 text-[10px] font-black text-[var(--codiq-success)]">أقساط بسعر الكاش</span> : null}
+          </p>
+        ) : null}
         {product.deal ? <p className="inline-flex items-center gap-1 rounded-full bg-[var(--codiq-danger-soft)] px-3 py-1 text-xs font-black text-[var(--codiq-danger)]" data-testid="market-product-deal"><Zap className="h-4 w-4" /> عرض الساعة ينتهي خلال <Countdown until={product.deal.endsAt} /></p> : null}
         <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--codiq-text-secondary)]">
           {product.rating !== null ? <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 fill-[var(--codiq-rating)] text-[var(--codiq-rating)]" /> {product.rating.toLocaleString("ar-IQ", { maximumFractionDigits: 1 })} ({product.ratingCount.toLocaleString("ar-IQ")} تقييم)</span> : <span>لا تقييمات بعد</span>}

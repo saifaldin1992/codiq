@@ -170,6 +170,17 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
     requiredInDeployment: false,
   },
   {
+    // Marketplace M13a. Optional: without it the market pays in cash only. The
+    // signing secret checks every provider notification; short is forgeable.
+    key: "payments",
+    consequence: "لا دفع إلكترونيّ ولا تقسيط في السوق — الدفع نقداً عند الاستلام فقط.",
+    required: ["CODIQ_PAYMENTS_PROVIDER", "CODIQ_PAYMENTS_WEBHOOK_SECRET"],
+    weakWhen: (env) => ((env.CODIQ_PAYMENTS_WEBHOOK_SECRET?.trim().length ?? 0) < 32
+      ? { names: ["CODIQ_PAYMENTS_WEBHOOK_SECRET"], consequence: "مفتاح توقيع إشعارات الدفع أقصر من ٣٢ حرفاً — يمكن تزوير إشعار «تمّ الدفع»." }
+      : null),
+    requiredInDeployment: false,
+  },
+  {
     // Marketplace M11. Optional: without it the market's map draws its pins on a
     // plain background. The key inside the URL stays here — tiles go through
     // /api/market/map/tiles — so it must be an https template with {z} {x} {y}
@@ -329,10 +340,12 @@ export function testSwitchesLeftOn(environment: NodeJS.ProcessEnv): { names: str
   const names: string[] = [];
   if (environment.CODIQ_OTP_PROVIDER?.trim() === "insecure-log") names.push("CODIQ_OTP_PROVIDER");
   if (environment.CODIQ_ALLOW_OWNER_REGISTRATION?.trim() === "true") names.push("CODIQ_ALLOW_OWNER_REGISTRATION");
+  // Marketplace M13a: the test payment providers approve whatever the shopper clicks.
+  if (environment.CODIQ_PAYMENTS_PROVIDER?.trim() === "fake") names.push("CODIQ_PAYMENTS_PROVIDER");
   if (!names.length) return null;
   return {
     names,
-    consequence: `مفاتيح اختبار مفعّلة في بيئة منشورة: ${names.join("، ")}. رموز الدخول تُكتب في السجلّ و/أو يستطيع أيّ أحد التسجيل مالكاً للمنصّة. أزلها بعد الاستعمال.`,
+    consequence: `مفاتيح اختبار مفعّلة في بيئة منشورة: ${names.join("، ")}. رموز الدخول تُكتب في السجلّ، أو يستطيع أيّ أحد التسجيل مالكاً للمنصّة، أو يُعتمد «الدفع» بضغطة زرّ من مزوّد تجريبيّ. أزلها بعد الاستعمال.`,
   };
 }
 

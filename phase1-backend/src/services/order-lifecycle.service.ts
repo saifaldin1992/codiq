@@ -245,7 +245,8 @@ export async function orderHistoryForStore(storeId: string, orderId: string) {
 // `new`. The kind is recorded on the status event, so the history shows who
 // stopped the order. order_status_events.actor_kind already permits 'customer'
 // (phase 8A), so no constraint change is needed.
-export type OrderTransitionActor = { kind: "merchant" | "staff" | "customer"; id: string };
+/** Marketplace M13: `system` is the payments module cancelling an order nobody paid for in time (id = the payment). */
+export type OrderTransitionActor = { kind: "merchant" | "staff" | "customer" | "system"; id: string };
 
 export async function transitionOrderStatus(storeId: string, actor: OrderTransitionActor, orderId: string, input: { toStatus?: unknown; expectedVersion?: unknown; note?: unknown; courierName?: unknown; trackingNumber?: unknown }) {
   // ق-246: the «قيد التوصيل» click is the handover — the one moment the
@@ -260,7 +261,7 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
   const note = orderTransitionNote(input.note);
   let fromStatusForEvent = "";
   const payload = await prisma.$transaction(async (tx) => {
-    const current = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, status: true, version: true, source: true, orderNumber: true, customerEmail: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, prescriptionStatus: true, customerId: true, loyaltyDiscountIqd: true, platformDiscountIqd: true } });
+    const current = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, status: true, version: true, source: true, orderNumber: true, customerEmail: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, prescriptionStatus: true, customerId: true, loyaltyDiscountIqd: true, platformDiscountIqd: true, paymentStatus: true } });
     if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
     if (current.version !== expectedVersion) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "The order was changed by another request.");
     const fromStatus = orderStatus(current.status);
@@ -272,6 +273,11 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
     // (prescriptionStatus NULL) are untouched.
     if (fromStatus === "new" && toStatus === "processing" && current.prescriptionStatus !== null && current.prescriptionStatus !== "approved") {
       throw new HttpError(422, "PRESCRIPTION_NOT_APPROVED", "This order requires an approved prescription before processing.");
+    }
+    // Marketplace M13: an order paid online is not accepted before the money arrives —
+    // the store would prepare goods the shopper may never pay for.
+    if (fromStatus === "new" && toStatus === "processing" && current.paymentStatus === "awaiting_payment") {
+      throw new HttpError(422, "ORDER_PAYMENT_PENDING", "الزبون لم يُكمل الدفع الإلكترونيّ بعد — اقبل الطلب بعد وصول الدفع.");
     }
     const result = await tx.storeOrder.updateMany({ where: { id: orderId, storeId, version: expectedVersion }, data: {
       status: toStatus, version: { increment: 1 }, statusUpdatedAt: new Date(), updatedByKind: actor.kind,

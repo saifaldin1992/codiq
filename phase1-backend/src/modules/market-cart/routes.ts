@@ -9,8 +9,10 @@ import { clientIp } from "../../http/client-ip.js";
 import { consumeStorefrontRateLimit } from "../../services/storefront.service.js";
 import { requireShopper } from "../market-account/shopper-auth.js";
 import { acceptCartPrices, addCartLine, clearCart, marketCartView, removeCartLine, updateCartLine } from "./cart.service.js";
-import { checkoutSummary, placeMarketOrder, shopperOrder, shopperOrders } from "./checkout.service.js";
-import { addItemSchema, placeOrderSchema, summaryQuerySchema, updateItemSchema } from "./schema.js";
+import { checkoutSummary, goodsToCover, placeMarketOrder, shopperOrder, shopperOrders } from "./checkout.service.js";
+import { startInstalmentPlan } from "../market-payments/payments.service.js";
+import { listedStoreTenant } from "../market-stores/directory.service.js";
+import { addItemSchema, placeOrderSchema, summaryQuerySchema, updateItemSchema, instalmentStartSchema } from "./schema.js";
 
 export function registerMarketCartRoutes(app: Express) {
   app.get("/market/cart", asyncRoute(async (request, response) => {
@@ -68,7 +70,18 @@ export function registerMarketCartRoutes(app: Express) {
     const { shopper } = await requireShopper(request);
     const input = parseOrThrow(placeOrderSchema, request.body ?? {});
     const result = await placeMarketOrder(shopper, request.params.storeSlug, input, request.header("idempotency-key"));
-    response.status(result.replayed ? 200 : 201).json({ storeSlug: request.params.storeSlug, replayed: result.replayed, order: { id: result.order.id, orderNumber: result.order.orderNumber, totalIqd: result.order.totalIqd, status: result.order.status } });
+    response.status(result.replayed ? 200 : 201).json({ storeSlug: request.params.storeSlug, replayed: result.replayed, order: { id: result.order.id, orderNumber: result.order.orderNumber, totalIqd: result.order.totalIqd, status: result.order.status }, ...("payment" in result && result.payment ? { payment: result.payment } : {}) });
+  }));
+
+  // Marketplace M13a: the shopper chose a lender and a term — the lender sends him a code.
+  app.post("/market/checkout/:storeSlug/instalments", asyncRoute(async (request, response) => {
+    requireTrustedWriteOrigin(request);
+    const { shopper } = await requireShopper(request);
+    const input = parseOrThrow(instalmentStartSchema, request.body ?? {});
+    await consumeStorefrontRateLimit({ scope: "market_instalment_start", rawKey: shopper.id, limit: 10, windowMs: 10 * 60 * 1000 });
+    const store = await listedStoreTenant(request.params.storeSlug);
+    const goods = await goodsToCover(shopper, request.params.storeSlug, input);
+    response.status(201).json(await startInstalmentPlan(shopper, store.id, goods, { lender: input.lender, months: input.months }));
   }));
 
   app.get("/market/orders", asyncRoute(async (request, response) => {

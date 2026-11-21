@@ -31,6 +31,7 @@ import { MarketCategoriesPage } from "./pages/MarketCategoriesPage";
 import { MarketCategoryPage } from "./pages/MarketCategoryPage";
 import { MarketSearchPage } from "./pages/MarketSearchPage";
 import { MarketImageSearchPage } from "./pages/MarketImageSearchPage";
+import { MarketPayPage } from "./pages/MarketPayPage";
 import { MarketProductPage } from "./pages/MarketProductPage";
 import { MarketCollectionPage, MarketMallPage, MarketSectionPage } from "./pages/MarketSectionPages";
 import { MarketStoresPage } from "./pages/MarketStoresPage";
@@ -57,6 +58,7 @@ export default function MarketApp() {
         <Route path="/mall/:slug" component={MarketMallPage} />
         <Route path="/cart" component={MarketCartPage} />
         <Route path="/checkout/:slug" component={MarketCheckoutPage} />
+        <Route path="/pay/:id" component={MarketPayPage} />
         <Route path="/orders" component={MarketOrdersPage} />
         <Route path="/orders/:id" component={MarketOrderPage} />
         <Route path="/ratings" component={MarketRatingsPage} />

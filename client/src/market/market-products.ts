@@ -35,6 +35,8 @@ export type MarketProductDetail = MarketProductCard & {
   preorder: { releaseOn: string | null; shipsBy: string | null } | null;
   maxPerOrder: number | null;
   storefrontPath: string;
+  /** Marketplace M13a (E6): «أو من X د.ع شهرياً», when a lender is on and the product may be bought in instalments. */
+  instalments: { fromMonthlyIqd: number; months: number; maxMonths: number; cashPrice: boolean } | null;
 };
 
 export const TAG_LABELS: Record<string, string> = {

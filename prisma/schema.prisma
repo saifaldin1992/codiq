@@ -303,6 +303,7 @@ model Store {
   passwordResetTokens  PasswordResetToken[]
 
   productImageEmbeddings ProductImageEmbedding[]
+  marketPayments         MarketPayment[]
   @@index([merchantId])
   // 20-3: the platform store directory pages (createdAt, id) desc across all tenants.
   @@index([createdAt(sort: Desc), id(sort: Desc)], map: "stores_created_id_idx")
@@ -621,6 +622,9 @@ model Product {
   // Do NOT bring it back here: doing so re-locks the SKU on a product that is
   // sitting in the trash bin.
   imageEmbedding        ProductImageEmbedding?
+  /// Marketplace M13a (E6): may be bought in instalments; and at the cash price (the store absorbs the fee).
+  instalmentsEligible   Boolean @default(true) @map("instalments_eligible")
+  instalmentsCashPrice  Boolean @default(false) @map("instalments_cash_price")
   @@unique([id, storeId])
   @@index([storeId])
   @@index([storeId, categoryId])
@@ -855,6 +859,7 @@ model StoreOrder {
   rating            OrderRating?
   supportTickets    SupportTicket[]
 
+  marketPayment     MarketPayment?
   @@unique([storeId, orderNumber])
   @@unique([id, storeId])
   @@index([storeId])
@@ -2350,6 +2355,7 @@ model Shopper {
   reelLikes         MarketReelLike[]
   marketCart        MarketCart?
 
+  marketPayments   MarketPayment[]
   @@map("shoppers")
 }
 
@@ -2964,4 +2970,51 @@ model ProductImageEmbedding {
 
   @@index([storeId], map: "product_image_embeddings_store_idx")
   @@map("product_image_embeddings")
+}
+
+/// Marketplace M13a — one attempt to pay an order through a provider (card or instalments).
+model MarketPayment {
+  id          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId   String               @map("shopper_id") @db.Uuid
+  storeId     String               @map("store_id") @db.Uuid
+  orderId     String?              @unique @map("order_id") @db.Uuid
+  method      String               @db.Text
+  provider    String               @db.Text
+  providerRef String?              @map("provider_ref") @db.Text
+  status      String               @db.Text
+  amountIqd   Int                  @map("amount_iqd")
+  months      Int?
+  monthlyIqd  Int?                 @map("monthly_iqd")
+  feeIqd      Int                  @default(0) @map("fee_iqd")
+  refundedIqd Int                  @default(0) @map("refunded_iqd")
+  codeAttempts Int                 @default(0) @map("code_attempts")
+  expiresAt   DateTime             @map("expires_at") @db.Timestamptz(6)
+  paidAt      DateTime?            @map("paid_at") @db.Timestamptz(6)
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  shopper     Shopper              @relation(fields: [shopperId], references: [id], onDelete: Restrict)
+  store       Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  order       StoreOrder?          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  events      MarketPaymentEvent[]
+
+  @@unique([provider, providerRef], map: "market_payments_provider_ref_unique")
+  @@index([status, expiresAt], map: "market_payments_status_idx")
+  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "market_payments_created_idx")
+  @@index([shopperId, createdAt(sort: Desc)], map: "market_payments_shopper_idx")
+  @@map("market_payments")
+}
+
+model MarketPaymentEvent {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paymentId       String        @map("payment_id") @db.Uuid
+  kind            String        @db.Text
+  providerEventId String?       @map("provider_event_id") @db.Text
+  amountIqd       Int?          @map("amount_iqd")
+  detail          Json          @default("{}") @db.JsonB
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  payment         MarketPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentId, providerEventId], map: "market_payment_events_once")
+  @@index([paymentId, createdAt], map: "market_payment_events_payment_idx")
+  @@map("market_payment_events")
 }

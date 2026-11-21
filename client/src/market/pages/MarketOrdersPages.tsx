@@ -51,6 +51,8 @@ export function MarketOrdersPage() {
 type OrderDetail = {
   id: string; orderNumber: string; status: string; statusLabel: string; fulfilment: string; createdAt: string;
   subtotalIqd: number; deliveryFeeIqd: number; discountIqd: number; loyaltyDiscountIqd: number; totalIqd: number; couponCode: string | null; paymentMethodCode: string;
+  /** Marketplace M13a: the card payment or the instalment plan, when the order is paid online. */
+  onlinePayment: { id: string; method: string; status: string; amountIqd: number; months: number | null; monthlyIqd: number | null; refundedIqd: number } | null;
   customerName: string; recipientPhone: string | null; governorateName: string | null; shippingAddressLine1: string | null; customerNote: string | null;
   store: { slug: string; name: string; supportWhatsapp: string | null; addressLine: string | null; latitude: number | null; longitude: number | null };
   items: { id: string; productId: string | null; productName: string; variantName: string | null; quantity: number; unitPriceIqd: number; lineTotalIqd: number; addons: { name: string; priceIqd: number }[] }[];
@@ -101,6 +103,7 @@ export function MarketOrderPage() {
           ))}
         </ul>
       </section>
+      {order.onlinePayment ? <OnlinePaymentCard payment={order.onlinePayment} deliveryFeeIqd={order.deliveryFeeIqd} /> : null}
       <section className="space-y-1.5 rounded-[24px] bg-[var(--codiq-surface)] p-4 text-sm shadow-sm" data-testid="market-order-totals">
         <Line label="المجموع الفرعيّ" value={iqd(order.subtotalIqd)} />
         {order.discountIqd ? <Line label={`خصم الكوبون${order.couponCode ? ` (${order.couponCode})` : ""}`} value={`− ${iqd(order.discountIqd)}`} /> : null}
@@ -170,5 +173,20 @@ export function MarketRatingsPage() {
       </ul>
       {list.nextCursor ? <button type="button" onClick={() => void list.loadMore()} className="w-full rounded-full border border-[var(--codiq-border)] bg-[var(--codiq-surface)] py-2.5 text-sm font-bold text-[var(--codiq-accent)]">عرض المزيد</button> : null}
     </div>
+  );
+}
+
+const ONLINE_STATUS: Record<string, string> = { pending: "بانتظار الدفع", failed: "لم يكتمل الدفع", paid: "مدفوع إلكترونيّاً", expired: "انتهت مهلة الدفع", cancelled: "أُلغي", refunded: "أُعيد المبلغ إلى بطاقتك", approved: "خطّة التقسيط معتمدة", adjusted: "عُدّلت خطّة التقسيط بعد الإرجاع" };
+
+/** Marketplace M13a: how this order is paid online — and the door back to the gateway while it waits. */
+function OnlinePaymentCard({ payment, deliveryFeeIqd }: { payment: NonNullable<OrderDetail["onlinePayment"]>; deliveryFeeIqd: number }) {
+  return (
+    <section className="space-y-1.5 rounded-[24px] bg-[var(--codiq-surface)] p-4 text-sm shadow-sm" data-testid="market-order-online-payment">
+      <p className="font-black text-[var(--codiq-text)]">{payment.method === "card" ? "الدفع بالبطاقة" : "الدفع بالأقساط"}</p>
+      <p className="text-xs font-bold text-[var(--codiq-accent)]" data-testid="market-order-online-status">{ONLINE_STATUS[payment.status] ?? payment.status}</p>
+      {payment.method === "instalments" && payment.months && payment.monthlyIqd ? <p className="text-xs text-[var(--codiq-text-secondary)]">{payment.months.toLocaleString("ar-IQ")} أشهر × {iqd(payment.monthlyIqd)} — ورسوم التوصيل {iqd(deliveryFeeIqd)} نقداً عند الاستلام.</p> : null}
+      {payment.refundedIqd ? <p className="text-xs text-[var(--codiq-success)]">{payment.method === "card" ? `أُعيد ${iqd(payment.refundedIqd)}` : "لم تعد الخطّة تغطّي شيئاً من هذا الطلب"}</p> : null}
+      {payment.method === "card" && (payment.status === "pending" || payment.status === "failed") ? <Link href={`/pay/${payment.id}`} className="inline-block rounded-full bg-[var(--codiq-accent)] px-4 py-1.5 text-xs font-bold text-[var(--codiq-surface)]" data-testid="market-order-pay-now">أكمل الدفع</Link> : null}
+    </section>
   );
 }
