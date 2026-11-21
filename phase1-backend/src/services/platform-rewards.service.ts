@@ -117,3 +117,28 @@ export async function clawbackPlatformPoints(tx: Tx, orderId: string) {
   if (!earned) return;
   await tx.shopperPointsEntry.createMany({ data: [{ shopperId: earned.shopperId, delta: -earned.delta, reason: "clawback", orderId }], skipDuplicates: true });
 }
+
+// ── wheel spins earned by orders (M9) ──────────────────────────────────────
+
+/**
+ * Completed: extra spins on the open wheel, one per `iqd_per_extra_spin` paid in
+ * money for goods, capped per order. Once per order per wheel (unique), inside
+ * the completion transaction.
+ */
+export async function grantWheelSpins(tx: Tx, input: { orderId: string; customerId: string | null; paidGoodsIqd: number; now?: Date }) {
+  if (!input.customerId || input.paidGoodsIqd <= 0) return 0;
+  const now = input.now ?? new Date();
+  const customer = await tx.customer.findUnique({ where: { id: input.customerId }, select: { shopperId: true } });
+  if (!customer?.shopperId) return 0;
+  const wheel = await tx.marketWheel.findFirst({ where: { isOpen: true, startsAt: { lte: now }, endsAt: { gt: now } }, orderBy: { startsAt: "desc" }, select: { id: true, iqdPerExtraSpin: true, maxExtraSpinsPerOrder: true } });
+  if (!wheel) return 0;
+  const spins = Math.min(wheel.maxExtraSpinsPerOrder, Math.floor(input.paidGoodsIqd / wheel.iqdPerExtraSpin));
+  if (spins <= 0) return 0;
+  const written = await tx.wheelSpinGrant.createMany({ data: [{ wheelId: wheel.id, shopperId: customer.shopperId, orderId: input.orderId, spins }], skipDuplicates: true });
+  return written.count ? spins : 0;
+}
+
+/** Returned: the spins it earned are withdrawn. Spins already used stay used; the balance floors at zero. */
+export async function revokeWheelSpins(tx: Tx, orderId: string) {
+  await tx.wheelSpinGrant.deleteMany({ where: { orderId } });
+}

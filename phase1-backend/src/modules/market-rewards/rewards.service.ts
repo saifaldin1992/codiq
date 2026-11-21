@@ -60,7 +60,7 @@ export async function couponPage(code: string, shopperId: string | null, now = n
 }
 
 /** Hands one coupon out, under a lock on its row; the CHECK on issued_count is the last word. */
-async function issue(tx: Prisma.TransactionClient, couponId: string, now: Date) {
+export async function issueCoupon(tx: Prisma.TransactionClient, couponId: string, now: Date) {
   const [row] = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM platform_coupons WHERE id = ${couponId}::uuid FOR UPDATE`;
   if (!row) throw new HttpError(404, "COUPON_NOT_FOUND", "هذا الكوبون غير موجود.");
   const coupon = await tx.platformCoupon.findUniqueOrThrow({ where: { id: couponId } });
@@ -77,7 +77,7 @@ export async function claimCoupon(shopperId: string, code: string, now = new Dat
   try {
     const held = await prisma.$transaction(async (tx) => {
       if (await tx.shopperCoupon.findFirst({ where: { shopperId, couponId: found.id, source: "claimed" }, select: { id: true } })) throw new HttpError(409, "COUPON_ALREADY_CLAIMED", "هذا الكوبون في كوبوناتك بالفعل.");
-      await issue(tx, found.id, now);
+      await issueCoupon(tx, found.id, now);
       return tx.shopperCoupon.create({ data: { shopperId, couponId: found.id, source: "claimed" }, select: { id: true } });
     });
     return { walletId: held.id };
@@ -95,7 +95,7 @@ export async function redeemPoints(shopperId: string, couponId: string, now = ne
     if (!coupon || coupon.pointsCost <= 0) throw new HttpError(404, "COUPON_NOT_FOUND", "هذا الكوبون لا يُستبدل بالنقاط.");
     const balance = await pointsBalance(tx, shopperId);
     if (balance < coupon.pointsCost) throw new HttpError(409, "POINTS_NOT_ENOUGH", `تحتاج ${coupon.pointsCost.toLocaleString("en-US")} نقطة، ورصيدك ${Math.max(0, balance).toLocaleString("en-US")}.`);
-    await issue(tx, coupon.id, now);
+    await issueCoupon(tx, coupon.id, now);
     await tx.shopperPointsEntry.create({ data: { shopperId, delta: -coupon.pointsCost, reason: "spent", couponId: coupon.id } });
     const held = await tx.shopperCoupon.create({ data: { shopperId, couponId: coupon.id, source: "points" }, select: { id: true } });
     return { walletId: held.id, balance: balance - coupon.pointsCost };

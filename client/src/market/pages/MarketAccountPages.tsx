@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, Camera, Crown, ChevronLeft, CircleAlert, Copy, Crosshair, Heart, LifeBuoy, LoaderCircle, LogOut, MapPin, MessageCircle, Package, Phone, Plus, Star, ThumbsUp, Ticket, Trash2, UserRound } from "lucide-react";
+import { Bell, Camera, Crown, Sparkles, ChevronLeft, CircleAlert, Copy, Crosshair, Heart, LifeBuoy, LoaderCircle, LogOut, MapPin, MessageCircle, Package, Phone, Plus, Star, ThumbsUp, Ticket, Trash2, UserRound } from "lucide-react";
 import { accountCall, displayPhone, setShopper, signOut, useShopper, type Shopper } from "../market-shopper";
 import { loadMarketGeography, marketGet, type MarketGeography } from "../market-api";
 import { writeMarketLocation } from "../market-location";
@@ -96,6 +96,7 @@ export function MarketAccountPage() {
         <MenuLink href="/favourites" icon={Heart} label="المفضّلة" testId="market-account-favourites-link" />
         <MenuLink href="/coupons?tab=active" icon={Ticket} label="كوبوناتي" testId="market-account-coupons-link" />
         <MenuLink href="/points" icon={Crown} label="نقاطي" testId="market-account-points-link" />
+        <MenuLink href="/wheel" icon={Sparkles} label="عجلة الجوائز" testId="market-account-wheel-link" />
         <MenuLink href="/notifications" icon={Bell} label="الإشعارات" testId="market-account-notifications-link" />
         <MenuLink href="/account/info" icon={UserRound} label="بياناتي" testId="market-account-info-link" />
         <MenuLink href="/account/addresses" icon={MapPin} label="العناوين" testId="market-account-addresses-link" />

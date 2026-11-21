@@ -480,5 +480,25 @@
         "reason": "NOT A LIST — four totals of the programme's cost."
       }
     ]
+  },
+  "modules/market-wheel/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/wheel",
+        "reason": "BOUNDED — the open wheel's segments (labels only), a handful by design."
+      },
+      {
+        "route": "GET /market/wheel/board",
+        "reason": "BOUNDED — the top twenty winners and the shopper's own rank (rank <= 20 in the query)."
+      },
+      {
+        "route": "GET /platform/market/wheels",
+        "reason": "BOUNDED — the owner's last twenty wheels with at most forty prizes each."
+      },
+      {
+        "route": "GET /platform/market/wheels/:wheelId/report",
+        "reason": "BOUNDED — one wheel's prizes (≤ 40) with their tallies, and two counts."
+      }
+    ]
   }
 }

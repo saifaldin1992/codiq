@@ -411,6 +411,9 @@ jobs:
       - name: Integration — marketplace M8b (platform-funded coupons, points and tiers, concurrency: no double spend)
         run: pnpm market:rewards
 
+      - name: Integration — marketplace M9 (prize wheel: server-side draw, 1000 simultaneous spins never exceed stock)
+        run: pnpm market:wheel
+
       - name: Guard — every implemented merchant menu entry has a screen
         run: pnpm screens:guard
 
@@ -1053,6 +1056,9 @@ jobs:
 
       - name: Browser — marketplace coupons and points (owner, shopper, store)
         run: node --import tsx phase1-backend/tests/market-rewards.browser-acceptance.mjs
+
+      - name: Browser — marketplace prize wheel (owner, spin, claim, board)
+        run: node --import tsx phase1-backend/tests/market-wheel.browser-acceptance.mjs
 
       # PG-2: the sheet's ق-10 promise («the movement count comes from the
       # server or is not shown») and the no-silent-rename rule are UI contracts,

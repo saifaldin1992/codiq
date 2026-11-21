@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
-import { CalendarDays, Clock, LoaderCircle, Megaphone, Zap } from "lucide-react";
+import { CalendarDays, Clock, LoaderCircle, Megaphone, Sparkles, Zap } from "lucide-react";
 import { marketGet } from "../market-api";
 import type { MarketProductCard } from "../market-products";
 import type { MarketStoreCard } from "../market-types";
@@ -103,9 +103,10 @@ type LiveCampaign = { slug: string; title: string; subtitle: string | null; star
 export function CampaignCards() {
   const [campaigns, setCampaigns] = useState<LiveCampaign[]>([]);
   useEffect(() => { void marketGet<{ campaigns: LiveCampaign[] }>("/api/market/campaigns/live").then((body) => setCampaigns(body.campaigns)).catch(() => undefined); }, []);
-  if (!campaigns.length) return null;
+  if (!campaigns.length) return <WheelCard />;
   return (
     <div className="space-y-3">
+      <WheelCard />
       {campaigns.map((campaign) => (
         <Link key={campaign.slug} href={`/campaign/${encodeURIComponent(campaign.slug)}`} className="block space-y-1 rounded-[24px] bg-[var(--codiq-accent)] p-4 text-[var(--codiq-surface)] shadow-sm" data-testid={`market-home-campaign-${campaign.slug}`}>
           <p className="inline-flex items-center gap-1 text-[11px] font-bold opacity-90"><Megaphone className="h-3.5 w-3.5" /> حملة</p>
@@ -114,5 +115,18 @@ export function CampaignCards() {
         </Link>
       ))}
     </div>
+  );
+}
+
+/** The front page's door to the prize wheel, while it is open. */
+function WheelCard() {
+  const [open, setOpen] = useState<{ title: string } | null>(null);
+  useEffect(() => { void marketGet<{ open: boolean; wheel: { title: string } | null }>("/api/market/wheel").then((body) => setOpen(body.open && body.wheel ? body.wheel : null)).catch(() => undefined); }, []);
+  if (!open) return null;
+  return (
+    <Link href="/wheel" className="flex items-center justify-between rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid="market-home-wheel">
+      <span><span className="block text-sm font-black text-[var(--codiq-text)]">{open.title}</span><span className="text-xs text-[var(--codiq-text-secondary)]">لفّة مجانيّة كلّ يوم — جرّب حظّك</span></span>
+      <Sparkles className="h-7 w-7 text-[var(--codiq-accent)]" />
+    </Link>
   );
 }

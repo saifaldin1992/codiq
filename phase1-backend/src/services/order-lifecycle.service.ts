@@ -1,5 +1,5 @@
 import { parseDeliveryFields } from "./delivery.service.js";
-import { awardPlatformPoints, clawbackPlatformPoints, releasePlatformCoupon } from "./platform-rewards.service.js";
+import { awardPlatformPoints, clawbackPlatformPoints, grantWheelSpins, releasePlatformCoupon, revokeWheelSpins } from "./platform-rewards.service.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
 import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor, type ListCursor } from "./list-page.js";
@@ -329,6 +329,8 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
       });
       // Marketplace M8b: the platform's points, on the same money-paid base, once per order.
       await awardPlatformPoints(tx, { orderId, customerId: current.customerId ?? null, paidGoodsIqd: current.subtotalIqd - current.discountIqd - current.loyaltyDiscountIqd - current.platformDiscountIqd });
+      // Marketplace M9: and extra spins on the prize wheel, on the same base, once per order.
+      await grantWheelSpins(tx, { orderId, customerId: current.customerId ?? null, paidGoodsIqd: current.subtotalIqd - current.discountIqd - current.loyaltyDiscountIqd - current.platformDiscountIqd });
     } else if (toStatus === "returned") {
       await recordOrderReturn(tx, { storeId, orderId });
       // CD-5: both sides. Without the clawback, buy → return prints points;
@@ -336,6 +338,7 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
       await reverseLoyaltyForReturn(tx, { storeId, orderId });
       // Marketplace M8b: and the platform's points too. The coupon is not given back — it was used.
       await clawbackPlatformPoints(tx, orderId);
+      await revokeWheelSpins(tx, orderId);
     } else if (toStatus === "cancelled" || toStatus === "rejected") {
       // ق-191 — the order dies before it is paid, and the points must come back.
       //
