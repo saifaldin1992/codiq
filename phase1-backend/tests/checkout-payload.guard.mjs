@@ -63,7 +63,11 @@ const lines = source.split(/\r?\n/);
 const first = lines.findIndex((line) => /^\s*checkout:\s*\(/.test(line));
 assert.ok(first >= 0, "the `checkout` member must exist in storefrontApi — if it was renamed, rename it here too");
 const indent = lines[first].match(/^\s*/)[0].length;
-const nextMember = lines.findIndex((line, index) => index > first && line.trim() && line.match(/^\s*/)[0].length <= indent);
+// The next member is the next KEY at this indentation — not a closing `) =>` that a
+// formatter puts at the same depth.
+const nextMember = lines.findIndex(
+  (line, index) => index > first && line.match(/^\s*/)[0].length <= indent && /^\s*[A-Za-z_$][\w$]*\s*:/.test(line),
+);
 const member = lines.slice(first, nextMember < 0 ? undefined : nextMember).join("\n");
 
 // ── what the call SAYS it accepts ────────────────────────────────────────────
