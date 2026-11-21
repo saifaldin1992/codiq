@@ -203,6 +203,13 @@ try {
   assert.ok((await owner.request("/platform/market/support-tickets?escalated=1")).payload.tickets.some((row) => row.id === second.id));
   assert.equal((await owner.request(`/platform/market/support-tickets/${second.id}/replies`, { method: "POST", body: { body: "تولّينا طلبك وسنتابع مع المتجر." } })).payload.ticket.comments[0].authorKind, "platform");
   assert.equal((await owner.request(`/platform/market/support-tickets/${second.id}/close`, { method: "POST" })).payload.ticket.status, "closed");
+  // Every hand the owner puts on a ticket is in the platform audit log, with who did it.
+  const ticketAudit = await prisma.platformAuditEvent.findMany({ where: { entityType: "support_ticket", entityId: second.id }, orderBy: { createdAt: "asc" } });
+  assert.ok(ticketAudit.some((row) => row.action === "support_ticket_escalated"), "the escalation is audited");
+  assert.ok(ticketAudit.some((row) => row.action === "support_ticket_replied"), "…the owner's reply");
+  assert.ok(ticketAudit.some((row) => row.action === "support_ticket_closed" && row.actorKind === "platform_owner"), "…and the close, with its actor");
+  assert.equal((await owner.request(`/platform/market/support-tickets/${second.id}/close`, { method: "POST" })).status, 409, "a closed ticket is not closed twice");
+  assert.equal(await prisma.platformAuditEvent.count({ where: { entityType: "support_ticket", entityId: second.id, action: "support_ticket_closed" } }), 1, "…nor audited twice");
   summary.owner = true;
 
   // ── 6. tabs ──────────────────────────────────────────────────────────────
