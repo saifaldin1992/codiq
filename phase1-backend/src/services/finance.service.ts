@@ -436,7 +436,7 @@ async function draftSettlement(tx: Prisma.TransactionClient, merchant: { id: str
   // `to`, so an inclusive `lte` here paid an entry stamped on that instant in
   // BOTH settlements. The wallet's pending window is the matching `gte`.
   const period = { store: { merchantId: merchant.id }, createdAt: { gte: from, lt: to } };
-  const sum = { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true } as const;
+  const sum = { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true, platformDiscountIqd: true } as const;
   const [added, subtracted] = await Promise.all([
     tx.ledgerEntry.aggregate({ where: { ...period, entryType: "order_completed" }, _count: { _all: true }, _sum: sum }),
     tx.ledgerEntry.aggregate({ where: { ...period, entryType: { not: "order_completed" } }, _count: { _all: true }, _sum: sum }),
@@ -448,6 +448,11 @@ async function draftSettlement(tx: Prisma.TransactionClient, merchant: { id: str
     deliveryFeeIqd: (added._sum.deliveryFeeIqd ?? 0) - (subtracted._sum.deliveryFeeIqd ?? 0),
     loyaltyDiscountIqd: (added._sum.loyaltyDiscountIqd ?? 0) - (subtracted._sum.loyaltyDiscountIqd ?? 0),
     commissionIqd: (added._sum.commissionIqd ?? 0) - (subtracted._sum.commissionIqd ?? 0),
+    // Marketplace M8b: market coupons the PLATFORM paid in this period. Not a term
+    // of the payout (the store is paid as if the shopper had paid it) — stated so
+    // the merchant sees why the payout is more than the cash his courier
+    // collected, and the owner sees what his coupons cost in this settlement.
+    platformDiscountIqd: (added._sum.platformDiscountIqd ?? 0) - (subtracted._sum.platformDiscountIqd ?? 0),
   };
   const netPayoutIqd = totals.subtotalIqd + totals.deliveryFeeIqd - totals.loyaltyDiscountIqd - totals.commissionIqd;
   return { totals, netPayoutIqd };
@@ -474,6 +479,7 @@ export async function previewSettlement(body: Record<string, unknown>) {
     deliveryFeeIqd: totals.deliveryFeeIqd,
     loyaltyDiscountIqd: totals.loyaltyDiscountIqd,
     commissionIqd: totals.commissionIqd,
+    platformDiscountIqd: totals.platformDiscountIqd,
     netPayoutIqd,
   };
 }
