@@ -128,7 +128,7 @@ try {
   assert.match(await shopper.getByTestId("market-store-details").innerText(), /استلام طلبك من المتجر/);
   assert.match(await shopper.getByTestId("market-store-hours").innerText(), /الجمعة\s*مغلق/);
   await shopper.getByTestId("market-store-open-now").waitFor();
-  await shopper.getByTestId("market-store-product-" + (await prisma.product.findFirstOrThrow({ where: { storeId: store.id } })).id).waitFor();
+  await shopper.getByTestId("market-store-newest").getByTestId("market-product-card-" + (await prisma.product.findFirstOrThrow({ where: { storeId: store.id } })).id).waitFor();
   await shopper.getByTestId("market-store-badges-open").click();
   await shopper.getByTestId("market-badge-sheet").waitFor();
   assert.match(await shopper.getByTestId("market-badge-new_store").innerText(), /محقّقة/);

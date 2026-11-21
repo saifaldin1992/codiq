@@ -12,12 +12,14 @@ import { domainEvents, type DomainEventBus } from "../events/domain-events.js";
 import { platformModulesModule } from "./platform-modules/index.js";
 import { marketGeoModule } from "./market-geo/index.js";
 import { marketStoresModule } from "./market-stores/index.js";
+import { marketCatalogModule } from "./market-catalog/index.js";
 
 /** New modules, appended after the core so the core's matching order never moves. */
 export const EXTENSION_MODULES: readonly PlatformModule[] = [
   platformModulesModule,
   marketGeoModule,
   marketStoresModule,
+  marketCatalogModule,
 ];
 
 export const PLATFORM_MODULES: readonly PlatformModule[] = [...CORE_MODULES, ...EXTENSION_MODULES];

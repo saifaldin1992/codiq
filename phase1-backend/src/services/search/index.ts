@@ -34,7 +34,8 @@ function selectEngine(): SearchEngine {
 
 export const searchEngine: SearchEngine = selectEngine();
 
-export { explainSearch } from "./postgres-trigram.engine.js";
+export { explainSearch, marketProductMatch, normalizedSearchTerm } from "./postgres-trigram.engine.js";
+export type { MarketProductMatch } from "./postgres-trigram.engine.js";
 export { compareHits, mergeSearchPages } from "./search.types.js";
 export type { PlatformSearchTarget, SearchEngine, SearchHit, SearchPage, SearchRequest, SearchTarget } from "./search.types.js";
 

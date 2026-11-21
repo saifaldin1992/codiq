@@ -384,6 +384,9 @@ jobs:
       - name: Integration — marketplace M1 (listing requests, owner queue, directory sorts and paging, store page)
         run: pnpm market:stores
 
+      - name: Integration — marketplace M2 (categories, product list filters and sorts, Arabic search, product page, per-order cap)
+        run: pnpm market:catalog
+
       - name: Guard — every implemented merchant menu entry has a screen
         run: pnpm screens:guard
 
@@ -999,6 +1002,9 @@ jobs:
 
       - name: Browser — marketplace stores directory (merchant asks, owner lists, shopper finds)
         run: node --import tsx phase1-backend/tests/market-stores.browser-acceptance.mjs
+
+      - name: Browser — marketplace catalog (merchant market details, categories, search, filters, product page)
+        run: node --import tsx phase1-backend/tests/market-catalog.browser-acceptance.mjs
 
       # PG-2: the sheet's ق-10 promise («the movement count comes from the
       # server or is not shown») and the no-silent-rename rule are UI contracts,

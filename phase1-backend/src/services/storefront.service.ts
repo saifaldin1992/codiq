@@ -455,6 +455,20 @@ export async function currentCart(storeId: string, context: CartContext) {
   return cart ? cartPayload(cart) : { id: null, status: "empty", version: 0, expiresAt: null, ownerKind: context.customerId ? "customer" : "guest", items: [] };
 }
 
+/**
+ * Marketplace M2: the merchant's per-order cap, refused when the shopper adds
+ * rather than only at checkout (which re-checks under its lock). Counts every
+ * variant of the product already in this cart.
+ */
+async function assertWithinOrderLimit(tx: Prisma.TransactionClient, cartId: string, productId: string, adding: number) {
+  const product = await tx.product.findUnique({ where: { id: productId }, select: { maxPerOrder: true } });
+  if (!product?.maxPerOrder) return;
+  const inCart = await tx.cartItem.aggregate({ where: { cartId, productId }, _sum: { quantity: true } });
+  if ((inCart._sum.quantity ?? 0) + adding > product.maxPerOrder) {
+    throw new HttpError(422, "ORDER_LIMIT_EXCEEDED", `الحدّ الأقصى لهذا المنتج ${product.maxPerOrder} لكل طلب.`, { maxPerOrder: product.maxPerOrder });
+  }
+}
+
 export async function addCartItem(storeId: string, context: CartContext, input: { productId?: unknown; variantId?: unknown; quantity?: unknown }) {
   // Phase 20A: the cart line targets a variant. `variantId` is the primary input;
   // a bare `productId` (legacy storefront clients and pre-20A tests) resolves the
@@ -476,6 +490,7 @@ export async function addCartItem(storeId: string, context: CartContext, input: 
     const existing = await tx.cartItem.findUnique({ where: { cartId_variantId: { cartId: cart.id, variantId: variant.id } } });
     const nextQuantity = (existing?.quantity ?? 0) + requestedQuantity;
     if (nextQuantity > MAX_CART_QUANTITY) throw new HttpError(422, "INVALID_CART_QUANTITY", `quantity cannot exceed ${MAX_CART_QUANTITY}.`);
+    await assertWithinOrderLimit(tx, cart.id, variant.productId, requestedQuantity);
     // 19-د: adding to an existing line ALWAYS raises its quantity, so the line
     // is re-priced from the variant that was just read. See `updateCartItem`
     // for the rule and why it is bounded to increases.
@@ -521,6 +536,7 @@ export async function updateCartItem(storeId: string, context: CartContext, item
     ? (await prisma.productVariant.findFirst({ where: { id: item.variantId, storeId, ...LIVE }, select: { priceIqd: true } }))?.priceIqd
     : undefined;
   const updated = await prisma.$transaction(async (tx) => {
+    if (requestedQuantity > item.quantity) await assertWithinOrderLimit(tx, cart.id, item.productId, requestedQuantity - item.quantity);
     await tx.cartItem.update({ where: { id: item.id }, data: { quantity: requestedQuantity, ...(livePriceIqd === undefined ? {} : { priceSnapshotIqd: livePriceIqd }) } });
     return tx.shoppingCart.update({ where: { id: cart.id }, data: { version: { increment: 1 }, lastActivityAt: new Date(), ...(cart.ownerKind === "guest" ? { expiresAt: nowPlusGuestLifetime() } : {}) }, include: { items: { include: { product: { include: { images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 } } }, variant: true }, orderBy: { createdAt: "asc" } } } });
   });
@@ -742,7 +758,8 @@ export interface RefusedCartLine {
   variantName: string | null;
   requested: number;
   available: number;
-  reason: "unavailable" | "insufficient_stock";
+  /** `order_limit`: the merchant caps this product per order (Marketplace M2); `available` is the cap. */
+  reason: "unavailable" | "insufficient_stock" | "order_limit";
 }
 
 function refusedLine(
@@ -908,8 +925,8 @@ export async function checkout(storeId: string, customerId: string, input: Check
     // that decides money must be read under the SAME lock as the stock that
     // decides availability — a price read outside it is a price that can move
     // between the read and the order.
-    const lockedVariants = await tx.$queryRaw<Array<{ id: string; product_id: string; sku: string; name: string; is_default: boolean; product_name: string; variant_active: boolean; product_active: boolean; requires_prescription: boolean; stock_quantity: number; price_iqd: number }>>(Prisma.sql`
-      SELECT v.id, v.product_id, v.sku, v.name, v.is_default, p.name AS product_name, v.is_active AS variant_active, p.is_active AS product_active, p.requires_prescription, v.stock_quantity, v.price_iqd
+    const lockedVariants = await tx.$queryRaw<Array<{ id: string; product_id: string; sku: string; name: string; is_default: boolean; product_name: string; variant_active: boolean; product_active: boolean; requires_prescription: boolean; stock_quantity: number; price_iqd: number; max_per_order: number | null }>>(Prisma.sql`
+      SELECT v.id, v.product_id, v.sku, v.name, v.is_default, p.name AS product_name, v.is_active AS variant_active, p.is_active AS product_active, p.requires_prescription, v.stock_quantity, v.price_iqd, p.max_per_order
       FROM product_variants v
       JOIN products p ON p.id = v.product_id AND p.store_id = v.store_id
       WHERE v.store_id = ${storeId}::uuid
@@ -918,7 +935,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
       ORDER BY v.product_id ASC, v.id ASC
       FOR UPDATE OF v, p
     `);
-    const variants = lockedVariants.map((variant) => ({ id: variant.id, productId: variant.product_id, sku: variant.sku, name: variant.name, isDefault: variant.is_default, productName: variant.product_name, variantActive: variant.variant_active, productActive: variant.product_active, requiresPrescription: variant.requires_prescription, stockQuantity: variant.stock_quantity, priceIqd: variant.price_iqd }));
+    const variants = lockedVariants.map((variant) => ({ id: variant.id, productId: variant.product_id, sku: variant.sku, name: variant.name, isDefault: variant.is_default, productName: variant.product_name, variantActive: variant.variant_active, productActive: variant.product_active, requiresPrescription: variant.requires_prescription, stockQuantity: variant.stock_quantity, priceIqd: variant.price_iqd, maxPerOrder: variant.max_per_order }));
     const variantById = new Map(variants.map((variant) => [variant.id, variant]));
     // ق-221 — THE REFUSAL NAMES THE LINE.
     //
@@ -949,6 +966,21 @@ export async function checkout(storeId: string, customerId: string, input: Check
     });
     if (short.length) {
       throw new HttpError(422, "INSUFFICIENT_AVAILABLE_STOCK", "One or more products do not have enough available stock.", { lines: short });
+    }
+    // Marketplace M2: the merchant's per-order cap counts every variant of the
+    // product together («حدّ أقصى ٢ لكل طلب» means two phones, whatever colour).
+    // Read under the same lock as the stock, so a cap set mid-checkout applies.
+    const unitsByProduct = new Map<string, number>();
+    for (const item of cart.items) {
+      const variant = variantById.get(item.variantId)!;
+      unitsByProduct.set(variant.productId, (unitsByProduct.get(variant.productId) ?? 0) + item.quantity);
+    }
+    const overCap = cart.items.flatMap((item) => {
+      const variant = variantById.get(item.variantId)!;
+      return variant.maxPerOrder !== null && (unitsByProduct.get(variant.productId) ?? 0) > variant.maxPerOrder ? [refusedLine(item, variant, "order_limit", variant.maxPerOrder)] : [];
+    });
+    if (overCap.length) {
+      throw new HttpError(422, "ORDER_LIMIT_EXCEEDED", "One or more products exceed the quantity allowed per order.", { lines: overCap });
     }
     /**
      * 19-د — THE SNAPSHOT IS RECONCILED WITH THE LOCKED PRICE BEFORE ANY MONEY

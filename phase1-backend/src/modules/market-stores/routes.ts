@@ -17,6 +17,7 @@ import { assertCapabilityAvailable } from "../../services/availability.service.j
 import { leaveMarket, marketProfile, removeStoreCover, requestMarketListing, setStoreCover, updateMarketProfile } from "./profile.service.js";
 import { decideMarketListing, marketQueue, setMarketFlags } from "./moderation.service.js";
 import { recomputeMarketMetrics } from "./metrics.service.js";
+import { recomputeProductStats } from "../market-catalog/stats.service.js";
 import { marketDecisionSchema, marketFlagsSchema, marketProfileSchema, marketStoreQuerySchema } from "./schema.js";
 
 const coverUpload = multer({ storage: multer.memoryStorage(), limits: uploadLimits({ fileSize: storeImageConstraints.maxBytes, files: 1 }) });
@@ -123,6 +124,6 @@ export function registerMarketStoreRoutes(app: Express) {
   app.post("/platform/market/metrics/recompute", asyncRoute(async (request, response) => {
     requireTrustedWriteOrigin(request);
     await requirePlatformActor(request, "merchants.manage");
-    response.status(200).json(await recomputeMarketMetrics());
+    response.status(200).json({ ...(await recomputeMarketMetrics()), ...(await recomputeProductStats()) });
   }));
 }

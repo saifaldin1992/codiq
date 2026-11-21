@@ -218,6 +218,8 @@ export const merchantNavGroups: NavGroup[] = [
       { label: "جميع المنتجات", path: "/merchant/dashboard/products", status: "implemented" },
       { label: "إضافة منتج", path: "/merchant/dashboard/products/add", status: "implemented" },
       { label: "التصنيفات", path: "/merchant/dashboard/products/categories", status: "implemented" },
+      // Marketplace M2: market category mapping and each product's market details and add-ons.
+      { label: "بيانات السوق", path: "/merchant/dashboard/products/market", status: "implemented" },
       { label: "المخزون", path: "/merchant/dashboard/products/inventory", status: "implemented" },
       // Kept beside stock rather than filed under reports: it answers a stock
       // question, and it is the one thing none of the three rivals has.

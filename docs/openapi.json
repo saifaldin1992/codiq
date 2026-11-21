@@ -4,7 +4,7 @@
     "title": "CODIQ — واجهة المنصة",
     "version": "1.0.0",
     "summary": "وثيقة مولّدة آلياً من جدول التوجيه الفعلي ومن مخططات zod. لا تُحرَّر بخط اليد.",
-    "description": "## وثيقة مولّدة، لا مكتوبة\n\nهذه الوثيقة تصف 307 مسار endpoint، وكلُّ حقيقةٍ فيها مقروءة من الشيفرة التي تعمل:\n\n- **المسارات والأفعال** من جدول توجيه Express الذي يبنيه `createApp()` — لا من قائمة تُحدَّث باليد.\n- **أشكال الطلب** من مخططات zod في `src/http/schemas/` عبر `z.toJSONSchema` من zod نفسها.\n- **الباب المطلوب** من الحارس الذي يستدعيه المعالج، ومعه رمز الصلاحية إن وُجد.\n- **رموز الأخطاء** من كل موضع `new HttpError(...)` في الواجهة الخلفية.\n\nولأن قراءتين مستقلتين للشيفرة يجب أن تتطابقا قبل أن يُكتب أي شيء، فإن مساراً يعرفه الموجِّه ولا يراه الماسح — أو العكس — يُسقِط التوليد بدل أن يُنتج وثيقةً ناقصة بهدوء.\n\n## بابان، تطبيق واحد\n\n`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.\n\n**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.\n\n## مسار غير معروف\n\nأي مسار تحت البادئتين لا يطابق شيئاً هنا يُجيب `404 RESOURCE_NOT_FOUND` — بالمغلّف نفسه وبمعرّف الطلب نفسه، لا بصفحة HTML. هذا مقصود: قبل المرحلة 20-2 كان يسقط إلى الصدفة ويُجيب `200 text/html`، فيقرأه العميل نجاحاً ويسلّم `null`، وتظهر النتيجة شاشةً فارغة بعد أيام و200 في كل سجل.\n\n## الأخطاء عقد\n\nالرسائل عربية وهي جزء من العقد: المرحلة 22 تترجمها **بالرمز**. ابنِ على `error.code`، لا على نص `error.message`. المجموعة كاملة في `x-codiq-error-catalogue`، وكل استجابة خطأ هنا تُسمّي الرموز التي يمكن أن تصل منها.\n\n## القوائم\n\nكل قائمة تُجيب بمَغلَّف `ListEnvelope` نفسه — موصوف مرة واحدة ومُشار إليه — بمؤشر معتم واحد. لا تبنِ مؤشراً بيدك: الوثيقة تصفه سلسلةً معتمة لأنه كذلك.",
+    "description": "## وثيقة مولّدة، لا مكتوبة\n\nهذه الوثيقة تصف 318 مسار endpoint، وكلُّ حقيقةٍ فيها مقروءة من الشيفرة التي تعمل:\n\n- **المسارات والأفعال** من جدول توجيه Express الذي يبنيه `createApp()` — لا من قائمة تُحدَّث باليد.\n- **أشكال الطلب** من مخططات zod في `src/http/schemas/` عبر `z.toJSONSchema` من zod نفسها.\n- **الباب المطلوب** من الحارس الذي يستدعيه المعالج، ومعه رمز الصلاحية إن وُجد.\n- **رموز الأخطاء** من كل موضع `new HttpError(...)` في الواجهة الخلفية.\n\nولأن قراءتين مستقلتين للشيفرة يجب أن تتطابقا قبل أن يُكتب أي شيء، فإن مساراً يعرفه الموجِّه ولا يراه الماسح — أو العكس — يُسقِط التوليد بدل أن يُنتج وثيقةً ناقصة بهدوء.\n\n## بابان، تطبيق واحد\n\n`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.\n\n**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.\n\n## مسار غير معروف\n\nأي مسار تحت البادئتين لا يطابق شيئاً هنا يُجيب `404 RESOURCE_NOT_FOUND` — بالمغلّف نفسه وبمعرّف الطلب نفسه، لا بصفحة HTML. هذا مقصود: قبل المرحلة 20-2 كان يسقط إلى الصدفة ويُجيب `200 text/html`، فيقرأه العميل نجاحاً ويسلّم `null`، وتظهر النتيجة شاشةً فارغة بعد أيام و200 في كل سجل.\n\n## الأخطاء عقد\n\nالرسائل عربية وهي جزء من العقد: المرحلة 22 تترجمها **بالرمز**. ابنِ على `error.code`، لا على نص `error.message`. المجموعة كاملة في `x-codiq-error-catalogue`، وكل استجابة خطأ هنا تُسمّي الرموز التي يمكن أن تصل منها.\n\n## القوائم\n\nكل قائمة تُجيب بمَغلَّف `ListEnvelope` نفسه — موصوف مرة واحدة ومُشار إليه — بمؤشر معتم واحد. لا تبنِ مؤشراً بيدك: الوثيقة تصفه سلسلةً معتمة لأنه كذلك.",
     "license": {
       "name": "MIT"
     }
@@ -31,6 +31,9 @@
     },
     {
       "name": "customer-delight"
+    },
+    {
+      "name": "market-catalog"
     },
     {
       "name": "market-geo"
@@ -205,6 +208,7 @@
                   "CATEGORY_NAME_TAKEN",
                   "CATEGORY_NOT_FOUND",
                   "COMMON_PASSWORD",
+                  "COMPARE_AT_NOT_ABOVE_PRICE",
                   "COUPON_CODE_TAKEN",
                   "COUPON_CUSTOMER_LIMIT_REACHED",
                   "COUPON_EXHAUSTED",
@@ -388,6 +392,7 @@
                   "MISSING_STAFF_MEMBERSHIP_CONTEXT",
                   "NOTHING_TO_UPDATE",
                   "NO_ACTIVE_SUBSCRIPTION",
+                  "ORDER_LIMIT_EXCEEDED",
                   "ORDER_NOT_CANCELLABLE",
                   "ORDER_NOT_RETURNABLE",
                   "ORDER_NOT_RETURNED",
@@ -416,6 +421,7 @@
                   "PRODUCT_DUPLICATE_FAILED",
                   "PRODUCT_HAS_ACTIVE_RESERVATION",
                   "PRODUCT_IN_ACTIVE_CART",
+                  "PRODUCT_NOT_FOUND",
                   "PRODUCT_UNAVAILABLE",
                   "RATE_LIMITED",
                   "REGISTRATION_NOT_DECIDED",
@@ -465,6 +471,7 @@
                   "TOTP_NOT_STARTED",
                   "TRANSACTION_CONTENTION",
                   "UNKNOWN_GOVERNORATE",
+                  "UNKNOWN_MARKET_CATEGORY",
                   "UNKNOWN_SETTING",
                   "VALIDATION_FAILED",
                   "VARIANT_IN_USE",
@@ -1281,6 +1288,303 @@
             "maximum": 1000
           }
         }
+      },
+      "modules.market-catalog.schema.categoryMappingSchema": {
+        "type": "object",
+        "properties": {
+          "marketCategoryId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "marketCategoryId"
+        ]
+      },
+      "modules.market-catalog.schema.marketProductQuerySchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "relevance",
+              "recommended",
+              "newest",
+              "price_asc",
+              "price_desc",
+              "rating",
+              "best_selling",
+              "trending",
+              "discount"
+            ]
+          },
+          "period": {
+            "default": "month",
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "quarter"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "store": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "deliverTo": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "minPrice": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "maxPrice": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "discount": {
+            "type": "string",
+            "enum": [
+              "30",
+              "50",
+              "any"
+            ]
+          },
+          "rating": {
+            "type": "string",
+            "enum": [
+              "3",
+              "excellent"
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "enum": [
+              "new",
+              "used",
+              "refurbished"
+            ]
+          },
+          "tag": {
+            "type": "string",
+            "enum": [
+              "original",
+              "imported",
+              "warranty",
+              "limited_edition",
+              "exclusive",
+              "free_delivery",
+              "free_returns"
+            ]
+          },
+          "preorder": {
+            "type": "string",
+            "enum": [
+              "0",
+              "1",
+              "true",
+              "false"
+            ]
+          },
+          "inStock": {
+            "type": "string",
+            "enum": [
+              "0",
+              "1",
+              "true",
+              "false"
+            ]
+          },
+          "exclude": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "limit": {}
+        }
+      },
+      "modules.market-catalog.schema.productAddonsSchema": {
+        "type": "object",
+        "properties": {
+          "addons": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "priceIqd": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000000
+                },
+                "isActive": {
+                  "default": true,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "priceIqd"
+              ]
+            }
+          }
+        },
+        "required": [
+          "addons"
+        ]
+      },
+      "modules.market-catalog.schema.productMarketFieldsSchema": {
+        "type": "object",
+        "properties": {
+          "marketCategoryId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "compareAtPriceIqd": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 2147483647
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "enum": [
+              "new",
+              "used",
+              "refurbished"
+            ]
+          },
+          "tags": {
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "original",
+                "imported",
+                "warranty",
+                "limited_edition",
+                "exclusive",
+                "free_delivery",
+                "free_returns"
+              ]
+            }
+          },
+          "specs": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                },
+                "value": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                }
+              },
+              "required": [
+                "name",
+                "value"
+              ]
+            }
+          },
+          "isPreorder": {
+            "type": "boolean"
+          },
+          "preorderReleaseOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preorderShipsBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxPerOrder": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 99
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "marketCategoryId",
+          "compareAtPriceIqd",
+          "condition",
+          "tags",
+          "specs",
+          "isPreorder",
+          "preorderReleaseOn",
+          "preorderShipsBy",
+          "maxPerOrder"
+        ]
       },
       "modules.market-stores.schema.marketDecisionSchema": {
         "type": "object",
@@ -7613,7 +7917,7 @@
             ]
           },
           "422": {
-            "description": "`INVALID_CART_QUANTITY` · `INVALID_INCIDENT` · `VALIDATION_FAILED`",
+            "description": "`INVALID_CART_QUANTITY` · `INVALID_INCIDENT` · `ORDER_LIMIT_EXCEEDED` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -7624,6 +7928,7 @@
             "x-codiq-error-codes": [
               "INVALID_CART_QUANTITY",
               "INVALID_INCIDENT",
+              "ORDER_LIMIT_EXCEEDED",
               "VALIDATION_FAILED"
             ]
           },
@@ -7971,6 +8276,136 @@
         "security": []
       }
     },
+    "/market/categories": {
+      "get": {
+        "operationId": "getMarketCategories",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "GET /market/categories",
+        "description": "**الباب**: مفتوح بلا جلسة.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
+        "security": []
+      }
+    },
+    "/market/categories/{slug}": {
+      "get": {
+        "operationId": "getMarketCategoriesBySlug",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "GET /market/categories/{slug}",
+        "description": "**الباب**: مفتوح بلا جلسة.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "404": {
+            "description": "`CATEGORY_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CATEGORY_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
+        "security": []
+      }
+    },
     "/market/geo": {
       "get": {
         "operationId": "getMarketGeo",
@@ -8025,6 +8460,368 @@
         "security": []
       }
     },
+    "/market/products": {
+      "get": {
+        "operationId": "getMarketProducts",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "GET /market/products",
+        "description": "**الباب**: مفتوح بلا جلسة.\n\n**قائمة**: تُجيب بمَغلَّف المرحلة 20-2 — `{ <resource>: T[], nextCursor, …facets }` مع مؤشر معتم واحد.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "relevance",
+                "recommended",
+                "newest",
+                "price_asc",
+                "price_desc",
+                "rating",
+                "best_selling",
+                "trending",
+                "discount"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "month",
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "quarter"
+              ]
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            }
+          },
+          {
+            "name": "store",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "deliverTo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "minPrice",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "discount",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "30",
+                "50",
+                "any"
+              ]
+            }
+          },
+          {
+            "name": "rating",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "3",
+                "excellent"
+              ]
+            }
+          },
+          {
+            "name": "condition",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new",
+                "used",
+                "refurbished"
+              ]
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "original",
+                "imported",
+                "warranty",
+                "limited_edition",
+                "exclusive",
+                "free_delivery",
+                "free_returns"
+              ]
+            }
+          },
+          {
+            "name": "preorder",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1",
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "inStock",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1",
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "exclude",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_CURSOR` · `INVALID_LIMIT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_CURSOR",
+              "INVALID_LIMIT"
+            ]
+          },
+          "404": {
+            "description": "`CATEGORY_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CATEGORY_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT` · `UNKNOWN_GOVERNORATE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT",
+              "UNKNOWN_GOVERNORATE"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
+        "x-codiq-list-envelope": true,
+        "security": []
+      }
+    },
+    "/market/products/{productId}": {
+      "get": {
+        "operationId": "getMarketProductsByProductId",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "GET /market/products/{productId}",
+        "description": "**الباب**: مفتوح بلا جلسة.",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "404": {
+            "description": "`PRODUCT_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PRODUCT_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
+        "security": []
+      }
+    },
     "/market/ranking": {
       "get": {
         "operationId": "getMarketRanking",
@@ -8076,6 +8873,124 @@
           "public"
         ],
         "x-codiq-source": "phase1-backend/src/modules/market-stores/routes.ts",
+        "security": []
+      }
+    },
+    "/market/search/popular": {
+      "get": {
+        "operationId": "getMarketSearchPopular",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "GET /market/search/popular",
+        "description": "**الباب**: مفتوح بلا جلسة.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
+        "security": []
+      }
+    },
+    "/market/search/suggest": {
+      "get": {
+        "operationId": "getMarketSearchSuggest",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "GET /market/search/suggest",
+        "description": "**الباب**: مفتوح بلا جلسة.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "يُقرأ من `request.query` مباشرة — لا مخطط zod يصفه بعد، فالنوع هنا هو ما يصل على السلك."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
         "security": []
       }
     },
@@ -12627,6 +13542,248 @@
             }
           }
         }
+      }
+    },
+    "/merchant/stores/{storeSlug}/market-catalog/categories": {
+      "get": {
+        "operationId": "getMerchantStoresByStoreSlugMarketCatalogCategories",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "GET /merchant/stores/{storeSlug}/market-catalog/categories",
+        "description": "**الباب**: merchant أو staff.\n\n**الصلاحية**: `catalog.categories.manage`.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "storeSlug": {
+                      "type": "string",
+                      "description": "المتجر الذي تخص هذه القائمة — صدىً مقصود يجعل الاستجابة واصفةً لنفسها."
+                    }
+                  },
+                  "description": "يحمل أيضاً مفاتيح من نشرٍ (`...…`) لم يتيسّر تتبّعها من المسار — المفاتيح أعلاه مؤكَّدة، والقائمة ليست حصرية."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "description": "`MISSING_SESSION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "MISSING_SESSION"
+            ]
+          },
+          "403": {
+            "description": "`IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "IDENTITY_BOUNDARY_DENIED",
+              "MERCHANT_DISABLED",
+              "STAFF_PERMISSION_DENIED",
+              "STORE_BOUNDARY_DENIED"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "merchant",
+          "staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
+        "x-codiq-permissions": [
+          "catalog.categories.manage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
+      }
+    },
+    "/merchant/stores/{storeSlug}/market-catalog/products": {
+      "get": {
+        "operationId": "getMerchantStoresByStoreSlugMarketCatalogProducts",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "GET /merchant/stores/{storeSlug}/market-catalog/products",
+        "description": "**الباب**: merchant أو staff.\n\n**الصلاحية**: `catalog.products.update`.\n\n**قائمة**: تُجيب بمَغلَّف المرحلة 20-2 — `{ <resource>: T[], nextCursor, …facets }` مع مؤشر معتم واحد.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ListLimit"
+          },
+          {
+            "$ref": "#/components/parameters/ListCursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "storeSlug": {
+                          "type": "string",
+                          "description": "المتجر الذي تخص هذه القائمة — صدىً مقصود يجعل الاستجابة واصفةً لنفسها."
+                        }
+                      },
+                      "description": "يحمل أيضاً مفاتيح من نشرٍ (`...…`) لم يتيسّر تتبّعها من المسار — المفاتيح أعلاه مؤكَّدة، والقائمة ليست حصرية."
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_LIMIT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_LIMIT"
+            ]
+          },
+          "401": {
+            "description": "`MISSING_SESSION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "MISSING_SESSION"
+            ]
+          },
+          "403": {
+            "description": "`IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "IDENTITY_BOUNDARY_DENIED",
+              "MERCHANT_DISABLED",
+              "STAFF_PERMISSION_DENIED",
+              "STORE_BOUNDARY_DENIED"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "merchant",
+          "staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
+        "x-codiq-permissions": [
+          "catalog.products.update"
+        ],
+        "x-codiq-list-envelope": true,
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
       }
     },
     "/merchant/stores/{storeSlug}/market-profile": {
@@ -37527,12 +38684,13 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "description": "استجابة ناجحة.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                  "properties": {},
+                  "description": "يحمل أيضاً مفاتيح من نشرٍ (`...…`) لم يتيسّر تتبّعها من المسار — المفاتيح أعلاه مؤكَّدة، والقائمة ليست حصرية."
                 }
               }
             }
@@ -41536,7 +42694,7 @@
             ]
           },
           "422": {
-            "description": "`INVALID_CART_QUANTITY` · `INVALID_INCIDENT` · `VALIDATION_FAILED`",
+            "description": "`INVALID_CART_QUANTITY` · `INVALID_INCIDENT` · `ORDER_LIMIT_EXCEEDED` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -41547,6 +42705,7 @@
             "x-codiq-error-codes": [
               "INVALID_CART_QUANTITY",
               "INVALID_INCIDENT",
+              "ORDER_LIMIT_EXCEEDED",
               "VALIDATION_FAILED"
             ]
           },
@@ -41735,7 +42894,7 @@
             ]
           },
           "422": {
-            "description": "`CART_EMPTY` · `CART_PRICE_CHANGED` · `COUPON_INVALID` · `DELIVERY_UNAVAILABLE_FOR_GOVERNORATE` · `INSUFFICIENT_AVAILABLE_STOCK` · `INSUFFICIENT_LOYALTY_POINTS` · `INVALID_INCIDENT` · `INVALID_LOYALTY_POINTS` · `INVALID_ORDER_NOTE` · `LOYALTY_DISABLED` · `ORDER_TOTAL_TOO_LARGE` · `PAYMENT_METHOD_NOT_SUPPORTED` · `PRODUCT_UNAVAILABLE` · `STORE_ON_VACATION` · `VALIDATION_FAILED`",
+            "description": "`CART_EMPTY` · `CART_PRICE_CHANGED` · `COUPON_INVALID` · `DELIVERY_UNAVAILABLE_FOR_GOVERNORATE` · `INSUFFICIENT_AVAILABLE_STOCK` · `INSUFFICIENT_LOYALTY_POINTS` · `INVALID_INCIDENT` · `INVALID_LOYALTY_POINTS` · `INVALID_ORDER_NOTE` · `LOYALTY_DISABLED` · `ORDER_LIMIT_EXCEEDED` · `ORDER_TOTAL_TOO_LARGE` · `PAYMENT_METHOD_NOT_SUPPORTED` · `PRODUCT_UNAVAILABLE` · `STORE_ON_VACATION` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -41754,6 +42913,7 @@
               "INVALID_LOYALTY_POINTS",
               "INVALID_ORDER_NOTE",
               "LOYALTY_DISABLED",
+              "ORDER_LIMIT_EXCEEDED",
               "ORDER_TOTAL_TOO_LARGE",
               "PAYMENT_METHOD_NOT_SUPPORTED",
               "PRODUCT_UNAVAILABLE",
@@ -41929,7 +43089,7 @@
             ]
           },
           "422": {
-            "description": "`CART_EMPTY` · `CART_PRICE_CHANGED` · `GUEST_CHECKOUT_DISABLED` · `INSUFFICIENT_AVAILABLE_STOCK` · `INVALID_CART_QUANTITY` · `INVALID_FULL_NAME` · `INVALID_INCIDENT` · `ORDER_TOTAL_TOO_LARGE` · `PRODUCT_UNAVAILABLE` · `STORE_ON_VACATION` · `VALIDATION_FAILED`",
+            "description": "`CART_EMPTY` · `CART_PRICE_CHANGED` · `GUEST_CHECKOUT_DISABLED` · `INSUFFICIENT_AVAILABLE_STOCK` · `INVALID_CART_QUANTITY` · `INVALID_FULL_NAME` · `INVALID_INCIDENT` · `ORDER_LIMIT_EXCEEDED` · `ORDER_TOTAL_TOO_LARGE` · `PRODUCT_UNAVAILABLE` · `STORE_ON_VACATION` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -41945,6 +43105,7 @@
               "INVALID_CART_QUANTITY",
               "INVALID_FULL_NAME",
               "INVALID_INCIDENT",
+              "ORDER_LIMIT_EXCEEDED",
               "ORDER_TOTAL_TOO_LARGE",
               "PRODUCT_UNAVAILABLE",
               "STORE_ON_VACATION",
@@ -42727,6 +43888,477 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/orders.updateDeliveryRateSchema"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/merchant/stores/{storeSlug}/market-catalog/categories/{categoryId}": {
+      "put": {
+        "operationId": "putMerchantStoresByStoreSlugMarketCatalogCategoriesByCategoryId",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "PUT /merchant/stores/{storeSlug}/market-catalog/categories/{categoryId}",
+        "description": "**الباب**: merchant أو staff.\n\n**الصلاحية**: `catalog.categories.manage`.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`MISSING_SESSION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "MISSING_SESSION"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "MERCHANT_DISABLED",
+              "STAFF_PERMISSION_DENIED",
+              "STORE_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`CATEGORY_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CATEGORY_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT` · `UNKNOWN_MARKET_CATEGORY` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT",
+              "UNKNOWN_MARKET_CATEGORY",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "merchant",
+          "staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
+        "x-codiq-permissions": [
+          "catalog.categories.manage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-catalog.schema.categoryMappingSchema"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/merchant/stores/{storeSlug}/market-catalog/products/{productId}": {
+      "put": {
+        "operationId": "putMerchantStoresByStoreSlugMarketCatalogProductsByProductId",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "PUT /merchant/stores/{storeSlug}/market-catalog/products/{productId}",
+        "description": "**الباب**: merchant أو staff.\n\n**الصلاحية**: `catalog.products.update`.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`MISSING_SESSION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "MISSING_SESSION"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "MERCHANT_DISABLED",
+              "STAFF_PERMISSION_DENIED",
+              "STORE_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`PRODUCT_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PRODUCT_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`COMPARE_AT_NOT_ABOVE_PRICE` · `INVALID_INCIDENT` · `UNKNOWN_MARKET_CATEGORY` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "COMPARE_AT_NOT_ABOVE_PRICE",
+              "INVALID_INCIDENT",
+              "UNKNOWN_MARKET_CATEGORY",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "merchant",
+          "staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
+        "x-codiq-permissions": [
+          "catalog.products.update"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-catalog.schema.productMarketFieldsSchema"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/merchant/stores/{storeSlug}/market-catalog/products/{productId}/addons": {
+      "put": {
+        "operationId": "putMerchantStoresByStoreSlugMarketCatalogProductsByProductIdAddons",
+        "tags": [
+          "market-catalog"
+        ],
+        "summary": "PUT /merchant/stores/{storeSlug}/market-catalog/products/{productId}/addons",
+        "description": "**الباب**: merchant أو staff.\n\n**الصلاحية**: `catalog.products.update`.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`MISSING_SESSION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "MISSING_SESSION"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED",
+              "MERCHANT_DISABLED",
+              "STAFF_PERMISSION_DENIED",
+              "STORE_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`PRODUCT_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PRODUCT_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "merchant",
+          "staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-catalog/routes.ts",
+        "x-codiq-permissions": [
+          "catalog.products.update"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-catalog.schema.productAddonsSchema"
               }
             }
           }
@@ -44326,7 +45958,9 @@
       ],
       "messages": [
         "The requested category was not found in the trash of this store.",
-        "The requested category was not found in this store."
+        "The requested category was not found in this store.",
+        "التصنيف غير موجود في هذا المتجر.",
+        "هذه الفئة غير موجودة."
       ]
     },
     "COMMON_PASSWORD": {
@@ -44336,6 +45970,12 @@
       "messages": [
         "هذه من أكثر كلمات المرور استعمالاً، وهي أول ما يُجرَّب. اختر شيئاً لا يخمّنه أحد — عبارة قصيرة تذكرها أنت وحدك تكفي."
       ]
+    },
+    "COMPARE_AT_NOT_ABOVE_PRICE": {
+      "statuses": [
+        422
+      ],
+      "messages": []
     },
     "COUPON_CODE_TAKEN": {
       "statuses": [
@@ -45872,6 +47512,14 @@
         "لا يوجد تغيير لتطبيقه."
       ]
     },
+    "ORDER_LIMIT_EXCEEDED": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "One or more products exceed the quantity allowed per order."
+      ]
+    },
     "ORDER_NOT_CANCELLABLE": {
       "statuses": [
         409
@@ -46089,6 +47737,16 @@
       ],
       "messages": [
         "هذا المنتج موجود الآن في سلة زبون نشطة — لا يمكن إزالته أثناء عملية شراء جارية."
+      ]
+    },
+    "PRODUCT_NOT_FOUND": {
+      "statuses": [
+        404
+      ],
+      "messages": [
+        "المنتج غير موجود في هذا المتجر.",
+        "هذا المنتج غير موجود.",
+        "يبدو أنّ المتجر أزال هذا المنتج أو أوقف بيعه مؤقتاً."
       ]
     },
     "PRODUCT_UNAVAILABLE": {
@@ -46521,6 +48179,14 @@
         "المحافظة غير معروفة."
       ]
     },
+    "UNKNOWN_MARKET_CATEGORY": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "فئة السوق غير موجودة."
+      ]
+    },
     "UNKNOWN_SETTING": {
       "statuses": [
         422
@@ -46615,8 +48281,8 @@
       "the zod schemas in src/http/schemas",
       "every new HttpError(...) throw site in src"
     ],
-    "routesInRoutingTable": 306,
-    "operations": 307,
+    "routesInRoutingTable": 317,
+    "operations": 318,
     "note": "مولّدة آلياً — أي تحرير يدوي يسقط في أول تشغيل لـ `pnpm openapi:guard`."
   }
 }

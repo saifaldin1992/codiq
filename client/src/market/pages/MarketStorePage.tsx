@@ -13,30 +13,26 @@ import type { BadgeView, MarketStorePageData } from "../market-types";
 import { TIER_LABELS, WEEKDAYS } from "../market-types";
 import { BADGE_ICONS, MarkChips, RatingInline, TIER_CLASSES, TierChip } from "../components/StoreBadges";
 import { MarketEmptyState } from "../MarketEmptyState";
+import { ProductShelf } from "../components/ProductShelf";
 
-type Product = { id: string; name: string; minPriceIqd: number; image: { id: string } | null; isAvailable: boolean };
 type Review = { id: string; rating: number; body: string | null; createdAt: string; author: string; product: { id: string; name: string } };
-
-const iqd = (value: number) => `${value.toLocaleString("ar-IQ")} د.ع`;
 
 export function MarketStorePage() {
   const { slug = "" } = useParams<{ slug: string }>();
   const [data, setData] = useState<MarketStorePageData | null>(null);
   const [missing, setMissing] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  const [products, setProducts] = useState<Product[] | null>(null);
   const [reviews, setReviews] = useState<{ reviews: Review[]; nextCursor: string | null } | null>(null);
   const [badgeSheet, setBadgeSheet] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
-    setData(null); setMissing(false); setFailure(null); setProducts(null); setReviews(null);
+    setData(null); setMissing(false); setFailure(null); setReviews(null);
     const encoded = encodeURIComponent(slug);
     marketGet<MarketStorePageData>(`/api/market/stores/${encoded}`, { signal: controller.signal })
       .then((page) => {
         setData(page);
-        marketGet<{ products: Product[] }>(`/api/store/${encoded}/products?limit=10`, { signal: controller.signal }).then((body) => setProducts(body.products)).catch(() => setProducts([]));
         marketGet<{ reviews: Review[]; nextCursor: string | null }>(`/api/market/stores/${encoded}/reviews?limit=3`, { signal: controller.signal }).then(setReviews).catch(() => setReviews({ reviews: [], nextCursor: null }));
       })
       .catch((error: Error) => {
@@ -112,28 +108,12 @@ export function MarketStorePage() {
         ) : <p className="text-xs text-[var(--codiq-text-muted)]">لم يكسب المتجر شارات بعد.</p>}
       </section>
 
-      <section className="mx-4 space-y-3 rounded-[26px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid="market-store-products">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black text-[var(--codiq-text)]">أحدث المنتجات</h2>
-          <a href={`${store.storefrontPath}/products`} className="text-xs font-bold text-[var(--codiq-accent)]">عرض الكل</a>
-        </div>
-        {!products ? <p className="text-xs text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ التحميل…</p>
-          : products.length === 0 ? <p className="text-xs text-[var(--codiq-text-muted)]">لا توجد منتجات معروضة حالياً.</p>
-          : (
-            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 [scrollbar-width:none]">
-              {products.map((product) => (
-                <a key={product.id} href={`${store.storefrontPath}/products/${encodeURIComponent(product.id)}`} className="w-[136px] shrink-0 space-y-1.5" data-testid={`market-store-product-${product.id}`}>
-                  <div className="aspect-square overflow-hidden rounded-2xl bg-[var(--codiq-surface-sunken)]">
-                    {product.image ? <img src={`/api/store/${encodeURIComponent(store.slug)}/products/${encodeURIComponent(product.id)}/images/${encodeURIComponent(product.image.id)}`} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
-                  </div>
-                  <p className="line-clamp-2 text-xs font-semibold text-[var(--codiq-text)]">{product.name}</p>
-                  <p className="text-xs font-black text-[var(--codiq-text)]">{iqd(product.minPriceIqd)}</p>
-                  {!product.isAvailable ? <p className="text-[10px] font-bold text-[var(--codiq-danger)]">نفد</p> : null}
-                </a>
-              ))}
-            </div>
-          )}
-      </section>
+      <div className="mx-4 space-y-5" data-testid="market-store-products">
+        <ProductShelf testId="market-store-newest" title="أحدث المنتجات" url={`/api/market/products?store=${encodeURIComponent(store.slug)}&sort=newest&limit=10`} action={<Link href={`/s/${encodeURIComponent(store.slug)}/products`} className="text-xs font-bold text-[var(--codiq-accent)]" data-testid="market-store-all-products">عرض الكل</Link>} />
+        <ProductShelf testId="market-store-discounts" title="التخفيضات" url={`/api/market/products?store=${encodeURIComponent(store.slug)}&discount=any&sort=discount&limit=10`} />
+        <ProductShelf testId="market-store-trending" title="الأكثر رواجاً" url={`/api/market/products?store=${encodeURIComponent(store.slug)}&sort=trending&limit=10`} />
+        <ProductShelf testId="market-store-preorders" title="الطلب المسبق" url={`/api/market/products?store=${encodeURIComponent(store.slug)}&preorder=1&limit=10`} />
+      </div>
 
       <section className="mx-4 space-y-3 rounded-[26px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid="market-store-hours">
         <div className="flex items-center justify-between">

@@ -54,7 +54,7 @@ export type ApiErrorCode =
   | "UNKNOWN";
 
 /** ق-221: one cart line the server refused, in the words the shopper needs to fix it. */
-export type RefusedCartLine = { cartItemId: string; variantId: string; productName: string | null; variantName: string | null; requested: number; available: number; reason: "unavailable" | "insufficient_stock" };
+export type RefusedCartLine = { cartItemId: string; variantId: string; productName: string | null; variantName: string | null; requested: number; available: number; reason: "unavailable" | "insufficient_stock" | "order_limit" };
 
 export class StorefrontApiError extends Error {
   /** Whatever the server merged into its `error` object beside code and message (PG-2 `details`). */

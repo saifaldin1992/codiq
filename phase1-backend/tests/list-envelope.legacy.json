@@ -328,5 +328,34 @@
         "reason": "NOT A JSON ENVELOPE — an image byte stream with its own content type. There is no object to carry an echo in."
       }
     ]
+  },
+  "modules/market-catalog/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/categories",
+        "reason": "BOUNDED — the market's category tree, two levels, about fifty rows owned by the platform. A category picker needs the whole tree, and the answer is the same for every visitor (cached five minutes)."
+      },
+      {
+        "route": "GET /market/categories/:slug",
+        "reason": "NOT A LIST of the category — one category with its children (a handful) and a fixed top-12 of the stores selling in it. Its products page through GET /market/products?category=…"
+      },
+      {
+        "route": "GET /market/products/:productId",
+        "reason": "NOT A LIST — one product's page. Detected because it reads that product's images (capped at 12), variants and add-ons (capped at 20 by the schema)."
+      },
+      {
+        "route": "GET /market/search/suggest",
+        "reason": "BOUNDED — as-you-type suggestions: at most five products, three stores and five categories. The full results page through GET /market/products?q=…"
+      },
+      {
+        "route": "GET /market/search/popular",
+        "reason": "BOUNDED — the week's ten most searched terms, a fixed top-N."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/market-catalog/categories",
+        "reason": "BOUNDED — the store's own categories (three levels, a few dozen at most) beside the market tree, on the one screen where the merchant maps one onto the other; mapping needs both lists whole."
+      }
+    ],
+    "missingStoreSlug": []
   }
 }

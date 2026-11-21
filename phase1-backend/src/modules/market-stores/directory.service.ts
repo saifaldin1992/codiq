@@ -113,7 +113,7 @@ export async function listMarketStores(query: MarketStoreQuery) {
   if (query.verified) filters.push(Prisma.sql`st.verified_at IS NOT NULL`);
   if (query.brand) filters.push(Prisma.sql`st.is_brand`);
   if (query.ambassador) filters.push(Prisma.sql`st.ambassador_until > now()`);
-  if (query.q) filters.push(Prisma.sql`codiq_ar_normalize_v1(st.name) LIKE '%' || codiq_ar_normalize_v1(${query.q}) || '%'`);
+  if (query.q) filters.push(Prisma.sql`codiq_ar_normalize_v1(st.name) LIKE '%' || codiq_like_escape(codiq_ar_normalize_v1(${query.q})) || '%'`);
   if (query.sort === "nearest") filters.push(Prisma.sql`st.latitude IS NOT NULL`);
   if (query.sort === "newest") filters.push(Prisma.sql`st.market_listed_at IS NOT NULL`);
   if (cursor) filters.push(Prisma.sql`(${key}, st.id) < (${cursorValue}::float8, ${cursor.id}::uuid)`);

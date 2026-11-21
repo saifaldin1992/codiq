@@ -188,6 +188,8 @@
     "market:score": "tsx phase1-backend/tests/market-score.unit.mjs",
     "market:stores": "tsx phase1-backend/tests/market-stores.integration.mjs",
     "market:stores:browser": "pnpm build && node --import tsx phase1-backend/tests/market-stores.browser-acceptance.mjs",
+    "market:catalog": "tsx phase1-backend/tests/market-catalog.integration.mjs",
+    "market:catalog:browser": "pnpm build && node --import tsx phase1-backend/tests/market-catalog.browser-acceptance.mjs",
     "market:foundation": "tsx phase1-backend/tests/market-foundation.integration.mjs",
     "market:shell:browser": "pnpm build && node --import tsx phase1-backend/tests/market-shell.browser-acceptance.mjs",
     "events:test": "node --import tsx phase1-backend/tests/domain-events.integration.mjs",

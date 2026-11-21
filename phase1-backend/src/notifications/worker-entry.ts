@@ -37,6 +37,7 @@ import { MAINTENANCE_TICK_INTERVAL_MS, tickMaintenanceWindows } from "../service
 import { JOB_TICK_MS, startJobScheduler, type ScheduledJob } from "../jobs/scheduler.js";
 import { isOutboxSignalMessage, setOutboxSignalSink } from "../jobs/outbox-signal.js";
 import { recomputeMarketMetrics } from "../modules/market-stores/metrics.service.js";
+import { recomputeProductStats } from "../modules/market-catalog/stats.service.js";
 
 // A garbage interval env value would make setInterval(fn, NaN) fire near
 // continuously — fall back to the default instead.
@@ -87,7 +88,7 @@ const JOBS: ScheduledJob[] = [
   // ledger tables are never swept; `services/retention.ts` says why, at length.
   // Marketplace M1: the directory's scores, tiers and badges. Idempotent — a missed
   // or doubled pass only changes how fresh the numbers are.
-  { name: "market-metrics", everyMs: intervalFromEnv(process.env.CODIQ_MARKET_METRICS_INTERVAL_MS, 60 * 60 * 1000), run: () => recomputeMarketMetrics() },
+  { name: "market-metrics", everyMs: intervalFromEnv(process.env.CODIQ_MARKET_METRICS_INTERVAL_MS, 60 * 60 * 1000), run: async () => ({ ...(await recomputeMarketMetrics()), ...(await recomputeProductStats()) }) },
   { name: "retention", everyMs: intervalFromEnv(process.env.CODIQ_RETENTION_SWEEP_INTERVAL_MS, RETENTION_SWEEP_INTERVAL_MS), run: () => sweepOperationalRetention() },
 ];
 

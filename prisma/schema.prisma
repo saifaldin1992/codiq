@@ -570,6 +570,19 @@ model Product {
   /// ق-199: typed attribute groups («النوتة العطرية»: مقدمة/قلب/قاعدة) — a list of
   /// `{ group, rows: [{ key, value }] }`, shape fixed by zod, label owned by the merchant.
   attributes  Json        @default("[]") @db.JsonB
+  /// Marketplace M2 (migration 20261121110000): what the market shows about a product.
+  marketCategoryId  Int?      @map("market_category_id")
+  compareAtPriceIqd Int?      @map("compare_at_price_iqd")
+  condition         String    @default("new") @db.Text
+  tags              String[]  @default([])
+  specs             Json      @default("[]") @db.JsonB
+  isPreorder        Boolean   @default(false) @map("is_preorder")
+  preorderReleaseOn DateTime? @map("preorder_release_on") @db.Date
+  preorderShipsBy   DateTime? @map("preorder_ships_by") @db.Date
+  maxPerOrder       Int?      @map("max_per_order")
+  marketCategory    MarketCategory? @relation(fields: [marketCategoryId], references: [id], onDelete: SetNull)
+  addons            ProductAddon[]
+  marketStats       ProductMarketStats?
   viewsDaily  ProductViewDaily[]
   isActive    Boolean     @default(true) @map("is_active")
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -655,6 +668,9 @@ model ProductCategory {
   parentCategoryId String?   @map("parent_category_id") @db.Uuid
   name             String    @db.Text
   normalizedName   String    @map("normalized_name") @db.Text
+  /// Marketplace M2: which market category this store category maps to.
+  marketCategoryId Int?      @map("market_category_id")
+  marketCategory   MarketCategory? @relation(fields: [marketCategoryId], references: [id], onDelete: SetNull)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   // PG-2 soft delete. No deletedWasActive: the model has no is_active column.
@@ -673,6 +689,7 @@ model ProductCategory {
   @@unique([id, storeId], map: "product_categories_id_store_unique")
   @@index([storeId])
   @@index([storeId, parentCategoryId], map: "product_categories_store_parent_idx")
+  @@index([marketCategoryId], map: "product_categories_market_category_idx")
   @@map("product_categories")
 }
 
@@ -2096,4 +2113,68 @@ model StoreMarketMetrics {
   store                 Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@map("store_market_metrics")
+}
+
+/// Marketplace M2: the market's one category tree (two levels).
+model MarketCategory {
+  id                Int               @id @default(autoincrement())
+  parentId          Int?              @map("parent_id")
+  slug              String            @unique @db.Text
+  nameAr            String            @map("name_ar") @db.Text
+  sortOrder         Int               @default(0) @map("sort_order")
+  isActive          Boolean           @default(true) @map("is_active")
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  parent            MarketCategory?   @relation("MarketCategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children          MarketCategory[]  @relation("MarketCategoryTree")
+  products          Product[]
+  storeCategories   ProductCategory[]
+
+  @@index([parentId, sortOrder], map: "market_categories_parent_idx")
+  @@map("market_categories")
+}
+
+/// Marketplace M2: an optional extra sold with a product.
+model ProductAddon {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  name      String   @db.Text
+  priceIqd  Int      @map("price_iqd")
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  product   Product  @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade, map: "product_addons_product_fk")
+
+  @@index([storeId, productId, sortOrder], map: "product_addons_product_idx")
+  @@map("product_addons")
+}
+
+/// Marketplace M2: per-product numbers the market lists sort by. Written only by the market-metrics job.
+model ProductMarketStats {
+  productId   String   @id @map("product_id") @db.Uuid
+  storeId     String   @map("store_id") @db.Uuid
+  ratingAvg   Decimal? @map("rating_avg") @db.Decimal(3, 2)
+  ratingCount Int      @default(0) @map("rating_count")
+  sold1d      Int      @default(0) @map("sold_1d")
+  sold7d      Int      @default(0) @map("sold_7d")
+  sold30d     Int      @default(0) @map("sold_30d")
+  sold90d     Int      @default(0) @map("sold_90d")
+  views7d     Int      @default(0) @map("views_7d")
+  views30d    Int      @default(0) @map("views_30d")
+  computedAt  DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  product     Product  @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade, map: "product_market_stats_product_fk")
+
+  @@unique([productId, storeId], map: "product_market_stats_product_store_key")
+  @@map("product_market_stats")
+}
+
+/// Marketplace M2: searches per normalized term per day — words and counts only, nothing about who searched.
+model MarketSearchTerm {
+  term     String   @db.Text
+  day      DateTime @db.Date
+  searches Int      @default(0)
+
+  @@id([term, day])
+  @@index([day], map: "market_search_terms_day_idx")
+  @@map("market_search_terms")
 }

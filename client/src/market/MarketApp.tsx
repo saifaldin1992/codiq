@@ -7,10 +7,15 @@
 import { Route, Switch } from "wouter";
 import { MarketShell } from "./MarketShell";
 import { MarketHomePage } from "./pages/MarketHomePage";
-import { MarketAccountPage, MarketCartPage, MarketCategoriesPage, MarketNotFoundPage, MarketSearchPage } from "./pages/MarketPlaceholderPages";
+import { MarketAccountPage, MarketCartPage, MarketNotFoundPage } from "./pages/MarketPlaceholderPages";
+import { MarketCategoriesPage } from "./pages/MarketCategoriesPage";
+import { MarketCategoryPage } from "./pages/MarketCategoryPage";
+import { MarketSearchPage } from "./pages/MarketSearchPage";
+import { MarketProductPage } from "./pages/MarketProductPage";
 import { MarketStoresPage } from "./pages/MarketStoresPage";
 import { MarketStorePage } from "./pages/MarketStorePage";
 import { MarketStoreReviewsPage } from "./pages/MarketStoreReviewsPage";
+import { MarketStoreProductsPage } from "./pages/MarketStoreProductsPage";
 
 export default function MarketApp() {
   return (
@@ -19,8 +24,11 @@ export default function MarketApp() {
         <Route path="/" component={MarketHomePage} />
         <Route path="/stores" component={MarketStoresPage} />
         <Route path="/s/:slug/reviews" component={MarketStoreReviewsPage} />
+        <Route path="/s/:slug/products" component={MarketStoreProductsPage} />
         <Route path="/s/:slug" component={MarketStorePage} />
         <Route path="/categories" component={MarketCategoriesPage} />
+        <Route path="/c/:slug" component={MarketCategoryPage} />
+        <Route path="/p/:id" component={MarketProductPage} />
         <Route path="/cart" component={MarketCartPage} />
         <Route path="/account" component={MarketAccountPage} />
         <Route path="/search" component={MarketSearchPage} />
