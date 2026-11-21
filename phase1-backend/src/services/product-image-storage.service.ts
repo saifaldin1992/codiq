@@ -308,7 +308,7 @@ export async function deleteStoreCoverObjects(objectKeys: readonly string[]) {
  * Marketplace M3 — the platform's own market images (banners). Same validator
  * and bucket as every store image; no plan meter, because the platform pays.
  */
-export async function putMarketImage(kind: "banners", file: Express.Multer.File) {
+export async function putMarketImage(kind: "banners" | "avatars", file: Express.Multer.File) {
   const detected = validateStoreImage(file);
   const config = s3Config();
   const objectKey = `market/${kind}/${randomUUID()}.${detected.extension}`;

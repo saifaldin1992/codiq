@@ -28,7 +28,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const RETENTION_DAYS = {
   /** `storefront_rate_limits`, counted from `updated_at` — the window is minutes long; a week is already a hundredfold safety margin. */
   storefrontRateLimits: 7,
-  /** Revoked or expired rows in ALL FIVE session tables, counted from whichever of `revoked_at` / `expires_at` came due. */
+  /** Marketplace M4: one-time sign-in codes, counted from `created_at`. A code lives five minutes; a week keeps the rate-limit history readable. */
+  shopperOtpChallenges: 7,
+  /** Revoked or expired rows in ALL SIX session tables, counted from whichever of `revoked_at` / `expires_at` came due. */
   sessions: 30,
   /** `notification_outbox` rows that reached `sent` or `skipped`, counted from `updated_at`. */
   notificationOutboxSettled: 90,

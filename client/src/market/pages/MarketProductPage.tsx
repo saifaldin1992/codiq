@@ -12,6 +12,7 @@ import { marketGet, MarketApiError } from "../market-api";
 import { CONDITION_LABELS, iqd, rememberProduct, TAG_LABELS, type MarketProductDetail } from "../market-products";
 import { queryString } from "../use-market-list";
 import { ProductShelf } from "../components/ProductShelf";
+import { DeliveryToMe } from "../components/DeliveryToMe";
 import { MarketEmptyState } from "../MarketEmptyState";
 
 const day = (value: string | null) => (value ? new Date(`${value}T00:00:00Z`).toLocaleDateString("ar-IQ", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }) : null);
@@ -129,6 +130,8 @@ export function MarketProductPage() {
         </a>
         {product.maxPerOrder ? <p className="text-center text-[11px] text-[var(--codiq-text-muted)]" data-testid="market-product-limit">الحدّ الأقصى {product.maxPerOrder.toLocaleString("ar-IQ")} لكل طلب</p> : null}
       </div>
+
+      <DeliveryToMe storeSlug={product.store.slug} />
 
       <Link href={`/s/${encodeURIComponent(product.store.slug)}`} className="flex items-center justify-between rounded-[22px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid="market-product-store">
         <span className="flex items-center gap-2 text-sm font-bold text-[var(--codiq-text)]"><Store className="h-5 w-5 text-[var(--codiq-accent)]" /> {product.store.name}{product.store.verified ? <BadgeCheck className="h-4 w-4 text-[var(--codiq-accent)]" /> : null}</span>

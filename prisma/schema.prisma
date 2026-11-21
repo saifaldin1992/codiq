@@ -395,6 +395,9 @@ model Customer {
   @@map("customers")
   productReviews ProductReview[]
   wishlistItems  WishlistItem[]
+  /// Marketplace M4: the market shopper this store customer is, when he came through the market.
+  shopperId      String?           @map("shopper_id") @db.Uuid
+  shopper        Shopper?          @relation(fields: [shopperId], references: [id], onDelete: SetNull)
   returnRequests ReturnRequest[]
   loyaltyEntries LoyaltyEntry[]
 }
@@ -2075,6 +2078,7 @@ model District {
   isActive       Boolean  @default(true) @map("is_active")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   stores         Store[]
+  shopperAddresses ShopperAddress[]
 
   @@unique([governorateKey, nameAr], map: "districts_governorate_name_key")
   @@unique([id, governorateKey], map: "districts_id_governorate_key")
@@ -2274,4 +2278,81 @@ model MarketHomeSection {
   isActive Boolean @default(true) @map("is_active")
 
   @@map("market_home_sections")
+}
+
+/// Marketplace M4: the market's shopper — one account across every store, signed in by phone.
+model Shopper {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phoneNormalized   String             @unique @map("phone_normalized") @db.Text
+  fullName          String?            @map("full_name") @db.Text
+  email             String?            @db.Text
+  gender            String?            @db.Text
+  interests         Int[]              @default([])
+  avatarObjectKey   String?            @unique @map("avatar_object_key") @db.Text
+  avatarContentType String?            @map("avatar_content_type") @db.Text
+  avatarByteSize    Int?               @map("avatar_byte_size")
+  isActive          Boolean            @default(true) @map("is_active")
+  lastLoginAt       DateTime?          @map("last_login_at") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sessions          ShopperSession[]
+  otpChallenges     ShopperOtpChallenge[]
+  addresses         ShopperAddress[]
+  customers         Customer[]
+
+  @@map("shoppers")
+}
+
+model ShopperSession {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId  String    @map("shopper_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash") @db.Text
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  userAgent  String?   @map("user_agent") @db.Text
+  lastSeenAt DateTime? @map("last_seen_at") @db.Timestamptz(6)
+  shopper    Shopper   @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@index([shopperId], map: "shopper_sessions_shopper_idx")
+  @@map("shopper_sessions")
+}
+
+model ShopperOtpChallenge {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phoneNormalized String    @map("phone_normalized") @db.Text
+  purpose         String    @db.Text
+  shopperId       String?   @map("shopper_id") @db.Uuid
+  codeHash        String    @map("code_hash") @db.Text
+  attempts        Int       @default(0)
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt      DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper         Shopper?  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@index([phoneNormalized, createdAt(sort: Desc)], map: "shopper_otp_phone_idx")
+  @@map("shopper_otp_challenges")
+}
+
+model ShopperAddress {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId          String   @map("shopper_id") @db.Uuid
+  label              String   @db.Text
+  recipientName      String   @map("recipient_name") @db.Text
+  phoneNormalized    String   @map("phone_normalized") @db.Text
+  phoneVerifiedAt    DateTime @map("phone_verified_at") @db.Timestamptz(6)
+  altPhoneNormalized String?  @map("alt_phone_normalized") @db.Text
+  governorateKey     String   @map("governorate_key") @db.Text
+  districtId         Int      @map("district_id")
+  addressLine        String   @map("address_line") @db.Text
+  latitude           Float?
+  longitude          Float?
+  isDefault          Boolean  @default(false) @map("is_default")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  shopper            Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  district           District @relation(fields: [districtId, governorateKey], references: [id, governorateKey], onDelete: Restrict, map: "shopper_addresses_district_in_governorate")
+
+  @@index([shopperId, createdAt], map: "shopper_addresses_shopper_idx")
+  @@map("shopper_addresses")
 }

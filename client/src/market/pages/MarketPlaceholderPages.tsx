@@ -3,7 +3,7 @@
  * and offers a way onward — a tab never opens onto a dead end.
  */
 import { Link } from "wouter";
-import { Search, ShoppingBag, UserRound } from "lucide-react";
+import { Search, ShoppingBag } from "lucide-react";
 import { MarketEmptyState } from "../MarketEmptyState";
 
 const browseStores = (
@@ -15,9 +15,6 @@ export function MarketCartPage() {
   return <MarketEmptyState testId="market-cart" icon={ShoppingBag} title="سلتك فارغة" body="ابدأ التسوّق واكتشف عروض اليوم." action={browseStores} />;
 }
 
-export function MarketAccountPage() {
-  return <MarketEmptyState testId="market-account" icon={UserRound} title="حسابي" body="سجّل الدخول برقم هاتفك لمتابعة طلباتك وعناوينك ومفضّلتك." action={browseStores} />;
-}
 
 
 export function MarketNotFoundPage() {

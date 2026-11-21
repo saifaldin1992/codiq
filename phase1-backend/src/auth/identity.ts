@@ -225,6 +225,9 @@ function sha256(value: string): string {
  * threading a header through nine call sites and keeps working as the same
  * person moves between browsers.
  */
+/** Marketplace M4: thirty days. */
+export const SHOPPER_SESSION_LIFETIME_SECONDS = 60 * 60 * 24 * 30;
+
 export async function createTypedSession(identityKind: IdentityKind, subjectId: string, storeId?: string, membershipId?: string): Promise<string> {
   if (identityKind === "merchant" && !storeId) {
     throw new HttpError(500, "MISSING_MERCHANT_STORE_CONTEXT", "Merchant sessions must be bound to a store.");
@@ -232,13 +235,16 @@ export async function createTypedSession(identityKind: IdentityKind, subjectId: 
   if (identityKind === "staff" && (!storeId || !membershipId)) {
     throw new HttpError(500, "MISSING_STAFF_MEMBERSHIP_CONTEXT", "Staff sessions must be bound to one store membership.");
   }
-  const expiresAt = new Date(Date.now() + config.sessionLifetimeSeconds * 1000);
+  // A market shopper stays signed in on his phone for a month, as in any shopping
+  // app; every dashboard identity keeps the short working-day session.
+  const lifetimeSeconds = identityKind === "shopper" ? SHOPPER_SESSION_LIFETIME_SECONDS : config.sessionLifetimeSeconds;
+  const expiresAt = new Date(Date.now() + lifetimeSeconds * 1000);
   const sessionId = crypto.randomUUID();
   const claims: SessionClaims = { identityKind, subjectId, sessionId, ...(storeId ? { storeId } : {}), ...(membershipId ? { membershipId } : {}) };
   // Signed with the CURRENT session key only — never with a key being retired.
   const accessToken = jwt.sign(claims, KEYS.session.signing, {
     algorithm: "HS256",
-    expiresIn: config.sessionLifetimeSeconds,
+    expiresIn: lifetimeSeconds,
   });
   const tokenHash = sha256(accessToken);
 
@@ -252,6 +258,9 @@ export async function createTypedSession(identityKind: IdentityKind, subjectId: 
     // 19-ب: EXPLICIT, never the else-branch — a platform-staff session stored
     // in customer_sessions would verify, "work", and cross the boundary.
     await prisma.platformStaffSession.create({ data: { id: sessionId, platformStaffId: subjectId, tokenHash, expiresAt, lastSeenAt: new Date() } });
+  } else if (identityKind === "shopper") {
+    // Marketplace M4: EXPLICIT for the same reason as platform staff above.
+    await prisma.shopperSession.create({ data: { id: sessionId, shopperId: subjectId, tokenHash, expiresAt, lastSeenAt: new Date() } });
   } else {
     await prisma.customerSession.create({ data: { id: sessionId, customerId: subjectId, tokenHash, expiresAt, lastSeenAt: new Date() } });
   }
@@ -331,7 +340,9 @@ export async function verifyTypedSession(accessToken: string, expectedKind: Iden
           // "valid" for a row that does not exist in the right table.
           : expectedKind === "platform_staff"
             ? await prisma.platformStaffSession.findFirst({ where: { id: claims.sessionId, platformStaffId: claims.subjectId, tokenHash, revokedAt: null, expiresAt: { gt: now } } })
-            : await prisma.customerSession.findFirst({ where: { id: claims.sessionId, customerId: claims.subjectId, tokenHash, revokedAt: null, expiresAt: { gt: now } } });
+            : expectedKind === "shopper"
+              ? await prisma.shopperSession.findFirst({ where: { id: claims.sessionId, shopperId: claims.subjectId, tokenHash, revokedAt: null, expiresAt: { gt: now } } })
+              : await prisma.customerSession.findFirst({ where: { id: claims.sessionId, customerId: claims.subjectId, tokenHash, revokedAt: null, expiresAt: { gt: now } } });
 
   if (!isValid) throw new HttpError(401, "INVALID_SESSION", "The session is no longer valid.");
   return claims;

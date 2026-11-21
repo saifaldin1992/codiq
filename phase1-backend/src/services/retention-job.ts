@@ -71,6 +71,7 @@ const SESSION_TABLES = [
   "customer_sessions",
   "staff_sessions",
   "platform_staff_sessions",
+  "shopper_sessions",
 ] as const;
 
 function sessionSweep(table: string): Sweep {
@@ -102,6 +103,14 @@ const SWEEPS: readonly Sweep[] = [
       )`,
   },
   ...SESSION_TABLES.map(sessionSweep),
+  {
+    table: "shopper_otp_challenges",
+    retentionDays: RETENTION_DAYS.shopperOtpChallenges,
+    deleteBatch: (cutoff, limit) => prisma.$executeRaw`
+      DELETE FROM shopper_otp_challenges WHERE id IN (
+        SELECT id FROM shopper_otp_challenges WHERE created_at <= ${cutoff} LIMIT ${limit}
+      )`,
+  },
   {
     // `updated_at` rather than `sent_at`: a `skipped` row never had a send, and
     // `@updatedAt` stamps the moment the row reached its terminal state for all

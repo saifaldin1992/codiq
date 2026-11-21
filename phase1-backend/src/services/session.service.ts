@@ -57,6 +57,8 @@ function tableFor(kind: IdentityKind) {
   // 19-ب: the fifth identity, explicit — the customer fallback below must
   // never silently absorb a platform-staff session.
   if (kind === "platform_staff") return { model: prisma.platformStaffSession, owner: "platformStaffId" as const, name: "platformStaffSession" as const };
+  // Marketplace M4: the sixth identity, explicit for the same reason.
+  if (kind === "shopper") return { model: prisma.shopperSession, owner: "shopperId" as const, name: "shopperSession" as const };
   return { model: prisma.customerSession, owner: "customerId" as const, name: "customerSession" as const };
 }
 
