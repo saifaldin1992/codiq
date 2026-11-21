@@ -14,6 +14,8 @@
  */
 import { prisma } from "../db/prisma.js";
 import { HttpError } from "../auth/auth.errors.js";
+import type { PlatformActor } from "../auth/platform-permissions.js";
+import { recordPlatformAuditEvent } from "./platform-audit.service.js";
 import { DEFAULT_OPERATIONAL_DAILY_CAP, DEFAULT_OPERATIONAL_RECIPIENT_DAILY_CAP } from "../notifications/messaging-compliance.service.js";
 
 /** PG-3's seed value — the column default in prisma/schema.prisma. */
@@ -48,21 +50,37 @@ export async function storeMessagingCaps(storeSlug: string): Promise<{ store: { 
   return { store: { slug: store.slug, name: store.name }, caps: capsFromRow(row) };
 }
 
-export async function updateStoreMessagingCaps(storeSlug: string, input: Partial<MessagingCaps>): Promise<{ store: { slug: string; name: string }; caps: MessagingCaps }> {
+export async function updateStoreMessagingCaps(storeSlug: string, input: Partial<MessagingCaps>, actor: PlatformActor): Promise<{ store: { slug: string; name: string }; caps: MessagingCaps }> {
   const store = await storeBySlug(storeSlug);
   const data = {
     ...(input.marketingDailyCap !== undefined ? { marketingDailyCap: input.marketingDailyCap } : {}),
     ...(input.operationalDailyCap !== undefined ? { operationalDailyCap: input.operationalDailyCap } : {}),
     ...(input.operationalRecipientDailyCap !== undefined ? { operationalRecipientDailyCap: input.operationalRecipientDailyCap } : {}),
   };
-  // A store that never touched its notification settings has no row yet; the
-  // ceilings are still real for it (the worker reads the defaults), so the
-  // owner's first tightening creates the row rather than failing on its absence.
-  const row = await prisma.notificationSettings.upsert({
-    where: { storeId: store.id },
-    create: { storeId: store.id, ...data },
-    update: data,
-    select: { marketingDailyCap: true, operationalDailyCap: true, operationalRecipientDailyCap: true },
+  const capsSelect = { marketingDailyCap: true, operationalDailyCap: true, operationalRecipientDailyCap: true } as const;
+  const row = await prisma.$transaction(async (tx) => {
+    const before = capsFromRow(await tx.notificationSettings.findUnique({ where: { storeId: store.id }, select: capsSelect }));
+    // A store that never touched its notification settings has no row yet; the
+    // ceilings are still real for it (the worker reads the defaults), so the
+    // owner's first tightening creates the row rather than failing on its absence.
+    const updated = await tx.notificationSettings.upsert({
+      where: { storeId: store.id },
+      create: { storeId: store.id, ...data },
+      update: data,
+      select: capsSelect,
+    });
+    // A ceiling decides whether a merchant's customers hear from him today, so
+    // «who tightened this store, and from what» is answered here, with the
+    // change, or not at all.
+    await recordPlatformAuditEvent(tx, {
+      entityType: "store",
+      entityId: store.id,
+      entityLabel: store.name,
+      action: "setting_changed",
+      actor,
+      metadata: { setting: "messaging_caps", before: { ...before }, after: { ...capsFromRow(updated) } },
+    });
+    return updated;
   });
   return { store: { slug: store.slug, name: store.name }, caps: capsFromRow(row) };
 }

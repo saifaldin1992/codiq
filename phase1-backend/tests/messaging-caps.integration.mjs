@@ -78,6 +78,13 @@ try {
   assert.deepEqual(tightened.payload.caps, { marketingDailyCap: 50, operationalDailyCap: 5000, operationalRecipientDailyCap: 2 }, "a partial PUT changes only what it names");
   const row = await prisma.notificationSettings.findUniqueOrThrow({ where: { storeId: store.id }, select: { marketingDailyCap: true, operationalRecipientDailyCap: true } });
   assert.equal(row.operationalRecipientDailyCap, 2, "ق-180: the column the worker reads is the column the owner wrote");
+  // The change is on the platform's record: who, which store, from what to what.
+  const capsAudit = await prisma.platformAuditEvent.findFirst({ where: { entityType: "store", entityId: store.id, action: "setting_changed" }, orderBy: { createdAt: "desc" } });
+  assert.ok(capsAudit, "tightening a store's ceilings is written to the platform audit log");
+  assert.equal(capsAudit.actorKind, "platform_owner");
+  assert.equal(capsAudit.metadata.setting, "messaging_caps");
+  assert.equal(capsAudit.metadata.after.operationalRecipientDailyCap, 2);
+  assert.equal(capsAudit.metadata.before.operationalRecipientDailyCap, 20, "…with the value it replaced");
   assert.equal(row.marketingDailyCap, 50);
   assert.equal((await request(merchantPath, { token: merchantToken })).payload.settings.caps.operationalRecipientDailyCap, 2, "ق-180: the merchant sees the tightening at once");
   summary.tightened = tightened.payload.caps;

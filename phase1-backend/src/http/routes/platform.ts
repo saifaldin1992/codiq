@@ -190,7 +190,7 @@ export function registerPlatformRoutes(app: Express) {
   // but a test. Reading rides merchants.manage; WRITING stays owner-only, like
   // the verification badge above: these are anti-abuse walls, not settings.
   app.get("/platform/stores/:storeSlug/messaging-caps", asyncRoute(async (request, response) => { await requirePlatformActor(request, "merchants.manage"); response.status(200).json(await storeMessagingCaps(request.params.storeSlug)); }));
-  app.put("/platform/stores/:storeSlug/messaging-caps", asyncRoute(async (request, response) => { requireTrustedWriteOrigin(request); await requirePlatformOwner(request); response.status(200).json(await updateStoreMessagingCaps(request.params.storeSlug, parseOrThrow(messagingCapsSchema, request.body ?? {}))); }));
+  app.put("/platform/stores/:storeSlug/messaging-caps", asyncRoute(async (request, response) => { requireTrustedWriteOrigin(request); const owner = await requirePlatformOwner(request); response.status(200).json(await updateStoreMessagingCaps(request.params.storeSlug, parseOrThrow(messagingCapsSchema, request.body ?? {}), { kind: "platform_owner", id: owner.subjectId })); }));
 
   app.get("/merchant/finance/wallet", asyncRoute(async (request, response) => {
     const claims = await requireMerchantSession(request);
