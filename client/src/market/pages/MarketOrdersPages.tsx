@@ -1,7 +1,7 @@
 /** طلباتي — every order across every store, and one order's story. */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearch } from "wouter";
-import { CheckCircle2, LoaderCircle, MessageCircle, Package, Store, XCircle } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MessageCircle, Package, Store } from "lucide-react";
 import { accountCall, useShopper } from "../market-shopper";
 import { iqd } from "../market-products";
 import { useMarketList } from "../use-market-list";
@@ -53,9 +53,7 @@ type OrderDetail = {
   store: { slug: string; name: string; supportWhatsapp: string | null; addressLine: string | null; latitude: number | null; longitude: number | null };
   items: { id: string; productId: string | null; productName: string; variantName: string | null; quantity: number; unitPriceIqd: number; lineTotalIqd: number; addons: { name: string; priceIqd: number }[] }[];
   timeline: { status: string; label: string; at: string }[];
-  cancellable: boolean;
 };
-type CancelReason = { code: string; label: string };
 const STEPS = [{ key: "new", label: "الطلب" }, { key: "processing", label: "القبول" }, { key: "out_for_delivery", label: "التوصيل" }, { key: "completed", label: "التسليم" }];
 const RANK: Record<string, number> = { new: 0, processing: 1, preparation: 1, out_for_delivery: 2, completed: 3 };
 
@@ -64,11 +62,8 @@ export function MarketOrderPage() {
   const placed = new URLSearchParams(useSearch()).get("placed") === "1";
   const { status, shopper } = useShopper();
   const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [reasons, setReasons] = useState<CancelReason[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
-  const [cancelling, setCancelling] = useState(false);
-  const load = useCallback(() => accountCall<{ order: OrderDetail; cancelReasons: CancelReason[] }>(`/api/market/orders/${encodeURIComponent(id)}`).then((body) => { setOrder(body.order); setReasons(body.cancelReasons ?? []); }).catch((error: Error) => setFailure(error.message)), [id]);
-  useEffect(() => { if (shopper) void load(); }, [shopper, load]);
+  useEffect(() => { if (shopper) accountCall<{ order: OrderDetail }>(`/api/market/orders/${encodeURIComponent(id)}`).then((body) => setOrder(body.order)).catch((error: Error) => setFailure(error.message)); }, [shopper, id]);
   if (status === "loading") return null;
   if (!shopper) return <MarketSignIn />;
   if (failure) return <MarketEmptyState icon={Package} title="الطلب غير موجود" body={failure} action={<Link href="/orders" className="rounded-full bg-[var(--codiq-accent)] px-5 py-2.5 text-sm font-bold text-[var(--codiq-surface)]">طلباتي</Link>} />;
@@ -112,11 +107,6 @@ export function MarketOrderPage() {
           ? <p>{order.store.addressLine ?? "سيتواصل معك المتجر بموعد الاستلام."}{order.store.latitude !== null ? <> — <a href={`https://www.openstreetmap.org/?mlat=${order.store.latitude}&mlon=${order.store.longitude}#map=17/${order.store.latitude}/${order.store.longitude}`} target="_blank" rel="noopener noreferrer" className="font-bold text-[var(--codiq-accent)]">الاتجاهات</a></> : null}</p>
           : <p>{order.customerName} · {order.governorateName} — {order.shippingAddressLine1}</p>}
       </section>
-      {order.cancellable && reasons.length ? (
-        cancelling
-          ? <CancelOrderSheet orderId={order.id} reasons={reasons} onClose={() => setCancelling(false)} onCancelled={() => { setCancelling(false); void load(); }} />
-          : <button type="button" onClick={() => setCancelling(true)} className="flex w-full items-center justify-center gap-2 rounded-full border border-[var(--codiq-danger)] bg-[var(--codiq-surface)] py-3 text-sm font-bold text-[var(--codiq-danger)]" data-testid="market-order-cancel"><XCircle className="h-4 w-4" /> إلغاء الطلب</button>
-      ) : null}
       {whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-full border border-[var(--codiq-border)] bg-[var(--codiq-surface)] py-3 text-sm font-bold text-[var(--codiq-text)]"><MessageCircle className="h-4 w-4" /> تواصل مع التاجر</a> : null}
     </div>
   );
@@ -124,43 +114,4 @@ export function MarketOrderPage() {
 
 function Line({ label, value }: { label: string; value: string }) {
   return <div className="flex justify-between text-[var(--codiq-text-secondary)]"><span>{label}</span><span className="font-bold text-[var(--codiq-text)]">{value}</span></div>;
-}
-
-/** «إلغاء الطلب»: one reason from the list; «سبب آخر» asks for a few words. The store reads both on the order. */
-function CancelOrderSheet({ orderId, reasons, onClose, onCancelled }: { orderId: string; reasons: CancelReason[]; onClose: () => void; onCancelled: () => void }) {
-  const [code, setCode] = useState<string | null>(null);
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const needsNote = code === "other";
-  const submit = async () => {
-    if (!code || (needsNote && !note.trim())) return;
-    setBusy(true); setProblem(null);
-    try {
-      await accountCall(`/api/market/orders/${encodeURIComponent(orderId)}/cancel`, { method: "POST", body: JSON.stringify({ reasonCode: code, note: note.trim() || null }) });
-      onCancelled();
-    } catch (error) {
-      setProblem((error as Error).message);
-      // The store accepted it meanwhile: the page reloads to show where the order is now.
-      if ((error as { code?: string }).code === "ORDER_NOT_CANCELLABLE") onCancelled();
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <section className="space-y-3 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid="market-order-cancel-sheet">
-      <p className="text-sm font-black text-[var(--codiq-text)]">لماذا تريد إلغاء الطلب؟</p>
-      <div className="space-y-2" role="radiogroup" aria-label="سبب الإلغاء">
-        {reasons.map((reason) => (
-          <button key={reason.code} type="button" role="radio" aria-checked={code === reason.code} onClick={() => setCode(reason.code)} className={`block w-full rounded-2xl border px-3 py-2.5 text-start text-sm ${code === reason.code ? "border-[var(--codiq-accent)] bg-[var(--codiq-accent-soft)] font-bold text-[var(--codiq-accent)]" : "border-[var(--codiq-border)] text-[var(--codiq-text)]"}`} data-testid={`market-cancel-reason-${reason.code}`}>{reason.label}</button>
-        ))}
-      </div>
-      <textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={400} rows={2} placeholder={needsNote ? "اكتب سبب الإلغاء" : "ملاحظة للمتجر (اختياري)"} className="w-full rounded-2xl border border-[var(--codiq-border)] bg-[var(--codiq-surface)] p-3 text-sm" data-testid="market-cancel-note" />
-      {problem ? <p className="text-xs text-[var(--codiq-danger)]">{problem}</p> : null}
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={onClose} className="rounded-full border border-[var(--codiq-border)] py-2.5 text-sm font-bold text-[var(--codiq-text)]">تراجع</button>
-        <button type="button" disabled={!code || (needsNote && !note.trim()) || busy} onClick={() => void submit()} className="rounded-full bg-[var(--codiq-danger)] py-2.5 text-sm font-bold text-[var(--codiq-surface)] disabled:opacity-50" data-testid="market-cancel-confirm">{busy ? <LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> : null} تأكيد الإلغاء</button>
-      </div>
-    </section>
-  );
 }

@@ -212,35 +212,6 @@ try {
   assert.equal((await client().request("/market/me/stores")).status, 401);
   summary.boughtFrom = true;
 
-  // ── 9. M6 «إلغاء الطلب» ──────────────────────────────────────────────────
-  await shopper.request("/market/cart/items", { method: "POST", body: { productId: a1.id, quantity: 1 } });
-  const toCancel = (await shopper.request(`/market/checkout/${A.slug}`, { method: "POST", body: { addressId: home.id }, headers: { "idempotency-key": key("to-cancel") } })).payload.order;
-  assert.ok(toCancel?.id, "an order to call off");
-  const offered = (await shopper.request(`/market/orders/${toCancel.id}`)).payload;
-  assert.equal(offered.order.cancellable, true, "a new order can be cancelled");
-  assert.ok(offered.cancelReasons.some((reason) => reason.code === "other"), "…with reasons to choose from");
-  assert.equal((await prisma.inventoryReservation.count({ where: { orderId: toCancel.id, status: "active" } })) > 0, true, "the order holds stock");
-  assert.equal((await stranger.shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "changed_mind" } })).status, 404, "another shopper cannot cancel it");
-  assert.equal((await shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "because" } })).status, 422, "a reason off the list is refused");
-  assert.equal((await shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "other" } })).payload.error.code, "CANCELLATION_NOTE_REQUIRED", "«سبب آخر» needs words");
-  assert.equal((await shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "changed_mind" }, headers: { origin: "https://evil.example" } })).status, 403, "origin-checked");
-  const cancelled = await shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "delivery_too_long", note: "أحتاجه اليوم" } });
-  assert.equal(cancelled.status, 200, JSON.stringify(cancelled.payload));
-  assert.equal(cancelled.payload.order.status, "cancelled");
-  const cancelEvent = await prisma.orderStatusEvent.findFirst({ where: { orderId: toCancel.id, toStatus: "cancelled" } });
-  assert.equal(cancelEvent.note, "سبب الإلغاء: مدّة التوصيل طويلة — أحتاجه اليوم", "the merchant reads the reason on the order");
-  assert.equal(cancelEvent.actorKind, "customer", "…as the customer's own move");
-  assert.equal(await prisma.inventoryReservation.count({ where: { orderId: toCancel.id, status: "active" } }), 0, "the stock is released — the store's own transition ran");
-  assert.equal((await shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "changed_mind" } })).payload.error.code, "ORDER_NOT_CANCELLABLE", "a cancelled order cannot be cancelled again");
-  assert.equal((await shopper.request(`/market/orders/${toCancel.id}`)).payload.order.cancellable, false);
-  // Past «new» the store has started: the shopper is sent to the store instead.
-  await prisma.storeOrder.update({ where: { id: bOrder.id }, data: { status: "processing" } });
-  const late = await shopper.request(`/market/orders/${bOrder.id}/cancel`, { method: "POST", body: { reasonCode: "changed_mind" } });
-  assert.equal(late.status, 409);
-  assert.equal(late.payload.error.code, "ORDER_NOT_CANCELLABLE");
-  assert.deepEqual((await shopper.request(`/market/orders/${bOrder.id}`)).payload.cancelReasons, [], "no reasons are offered once the store has started");
-  summary.cancel = true;
-
   console.log(JSON.stringify({ suite: "market-cart", ok: true, summary }, null, 2));
 } finally {
   setOtpProviderForTests(null);

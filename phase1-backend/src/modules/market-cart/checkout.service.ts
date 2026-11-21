@@ -20,7 +20,6 @@ import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../.
 import { governorateLabel } from "../../services/governorates.js";
 import { listedStoreTenant } from "../market-stores/directory.service.js";
 import { marketCartView, repriceMarketLines } from "./cart.service.js";
-import { CANCEL_REASONS, SHOPPER_CANCELLABLE_STATUS } from "./after-sale.service.js";
 
 type ShopperRef = { id: string; phoneNormalized: string; fullName: string | null };
 
@@ -201,9 +200,6 @@ export async function shopperOrder(shopperId: string, orderId: string) {
       statusLabel: STATUS_LABELS[order.status] ?? order.status,
       governorateName: order.shippingGovernorate ? governorateLabel(order.shippingGovernorate) : null,
       timeline: order.statusEvents.map((event) => ({ status: event.toStatus, label: STATUS_LABELS[event.toStatus] ?? event.toStatus, at: event.createdAt })),
-      // M6: whether «إلغاء الطلب» is offered, and the reasons to choose from.
-      cancellable: order.status === SHOPPER_CANCELLABLE_STATUS,
     },
-    cancelReasons: order.status === SHOPPER_CANCELLABLE_STATUS ? CANCEL_REASONS : [],
   };
 }

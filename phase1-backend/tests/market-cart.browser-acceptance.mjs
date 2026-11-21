@@ -142,21 +142,8 @@ try {
   const orders = await prisma.storeOrder.findMany({ where: { customer: { shopperId: shopper.id } }, include: { items: true }, orderBy: { createdAt: "asc" } });
   assert.deepEqual(orders.map((order) => [order.storeId, order.fulfilment, order.totalIqd]), [[A.id, "delivery", 63000], [B.id, "pickup", 15000]], "two real store orders");
   assert.equal(orders[0].items[0].unitPriceIqd, 30000, "the add-on is inside the line price");
-
-  // ── M6 «إلغاء الطلب»: the pick-up order, with a reason ──────────────────────
-  await page.goto(`${base}/market/orders/${orders[1].id}`);
-  await page.getByTestId("market-order-cancel").click();
-  assert.equal(await page.getByTestId("market-cancel-confirm").isDisabled(), true, "no reason, no cancellation");
-  await page.getByTestId("market-cancel-reason-other").click();
-  assert.equal(await page.getByTestId("market-cancel-confirm").isDisabled(), true, "«سبب آخر» waits for words");
-  await page.getByTestId("market-cancel-note").fill("سأشتريه من الفرع مباشرة");
-  await page.getByTestId("market-cancel-confirm").click();
-  await page.waitForFunction(() => /ملغي/.test(document.querySelector('[data-testid="market-order-status"]')?.textContent ?? ""));
-  assert.equal(await page.getByTestId("market-order-cancel").count(), 0, "a cancelled order offers no second cancel");
-  const cancelEvent = await prisma.orderStatusEvent.findFirst({ where: { orderId: orders[1].id, toStatus: "cancelled" } });
-  assert.equal(cancelEvent?.note, "سبب الإلغاء: سبب آخر — سأشتريه من الفرع مباشرة");
   assert.deepEqual(errors, [], "no script errors");
-  console.log(JSON.stringify({ suite: "market-cart-browser", status: "passed", summary: { basketAcrossStores: true, couponRefused: true, deliveryOrder: true, pickupOrder: true, myOrders: true, cancelWithReason: true } }, null, 2));
+  console.log(JSON.stringify({ suite: "market-cart-browser", status: "passed", summary: { basketAcrossStores: true, couponRefused: true, deliveryOrder: true, pickupOrder: true, myOrders: true } }, null, 2));
 } finally {
   await prisma.store.updateMany({ where: { id: { in: storeIds } }, data: { marketStatus: "unlisted", marketStatusAt: new Date() } }).catch(() => undefined);
   await browser?.close();

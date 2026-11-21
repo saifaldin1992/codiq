@@ -8,8 +8,7 @@ import { parseOrThrow } from "../../http/validate.js";
 import { requireShopper } from "../market-account/shopper-auth.js";
 import { acceptCartPrices, addCartLine, clearCart, marketCartView, removeCartLine, updateCartLine } from "./cart.service.js";
 import { checkoutSummary, placeMarketOrder, shopperOrder, shopperOrders } from "./checkout.service.js";
-import { addItemSchema, cancelOrderSchema, placeOrderSchema, summaryQuerySchema, updateItemSchema } from "./schema.js";
-import { cancelShopperOrder } from "./after-sale.service.js";
+import { addItemSchema, placeOrderSchema, summaryQuerySchema, updateItemSchema } from "./schema.js";
 
 export function registerMarketCartRoutes(app: Express) {
   app.get("/market/cart", asyncRoute(async (request, response) => {
@@ -69,13 +68,5 @@ export function registerMarketCartRoutes(app: Express) {
   app.get("/market/orders/:orderId", asyncRoute(async (request, response) => {
     const { shopper } = await requireShopper(request);
     response.status(200).json(await shopperOrder(shopper.id, request.params.orderId));
-  }));
-
-  // M6 «إلغاء الطلب»: a reason from the list, through the store's own self-cancel (PG-1).
-  app.post("/market/orders/:orderId/cancel", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const { shopper } = await requireShopper(request);
-    const input = parseOrThrow(cancelOrderSchema, request.body ?? {});
-    response.status(200).json(await cancelShopperOrder(shopper.id, request.params.orderId, input));
   }));
 }
