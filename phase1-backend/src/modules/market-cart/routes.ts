@@ -5,6 +5,8 @@
 import type { Express } from "express";
 import { asyncRoute, requireTrustedWriteOrigin } from "../../http/shared.js";
 import { parseOrThrow } from "../../http/validate.js";
+import { clientIp } from "../../http/client-ip.js";
+import { consumeStorefrontRateLimit } from "../../services/storefront.service.js";
 import { requireShopper } from "../market-account/shopper-auth.js";
 import { acceptCartPrices, addCartLine, clearCart, marketCartView, removeCartLine, updateCartLine } from "./cart.service.js";
 import { checkoutSummary, placeMarketOrder, shopperOrder, shopperOrders } from "./checkout.service.js";
@@ -49,6 +51,15 @@ export function registerMarketCartRoutes(app: Express) {
   app.get("/market/checkout/:storeSlug", asyncRoute(async (request, response) => {
     const { shopper } = await requireShopper(request);
     const query = parseOrThrow(summaryQuerySchema, request.query ?? {});
+    // Security pass 2026-11: a coupon in the query is a coupon GUESS until proven
+    // otherwise. The storefront's own preview allows thirty per ten minutes; this
+    // path reached the same `previewCoupon` with no limit at all, so a shopper
+    // could enumerate a store's codes. Same budget here, per shopper per store,
+    // and a ceiling per address for many accounts behind one IP.
+    if (query.coupon) {
+      await consumeStorefrontRateLimit({ scope: "market_coupon_preview", rawKey: `${shopper.id}:${request.params.storeSlug}`, limit: 30, windowMs: 10 * 60 * 1000 });
+      await consumeStorefrontRateLimit({ scope: "market_coupon_preview_ip", rawKey: clientIp(request), limit: 120, windowMs: 10 * 60 * 1000 });
+    }
     response.status(200).json(await checkoutSummary(shopper, request.params.storeSlug, query));
   }));
 

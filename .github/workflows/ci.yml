@@ -1060,6 +1060,9 @@ jobs:
       - name: Browser — marketplace prize wheel (owner, spin, claim, board)
         run: node --import tsx phase1-backend/tests/market-wheel.browser-acceptance.mjs
 
+      - name: Security pass — the production build as an attacker meets it (https, files, headers, CORS, CSRF, cookies, errors, SQL, XSS, uploads, prices, admin, coupon guessing, hashing, database TLS)
+        run: node --import tsx phase1-backend/tests/security-pass.acceptance.mjs
+
       # PG-2: the sheet's ق-10 promise («the movement count comes from the
       # server or is not shown») and the no-silent-rename rule are UI contracts,
       # so only a browser can hold them. It also asserts zero horizontal overflow

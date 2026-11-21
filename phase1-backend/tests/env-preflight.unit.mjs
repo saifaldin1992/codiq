@@ -28,7 +28,8 @@ const summary = {};
 /** A fully-configured deployed environment, used as the baseline to break. */
 const COMPLETE = {
   NODE_ENV: "production",
-  DATABASE_URL: "postgresql://x/y",
+  // Security pass 2026-11: a database across a network is reached over TLS.
+  DATABASE_URL: "postgresql://x/y?sslmode=require",
   // ق-231: 44 base64 characters, the shape `openssl rand -base64 32` produces.
   // It used to read "s" — and the assertion below called that «fully
   // configured», which is the whole defect this line now refuses to describe.
@@ -61,6 +62,19 @@ const complete = reportEnvironment(COMPLETE);
 assert.equal(complete.ok, true, "a fully-configured production environment must pass");
 assert.deepEqual(complete.groups.filter((g) => g.verdict !== "ok"), [], "…with every group ok");
 summary.baseline = "a complete production environment passes with every group ok";
+
+// Security pass 2026-11: two rules a complete environment must also keep.
+{
+  const plaintext = reportEnvironment({ ...COMPLETE, DATABASE_URL: "postgresql://x/y" });
+  assert.equal(plaintext.ok, false, "a remote database without sslmode fails");
+  assert.deepEqual(plaintext.groups.find((group) => group.key === "database").missing, ["DATABASE_URL"]);
+  const otpLog = reportEnvironment({ ...COMPLETE, CODIQ_OTP_PROVIDER: "insecure-log" });
+  assert.equal(otpLog.ok, false, "sign-in codes written to the log fail a deployed preflight");
+  const ownerOpen = reportEnvironment({ ...COMPLETE, CODIQ_ALLOW_OWNER_REGISTRATION: "true" });
+  assert.deepEqual(ownerOpen.groups.find((group) => group.key === "session").missing, ["CODIQ_ALLOW_OWNER_REGISTRATION"], "open owner registration is named, under sign-in");
+  assert.equal(reportEnvironment({ ...COMPLETE, NODE_ENV: "development", CODIQ_OTP_PROVIDER: "insecure-log", CODIQ_ALLOW_OWNER_REGISTRATION: "true" }).groups.find((group) => group.key === "session").verdict, "ok", "development may use them");
+  summary.securityPass = "plaintext database URLs and test switches left on fail a deployed preflight";
+}
 
 // ============================================================
 // 2. The production defect itself, reproduced.

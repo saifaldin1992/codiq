@@ -148,8 +148,17 @@ const SECURITY_401 = /^INVALID_[A-Z_]*CREDENTIALS$|^INVALID_SECOND_FACTOR$|_ACCE
 const SECURITY_403 = /DENIED$|BOUNDARY|PERMISSION|CSRF|REVOKED$|DISABLED$|FORBIDDEN/;
 
 /** Exported for the logging guard. */
+/**
+ * Security pass 2026-11 — a WRONG ONE-TIME CODE is a 422 (the shopper typed a
+ * digit wrong), but a run of them is what guessing looks like: the sign-in code,
+ * the authenticator code, the receipt code a store types at the door. Logged as
+ * refusals so an alert can count them per IP and per account.
+ */
+const SECURITY_422 = /^(OTP_INVALID|INVALID_TOTP_CODE|HANDOVER_CODE_WRONG)$/;
+
 export function isSecurityRefusal(status: number, code: string): boolean {
   if (status === 429) return true;
+  if (status === 422) return SECURITY_422.test(code);
   if (status === 401) return SECURITY_401.test(code);
   if (status === 403) return SECURITY_403.test(code);
   return false;

@@ -1,4 +1,5 @@
 import express from "express";
+import { httpsOnly } from "./https-only.js";
 import { installModuleSubscriptions, registerModuleRoutes } from "../modules/registry.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { config } from "../config.js";
@@ -30,6 +31,8 @@ export function createApp() {
   // app has already opened this request's context and this call steps aside
   // (correlation.ts says why it must be mounted in both places at all).
   app.use(correlationMiddleware());
+  // Security pass 2026-11: plain http is redirected (GET/HEAD) or refused (writes) where deployed behind TLS.
+  app.use(httpsOnly());
   app.use(securityHeaders());
   /**
    * ق-230 — an authenticated answer is never cached, and the rule lives in ONE

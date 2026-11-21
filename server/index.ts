@@ -9,6 +9,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { API_MOUNT_LEGACY, API_MOUNT_V1 } from "../phase1-backend/src/http/api-version.js";
 import { createApp as createCodiqApi } from "../phase1-backend/src/http/app.js";
+import { httpsOnly } from "../phase1-backend/src/http/https-only.js";
 import { correlationMiddleware } from "../phase1-backend/src/http/correlation.js";
 import { securityHeaders } from "../phase1-backend/src/http/security-headers.js";
 import { logger } from "../phase1-backend/src/logging/logger.js";
@@ -99,6 +100,9 @@ async function startServer() {
   // the correlation id: registered inside `createApp()` alone it would reach
   // `/api` and nothing else.
   app.use(correlationMiddleware());
+  // Security pass 2026-11: plain http is redirected (GET/HEAD) or refused (writes)
+  // where deployed behind TLS — here, so the HTML documents are covered too.
+  app.use(httpsOnly());
   // 19-د (D-34): FIRST, before static files, before the API, before the SPA
   // catch-all. This is the mount that matters: the security headers used to be
   // set inside the API app alone, so every HTML document the platform serves —
@@ -211,8 +215,14 @@ async function startServer() {
   // extension is treated as a file; every app route is extension-free, and the
   // three document routes above (robots, sitemaps) are answered before this.
   const FILE_SHAPED = /\.[a-z0-9]{1,8}$/i;
+  // Security pass 2026-11 — a DOT path is never a route either. `/.git/config`,
+  // `/.env`, `/.DS_Store` were answered with the app shell (200 text/html):
+  // nothing leaked, but every scanner reads «200» as «exposed», and the real
+  // answer to «is there a .git here» is no. `/.well-known/` stays reachable for
+  // the files that legitimately live there (security.txt, ACME challenges).
+  const DOT_SEGMENT = /(^|\/)\.(?!well-known(\/|$))/;
   app.get("*", (req, res, next) => {
-    if (FILE_SHAPED.test(req.path)) { res.status(404).type("text/plain").send("Not found"); return; }
+    if (DOT_SEGMENT.test(req.path) || FILE_SHAPED.test(req.path)) { res.status(404).type("text/plain").send("Not found"); return; }
     // The shell reaches most visitors through THIS branch, not through
     // express.static (an app route like /platform/login is not a file), and
     // `sendFile` stamps its own `max-age=0` unless told not to — so the
