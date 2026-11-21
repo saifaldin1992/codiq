@@ -461,7 +461,8 @@ export async function currentCart(storeId: string, context: CartContext) {
  * variant of the product already in this cart.
  */
 async function assertWithinOrderLimit(tx: Prisma.TransactionClient, cartId: string, productId: string, adding: number) {
-  const product = await tx.product.findUnique({ where: { id: productId }, select: { maxPerOrder: true } });
+  // A product in the trash has no cap to apply; the add itself is refused elsewhere.
+  const product = await tx.product.findFirst({ where: { id: productId, ...LIVE }, select: { maxPerOrder: true } });
   if (!product?.maxPerOrder) return;
   const inCart = await tx.cartItem.aggregate({ where: { cartId, productId }, _sum: { quantity: true } });
   if ((inCart._sum.quantity ?? 0) + adding > product.maxPerOrder) {
