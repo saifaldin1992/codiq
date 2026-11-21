@@ -96,6 +96,7 @@ export const ownerNavGroups: NavGroup[] = [
       { label: "كوبونات المنصّة والنقاط", path: "/platform/dashboard/market-coupons", status: "implemented" },
       { label: "عجلة الجوائز", path: "/platform/dashboard/market-wheel", status: "implemented" },
       { label: "مراجعة الريلز", path: "/platform/dashboard/market-reels", status: "implemented" },
+      { label: "البحث بالصورة", path: "/platform/dashboard/market-image-index", status: "implemented" },
       { label: "إضافة متجر", path: "/platform/dashboard/stores/add", status: { phase: "الدفعة B" } },
     ],
   },

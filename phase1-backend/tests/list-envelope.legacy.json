@@ -516,5 +516,17 @@
         "reason": "One reel (a shared link); its product card is a single object, not a list."
       }
     ]
+  },
+  "modules/market-visual/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/products/:productId/look-alike",
+        "reason": "BOUNDED — the 12 nearest products to one product's picture."
+      },
+      {
+        "route": "GET /platform/market/image-index",
+        "reason": "NOT A LIST — two counts and the model's name."
+      }
+    ]
   }
 }

@@ -36,7 +36,8 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       postgres:
-        image: postgres:16
+        # Marketplace M12: Postgres 16 with the pgvector extension (CREATE EXTENSION vector), as on Neon and Supabase.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -419,6 +420,12 @@ jobs:
 
       - name: Integration — marketplace M11 (stores map by box, «على طريقك» corridor in passing order, tile proxy: key hidden, cached, grid-checked, no redirects)
         run: pnpm market:map
+
+      - name: Unit — marketplace M12 visual fingerprint (the same product photographed differently beats every other product)
+        run: pnpm image:embedding
+
+      - name: Integration — marketplace M12 (image search with pgvector: indexed on upload and by the sweep, nearest visible products, the photo not kept, look-alike)
+        run: pnpm market:visual
 
       - name: Guard — every implemented merchant menu entry has a screen
         run: pnpm screens:guard
@@ -911,7 +918,8 @@ jobs:
     needs: integration
     services:
       postgres:
-        image: postgres:16
+        # Marketplace M12: Postgres 16 with the pgvector extension (CREATE EXTENSION vector), as on Neon and Supabase.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -1071,6 +1079,9 @@ jobs:
 
       - name: Browser — marketplace map, «قريبة منك» and «على طريقك» (phone with location)
         run: node --import tsx phase1-backend/tests/market-map.browser-acceptance.mjs
+
+      - name: Browser — marketplace search by photo and «يشبهه في الشكل» (phone camera button, owner index panel)
+        run: node --import tsx phase1-backend/tests/market-visual.browser-acceptance.mjs
 
       - name: Security pass — the production build as an attacker meets it (https, files, headers, CORS, CSRF, cookies, errors, SQL, XSS, uploads, prices, admin, coupon guessing, hashing, database TLS)
         run: node --import tsx phase1-backend/tests/security-pass.acceptance.mjs

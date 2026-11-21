@@ -199,6 +199,7 @@ export function MarketProductPage() {
       ) : null}
 
       <ProductShelf testId="market-product-similar" title="منتجات مشابهة" url={similarUrl} />
+      <ProductShelf testId="market-product-look-alike" title="يشبهه في الشكل" url={`/api/market/products/${encodeURIComponent(product.id)}/look-alike`} />
       <ProductShelf testId="market-product-more-from-store" title={`المزيد من ${product.store.name}`} url={storeUrl} />
 
       {zoom ? (

@@ -11,6 +11,8 @@ import { useShopper } from "./market-shopper";
 import { LocationPicker } from "./LocationPicker";
 import { useMarketLocation } from "./market-location";
 import { useMarketCart } from "./market-cart";
+import { PhotoPickerButton } from "./pages/MarketImageSearchPage";
+import { setPendingPhoto } from "./market-photo";
 
 const TABS = [
   { href: "/", label: "الرئيسية", icon: House, testId: "home" },
@@ -63,6 +65,7 @@ export function MarketShell({ children }: { children: ReactNode }) {
             <label className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-surface-sunken)] px-3 py-2.5">
               <Search className="h-4 w-4 text-[var(--codiq-text-muted)]" />
               <input value={query} onChange={(event) => setQuery(event.target.value)} type="search" enterKeyHint="search" placeholder="ابحث عن منتج، علامة، متجر…" aria-label="بحث" className="w-full bg-transparent text-sm outline-none" data-testid="market-search-input" />
+              <PhotoPickerButton onPick={(file) => { setPendingPhoto(file); navigate(`/search/image?t=${Date.now()}`); }} />
             </label>
           </form>
         </header>

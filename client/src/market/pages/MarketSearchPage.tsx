@@ -9,6 +9,8 @@ import { Clock, Grid2x2, Search, Store, TrendingUp, X } from "lucide-react";
 import { marketGet } from "../market-api";
 import { clearRecentSearches, readRecentSearches, rememberSearch } from "../market-products";
 import { ProductBrowser } from "../components/ProductBrowser";
+import { PhotoPickerButton } from "./MarketImageSearchPage";
+import { setPendingPhoto } from "../market-photo";
 
 type Suggestions = { products: { id: string; name: string }[]; stores: { slug: string; name: string }[]; categories: { slug: string; name: string }[] };
 
@@ -42,6 +44,7 @@ export function MarketSearchPage() {
           <Search className="h-4 w-4 text-[var(--codiq-text-muted)]" />
           <input value={draft} onChange={(event) => setDraft(event.target.value)} autoFocus={!query} type="search" enterKeyHint="search" placeholder="ابحث عن أي شيء…" className="w-full bg-transparent text-sm outline-none" data-testid="market-search-page-input" />
           {draft ? <button type="button" aria-label="مسح" onClick={() => setDraft("")}><X className="h-4 w-4 text-[var(--codiq-text-muted)]" /></button> : null}
+          <PhotoPickerButton onPick={(file) => { setPendingPhoto(file); navigate(`/search/image?t=${Date.now()}`); }} testId="market-search-page-photo" />
         </label>
         {suggestions && (suggestions.products.length || suggestions.stores.length || suggestions.categories.length) ? (
           <ul className="absolute inset-x-0 top-full z-20 mt-1 space-y-0.5 rounded-2xl bg-[var(--codiq-surface)] p-2 shadow-lg" data-testid="market-suggestions">

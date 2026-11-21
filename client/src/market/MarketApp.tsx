@@ -30,6 +30,7 @@ import { MarketAccountInfoPage, MarketAccountPage, MarketAddressesPage, MarketAd
 import { MarketCategoriesPage } from "./pages/MarketCategoriesPage";
 import { MarketCategoryPage } from "./pages/MarketCategoryPage";
 import { MarketSearchPage } from "./pages/MarketSearchPage";
+import { MarketImageSearchPage } from "./pages/MarketImageSearchPage";
 import { MarketProductPage } from "./pages/MarketProductPage";
 import { MarketCollectionPage, MarketMallPage, MarketSectionPage } from "./pages/MarketSectionPages";
 import { MarketStoresPage } from "./pages/MarketStoresPage";
@@ -79,6 +80,7 @@ export default function MarketApp() {
         <Route path="/account/info" component={MarketAccountInfoPage} />
         <Route path="/account/addresses" component={MarketAddressesPage} />
         <Route path="/account/addresses/:id" component={MarketAddressFormPage} />
+        <Route path="/search/image" component={MarketImageSearchPage} />
         <Route path="/search" component={MarketSearchPage} />
         <Route component={MarketNotFoundPage} />
       </Switch>

@@ -23,6 +23,7 @@ import { marketCampaignsModule } from "./market-campaigns/index.js";
 import { marketRewardsModule } from "./market-rewards/index.js";
 import { marketWheelModule } from "./market-wheel/index.js";
 import { marketReelsModule } from "./market-reels/index.js";
+import { marketVisualModule } from "./market-visual/index.js";
 
 /** New modules, appended after the core so the core's matching order never moves. */
 export const EXTENSION_MODULES: readonly PlatformModule[] = [
@@ -40,6 +41,7 @@ export const EXTENSION_MODULES: readonly PlatformModule[] = [
   marketRewardsModule,
   marketWheelModule,
   marketReelsModule,
+  marketVisualModule,
 ];
 
 export const PLATFORM_MODULES: readonly PlatformModule[] = [...CORE_MODULES, ...EXTENSION_MODULES];

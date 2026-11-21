@@ -36,3 +36,6 @@ REVOKE INSERT, UPDATE, DELETE ON TABLE _prisma_migrations FROM codiq_app;
 -- are only ever inserted into (retention.ts lists them as NEVER_AUTO_DELETED).
 -- The application role may add a line; it may never change or erase one.
 REVOKE UPDATE, DELETE ON TABLE ledger_entries, store_audit_events, platform_audit_events FROM codiq_app;
+
+-- Marketplace M12: the `vector` type (pgvector) is created by the migration, run as the
+-- database owner; codiq_app only reads and writes product_image_embeddings like any table.
