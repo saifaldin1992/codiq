@@ -219,7 +219,7 @@ try {
     { file: "routes/marketing.ts", scope: "coupon_preview" },
   ];
   const unguarded = mustCarryCeiling.filter(({ file, scope }) =>
-    new RegExp(`limitStorefrontWrite\\(request, "${scope}"`).test(routeSources[file])
+    new RegExp(`limitStorefrontWrite\\(\\s*request,\\s*"${scope}"`).test(routeSources[file])
   );
   assert.deepEqual(
     unguarded,
@@ -229,7 +229,7 @@ try {
   );
   for (const { file, scope } of mustCarryCeiling) {
     assert.ok(
-      new RegExp(`limitStorefrontWriteWithAddressCeiling\\(request, "${scope}"`).test(
+      new RegExp(`limitStorefrontWriteWithAddressCeiling\\(\\s*request,\\s*"${scope}"`).test(
         routeSources[file]
       ),
       `ق-196: ${file} → ${scope} must consume the address ceiling`
