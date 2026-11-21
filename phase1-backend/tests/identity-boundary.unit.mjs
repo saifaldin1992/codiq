@@ -24,7 +24,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { IDENTITY_LABELS, identityBoundaryMessage } from "../src/auth/redirects.ts";
 
-const KINDS = ["platform_owner", "platform_staff", "merchant", "staff", "customer"];
+// Marketplace M4 added the market's shopper (one account across every store).
+const KINDS = ["platform_owner", "platform_staff", "merchant", "staff", "customer", "shopper"];
 
 for (const kind of KINDS) {
   assert.ok(IDENTITY_LABELS[kind], `every identity kind is named: ${kind}`);
