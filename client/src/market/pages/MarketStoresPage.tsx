@@ -5,7 +5,8 @@
  * who knows what he wants expects. The header's «التوصيل إلى» filters it all.
  */
 import { useMemo, useState } from "react";
-import { CircleHelp, Crosshair, LoaderCircle, Search, Store } from "lucide-react";
+import { CircleHelp, Crosshair, LoaderCircle, Map as MapIcon, Navigation, Search, Store } from "lucide-react";
+import { Link } from "wouter";
 import { useMarketLocation } from "../market-location";
 import { marketStoresUrl, useMarketStores } from "../use-market-stores";
 import type { MarketStoreSort } from "../market-types";
@@ -62,6 +63,11 @@ export function MarketStoresPage() {
         <button type="button" onClick={() => setExplaining(true)} className="inline-flex items-center gap-1 text-xs font-bold text-[var(--codiq-accent)]" data-testid="market-ranking-open">
           <CircleHelp className="h-4 w-4" /> كيف نرتّب المتاجر؟
         </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Link href="/map" className="flex items-center gap-2 rounded-[20px] bg-[var(--codiq-surface)] p-3 text-sm font-bold text-[var(--codiq-text)] shadow-sm" data-testid="market-stores-map"><MapIcon className="h-5 w-5 text-[var(--codiq-accent)]" /> خريطة المتاجر</Link>
+        <Link href="/route" className="flex items-center gap-2 rounded-[20px] bg-[var(--codiq-surface)] p-3 text-sm font-bold text-[var(--codiq-text)] shadow-sm" data-testid="market-stores-route"><Navigation className="h-5 w-5 text-[var(--codiq-accent)]" /> على طريقك</Link>
       </div>
 
       <label className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-surface)] px-3 py-2.5 shadow-sm">

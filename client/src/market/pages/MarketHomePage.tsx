@@ -7,7 +7,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { Building2, ChevronLeft, Percent, ShoppingBag, Sparkles, Store, Truck, Wallet } from "lucide-react";
+import { Building2, ChevronLeft, Map as MapIcon, Navigation, Percent, ShoppingBag, Sparkles, Store, Truck, Wallet } from "lucide-react";
 import { marketGet } from "../market-api";
 import { useShopper } from "../market-shopper";
 import { CampaignCards } from "./MarketCampaignPage";
@@ -19,6 +19,7 @@ import { BannerCarousel, type MarketBanner } from "../components/BannerCarousel"
 import { ProductShelf } from "../components/ProductShelf";
 import { StoreShelf } from "../components/StoreShelf";
 import { ReelsShelf } from "./MarketReelsPage";
+import { quietPosition, type LatLng } from "../market-geo";
 
 type Collection = { slug: string; kind: string; title: string; subtitle: string | null; headlineDiscountPercent: number | null; endsAt: string | null; products: number };
 type Mall = { slug: string; name: string; description: string | null; stores: number; logos: { slug: string; name: string; logoUrl: string | null }[] };
@@ -96,6 +97,7 @@ export function MarketHomePage() {
         }
       })}
       {sections ? <ReelsShelf title="ريلز" /> : null}
+      {sections ? <NearbyShelf /> : null}
       {sections && shopper ? <StoreShelf testId="market-home-purchased-from" title="اشتريت منها" subtitle="المتاجر التي طلبت منها سابقاً" url="/api/market/me/purchased-from" /> : null}
       {sections && shopper ? <StoreShelf testId="market-home-followed" title="متاجر تتابعها" url="/api/market/favourites/stores?limit=10" action={<Link href="/favourites?tab=stores" className="text-xs font-bold text-[var(--codiq-accent)]">عرض الكل</Link>} /> : null}
       {sections ? <Link href="/categories" className="flex items-center justify-between rounded-[22px] bg-[var(--codiq-surface)] p-4 text-sm font-bold text-[var(--codiq-text)] shadow-sm">تصفّح كل الفئات <ChevronLeft className="h-4 w-4" /></Link> : null}
@@ -121,5 +123,24 @@ function Welcome() {
         {promises.map(({ icon: Icon, text }) => <li key={text} className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-surface)] p-3 text-xs font-semibold text-[var(--codiq-text-secondary)] shadow-sm"><Icon className="h-5 w-5 shrink-0 text-[var(--codiq-accent)]" /> {text}</li>)}
       </ul>
     </div>
+  );
+}
+
+/**
+ * Marketplace M11: «قريبة منك» on the front page — only when the browser
+ * already allows the position (no prompt here; the stores page and the map ask).
+ * Without it, two doors: the map and «على طريقك».
+ */
+function NearbyShelf() {
+  const [position, setPosition] = useState<LatLng | null>(null);
+  useEffect(() => { void quietPosition().then(setPosition); }, []);
+  return (
+    <section className="space-y-3" data-testid="market-home-nearby">
+      {position ? <StoreShelf testId="market-home-nearest" title="قريبة منك" url={marketStoresUrl({ sort: "nearest", lat: position.lat.toFixed(5), lng: position.lng.toFixed(5), limit: 10 })} action={<Link href="/map" className="text-xs font-bold text-[var(--codiq-accent)]">الخريطة</Link>} /> : null}
+      <div className="grid grid-cols-2 gap-2">
+        <Link href="/map" className="flex items-center gap-2 rounded-[20px] bg-[var(--codiq-surface)] p-3 text-sm font-bold text-[var(--codiq-text)] shadow-sm" data-testid="market-home-map"><MapIcon className="h-5 w-5 text-[var(--codiq-accent)]" /> خريطة المتاجر</Link>
+        <Link href="/route" className="flex items-center gap-2 rounded-[20px] bg-[var(--codiq-surface)] p-3 text-sm font-bold text-[var(--codiq-text)] shadow-sm" data-testid="market-home-route"><Navigation className="h-5 w-5 text-[var(--codiq-accent)]" /> على طريقك</Link>
+      </div>
+    </section>
   );
 }

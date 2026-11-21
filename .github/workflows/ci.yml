@@ -417,6 +417,9 @@ jobs:
       - name: Integration — marketplace M10 (reels: type from the bytes, owner review, range streaming, views once a day, likes)
         run: pnpm market:reels
 
+      - name: Integration — marketplace M11 (stores map by box, «على طريقك» corridor in passing order, tile proxy: key hidden, cached, grid-checked, no redirects)
+        run: pnpm market:map
+
       - name: Guard — every implemented merchant menu entry has a screen
         run: pnpm screens:guard
 
@@ -1065,6 +1068,9 @@ jobs:
 
       - name: Browser — marketplace reels (store uploads, owner approves, shopper watches, likes, shares)
         run: node --import tsx phase1-backend/tests/market-reels.browser-acceptance.mjs
+
+      - name: Browser — marketplace map, «قريبة منك» and «على طريقك» (phone with location)
+        run: node --import tsx phase1-backend/tests/market-map.browser-acceptance.mjs
 
       - name: Security pass — the production build as an attacker meets it (https, files, headers, CORS, CSRF, cookies, errors, SQL, XSS, uploads, prices, admin, coupon guessing, hashing, database TLS)
         run: node --import tsx phase1-backend/tests/security-pass.acceptance.mjs

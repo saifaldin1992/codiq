@@ -170,6 +170,22 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
     requiredInDeployment: false,
   },
   {
+    // Marketplace M11. Optional: without it the market's map draws its pins on a
+    // plain background. The key inside the URL stays here — tiles go through
+    // /api/market/map/tiles — so it must be an https template with {z} {x} {y}
+    // (the same rule as modules/market-stores/map-tiles.service.ts).
+    key: "mapTiles",
+    consequence: "خريطة المتاجر تعرض الدبابيس على خلفيّة فارغة بلا شوارع.",
+    required: ["CODIQ_MAP_TILE_URL"],
+    optional: ["CODIQ_MAP_TILE_ATTRIBUTION", "CODIQ_MAP_MAX_ZOOM"],
+    weakWhen: (env) => {
+      const raw = env.CODIQ_MAP_TILE_URL?.trim() ?? "";
+      const fine = raw.startsWith("https://") && ["{z}", "{x}", "{y}"].every((part) => raw.includes(part));
+      return raw && !fine ? { names: ["CODIQ_MAP_TILE_URL"], consequence: "قالب البلاطات يجب أن يكون https وفيه {z} و{x} و{y} — والخريطة بلا خلفيّة حتى يُصحَّح." } : null;
+    },
+    requiredInDeployment: false,
+  },
+  {
     key: "storage",
     consequence: "رفع صور المنتجات يفشل عند أول محاولة — والتاجر يكتشفها لا الخادم.",
     required: ["PRODUCT_S3_BUCKET", "PRODUCT_S3_REGION", "PRODUCT_S3_ACCESS_KEY_ID", "PRODUCT_S3_SECRET_ACCESS_KEY"],

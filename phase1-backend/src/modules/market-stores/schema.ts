@@ -53,3 +53,16 @@ export const marketFlagsSchema = z.object({
 });
 
 export const MARKET_QUEUE_FILTERS = ["pending", "listed", "rejected", "delisted"] as const;
+
+const latitude = z.coerce.number().min(-90).max(90);
+const longitude = z.coerce.number().min(-180).max(180);
+/** Marketplace M11: the visible box of the map. */
+export const marketMapQuerySchema = z.object({ south: latitude, west: longitude, north: latitude, east: longitude });
+// Two plain decimals split on the comma — no pattern to backtrack on.
+const DECIMAL = /^-?\d{1,3}\.?\d{0,7}$/;
+const point = z.string().trim().max(40)
+  .refine((value) => { const parts = value.split(","); return parts.length === 2 && parts.every((part) => DECIMAL.test(part)); }, "نقطة بصيغة lat,lng")
+  .transform((value) => { const [lat, lng] = value.split(",").map(Number); return { lat, lng }; })
+  .refine((value) => Math.abs(value.lat) <= 90 && Math.abs(value.lng) <= 180, "نقطة خارج الخريطة");
+/** «على طريقك»: two points and how far off the line a store may be (km). */
+export const marketRouteQuerySchema = z.object({ from: point, to: point, corridor: z.coerce.number().min(0.2).max(5).optional().default(1.5) });

@@ -42,6 +42,7 @@ const COMPLETE = {
   // configured», and a deployment nothing is watching is not that.
   SENTRY_DSN: "https://k@o0.ingest.de.sentry.io/1",
   PRODUCT_S3_BUCKET: "b",
+  CODIQ_MAP_TILE_URL: "https://tiles.example/{z}/{x}/{y}.png?key=k",
   PRODUCT_S3_REGION: "r",
   PRODUCT_S3_ACCESS_KEY_ID: "id",
   PRODUCT_S3_SECRET_ACCESS_KEY: "secret",

@@ -4,6 +4,7 @@
  * it ("/stores", not "/market/stores") and the whole app can later move to the
  * root of its own host by changing one line in App.tsx.
  */
+import { lazy, Suspense } from "react";
 import { Route, Switch } from "wouter";
 import { MarketShell } from "./MarketShell";
 import { MarketHomePage } from "./pages/MarketHomePage";
@@ -15,6 +16,14 @@ import { MarketCampaignPage } from "./pages/MarketCampaignPage";
 import { MarketCouponPage, MarketCouponsPage, MarketPointsPage } from "./pages/MarketRewardsPages";
 import { MarketWheelLogPage, MarketWheelPage } from "./pages/MarketWheelPage";
 import { MarketReelPage, MarketReelsPage } from "./pages/MarketReelsPage";
+
+// Marketplace M11: the map pages carry Leaflet, so they load only when opened.
+const MapPages = () => import("./pages/MarketMapPages");
+const LazyMap = lazy(() => MapPages().then((module) => ({ default: module.MarketMapPage })));
+const LazyRoute = lazy(() => MapPages().then((module) => ({ default: module.MarketRoutePage })));
+const loadingMap = <p className="py-10 text-center text-sm text-[var(--codiq-text-muted)]">جارٍ تحميل الخريطة…</p>;
+const MarketMapPage = () => <Suspense fallback={loadingMap}><LazyMap /></Suspense>;
+const MarketRoutePage = () => <Suspense fallback={loadingMap}><LazyRoute /></Suspense>;
 import { MarketNewTicketPage, MarketTicketPage, MarketTicketsPage } from "./pages/MarketTicketsPages";
 import { MarketContactPage, MarketFavouritesPage, MarketFeedbackPage, MarketHelpPage, MarketNotificationsPage } from "./pages/MarketHelpPages";
 import { MarketAccountInfoPage, MarketAccountPage, MarketAddressesPage, MarketAddressFormPage } from "./pages/MarketAccountPages";
@@ -34,6 +43,8 @@ export default function MarketApp() {
       <Switch>
         <Route path="/" component={MarketHomePage} />
         <Route path="/stores" component={MarketStoresPage} />
+        <Route path="/map" component={MarketMapPage} />
+        <Route path="/route" component={MarketRoutePage} />
         <Route path="/s/:slug/reviews" component={MarketStoreReviewsPage} />
         <Route path="/s/:slug/products" component={MarketStoreProductsPage} />
         <Route path="/s/:slug" component={MarketStorePage} />

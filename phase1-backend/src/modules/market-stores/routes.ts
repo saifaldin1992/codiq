@@ -12,13 +12,14 @@ import { parseOrThrow } from "../../http/validate.js";
 import { requireStoreActor } from "../../auth/staff-permissions.js";
 import { requirePlatformActor } from "../../auth/platform-permissions.js";
 import { storeImageConstraints } from "../../services/product-image-storage.service.js";
-import { listedStoreTenant, listMarketStores, marketStoreCover, marketStorePage, marketStoreReviews, rankingExplanation } from "./directory.service.js";
+import { listedStoreTenant, listMarketStores, marketStoresInBox, marketStoresOnRoute, marketStoreCover, marketStorePage, marketStoreReviews, rankingExplanation } from "./directory.service.js";
 import { assertCapabilityAvailable } from "../../services/availability.service.js";
 import { leaveMarket, marketProfile, removeStoreCover, requestMarketListing, setStoreCover, updateMarketProfile } from "./profile.service.js";
 import { decideMarketListing, marketQueue, setMarketFlags } from "./moderation.service.js";
 import { recomputeMarketMetrics } from "./metrics.service.js";
 import { recomputeProductStats } from "../market-catalog/stats.service.js";
-import { marketDecisionSchema, marketFlagsSchema, marketProfileSchema, marketStoreQuerySchema } from "./schema.js";
+import { marketDecisionSchema, marketFlagsSchema, marketMapQuerySchema, marketProfileSchema, marketRouteQuerySchema, marketStoreQuerySchema } from "./schema.js";
+import { mapConfig, mapTile } from "./map-tiles.service.js";
 
 const coverUpload = multer({ storage: multer.memoryStorage(), limits: uploadLimits({ fileSize: storeImageConstraints.maxBytes, files: 1 }) });
 
@@ -42,6 +43,34 @@ export function registerMarketStoreRoutes(app: Express) {
   app.get("/market/ranking", asyncRoute(async (_request, response) => {
     response.setHeader("cache-control", "public, max-age=3600");
     response.status(200).json(rankingExplanation());
+  }));
+
+  // ── Marketplace M11: the map, «على طريقك», and the map's tiles ─────────────
+  // Registered before /market/stores/:storeSlug, which would otherwise read «map» as a slug.
+  app.get("/market/stores/map", asyncRoute(async (request, response) => {
+    const box = parseOrThrow(marketMapQuerySchema, request.query ?? {});
+    response.setHeader("cache-control", SHORT_PUBLIC_CACHE);
+    response.status(200).json(await marketStoresInBox(box));
+  }));
+
+  app.get("/market/stores/on-route", asyncRoute(async (request, response) => {
+    const query = parseOrThrow(marketRouteQuerySchema, request.query ?? {});
+    // Two points of a shopper's errand: not for a shared cache.
+    response.setHeader("cache-control", "private, no-store");
+    response.status(200).json(await marketStoresOnRoute({ from: query.from, to: query.to, corridorKm: query.corridor }));
+  }));
+
+  app.get("/market/map/config", asyncRoute(async (_request, response) => {
+    response.setHeader("cache-control", "public, max-age=300");
+    response.status(200).json(mapConfig());
+  }));
+
+  app.get("/market/map/tiles/:z/:x/:y", asyncRoute(async (request, response) => {
+    const tile = await mapTile(String(request.params.z), String(request.params.x), String(request.params.y));
+    response.setHeader("content-type", tile.type);
+    response.setHeader("x-content-type-options", "nosniff");
+    response.setHeader("cache-control", "public, max-age=86400, stale-while-revalidate=604800");
+    response.status(200).end(tile.body);
   }));
 
   app.get("/market/stores/:storeSlug", asyncRoute(async (request, response) => {

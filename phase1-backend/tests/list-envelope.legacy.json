@@ -320,6 +320,14 @@
       {
         "route": "GET /market/stores/:storeSlug/cover",
         "reason": "NOT A LIST — the bytes of one image. Detected because the listed-store check that guards it is a raw query."
+      },
+      {
+        "route": "GET /market/stores/map",
+        "reason": "BOUNDED — the pins inside the visible box, at most 300, with `truncated` telling the map to ask for a zoom-in; paging a map makes no sense."
+      },
+      {
+        "route": "GET /market/stores/on-route",
+        "reason": "BOUNDED — at most 50 stores along one errand, ordered by where they fall on the line, with `truncated`."
       }
     ],
     "missingStoreSlug": [

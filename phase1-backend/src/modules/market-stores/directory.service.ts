@@ -244,3 +244,87 @@ export async function marketStoreCover(slug: string) {
   if (!cover.coverObjectKey || !cover.coverContentType) throw new HttpError(404, "RESOURCE_NOT_FOUND", "لا توجد صورة غلاف لهذا المتجر.");
   return { contentType: cover.coverContentType, bytes: await getStoreLogoBytes(cover.coverObjectKey) };
 }
+
+// ── Marketplace M11: «خريطة المتاجر» and «على طريقك» ─────────────────────────
+
+const MAP_PIN_LIMIT = 300;
+type MapPinRow = { slug: string; name: string; business_type: string | null; logo_object_key: string | null; latitude: number; longitude: number; rating_avg: Prisma.Decimal | null; rating_count: number | null; tier: MarketTier | null; verified_at: Date | null; pickup_enabled: boolean };
+
+/**
+ * The pins inside the visible box. Bounded (300), the best-scored first, and
+ * `truncated` says when a zoomed-out view held more — the map then asks the
+ * shopper to zoom in rather than drawing a smear of a thousand markers.
+ */
+export async function marketStoresInBox(box: { south: number; west: number; north: number; east: number }) {
+  if (box.south >= box.north || box.west >= box.east) throw new HttpError(422, "MAP_BOX_INVALID", "حدود الخريطة غير صالحة.");
+  const rows = await prisma.$queryRaw<MapPinRow[]>`
+    SELECT st.slug, st.name, st.business_type, st.logo_object_key, st.latitude, st.longitude, st.verified_at, st.pickup_enabled, m.rating_avg, m.rating_count, m.tier
+    ${FROM_LISTED}
+    WHERE ${LISTED} AND st.latitude IS NOT NULL AND st.longitude IS NOT NULL
+      AND st.latitude BETWEEN ${box.south}::float8 AND ${box.north}::float8
+      AND st.longitude BETWEEN ${box.west}::float8 AND ${box.east}::float8
+    ORDER BY (COALESCE(m.score, 0)::float8 + CASE WHEN st.boosted_until > now() THEN 1000 ELSE 0 END) DESC, st.id DESC
+    LIMIT ${MAP_PIN_LIMIT + 1}`;
+  return {
+    pins: rows.slice(0, MAP_PIN_LIMIT).map((row) => ({
+      slug: row.slug, name: row.name, businessType: row.business_type, logoUrl: storeLogoUrl(row.slug, row.logo_object_key),
+      latitude: row.latitude, longitude: row.longitude, rating: num(row.rating_avg), ratingCount: row.rating_count ?? 0, tier: row.tier,
+      verified: row.verified_at !== null, pickupEnabled: row.pickup_enabled,
+    })),
+    truncated: rows.length > MAP_PIN_LIMIT,
+  };
+}
+
+const ROUTE_STORE_LIMIT = 50;
+export const ROUTE_MAX_KM = 200;
+const KM_PER_DEGREE = 6371 * Math.PI / 180;
+
+/**
+ * «على طريقك»: listed stores within `corridorKm` of the straight line from one
+ * point to another — the shopper's errand, not a road route — ordered by where
+ * along the line they fall, so the list reads in the order he passes them.
+ *
+ * The geometry is a local flat projection centred on the start (x east, y
+ * north, in km). Over the 200 km this allows the error is far below the
+ * corridor's width. Candidates come from the box around the line widened by
+ * the corridor (the geo index); the exact distance to the segment is computed
+ * on those rows only.
+ */
+export async function marketStoresOnRoute(input: { from: { lat: number; lng: number }; to: { lat: number; lng: number }; corridorKm: number }) {
+  const { from, to, corridorKm } = input;
+  const cosLat = Math.cos((from.lat * Math.PI) / 180);
+  const bx = (to.lng - from.lng) * KM_PER_DEGREE * cosLat;
+  const by = (to.lat - from.lat) * KM_PER_DEGREE;
+  const routeKm = Math.hypot(bx, by);
+  if (routeKm < 0.2) throw new HttpError(422, "ROUTE_TOO_SHORT", "نقطتا البداية والنهاية متقاربتان جدّاً.");
+  if (routeKm > ROUTE_MAX_KM) throw new HttpError(422, "ROUTE_TOO_LONG", `المشوار أطول من ${ROUTE_MAX_KM} كم — اختر نقطتين أقرب.`);
+  const padLat = corridorKm / KM_PER_DEGREE;
+  const padLng = corridorKm / (KM_PER_DEGREE * Math.max(Math.min(Math.cos((from.lat * Math.PI) / 180), Math.cos((to.lat * Math.PI) / 180)), 0.1));
+  const south = Math.min(from.lat, to.lat) - padLat, north = Math.max(from.lat, to.lat) + padLat;
+  const west = Math.min(from.lng, to.lng) - padLng, east = Math.max(from.lng, to.lng) + padLng;
+  const len2 = bx * bx + by * by;
+  const px = Prisma.sql`((st.longitude - ${from.lng}::float8) * ${KM_PER_DEGREE * cosLat}::float8)`;
+  const py = Prisma.sql`((st.latitude - ${from.lat}::float8) * ${KM_PER_DEGREE}::float8)`;
+  const t = Prisma.sql`GREATEST(0::float8, LEAST(1::float8, (${px} * ${bx}::float8 + ${py} * ${by}::float8) / ${len2}::float8))`;
+  const rows = await prisma.$queryRaw<(DirectoryRow & { along_km: number })[]>`
+    SELECT * FROM (
+      SELECT ${SELECT_CARD},
+        sqrt(power(${px} - ${t} * ${bx}::float8, 2) + power(${py} - ${t} * ${by}::float8, 2)) AS distance_km,
+        ${t} * ${routeKm}::float8 AS along_km,
+        0::float8 AS sort_key
+      ${FROM_LISTED}
+      WHERE ${LISTED} AND st.latitude IS NOT NULL AND st.longitude IS NOT NULL
+        AND st.latitude BETWEEN ${south}::float8 AND ${north}::float8
+        AND st.longitude BETWEEN ${west}::float8 AND ${east}::float8
+    ) candidates
+    WHERE distance_km <= ${corridorKm}::float8
+    ORDER BY along_km ASC, id ASC
+    LIMIT ${ROUTE_STORE_LIMIT + 1}`;
+  const now = new Date();
+  return {
+    routeKm: Math.round(routeKm * 10) / 10,
+    corridorKm,
+    stores: rows.slice(0, ROUTE_STORE_LIMIT).map((row) => ({ ...cardOf(row, now), alongKm: Math.round(row.along_km * 10) / 10 })),
+    truncated: rows.length > ROUTE_STORE_LIMIT,
+  };
+}
