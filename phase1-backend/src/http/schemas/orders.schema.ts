@@ -118,6 +118,3 @@ export const orderDeliverySchema = z.object({
 export const codCollectedSchema = z.object({
   orderIds: z.array(z.unknown()),
 });
-
-/** M6 (G5): the shopper's six-digit pick-up code, as the merchant types or scans it. */
-export const pickupConfirmSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "رمز الاستلام ستّة أرقام") });
