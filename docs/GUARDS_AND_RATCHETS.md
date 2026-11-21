@@ -123,6 +123,9 @@
 | `security-headers` | `pnpm headers:guard` | الترويسات مؤكَّدة على **استجابةٍ حقيقيّة** |
 | `logging` | `pnpm logging:guard` | السجلّ المُهيكل مؤكَّدٌ لا موصوف (D-41) |
 | `ci-workflow` | `pnpm ci:workflow:guard` | ملفّ الـCI يُقرأ YAML صالحاً (ملفّ غير صالح لا يشغّل شيئاً ولا يُبلّغ)، وكلّ أمر وملفّ اختبار يسمّيه موجود، وكلّ اختبار سوق يشغّله خطوة (مراجعة ٢٠٢٦-١١-٢١) |
+| `code-shape` | `pnpm shape:guard` | سقّاطة الشكل: سطر ≤ ١٠٠ حرف، وملفّ ≤ ٤٠٠ سطر في الخادم و٣٠٠ في الواجهة، ودالّة ≤ ٦٠ سطراً — لا يزيد عدد المخالفات في أيّ ملفّ (خطّة المراجعة) |
+| `unused-code` | `pnpm unused:guard` | سقّاطة غير المستعمل: لا ملفّ غير مبلوغ ولا تصدير غير مستعمل ولا مكتبة غير مستعملة جديدة (رسم الاستيراد بمترجم TypeScript) |
+| `duplicate-code` | `pnpm duplicates:guard` | سقّاطة التكرار: لا يزيد عدد الأسطر المكرّرة في أيّ ملفّ (نوافذ من ٨ أسطر) |
 | `login-counter` | `pnpm login:counter:guard` | حزمةٌ تفرّغ الجداول تُفرّغ عدّاد الدخول أيضاً |
 | `ledger-sign` | `pnpm ledger:sign` | قاعدة إشارة الدفتر — والّلغم تحتها |
 | `merchant-screens` | `pnpm screens:guard` | كلّ عنصرٍ «implemented» في قائمة التاجر يفتح شاشةً حقيقيّة من `client/src/dashboard/merchant-screens.tsx` — لا طريقاً مسدوداً إلى «قريباً» |

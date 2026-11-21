@@ -1,0 +1,2570 @@
+{
+ "limits": {
+  "line": 100,
+  "backendFile": 400,
+  "uiFile": 300,
+  "fn": 60
+ },
+ "totals": {
+  "longLines": 11117,
+  "oversizeFiles": 34,
+  "longFunctions": 223
+ },
+ "files": {
+  "phase1-backend/src/auth/auth.service.ts": {
+   "longLines": 50,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/auth/breached-passwords.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/auth/identity.ts": {
+   "longLines": 24,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/auth/keys.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/auth/password-policy.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/auth/platform-permissions.ts": {
+   "longLines": 14,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/auth/redirects.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/auth/secret-box.ts": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/auth/staff-permissions.ts": {
+   "longLines": 26,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/auth/totp.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/backup/backup-envelope.ts": {
+   "longLines": 18,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/backup/backup-storage.ts": {
+   "longLines": 19,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/config/environment-report.ts": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/config.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/db/database-url.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/demo/demo-mode.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/events/domain-events.ts": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/app.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/client-ip.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/correlation.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/errors.ts": {
+   "longLines": 37,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/https-only.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/account-security.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/auth.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/catalog.ts": {
+   "longLines": 37,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/customer-delight.ts": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/marketing.ts": {
+   "longLines": 47,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/merchant-home.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/merchant.ts": {
+   "longLines": 30,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/notifications.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/orders.ts": {
+   "longLines": 65,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/payment-methods.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/platform-services.ts": {
+   "longLines": 29,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/platform-staff.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/platform.ts": {
+   "longLines": 35,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/pos.ts": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/public.ts": {
+   "longLines": 11,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/return-inspection.ts": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/returns.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/reviews-wishlist.ts": {
+   "longLines": 17,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/sessions.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/store-banners.ts": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/store-traffic.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/storefront-config.ts": {
+   "longLines": 11,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/storefront.ts": {
+   "longLines": 53,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/routes/team.ts": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/trash.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/routes/webhooks.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/availability.schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/catalog.schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/loyalty.schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/marketing.schema.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/merchant.schema.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/messaging-caps.schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/orders.schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/payment-methods.schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/platform.schema.ts": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/returns.schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/reviews.schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/search.schema.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/store-banner.schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/storefront-config.schema.ts": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/schemas/storefront.schema.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/security-headers.ts": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/http/session-cookie.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/shared.ts": {
+   "longLines": 30,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/http/validate.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/jobs/outbox-signal.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/jobs/scheduler.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/logging/logger.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/logging/redact.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/core-modules.ts": {
+   "longLines": 28,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-account/account.service.ts": {
+   "longLines": 48,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-account/otp.service.ts": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-account/routes.ts": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-account/schema.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-account/shopper-auth.ts": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-campaigns/campaigns.service.ts": {
+   "longLines": 71,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-campaigns/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-campaigns/routes.ts": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-campaigns/schema.ts": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-cart/cart.service.ts": {
+   "longLines": 55,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-cart/checkout.service.ts": {
+   "longLines": 69,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-cart/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-cart/routes.ts": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-cart/schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-catalog/categories.service.ts": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-catalog/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-catalog/merchant.service.ts": {
+   "longLines": 19,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-catalog/products.service.ts": {
+   "longLines": 44,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-catalog/routes.ts": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-catalog/schema.ts": {
+   "longLines": 14,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-catalog/search.service.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-catalog/stats.service.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-geo/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-help/favourites.service.ts": {
+   "longLines": 25,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-help/help.service.ts": {
+   "longLines": 39,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-help/inbox.service.ts": {
+   "longLines": 27,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-help/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-help/routes.ts": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-help/schema.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-home/content.service.ts": {
+   "longLines": 51,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-home/home.service.ts": {
+   "longLines": 29,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-home/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-home/routes.ts": {
+   "longLines": 29,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-home/schema.ts": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-orders/after-sales.service.ts": {
+   "longLines": 65,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-orders/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-orders/reasons.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-orders/routes.ts": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-orders/schema.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-partner/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-partner/partner.service.ts": {
+   "longLines": 55,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-partner/routes.ts": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-partner/schema.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-payments/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-payments/payments.service.ts": {
+   "longLines": 79,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-payments/providers.ts": {
+   "longLines": 19,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-payments/routes.ts": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-payments/schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-reels/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-reels/reels.service.ts": {
+   "longLines": 49,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-reels/routes.ts": {
+   "longLines": 22,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-reels/schema.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-rewards/rewards.service.ts": {
+   "longLines": 66,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-rewards/routes.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-rewards/schema.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-stores/directory.service.ts": {
+   "longLines": 55,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-stores/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-stores/map-tiles.service.ts": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-stores/market-score.ts": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-stores/metrics.service.ts": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-stores/moderation.service.ts": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-stores/presentation.ts": {
+   "longLines": 21,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-stores/profile.service.ts": {
+   "longLines": 25,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-stores/routes.ts": {
+   "longLines": 17,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-stores/schema.ts": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-support/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-support/routes.ts": {
+   "longLines": 35,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-support/schema.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-support/tickets.service.ts": {
+   "longLines": 58,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-visual/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-visual/routes.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-visual/schema.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-visual/visual.service.ts": {
+   "longLines": 22,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-wheel/index.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-wheel/routes.ts": {
+   "longLines": 11,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-wheel/schema.ts": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-wheel/wheel.service.ts": {
+   "longLines": 71,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/platform-module.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/registry.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/notifications/abandoned-cart-scanner.ts": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/notifications/merchant-digest-scanner.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/notifications/messaging-compliance.service.ts": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/notifications/notification-outbox.service.ts": {
+   "longLines": 11,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/notifications/notification-provider.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/notifications/outbox-worker.ts": {
+   "longLines": 42,
+   "oversize": 209,
+   "longFunctions": 3
+  },
+  "phase1-backend/src/notifications/resend-webhook.ts": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/notifications/restock-scanner.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/notifications/trial-expiry-scanner.ts": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/notifications/worker-entry.ts": {
+   "longLines": 19,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/observability/sentry.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/abandoned-cart.service.ts": {
+   "longLines": 21,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/analytics.service.ts": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/availability.service.ts": {
+   "longLines": 116,
+   "oversize": 106,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/config.service.ts": {
+   "longLines": 58,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/coupon.service.ts": {
+   "longLines": 49,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/csv-transfer.service.ts": {
+   "longLines": 62,
+   "oversize": 123,
+   "longFunctions": 2
+  },
+  "phase1-backend/src/services/csv.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/customer-directory.service.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/delivery-rates.service.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/delivery.service.ts": {
+   "longLines": 37,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/entitlement.service.ts": {
+   "longLines": 101,
+   "oversize": 258,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/feature-flags.service.ts": {
+   "longLines": 29,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/finance.service.ts": {
+   "longLines": 46,
+   "oversize": 34,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/guest-checkout.service.ts": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/image-embedding.ts": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/image-variants.service.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/incidents.service.ts": {
+   "longLines": 32,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/inventory-movements.service.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/keyset-cursor.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/list-page.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/live-price.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/loyalty.service.ts": {
+   "longLines": 25,
+   "oversize": 113,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/maintenance.service.ts": {
+   "longLines": 84,
+   "oversize": 15,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/manual-provisioning.service.ts": {
+   "longLines": 14,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/marketing-settings.service.ts": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/merchant-home.service.ts": {
+   "longLines": 24,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/merchant-monthly-report.service.ts": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/merchant-onboarding.service.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/merchant-search.service.ts": {
+   "longLines": 18,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/merchant-store.service.ts": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/merchant-suspension.service.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/merchant-wallet.service.ts": {
+   "longLines": 11,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/messaging-caps.service.ts": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/notification-settings.service.ts": {
+   "longLines": 29,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/order-bulk.service.ts": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/order-lifecycle.service.ts": {
+   "longLines": 71,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "phase1-backend/src/services/order-notes.service.ts": {
+   "longLines": 22,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/order-print.service.ts": {
+   "longLines": 11,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/order-self-cancel.service.ts": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/order-tracking.service.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/owner-account.service.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/owner-totp.service.ts": {
+   "longLines": 17,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/password-reset.service.ts": {
+   "longLines": 17,
+   "oversize": 173,
+   "longFunctions": 2
+  },
+  "phase1-backend/src/services/password.service.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/payment-methods.service.ts": {
+   "longLines": 33,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/platform-audit.service.ts": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/platform-brand.service.ts": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/platform-contact.service.ts": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/platform-directory.service.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/platform-health.service.ts": {
+   "longLines": 14,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/platform-overview.service.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/platform-pulse.service.ts": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/platform-rewards.service.ts": {
+   "longLines": 31,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/platform-staff-totp.service.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/platform-staff.service.ts": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/pos.service.ts": {
+   "longLines": 37,
+   "oversize": 69,
+   "longFunctions": 2
+  },
+  "phase1-backend/src/services/prescription.service.ts": {
+   "longLines": 25,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/product-catalog.service.ts": {
+   "longLines": 109,
+   "oversize": 288,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/product-image-storage.service.ts": {
+   "longLines": 38,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/product-review.service.ts": {
+   "longLines": 23,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/recommendation.service.ts": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/registration.service.ts": {
+   "longLines": 30,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/reservation-expiry-job.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/reserved-slugs.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/retention.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/return-inspection.service.ts": {
+   "longLines": 21,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "phase1-backend/src/services/return-request.service.ts": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/search/index.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/search/postgres-trigram.engine.ts": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/search/search.types.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/session.service.ts": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/soft-delete/audit-log.service.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/soft-delete/constants.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/soft-delete/delete-preview.service.ts": {
+   "longLines": 18,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/soft-delete/fk-violations.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/soft-delete/purge-job.ts": {
+   "longLines": 23,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/soft-delete/soft-delete.service.ts": {
+   "longLines": 109,
+   "oversize": 431,
+   "longFunctions": 9
+  },
+  "phase1-backend/src/services/staff.service.ts": {
+   "longLines": 21,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/stock-forecast.service.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/store-banner.service.ts": {
+   "longLines": 23,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/store-bootstrap.service.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/store-traffic.service.ts": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/store-verification.service.ts": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/storefront-config.service.ts": {
+   "longLines": 41,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/storefront-seo.service.ts": {
+   "longLines": 21,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/storefront.service.ts": {
+   "longLines": 233,
+   "oversize": 913,
+   "longFunctions": 5
+  },
+  "phase1-backend/src/services/whatsapp-manual.service.ts": {
+   "longLines": 23,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/wishlist.service.ts": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/App.tsx": {
+   "longLines": 19,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/AbandonedCartsPanel.tsx": {
+   "longLines": 52,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/AccountSecurityPanel.tsx": {
+   "longLines": 27,
+   "oversize": 15,
+   "longFunctions": 2
+  },
+  "client/src/components/ActivityLog.tsx": {
+   "longLines": 24,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/AddressForm.tsx": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/AttributesEditor.tsx": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/BoughtTogether.tsx": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/CouponsManager.tsx": {
+   "longLines": 44,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/CustomersDirectory.tsx": {
+   "longLines": 28,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/DashboardOverview.tsx": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/DeleteConfirmSheet.tsx": {
+   "longLines": 53,
+   "oversize": 175,
+   "longFunctions": 2
+  },
+  "client/src/components/DeliveryCenter.tsx": {
+   "longLines": 29,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/DeliveryRatesManager.tsx": {
+   "longLines": 23,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/DemoBanner.tsx": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/EmailComplaintsSection.tsx": {
+   "longLines": 18,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/FinanceCenter.tsx": {
+   "longLines": 53,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/GuestPasswordCard.tsx": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/InventoryMovementsPanel.tsx": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/LoadMoreButton.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/LoyaltyRedeem.tsx": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/LoyaltySettingsCard.tsx": {
+   "longLines": 24,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/ManualCustomerForm.tsx": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ManualMerchantForm.tsx": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/MarketCatalogPanel.tsx": {
+   "longLines": 59,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "client/src/components/MarketDealsPanel.tsx": {
+   "longLines": 26,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MarketProfilePanel.tsx": {
+   "longLines": 63,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MarketReelsPanel.tsx": {
+   "longLines": 30,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MarketingIntegrationsPanel.tsx": {
+   "longLines": 21,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MerchantAnalytics.tsx": {
+   "longLines": 74,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MerchantAvailabilityBanner.tsx": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/MerchantCommandPalette.tsx": {
+   "longLines": 37,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MerchantConfigPanel.tsx": {
+   "longLines": 26,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/MerchantFinancePanel.tsx": {
+   "longLines": 31,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MerchantHome.tsx": {
+   "longLines": 102,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MerchantMonthlyReport.tsx": {
+   "longLines": 35,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MerchantOnboarding.tsx": {
+   "longLines": 26,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MerchantPaymentsPanel.tsx": {
+   "longLines": 25,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/MerchantServicesPanel.tsx": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/MerchantStoreSwitcher.tsx": {
+   "longLines": 29,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MerchantWalletCard.tsx": {
+   "longLines": 14,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/MerchantsDirectory.tsx": {
+   "longLines": 39,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/NotificationCenter.tsx": {
+   "longLines": 57,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/OrderPrintSheet.tsx": {
+   "longLines": 35,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/OrderWorkspace.tsx": {
+   "longLines": 184,
+   "oversize": 429,
+   "longFunctions": 4
+  },
+  "client/src/components/OwnerAccountPanels.tsx": {
+   "longLines": 67,
+   "oversize": 176,
+   "longFunctions": 3
+  },
+  "client/src/components/OwnerHome.tsx": {
+   "longLines": 32,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/PlansManager.tsx": {
+   "longLines": 47,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "client/src/components/PlatformConfigPanel.tsx": {
+   "longLines": 19,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/PlatformLogoSection.tsx": {
+   "longLines": 18,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/PlatformMaintenancePanel.tsx": {
+   "longLines": 80,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "client/src/components/PlatformMarketCampaignsPanel.tsx": {
+   "longLines": 50,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/PlatformMarketContentPanel.tsx": {
+   "longLines": 125,
+   "oversize": 22,
+   "longFunctions": 0
+  },
+  "client/src/components/PlatformMarketCouponsPanel.tsx": {
+   "longLines": 33,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/PlatformMarketImageIndexPanel.tsx": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/PlatformMarketPanel.tsx": {
+   "longLines": 40,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/PlatformMarketPaymentsPanel.tsx": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/PlatformMarketReelsPanel.tsx": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/PlatformMarketSupportPanel.tsx": {
+   "longLines": 57,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/PlatformMarketWheelPanel.tsx": {
+   "longLines": 41,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/PlatformModulesPanel.tsx": {
+   "longLines": 11,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/PlatformPulse.tsx": {
+   "longLines": 27,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/PlatformServicesPanel.tsx": {
+   "longLines": 78,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/PlatformSettingsPanel.tsx": {
+   "longLines": 17,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/PlatformStoresDirectory.tsx": {
+   "longLines": 33,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/PlatformTeamManager.tsx": {
+   "longLines": 64,
+   "oversize": 84,
+   "longFunctions": 2
+  },
+  "client/src/components/PosDevicesPanel.tsx": {
+   "longLines": 34,
+   "oversize": 118,
+   "longFunctions": 2
+  },
+  "client/src/components/ProductCard.tsx": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ProductCatalogManager.tsx": {
+   "longLines": 85,
+   "oversize": 74,
+   "longFunctions": 2
+  },
+  "client/src/components/ProductRail.tsx": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ProductReviews.tsx": {
+   "longLines": 34,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/ProductShareCard.tsx": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "client/src/components/RegistrationCenter.tsx": {
+   "longLines": 25,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/ReturnInspectionCard.tsx": {
+   "longLines": 25,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "client/src/components/ReturnInspectionHistory.tsx": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/ReturnsQueue.tsx": {
+   "longLines": 32,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/ReviewModeration.tsx": {
+   "longLines": 27,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/RoadmapPanel.tsx": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/StockForecastPanel.tsx": {
+   "longLines": 14,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/StoreMessagingCapsPanel.tsx": {
+   "longLines": 23,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/StoreTeamManager.tsx": {
+   "longLines": 58,
+   "oversize": 36,
+   "longFunctions": 1
+  },
+  "client/src/components/StoreVerificationPanel.tsx": {
+   "longLines": 28,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/StorefrontFooter.tsx": {
+   "longLines": 26,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/StorefrontProvider.tsx": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/StorefrontSettingsPanel.tsx": {
+   "longLines": 138,
+   "oversize": 68,
+   "longFunctions": 1
+  },
+  "client/src/components/StorefrontShell.tsx": {
+   "longLines": 62,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/StorefrontStates.tsx": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/StoresManager.tsx": {
+   "longLines": 88,
+   "oversize": 79,
+   "longFunctions": 3
+  },
+  "client/src/components/SubscriptionPanel.tsx": {
+   "longLines": 25,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/SubscriptionsManager.tsx": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/SupportTicketsWorkspace.tsx": {
+   "longLines": 45,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/TrashBin.tsx": {
+   "longLines": 58,
+   "oversize": 140,
+   "longFunctions": 2
+  },
+  "client/src/components/UpgradeRequestsPanel.tsx": {
+   "longLines": 27,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/VariantManager.tsx": {
+   "longLines": 68,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/WishlistButton.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/landing/DeviceShowcase.tsx": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/landing/Faq.tsx": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/landing/HeroMotif.tsx": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/landing/OrderRail.tsx": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/landing/PanelDiagram.tsx": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/landing/Reveal.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/accordion.tsx": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/alert-dialog.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/alert.tsx": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/badge.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/button-group.tsx": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/button.tsx": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/calendar.tsx": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/ui/card.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/carousel.tsx": {
+   "longLines": 0,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/ui/checkbox.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/command.tsx": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/context-menu.tsx": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/dialog.tsx": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/drawer.tsx": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/dropdown-menu.tsx": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/empty.tsx": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/field.tsx": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/hover-card.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/input-group.tsx": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/input-otp.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/input.tsx": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/item.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/kbd.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/label.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/menubar.tsx": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/navigation-menu.tsx": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/password-input.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/password-strength-meter.tsx": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/components/ui/popover.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/radio-group.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/resizable.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/scroll-area.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/select.tsx": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/separator.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/sheet.tsx": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/sidebar.tsx": {
+   "longLines": 19,
+   "oversize": 380,
+   "longFunctions": 2
+  },
+  "client/src/components/ui/slider.tsx": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/switch.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/table.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/tabs.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/textarea.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/toggle-group.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/toggle.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/components/ui/tooltip.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/config/navigation.ts": {
+   "longLines": 69,
+   "oversize": 109,
+   "longFunctions": 0
+  },
+  "client/src/config/platform-staff-navigation.ts": {
+   "longLines": 19,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/dashboard/merchant-screens.tsx": {
+   "longLines": 29,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/lib/category-tree.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/lib/engineering-roadmap-data.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/lib/landing-motion.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/lib/password-strength.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/lib/platform-contact.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/lib/storefront-api.ts": {
+   "longLines": 88,
+   "oversize": 91,
+   "longFunctions": 0
+  },
+  "client/src/lib/storefront-pixels.ts": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/lib/till-queue.ts": {
+   "longLines": 15,
+   "oversize": 288,
+   "longFunctions": 1
+  },
+  "client/src/lib/use-reorder.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/main.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/LocationPicker.tsx": {
+   "longLines": 21,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/MarketApp.tsx": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/MarketEmptyState.tsx": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/MarketShell.tsx": {
+   "longLines": 17,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/components/BannerCarousel.tsx": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/CodeEntry.tsx": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/Countdown.tsx": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/DeliveryToMe.tsx": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/FavouriteButtons.tsx": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/InstalmentChooser.tsx": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/OrderAfterSales.tsx": {
+   "longLines": 51,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/components/ProductBrowser.tsx": {
+   "longLines": 41,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/ProductCard.tsx": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/ProductShelf.tsx": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/RankingSheet.tsx": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/StoreBadges.tsx": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/StoreCards.tsx": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/components/StoreShelf.tsx": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/map/StoreMap.tsx": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/market-api.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/market-cart.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/market-favourites.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/market-geo.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/market-links.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/market-location.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/market-photo.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/market-products.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/market-shopper.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/market-types.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketAccountPages.tsx": {
+   "longLines": 111,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketCampaignPage.tsx": {
+   "longLines": 33,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketCartPage.tsx": {
+   "longLines": 34,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketCategoriesPage.tsx": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketCategoryPage.tsx": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketCheckoutPage.tsx": {
+   "longLines": 62,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketHelpPages.tsx": {
+   "longLines": 66,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketHomePage.tsx": {
+   "longLines": 36,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketImageSearchPage.tsx": {
+   "longLines": 18,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketMapPages.tsx": {
+   "longLines": 55,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "client/src/market/pages/MarketNotFoundPage.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketOrdersPages.tsx": {
+   "longLines": 71,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketPartnerPages.tsx": {
+   "longLines": 25,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketPayPage.tsx": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketProductPage.tsx": {
+   "longLines": 72,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketReelsPage.tsx": {
+   "longLines": 38,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketRewardsPages.tsx": {
+   "longLines": 57,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketSearchPage.tsx": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketSectionPages.tsx": {
+   "longLines": 23,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketStorePage.tsx": {
+   "longLines": 70,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketStoreProductsPage.tsx": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketStoreReviewsPage.tsx": {
+   "longLines": 6,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/MarketStoresPage.tsx": {
+   "longLines": 35,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketTicketsPages.tsx": {
+   "longLines": 57,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/MarketWheelPage.tsx": {
+   "longLines": 57,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/use-market-list.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/use-market-stores.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/pages/CustomerAddressesPage.tsx": {
+   "longLines": 23,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/CustomerAuthPage.tsx": {
+   "longLines": 17,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/CustomerOrderDetailPage.tsx": {
+   "longLines": 46,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/pages/CustomerOrdersPage.tsx": {
+   "longLines": 10,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/pages/CustomerPreferencesPage.tsx": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/pages/CustomerReturnsPage.tsx": {
+   "longLines": 22,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/CustomerWishlistPage.tsx": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/DashboardLogin.tsx": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/DemoEntryPage.tsx": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/pages/EngineeringArchitectureDashboard.tsx": {
+   "longLines": 77,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/Home.tsx": {
+   "longLines": 145,
+   "oversize": 759,
+   "longFunctions": 4
+  },
+  "client/src/pages/MerchantDashboard.tsx": {
+   "longLines": 65,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "client/src/pages/NotFound.tsx": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/pages/OwnerDashboard.tsx": {
+   "longLines": 48,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "client/src/pages/PasswordResetConsume.tsx": {
+   "longLines": 20,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/PasswordResetRequest.tsx": {
+   "longLines": 15,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/PlatformStaffDashboard.tsx": {
+   "longLines": 60,
+   "oversize": 22,
+   "longFunctions": 2
+  },
+  "client/src/pages/StaffDashboard.tsx": {
+   "longLines": 42,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/StorefrontCartPage.tsx": {
+   "longLines": 28,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/StorefrontCatalogPage.tsx": {
+   "longLines": 26,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/StorefrontCheckoutPage.tsx": {
+   "longLines": 79,
+   "oversize": 45,
+   "longFunctions": 2
+  },
+  "client/src/pages/StorefrontHomePage.tsx": {
+   "longLines": 28,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/StorefrontPolicyPage.tsx": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/pages/StorefrontProductPage.tsx": {
+   "longLines": 48,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/StorefrontTrackOrderPage.tsx": {
+   "longLines": 28,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/pages/StorefrontWrapper.tsx": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/pages/TillPage.tsx": {
+   "longLines": 148,
+   "oversize": 783,
+   "longFunctions": 2
+  },
+  "client/src/pages/UnsubscribePage.tsx": {
+   "longLines": 18,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "shared/search/arabic-normalize.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "server/graceful-shutdown.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "server/index.ts": {
+   "longLines": 14,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/scripts/backup-database.ts": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/scripts/create-first-owner.ts": {
+   "longLines": 11,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/scripts/encrypt-secrets-at-rest.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/scripts/env-check.ts": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/scripts/generate-openapi.mjs": {
+   "longLines": 117,
+   "oversize": 883,
+   "longFunctions": 2
+  },
+  "phase1-backend/scripts/generate-search-corpus.ts": {
+   "longLines": 16,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/scripts/mail-probe.ts": {
+   "longLines": 13,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/scripts/migrate-deploy.ts": {
+   "longLines": 12,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/scripts/restore-database.ts": {
+   "longLines": 14,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/scripts/seed-demo.ts": {
+   "longLines": 88,
+   "oversize": 5,
+   "longFunctions": 1
+  },
+  "phase1-backend/scripts/set-owner-email.ts": {
+   "longLines": 8,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/scripts/theme-collapse.mjs": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/scripts/theme-literals.mjs": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/scripts/theme-ratchet.mjs": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "tools/code-shape.mjs": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "tools/lint-ratchet.mjs": {
+   "longLines": 9,
+   "oversize": 0,
+   "longFunctions": 0
+  }
+ }
+}
