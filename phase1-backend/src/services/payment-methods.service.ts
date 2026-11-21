@@ -149,12 +149,12 @@ export async function enabledPaymentMethods(client: Prisma.TransactionClient | t
  * platform collects them through its providers — so only the market's checkout
  * may name them (`market` below); a storefront request naming one is refused.
  */
-export const MARKET_PAYMENT_METHODS = { market_card: { code: "market_card", displayName: "بطاقة إلكترونيّة", kind: "gateway" }, market_instalments: { code: "market_instalments", displayName: "أقساط", kind: "gateway" } } as const;
+export const MARKET_PAYMENT_METHODS = { market_card: { code: "market_card", displayName: "بطاقة إلكترونيّة", kind: "gateway" }, market_instalments: { code: "market_instalments", displayName: "أقساط", kind: "gateway" }, market_partner: { code: "market_partner", displayName: "التطبيق الشريك", kind: "gateway" } } as const;
 
-export async function paymentMethodForCheckout(client: Prisma.TransactionClient | typeof prisma, storeId: string, rawCode: unknown, market?: "card" | "instalments"): Promise<EnabledPaymentMethod> {
+export async function paymentMethodForCheckout(client: Prisma.TransactionClient | typeof prisma, storeId: string, rawCode: unknown, market?: "card" | "instalments" | "partner"): Promise<EnabledPaymentMethod> {
   const code = rawCode === undefined || rawCode === null || rawCode === "" ? "cod" : rawCode;
   if (typeof code !== "string") throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "وسيلة الدفع غير مدعومة.");
-  if (code === "market_card" || code === "market_instalments") {
+  if (code === "market_card" || code === "market_instalments" || code === "market_partner") {
     if (market !== code.slice("market_".length)) throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "وسيلة الدفع غير مدعومة.");
     return { ...MARKET_PAYMENT_METHODS[code] };
   }

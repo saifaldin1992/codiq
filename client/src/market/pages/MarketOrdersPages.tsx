@@ -176,16 +176,16 @@ export function MarketRatingsPage() {
   );
 }
 
-const ONLINE_STATUS: Record<string, string> = { pending: "بانتظار الدفع", failed: "لم يكتمل الدفع", paid: "مدفوع إلكترونيّاً", expired: "انتهت مهلة الدفع", cancelled: "أُلغي", refunded: "أُعيد المبلغ إلى بطاقتك", approved: "خطّة التقسيط معتمدة", adjusted: "عُدّلت خطّة التقسيط بعد الإرجاع" };
+const ONLINE_STATUS: Record<string, string> = { pending: "بانتظار الدفع", failed: "لم يكتمل الدفع", paid: "مدفوع إلكترونيّاً", expired: "انتهت مهلة الدفع", cancelled: "أُلغي", refunded: "أُعيد المبلغ", approved: "خطّة التقسيط معتمدة", adjusted: "عُدّلت خطّة التقسيط بعد الإرجاع" };
 
 /** Marketplace M13a: how this order is paid online — and the door back to the gateway while it waits. */
 function OnlinePaymentCard({ payment, deliveryFeeIqd }: { payment: NonNullable<OrderDetail["onlinePayment"]>; deliveryFeeIqd: number }) {
   return (
     <section className="space-y-1.5 rounded-[24px] bg-[var(--codiq-surface)] p-4 text-sm shadow-sm" data-testid="market-order-online-payment">
-      <p className="font-black text-[var(--codiq-text)]">{payment.method === "card" ? "الدفع بالبطاقة" : "الدفع بالأقساط"}</p>
+      <p className="font-black text-[var(--codiq-text)]">{payment.method === "card" ? "الدفع بالبطاقة" : payment.method === "partner" ? "الدفع عبر التطبيق الشريك" : "الدفع بالأقساط"}</p>
       <p className="text-xs font-bold text-[var(--codiq-accent)]" data-testid="market-order-online-status">{ONLINE_STATUS[payment.status] ?? payment.status}</p>
       {payment.method === "instalments" && payment.months && payment.monthlyIqd ? <p className="text-xs text-[var(--codiq-text-secondary)]">{payment.months.toLocaleString("ar-IQ")} أشهر × {iqd(payment.monthlyIqd)} — ورسوم التوصيل {iqd(deliveryFeeIqd)} نقداً عند الاستلام.</p> : null}
-      {payment.refundedIqd ? <p className="text-xs text-[var(--codiq-success)]">{payment.method === "card" ? `أُعيد ${iqd(payment.refundedIqd)}` : "لم تعد الخطّة تغطّي شيئاً من هذا الطلب"}</p> : null}
+      {payment.refundedIqd ? <p className="text-xs text-[var(--codiq-success)]">{payment.method === "instalments" ? "لم تعد الخطّة تغطّي شيئاً من هذا الطلب" : `يُعاد ${iqd(payment.refundedIqd)}`}</p> : null}
       {payment.method === "card" && (payment.status === "pending" || payment.status === "failed") ? <Link href={`/pay/${payment.id}`} className="inline-block rounded-full bg-[var(--codiq-accent)] px-4 py-1.5 text-xs font-bold text-[var(--codiq-surface)]" data-testid="market-order-pay-now">أكمل الدفع</Link> : null}
     </section>
   );

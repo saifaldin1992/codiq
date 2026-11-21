@@ -45,6 +45,7 @@ const COMPLETE = {
   CODIQ_MAP_TILE_URL: "https://tiles.example/{z}/{x}/{y}.png?key=k",
   CODIQ_PAYMENTS_PROVIDER: "provider-x",
   CODIQ_PAYMENTS_WEBHOOK_SECRET: "a-webhook-signing-secret-of-48-characters-length",
+  CODIQ_PARTNER_APP_SECRET: "a-partner-app-shared-secret-of-48-characters-ok",
   PRODUCT_S3_REGION: "r",
   PRODUCT_S3_ACCESS_KEY_ID: "id",
   PRODUCT_S3_SECRET_ACCESS_KEY: "secret",

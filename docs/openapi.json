@@ -4,7 +4,7 @@
     "title": "CODIQ — واجهة المنصة",
     "version": "1.0.0",
     "summary": "وثيقة مولّدة آلياً من جدول التوجيه الفعلي ومن مخططات zod. لا تُحرَّر بخط اليد.",
-    "description": "## وثيقة مولّدة، لا مكتوبة\n\nهذه الوثيقة تصف 492 مسار endpoint، وكلُّ حقيقةٍ فيها مقروءة من الشيفرة التي تعمل:\n\n- **المسارات والأفعال** من جدول توجيه Express الذي يبنيه `createApp()` — لا من قائمة تُحدَّث باليد.\n- **أشكال الطلب** من مخططات zod في `src/http/schemas/` عبر `z.toJSONSchema` من zod نفسها.\n- **الباب المطلوب** من الحارس الذي يستدعيه المعالج، ومعه رمز الصلاحية إن وُجد.\n- **رموز الأخطاء** من كل موضع `new HttpError(...)` في الواجهة الخلفية.\n\nولأن قراءتين مستقلتين للشيفرة يجب أن تتطابقا قبل أن يُكتب أي شيء، فإن مساراً يعرفه الموجِّه ولا يراه الماسح — أو العكس — يُسقِط التوليد بدل أن يُنتج وثيقةً ناقصة بهدوء.\n\n## بابان، تطبيق واحد\n\n`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.\n\n**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.\n\n## مسار غير معروف\n\nأي مسار تحت البادئتين لا يطابق شيئاً هنا يُجيب `404 RESOURCE_NOT_FOUND` — بالمغلّف نفسه وبمعرّف الطلب نفسه، لا بصفحة HTML. هذا مقصود: قبل المرحلة 20-2 كان يسقط إلى الصدفة ويُجيب `200 text/html`، فيقرأه العميل نجاحاً ويسلّم `null`، وتظهر النتيجة شاشةً فارغة بعد أيام و200 في كل سجل.\n\n## الأخطاء عقد\n\nالرسائل عربية وهي جزء من العقد: المرحلة 22 تترجمها **بالرمز**. ابنِ على `error.code`، لا على نص `error.message`. المجموعة كاملة في `x-codiq-error-catalogue`، وكل استجابة خطأ هنا تُسمّي الرموز التي يمكن أن تصل منها.\n\n## القوائم\n\nكل قائمة تُجيب بمَغلَّف `ListEnvelope` نفسه — موصوف مرة واحدة ومُشار إليه — بمؤشر معتم واحد. لا تبنِ مؤشراً بيدك: الوثيقة تصفه سلسلةً معتمة لأنه كذلك.",
+    "description": "## وثيقة مولّدة، لا مكتوبة\n\nهذه الوثيقة تصف 498 مسار endpoint، وكلُّ حقيقةٍ فيها مقروءة من الشيفرة التي تعمل:\n\n- **المسارات والأفعال** من جدول توجيه Express الذي يبنيه `createApp()` — لا من قائمة تُحدَّث باليد.\n- **أشكال الطلب** من مخططات zod في `src/http/schemas/` عبر `z.toJSONSchema` من zod نفسها.\n- **الباب المطلوب** من الحارس الذي يستدعيه المعالج، ومعه رمز الصلاحية إن وُجد.\n- **رموز الأخطاء** من كل موضع `new HttpError(...)` في الواجهة الخلفية.\n\nولأن قراءتين مستقلتين للشيفرة يجب أن تتطابقا قبل أن يُكتب أي شيء، فإن مساراً يعرفه الموجِّه ولا يراه الماسح — أو العكس — يُسقِط التوليد بدل أن يُنتج وثيقةً ناقصة بهدوء.\n\n## بابان، تطبيق واحد\n\n`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.\n\n**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.\n\n## مسار غير معروف\n\nأي مسار تحت البادئتين لا يطابق شيئاً هنا يُجيب `404 RESOURCE_NOT_FOUND` — بالمغلّف نفسه وبمعرّف الطلب نفسه، لا بصفحة HTML. هذا مقصود: قبل المرحلة 20-2 كان يسقط إلى الصدفة ويُجيب `200 text/html`، فيقرأه العميل نجاحاً ويسلّم `null`، وتظهر النتيجة شاشةً فارغة بعد أيام و200 في كل سجل.\n\n## الأخطاء عقد\n\nالرسائل عربية وهي جزء من العقد: المرحلة 22 تترجمها **بالرمز**. ابنِ على `error.code`، لا على نص `error.message`. المجموعة كاملة في `x-codiq-error-catalogue`، وكل استجابة خطأ هنا تُسمّي الرموز التي يمكن أن تصل منها.\n\n## القوائم\n\nكل قائمة تُجيب بمَغلَّف `ListEnvelope` نفسه — موصوف مرة واحدة ومُشار إليه — بمؤشر معتم واحد. لا تبنِ مؤشراً بيدك: الوثيقة تصفه سلسلةً معتمة لأنه كذلك.",
     "license": {
       "name": "MIT"
     }
@@ -55,6 +55,9 @@
     },
     {
       "name": "market-orders"
+    },
+    {
+      "name": "market-partner"
     },
     {
       "name": "market-payments"
@@ -249,6 +252,7 @@
                   "CART_FULL",
                   "CART_LINE_EXISTS",
                   "CART_LINE_NOT_FOUND",
+                  "CART_NOT_READY",
                   "CART_PRICE_CHANGED",
                   "CART_VERSION_CONFLICT",
                   "CATEGORY_DEPTH_EXCEEDED",
@@ -506,10 +510,21 @@
                   "OVERRIDE_NOT_FOUND",
                   "OVERRIDE_TARGET_REQUIRED",
                   "OWNER_ONLY_FIELD",
+                  "PARTNER_ALREADY_LINKED",
+                  "PARTNER_BODY_INVALID",
+                  "PARTNER_NOT_LINKED",
+                  "PARTNER_OFF",
+                  "PARTNER_PHONE_INVALID",
+                  "PARTNER_PHONE_MISMATCH",
+                  "PARTNER_SIGNATURE_INVALID",
+                  "PARTNER_TOKEN_EXPIRED",
+                  "PARTNER_TOKEN_INVALID",
+                  "PARTNER_TOKEN_USED",
                   "PASSWORD_CHANGE_REQUIRED",
                   "PASSWORD_UNCHANGED",
                   "PAYMENTS_OFF",
                   "PAYMENT_AMOUNT_MISMATCH",
+                  "PAYMENT_LINK_NOT_FOUND",
                   "PAYMENT_METHOD_NOT_SUPPORTED",
                   "PAYMENT_METHOD_UNAVAILABLE",
                   "PAYMENT_NOTIFICATION_EMPTY",
@@ -3477,6 +3492,40 @@
         },
         "required": [
           "reasonCode"
+        ]
+      },
+      "modules.market-partner.schema.partnerEnterSchema": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "modules.market-partner.schema.partnerLinkSchema": {
+        "type": "object",
+        "properties": {
+          "addressId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "fulfilment": {
+            "default": "delivery",
+            "type": "string",
+            "enum": [
+              "delivery",
+              "pickup"
+            ]
+          }
+        },
+        "required": [
+          "addressId"
         ]
       },
       "modules.market-payments.schema.ownerPaymentsQuerySchema": {
@@ -7281,6 +7330,196 @@
             }
           }
         }
+      }
+    },
+    "/market/me/partner": {
+      "delete": {
+        "operationId": "deleteMarketMePartner",
+        "tags": [
+          "market-partner"
+        ],
+        "summary": "DELETE /market/me/partner",
+        "description": "**الباب**: shopper.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `SHOPPER_SESSION_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "SHOPPER_SESSION_REQUIRED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`PARTNER_OFF`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PARTNER_OFF"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "shopper"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-partner/routes.ts",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "getMarketMePartner",
+        "tags": [
+          "market-partner"
+        ],
+        "summary": "GET /market/me/partner",
+        "description": "**الباب**: shopper.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `SHOPPER_SESSION_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "SHOPPER_SESSION_REQUIRED"
+            ]
+          },
+          "403": {
+            "description": "`IDENTITY_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "IDENTITY_BOUNDARY_DENIED"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "shopper"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-partner/routes.ts",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
       }
     },
     "/market/orders/{orderId}/return": {
@@ -17605,6 +17844,117 @@
           "shopper"
         ],
         "x-codiq-source": "phase1-backend/src/modules/market-support/routes.ts",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
+      }
+    },
+    "/market/partner-links/{linkId}": {
+      "get": {
+        "operationId": "getMarketPartnerLinksByLinkId",
+        "tags": [
+          "market-partner"
+        ],
+        "summary": "GET /market/partner-links/{linkId}",
+        "description": "**الباب**: shopper.",
+        "parameters": [
+          {
+            "name": "linkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `SHOPPER_SESSION_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "SHOPPER_SESSION_REQUIRED"
+            ]
+          },
+          "403": {
+            "description": "`IDENTITY_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "IDENTITY_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`PAYMENT_LINK_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PAYMENT_LINK_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "shopper"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-partner/routes.ts",
         "security": [
           {
             "sessionCookie": []
@@ -51222,6 +51572,166 @@
         }
       }
     },
+    "/market/checkout/{storeSlug}/partner-link": {
+      "post": {
+        "operationId": "postMarketCheckoutByStoreSlugPartnerLink",
+        "tags": [
+          "market-partner"
+        ],
+        "summary": "POST /market/checkout/{storeSlug}/partner-link",
+        "description": "**الباب**: shopper.\n\n**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `SHOPPER_SESSION_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "SHOPPER_SESSION_REQUIRED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`PARTNER_OFF`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PARTNER_OFF"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`CART_EMPTY` · `CART_NOT_READY` · `INVALID_INCIDENT` · `PARTNER_NOT_LINKED` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CART_EMPTY",
+              "CART_NOT_READY",
+              "INVALID_INCIDENT",
+              "PARTNER_NOT_LINKED",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "shopper"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-partner/routes.ts",
+        "x-codiq-rate-limited": true,
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-partner.schema.partnerLinkSchema"
+              }
+            }
+          }
+        }
+      }
+    },
     "/market/contact": {
       "post": {
         "operationId": "postMarketContact",
@@ -52257,6 +52767,166 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/modules.market-orders.schema.cancelSchema"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/market/partner/enter": {
+      "post": {
+        "operationId": "postMarketPartnerEnter",
+        "tags": [
+          "market-partner"
+        ],
+        "summary": "POST /market/partner/enter",
+        "description": "**الباب**: مفتوح بلا جلسة.\n\n**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "shopper": {},
+                    "linkedNow": {}
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`PARTNER_TOKEN_EXPIRED` · `PARTNER_TOKEN_INVALID` · `PARTNER_TOKEN_USED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PARTNER_TOKEN_EXPIRED",
+              "PARTNER_TOKEN_INVALID",
+              "PARTNER_TOKEN_USED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `SHOPPER_DISABLED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "SHOPPER_DISABLED"
+            ]
+          },
+          "404": {
+            "description": "`PARTNER_OFF`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PARTNER_OFF"
+            ]
+          },
+          "409": {
+            "description": "`PARTNER_ALREADY_LINKED` · `PARTNER_PHONE_MISMATCH`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PARTNER_ALREADY_LINKED",
+              "PARTNER_PHONE_MISMATCH"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT` · `INVALID_MERCHANT_PHONE` · `PARTNER_PHONE_INVALID` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT",
+              "INVALID_MERCHANT_PHONE",
+              "PARTNER_PHONE_INVALID",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-partner/routes.ts",
+        "x-codiq-rate-limited": true,
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-partner.schema.partnerEnterSchema"
               }
             }
           }
@@ -58050,6 +58720,120 @@
             }
           }
         }
+      }
+    },
+    "/partner/payment-links/complete": {
+      "post": {
+        "operationId": "postPartnerPaymentLinksComplete",
+        "tags": [
+          "market-partner"
+        ],
+        "summary": "POST /partner/payment-links/complete",
+        "description": "**الباب**: مفتوح بلا جلسة.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_DATE_FILTER` · `INVALID_ORDER_VERSION` · `PARTNER_BODY_INVALID`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_DATE_FILTER",
+              "INVALID_ORDER_VERSION",
+              "PARTNER_BODY_INVALID"
+            ]
+          },
+          "401": {
+            "description": "`PARTNER_SIGNATURE_INVALID`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PARTNER_SIGNATURE_INVALID"
+            ]
+          },
+          "404": {
+            "description": "`PARTNER_OFF` · `RESOURCE_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PARTNER_OFF",
+              "RESOURCE_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "description": "`ORDER_VERSION_CONFLICT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "ORDER_VERSION_CONFLICT"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`CART_EMPTY` · `INSTALMENT_AMOUNT_CHANGED` · `INVALID_DELIVERY_WINDOW` · `INVALID_INCIDENT` · `INVALID_ORDER_TRANSITION` · `ORDER_PAYMENT_PENDING` · `PARTNER_BODY_INVALID` · `PAYMENT_METHOD_NOT_SUPPORTED` · `PRESCRIPTION_NOT_APPROVED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CART_EMPTY",
+              "INSTALMENT_AMOUNT_CHANGED",
+              "INVALID_DELIVERY_WINDOW",
+              "INVALID_INCIDENT",
+              "INVALID_ORDER_TRANSITION",
+              "ORDER_PAYMENT_PENDING",
+              "PARTNER_BODY_INVALID",
+              "PAYMENT_METHOD_NOT_SUPPORTED",
+              "PRESCRIPTION_NOT_APPROVED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-partner/routes.ts",
+        "security": []
       }
     },
     "/payments/webhooks/card": {
@@ -70022,6 +70806,12 @@
         "هذا المنتج لم يعد في سلتك."
       ]
     },
+    "CART_NOT_READY": {
+      "statuses": [
+        422
+      ],
+      "messages": []
+    },
     "CART_PRICE_CHANGED": {
       "statuses": [
         422
@@ -72159,6 +72949,88 @@
       ],
       "messages": []
     },
+    "PARTNER_ALREADY_LINKED": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "حسابك في السوق مربوط بحساب آخر في التطبيق."
+      ]
+    },
+    "PARTNER_BODY_INVALID": {
+      "statuses": [
+        400,
+        422
+      ],
+      "messages": [
+        "جسم الطلب غير صالح.",
+        "جسم الطلب فارغ.",
+        "جسم الطلب ناقص."
+      ]
+    },
+    "PARTNER_NOT_LINKED": {
+      "statuses": [
+        422
+      ],
+      "messages": []
+    },
+    "PARTNER_OFF": {
+      "statuses": [
+        404
+      ],
+      "messages": [
+        "التطبيق الشريك غير مربوط."
+      ]
+    },
+    "PARTNER_PHONE_INVALID": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "رقم الهاتف من التطبيق غير صالح."
+      ]
+    },
+    "PARTNER_PHONE_MISMATCH": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "رقم هاتفك في التطبيق تغيّر — ادخل السوق برمز يصل إلى رقمك ثمّ اربط الحساب من جديد."
+      ]
+    },
+    "PARTNER_SIGNATURE_INVALID": {
+      "statuses": [
+        401
+      ],
+      "messages": [
+        "توقيع الطلب غير صحيح."
+      ]
+    },
+    "PARTNER_TOKEN_EXPIRED": {
+      "statuses": [
+        401
+      ],
+      "messages": [
+        "انتهت صلاحيّة رابط الدخول — افتح السوق من التطبيق مجدداً."
+      ]
+    },
+    "PARTNER_TOKEN_INVALID": {
+      "statuses": [
+        401
+      ],
+      "messages": [
+        "رابط الدخول غير صالح — افتح السوق من التطبيق مجدداً.",
+        "رابط الدخول غير صالح."
+      ]
+    },
+    "PARTNER_TOKEN_USED": {
+      "statuses": [
+        401
+      ],
+      "messages": [
+        "استُعمل رابط الدخول هذا من قبل — افتح السوق من التطبيق مجدداً."
+      ]
+    },
     "PASSWORD_CHANGE_REQUIRED": {
       "statuses": [
         403
@@ -72182,6 +73054,14 @@
       ],
       "messages": [
         "المبلغ في الإشعار لا يطابق الطلب."
+      ]
+    },
+    "PAYMENT_LINK_NOT_FOUND": {
+      "statuses": [
+        404
+      ],
+      "messages": [
+        "رابط الدفع غير موجود."
       ]
     },
     "PAYMENT_METHOD_NOT_SUPPORTED": {
@@ -73260,8 +74140,8 @@
       "the zod schemas in src/http/schemas",
       "every new HttpError(...) throw site in src"
     ],
-    "routesInRoutingTable": 491,
-    "operations": 492,
+    "routesInRoutingTable": 497,
+    "operations": 498,
     "note": "مولّدة آلياً — أي تحرير يدوي يسقط في أول تشغيل لـ `pnpm openapi:guard`."
   }
 }

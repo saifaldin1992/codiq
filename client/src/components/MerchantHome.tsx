@@ -32,7 +32,7 @@ type Home = {
 const number = new Intl.NumberFormat("ar-IQ");
 const money = (value: number) => `${number.format(value)} د.ع`;
 const STATUS_LABEL: Record<string, string> = { new: "جديد", processing: "قيد المعالجة", preparation: "قيد التجهيز", out_for_delivery: "قيد التوصيل", completed: "مكتمل", cancelled: "ملغى", rejected: "مرفوض", returned: "مرتجع" };
-const PAYMENT_LABEL: Record<string, string> = { cod: "الدفع عند الاستلام", zaincash: "زين كاش", asiahawala: "آسيا حوالة", fib: "FIB", cash: "نقداً (الكاشير)", legacy: "—", market_card: "بطاقة (السوق)", market_instalments: "أقساط (السوق)" };
+const PAYMENT_LABEL: Record<string, string> = { cod: "الدفع عند الاستلام", zaincash: "زين كاش", asiahawala: "آسيا حوالة", fib: "FIB", cash: "نقداً (الكاشير)", legacy: "—", market_card: "بطاقة (السوق)", market_instalments: "أقساط (السوق)", market_partner: "التطبيق الشريك" };
 const PAYMENT_STATUS_LABEL: Record<string, string> = { unpaid: "غير مدفوع", paid: "مدفوع", awaiting_transfer: "بانتظار التحويل", awaiting_payment: "بانتظار الدفع", instalments: "بالأقساط", refunded: "أُعيد المبلغ" };
 const PROMO_KEY = "codiq:merchant-home:promo:v1";
 

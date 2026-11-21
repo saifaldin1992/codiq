@@ -99,6 +99,7 @@ const EXEMPT = {
   "/api/auth/platform/register": "owner bootstrap for `pnpm owner:create`, gated by CODIQ_ALLOW_OWNER_REGISTRATION — a console act, never a screen",
   "/api/webhooks/resend": "Resend calls it, signed with Svix headers over the raw body (ق-182); no screen could, and none should",
   "/api/payments/webhooks/card": "the card gateway calls it, HMAC-SHA256 over the raw body (marketplace M13a); no screen could, and none should",
+  "/api/partner/payment-links/complete": "the partner app calls it, HMAC-SHA256 over the raw body (marketplace M13b); no screen could, and none should",
   "/api/public/brand/logo/*": "the URL is minted by the server inside the brand payload and reaches the browser as an <img src>; the client never spells it",
   "/api/store/*/banners/*/image": "ق-198: the slide's URL is minted by the server inside the banner payload and reaches the browser as an <img src>; the client never spells it",
   "/api/store/*/logo": "ق-199: the logo's URL is minted by the server inside public-config and reaches the browser as an <img src>; the client never spells it",

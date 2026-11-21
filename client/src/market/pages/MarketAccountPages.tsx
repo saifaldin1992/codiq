@@ -3,6 +3,7 @@
  * the delivery addresses. Everything else a shopper keeps (orders, tickets,
  * coupons, favourites) joins this menu in the phases that build it.
  */
+import { PartnerLinkCard } from "./MarketPartnerPages";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Bell, Camera, Crown, Sparkles, Clapperboard, ChevronLeft, CircleAlert, Copy, Crosshair, Heart, LifeBuoy, LoaderCircle, LogOut, MapPin, MessageCircle, Package, Phone, Plus, Star, ThumbsUp, Ticket, Trash2, UserRound } from "lucide-react";
@@ -90,6 +91,7 @@ export function MarketAccountPage() {
           <Copy className="h-3 w-3" /> {copied ? "نُسخ" : shopper.publicId}
         </button>
       </section>
+      <PartnerLinkCard />
       <nav className="divide-y divide-[var(--codiq-border)] overflow-hidden rounded-[26px] bg-[var(--codiq-surface)] shadow-sm">
         <MenuLink href="/orders" icon={Package} label="طلباتي" testId="market-account-orders-link" />
         <MenuLink href="/ratings" icon={Star} label="تقييماتي" testId="market-account-ratings-link" />

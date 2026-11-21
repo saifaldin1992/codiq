@@ -219,6 +219,8 @@
     "market:payments": "tsx phase1-backend/tests/market-payments.integration.mjs",
     "market:payments:browser": "pnpm build && node --import tsx phase1-backend/tests/market-payments.browser-acceptance.mjs",
     "market:payments:expire": "tsx phase1-backend/scripts/expire-market-payments.ts",
+    "market:partner": "tsx phase1-backend/tests/market-partner.integration.mjs",
+    "market:partner:browser": "pnpm build && node --import tsx phase1-backend/tests/market-partner.browser-acceptance.mjs",
     "security:pass": "pnpm build && node --import tsx phase1-backend/tests/security-pass.acceptance.mjs",
     "market:foundation": "tsx phase1-backend/tests/market-foundation.integration.mjs",
     "market:shell:browser": "pnpm build && node --import tsx phase1-backend/tests/market-shell.browser-acceptance.mjs",

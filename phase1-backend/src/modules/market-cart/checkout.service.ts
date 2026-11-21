@@ -121,11 +121,13 @@ export async function checkoutSummary(shopper: ShopperRef, storeSlug: string, in
   };
 }
 
-export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, input: { addressId: string; fulfilment: "delivery" | "pickup"; paymentMethodCode: string; couponCode?: string | null; note?: string | null; platformCouponWalletId?: string | null; instalmentPaymentId?: string | null; instalmentCode?: string | null }, idempotencyKey: unknown) {
+export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, input: { addressId: string; fulfilment: "delivery" | "pickup"; paymentMethodCode: string; couponCode?: string | null; note?: string | null; platformCouponWalletId?: string | null; instalmentPaymentId?: string | null; instalmentCode?: string | null }, idempotencyKey: unknown, options: { paidByPartner?: boolean } = {}) {
   const store = await listedStoreTenant(storeSlug);
   // Marketplace M13a: an online method is the market's, not the store's.
-  const marketPayment = input.paymentMethodCode === "market_card" ? "card" as const : input.paymentMethodCode === "market_instalments" ? "instalments" as const : undefined;
-  if (marketPayment && paymentsMode() === "off") throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "الدفع الإلكترونيّ غير متاح الآن.");
+  const marketPayment = input.paymentMethodCode === "market_card" ? "card" as const : input.paymentMethodCode === "market_instalments" ? "instalments" as const : input.paymentMethodCode === "market_partner" ? "partner" as const : undefined;
+  // M13b: «paid by the partner» is said only by the partner's signed call, never by the shopper's request.
+  if (marketPayment === "partner" && !options.paidByPartner) throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "وسيلة الدفع غير مدعومة.");
+  if ((marketPayment === "card" || marketPayment === "instalments") && paymentsMode() === "off") throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "الدفع الإلكترونيّ غير متاح الآن.");
   const address = await shopperAddress(shopper.id, input.addressId);
   const customerId = await customerForShopper(store.id, shopper, address.recipientName);
 

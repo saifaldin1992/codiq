@@ -33,6 +33,7 @@ const ALLOWLIST = {
   // second layer here, and the route answers 503 rather than accept unsigned.
   "webhooks.ts:POST /webhooks/resend": "signed webhook from the mail provider — no browser, no cookie, Svix signature over the raw body",
   "modules/market-payments/routes.ts:POST /payments/webhooks/card": "signed notification from the card gateway — no browser, no cookie, HMAC-SHA256 over the raw body",
+  "modules/market-partner/routes.ts:POST /partner/payment-links/complete": "signed report from the partner app — no browser, no cookie, HMAC-SHA256 over the raw body",
 };
 
 const WRITE = /app\.(post|put|patch|delete)\(\s*"([^"]+)"/g;

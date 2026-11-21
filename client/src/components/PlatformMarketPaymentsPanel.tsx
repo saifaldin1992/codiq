@@ -47,7 +47,7 @@ export function PlatformMarketPaymentsPanel() {
                 <tr key={row.id} className="border-t border-[var(--codiq-border)]" data-testid="payments-row">
                   <td className="p-3 font-bold" dir="ltr">{row.order?.orderNumber ?? "—"}</td>
                   <td className="p-3">{row.store.name}</td>
-                  <td className="p-3">{row.method === "card" ? "بطاقة" : `أقساط ${row.months?.toLocaleString("ar-IQ") ?? ""} × ${row.monthlyIqd ? money(row.monthlyIqd) : ""}`}<span className="block text-[10px] text-[var(--codiq-text-muted)]">{row.provider} · {row.shopperPhone}</span></td>
+                  <td className="p-3">{row.method === "card" ? "بطاقة" : row.method === "partner" ? "التطبيق الشريك" : `أقساط ${row.months?.toLocaleString("ar-IQ") ?? ""} × ${row.monthlyIqd ? money(row.monthlyIqd) : ""}`}<span className="block text-[10px] text-[var(--codiq-text-muted)]">{row.provider} · {row.shopperPhone}</span></td>
                   <td className="p-3 font-black">{money(row.amountIqd)}{row.refundedIqd ? <span className="block text-[10px] text-[var(--codiq-success)]">مُسترد {money(row.refundedIqd)}</span> : null}</td>
                   <td className="p-3">{row.statusLabel}</td>
                   <td className="p-3 text-xs text-[var(--codiq-text-muted)]">{new Date(row.createdAt).toLocaleString("ar-IQ", { timeZone: "Asia/Baghdad" })}</td>

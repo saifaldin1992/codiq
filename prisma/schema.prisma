@@ -304,6 +304,7 @@ model Store {
 
   productImageEmbeddings ProductImageEmbedding[]
   marketPayments         MarketPayment[]
+  checkoutTokens         CheckoutToken[]
   @@index([merchantId])
   // 20-3: the platform store directory pages (createdAt, id) desc across all tenants.
   @@index([createdAt(sort: Desc), id(sort: Desc)], map: "stores_created_id_idx")
@@ -860,6 +861,7 @@ model StoreOrder {
   supportTickets    SupportTicket[]
 
   marketPayment     MarketPayment?
+  checkoutToken     CheckoutToken?
   @@unique([storeId, orderNumber])
   @@unique([id, storeId])
   @@index([storeId])
@@ -2356,6 +2358,8 @@ model Shopper {
   marketCart        MarketCart?
 
   marketPayments   MarketPayment[]
+  partnerLinks     ShopperPartnerLink[]
+  checkoutTokens   CheckoutToken[]
   @@map("shoppers")
 }
 
@@ -3017,4 +3021,54 @@ model MarketPaymentEvent {
   @@unique([paymentId, providerEventId], map: "market_payment_events_once")
   @@index([paymentId, createdAt], map: "market_payment_events_payment_idx")
   @@map("market_payment_events")
+}
+
+/// Marketplace M13b (A2) — a partner app's account linked to a market shopper.
+model ShopperPartnerLink {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId        String   @map("shopper_id") @db.Uuid
+  partner          String   @db.Text
+  partnerAccountId String   @map("partner_account_id") @db.Text
+  linkedAt         DateTime @default(now()) @map("linked_at") @db.Timestamptz(6)
+  lastSyncedAt     DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  shopper          Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@unique([partner, partnerAccountId], map: "shopper_partner_links_account_once")
+  @@unique([shopperId, partner], map: "shopper_partner_links_shopper_once")
+  @@map("shopper_partner_links")
+}
+
+model PartnerHandoffNonce {
+  partner String   @db.Text
+  nonce   String   @db.Text
+  usedAt  DateTime @default(now()) @map("used_at") @db.Timestamptz(6)
+
+  @@id([partner, nonce])
+  @@index([usedAt], map: "partner_handoff_nonces_used_idx")
+  @@map("partner_handoff_nonces")
+}
+
+/// Marketplace M13b (F10) — a single-use payment link the partner app pays.
+model CheckoutToken {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tokenHash       String      @unique @map("token_hash") @db.Text
+  shopperId       String      @map("shopper_id") @db.Uuid
+  storeId         String      @map("store_id") @db.Uuid
+  partner         String      @db.Text
+  addressId       String      @map("address_id") @db.Uuid
+  fulfilment      String      @db.Text
+  cartFingerprint String      @map("cart_fingerprint") @db.Text
+  amountIqd       Int         @map("amount_iqd")
+  status          String      @default("issued") @db.Text
+  refusal         String?     @db.Text
+  orderId         String?     @unique @map("order_id") @db.Uuid
+  expiresAt       DateTime    @map("expires_at") @db.Timestamptz(6)
+  usedAt          DateTime?   @map("used_at") @db.Timestamptz(6)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper         Shopper     @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  store           Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order           StoreOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([shopperId, createdAt(sort: Desc)], map: "checkout_tokens_shopper_idx")
+  @@map("checkout_tokens")
 }

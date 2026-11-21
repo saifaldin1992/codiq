@@ -430,6 +430,9 @@ jobs:
       - name: Integration — marketplace M13a (card payment and instalments with test providers: signed notifications only, expiry cancels, refunds and plan adjustment follow the order)
         run: pnpm market:payments
 
+      - name: Integration — marketplace M13b (partner app: signed single-use sign-in, account link, payment links that pay once for exactly their cart)
+        run: pnpm market:partner
+
       - name: Guard — every implemented merchant menu entry has a screen
         run: pnpm screens:guard
 
@@ -1088,6 +1091,9 @@ jobs:
 
       - name: Browser — marketplace card payment and instalments (test gateway, lender code, owner payments)
         run: node --import tsx phase1-backend/tests/market-payments.browser-acceptance.mjs
+
+      - name: Browser — marketplace partner app (in from the partner, linked account, pay through a link)
+        run: node --import tsx phase1-backend/tests/market-partner.browser-acceptance.mjs
 
       - name: Security pass — the production build as an attacker meets it (https, files, headers, CORS, CSRF, cookies, errors, SQL, XSS, uploads, prices, admin, coupon guessing, hashing, database TLS)
         run: node --import tsx phase1-backend/tests/security-pass.acceptance.mjs

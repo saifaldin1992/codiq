@@ -12,6 +12,7 @@ import { refreshCart, type CartLine } from "../market-cart";
 import { iqd } from "../market-products";
 import { MarketSignIn } from "./MarketAccountPages";
 import { InstalmentChooser, type InstalmentOffer, type InstalmentPlan } from "../components/InstalmentChooser";
+import { PartnerPayButton, type PartnerLink } from "./MarketPartnerPages";
 
 type Address = { id: string; label: string; recipientName: string; phone: string; governorate: { name: string }; district: { name: string }; addressLine: string; isDefault: boolean };
 type Summary = {
@@ -53,7 +54,9 @@ export function MarketCheckoutPage() {
   const [key, setKey] = useState(newKey);
   const [plan, setPlan] = useState<InstalmentPlan | null>(null);
   const [planCode, setPlanCode] = useState("");
+  const [partner, setPartner] = useState<PartnerLink>(null);
 
+  useEffect(() => { if (shopper) void accountCall<{ partner: PartnerLink }>("/api/market/me/partner").then((body) => setPartner(body.partner)).catch(() => setPartner(null)); }, [shopper]);
   useEffect(() => {
     if (!shopper) return;
     accountCall<{ addresses: Address[] }>("/api/market/me/addresses").then((body) => { setAddresses(body.addresses); setAddressId((current) => current ?? body.addresses.find((row) => row.isDefault)?.id ?? body.addresses[0]?.id ?? null); }).catch((error: Error) => setFailure(error.message));
@@ -98,7 +101,7 @@ export function MarketCheckoutPage() {
     }
   };
 
-  const canPlace = summary?.ready && summary.delivery.available && addressId && !placing && (payment !== "market_instalments" || (plan && planCode.length === 6));
+  const canPlace = summary?.ready && summary.delivery.available && addressId && !placing && payment !== "market_partner" && (payment !== "market_instalments" || (plan && planCode.length === 6));
   return (
     <div className="space-y-4" data-testid="market-checkout">
       <Link href="/cart" className="text-xs font-bold text-[var(--codiq-accent)]">← السلة</Link>
@@ -146,6 +149,8 @@ export function MarketCheckoutPage() {
         ))}
         {summary?.online.card ? <label className="flex items-center gap-2 text-sm text-[var(--codiq-text)]"><input type="radio" name="payment" checked={payment === "market_card"} onChange={() => setPayment("market_card")} data-testid="market-checkout-pay-card" /> بطاقة إلكترونيّة <span className="text-[11px] text-[var(--codiq-text-muted)]">({summary.online.card.name})</span></label> : null}
         {summary?.online.instalments ? <label className="flex items-center gap-2 text-sm text-[var(--codiq-text)]"><input type="radio" name="payment" checked={payment === "market_instalments"} onChange={() => setPayment("market_instalments")} data-testid="market-checkout-pay-instalments" /> أقساط شهريّة</label> : null}
+        {partner?.linked ? <label className="flex items-center gap-2 text-sm text-[var(--codiq-text)]"><input type="radio" name="payment" checked={payment === "market_partner"} onChange={() => setPayment("market_partner")} data-testid="market-checkout-pay-partner" /> عبر {partner.name}</label> : null}
+        {payment === "market_partner" && partner?.linked ? <PartnerPayButton slug={slug} addressId={addressId} fulfilment={fulfilment} partnerName={partner.name} /> : null}
         {payment === "market_instalments" && summary?.online.instalments ? (
           <InstalmentChooser slug={slug} offer={summary.online.instalments} plan={plan} onPlan={setPlan} code={planCode} onCode={setPlanCode}
             request={{ addressId, fulfilment, couponCode: summary.coupon && "code" in summary.coupon ? summary.coupon.code : null, platformCouponWalletId: summary.platformCoupon?.walletId ?? null }} />

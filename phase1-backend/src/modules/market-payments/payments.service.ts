@@ -220,6 +220,14 @@ export async function onOrderStatusChanged(payload: { orderId: string; to: strin
   if (!["cancelled", "rejected", "returned"].includes(payload.to)) return;
   const payment = await prisma.marketPayment.findUnique({ where: { orderId: payload.orderId } });
   if (!payment) return;
+  if (payment.method === "partner") {
+    // M13b: the partner holds the money; it is told to give it back (its refund API lands with the contract).
+    if (payment.status !== "paid") return;
+    await prisma.marketPayment.update({ where: { id: payment.id }, data: { status: "refunded", refundedIqd: payment.amountIqd } });
+    await event(payment.id, "refund_requested", { amountIqd: payment.amountIqd, detail: { reason: payload.to } });
+    await prisma.storeOrder.update({ where: { id: payload.orderId }, data: { paymentStatus: "refunded" } });
+    return;
+  }
   if (payment.method === "card") {
     if (payment.status === "paid") await refundCard(payment.id, payload.to === "returned" ? "أُرجع الطلب." : "أُلغي الطلب.");
     else if (payment.status === "pending" || payment.status === "failed") await prisma.marketPayment.update({ where: { id: payment.id }, data: { status: "cancelled" } });

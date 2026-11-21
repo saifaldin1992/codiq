@@ -170,6 +170,18 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
     requiredInDeployment: false,
   },
   {
+    // Marketplace M13b. Optional: the partner app (sign-in from it, payment links it pays).
+    // The shared secret signs both directions; short is forgeable.
+    key: "partnerApp",
+    consequence: "لا دخول من التطبيق الشريك ولا روابط دفع منه.",
+    required: ["CODIQ_PARTNER_APP_SECRET"],
+    optional: ["CODIQ_PARTNER_APP_ID", "CODIQ_PARTNER_APP_NAME", "CODIQ_PARTNER_APP_PAY_URL"],
+    weakWhen: (env) => ((env.CODIQ_PARTNER_APP_SECRET?.trim().length ?? 0) < 32
+      ? { names: ["CODIQ_PARTNER_APP_SECRET"], consequence: "مفتاح التطبيق الشريك أقصر من ٣٢ حرفاً — يمكن تزوير دخول أو دفع." }
+      : null),
+    requiredInDeployment: false,
+  },
+  {
     // Marketplace M13a. Optional: without it the market pays in cash only. The
     // signing secret checks every provider notification; short is forgeable.
     key: "payments",

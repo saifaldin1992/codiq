@@ -773,7 +773,7 @@ function OrderDetail({ scope, mode, navigate }: { scope: Scope; mode: DetailMode
 }
 
 // ق-209: the method the shopper picked, named the way the payments screen names it.
-const PAYMENT_METHOD_LABEL: Record<string, string> = { cod: "الدفع عند الاستلام", zaincash: "زين كاش", asiahawala: "آسيا حوالة", fib: "FIB", cash: "نقداً (الكاشير)", legacy: "الدفع عند الاستلام", market_card: "بطاقة إلكترونيّة (السوق)", market_instalments: "أقساط (السوق) — التوصيل نقداً" };
+const PAYMENT_METHOD_LABEL: Record<string, string> = { cod: "الدفع عند الاستلام", zaincash: "زين كاش", asiahawala: "آسيا حوالة", fib: "FIB", cash: "نقداً (الكاشير)", legacy: "الدفع عند الاستلام", market_card: "بطاقة إلكترونيّة (السوق)", market_instalments: "أقساط (السوق) — التوصيل نقداً", market_partner: "التطبيق الشريك (مدفوع)" };
 
 export function OrderWorkspace({ scope, mode, navigate }: { scope: Scope; mode: Mode; navigate: (path: string) => void }) {
   if (scope.kind === "merchant" && !scope.storeSlug) return <Notice kind="error"><div className="flex items-center gap-2"><CircleAlert className="h-4 w-4" />اختر متجراً عبر مسار لوحة التاجر المقيد بـ`store-slug` قبل قراءة الطلبات.</div></Notice>;
