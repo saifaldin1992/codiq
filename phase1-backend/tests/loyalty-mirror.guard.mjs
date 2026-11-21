@@ -71,10 +71,12 @@ assert.deepEqual(
 // The screen must actually be reachable. A card nobody can open is the defect
 // this whole decision exists to close, and it would otherwise pass silently.
 const navigation = read("client/src/config/navigation.ts");
-// The merchant screens are mounted from the screen registry, not from MerchantDashboard.tsx itself.
-const dashboard = read("client/src/dashboard/merchant-screens.tsx");
+// Screens are mounted from the registry in `dashboard/merchant-screens.tsx`
+// (the module split moved them out of MerchantDashboard.tsx), so that is where
+// «mounted» is checked: the card must be the element its own route renders.
+const screens = read("client/src/dashboard/merchant-screens.tsx");
 assert.ok(navigation.includes("/merchant/dashboard/settings/loyalty"), "the loyalty screen must have a navigation entry — CD-5 shipped everything except one");
-assert.ok(dashboard.includes("LoyaltySettingsCard"), "…and the dashboard must actually mount it");
+assert.match(screens, /"\/merchant\/dashboard\/settings\/loyalty":[^\n]*<LoyaltySettingsCard\b/, "…and the dashboard must actually mount it, on that route");
 
 console.log(JSON.stringify({
   suite: "loyalty-mirror",

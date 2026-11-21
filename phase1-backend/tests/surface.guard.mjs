@@ -77,7 +77,7 @@
  *
  * Run: pnpm surface:guard
  */
-import { readdirSync, readFileSync, statSync, writeFileSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { routeFileLabel, routeSourceFiles } from "../source-layout.mjs";
@@ -238,7 +238,7 @@ const isExempt = (r) => exemptKeys.has(`/${r.canon.join("/")}`);
 const misses = routes.filter((r) => !reached.get(key(r)) && !isExempt(r));
 
 if (process.argv.includes("--write")) {
-  const previous = existsSync(LEGACY) ? JSON.parse(readFileSync(LEGACY, "utf8")) : {};
+  const previous = (() => { try { return JSON.parse(readFileSync(LEGACY, "utf8")); } catch (error) { if (error?.code === "ENOENT") return {}; throw error; } })();
   const seed = {};
   for (const r of misses) seed[key(r)] = previous[key(r)] ?? `registered in ${r.file} — no caller under client/src; build the screen, or say here why not`;
   writeFileSync(LEGACY, `${JSON.stringify(seed, null, 2)}\n`, "utf8");
@@ -246,7 +246,7 @@ if (process.argv.includes("--write")) {
   process.exit(0);
 }
 
-const legacy = existsSync(LEGACY) ? JSON.parse(readFileSync(LEGACY, "utf8")) : {};
+const legacy = (() => { try { return JSON.parse(readFileSync(LEGACY, "utf8")); } catch (error) { if (error?.code === "ENOENT") return {}; throw error; } })();
 const born = misses.filter((r) => !(key(r) in legacy));
 const stale = Object.keys(legacy).filter((k) => routes.some((r) => key(r) === k && reached.get(k)));
 const vanished = Object.keys(legacy).filter((k) => !routes.some((r) => key(r) === k));

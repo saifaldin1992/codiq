@@ -192,6 +192,31 @@ try {
   assert.equal((await request("/auth/sessions", { token: ownerToken })).status, 401);
   assert.equal((await request("/auth/sessions")).status, 401, "19-أ: no session, no list");
 
+  // ============================================================
+  // 8. The employee's and the shopper's lists are stamped too. Only the
+  //    merchant's, owner's and platform staff's paths stamped device and
+  //    last use, so every other list read «unknown device, never used».
+  // ============================================================
+  const { createTypedSession } = await import("../src/auth/identity.ts");
+  const employee = await prisma.staff.create({ data: { email: `${testId}.employee@codiq.test`, passwordHash: "unused", displayName: "موظف الجلسات" } });
+  const seat = await prisma.storeStaffMembership.create({ data: { staffId: employee.id, storeId: store.id, roleCode: "store_staff" } });
+  const employeeToken = await createTypedSession("staff", employee.id, store.id, seat.id);
+  assert.equal((await request(`/merchant/stores/${store.slug}/orders`, { token: employeeToken, agent: "Mozilla/5.0 EmployeeProbe" })).status, 200);
+  const shopper = await prisma.customer.create({ data: { storeId: store.id, fullName: "زبون الجلسات", phoneNormalized: `+9647${String(Date.now() + 9).slice(-9)}`, passwordHash: "unused" } });
+  const shopperToken = await createTypedSession("customer", shopper.id);
+  assert.equal((await request(`/store/${store.slug}/account/orders`, { token: shopperToken, agent: "Mozilla/5.0 ShopperProbe" })).status, 200);
+  const deviceOf = async (token) => {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const rows = (await request("/auth/sessions", { token })).payload.sessions;
+      const current = rows.find((row) => row.current);
+      if (current?.device) return current.device;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return null;
+  };
+  assert.match(await deviceOf(employeeToken) ?? "", /EmployeeProbe/, "an employee's session records the device he used");
+  assert.match(await deviceOf(shopperToken) ?? "", /ShopperProbe/, "…and so does a shopper's");
+
   summary.sessions = {
     listedDevices: listed.payload.sessions.map((row) => (row.device ?? "").split(" ").pop()).filter(Boolean),
     currentMarkedOnce: true,

@@ -16,7 +16,7 @@ import { MAX_DELIVERY_RATE_IQD } from "../src/services/delivery-rates.service.js
 import { prisma } from "../src/db/prisma.js";
 import { createApp } from "../src/http/app.js";
 import { assignMerchantSubscription } from "../src/services/entitlement.service.js";
-import { recordOrderReturn, RETURN_REVERSAL_WINDOW_DAYS } from "../src/services/finance.service.js";
+import { recordOrderCompletion, recordOrderReturn, RETURN_REVERSAL_WINDOW_DAYS } from "../src/services/finance.service.js";
 import { createStoreFoundation } from "../src/services/store-bootstrap.service.js";
 import { assertSafeTestDatabaseUrl } from "./helpers/test-database-guard.js";
 
@@ -366,7 +366,16 @@ try {
     await request(`/platform/merchants/${rejectId}/approval`, { method: "POST", headers: bearer(tokenOwner), body: JSON.stringify({ action: "reject" }) });
     const rejectedLogin = await request("/auth/merchant/login", { method: "POST", body: JSON.stringify({ identifier: "rejected.phase17@codiq.test", password: "rejected-phase17-pass" }) });
     assert.equal(rejectedLogin.status, 401, "a rejected merchant cannot sign in");
-    summary.registration = { auto: autoLogin.status, pendingBlocked: pendingLogin.status, approvedUnlocked: approvedLogin.status, rejectedBlocked: rejectedLogin.status };
+    // Two operators answering the same request at once: exactly one decision stands.
+    const racedRegister = await request("/public/merchants/register", { method: "POST", body: JSON.stringify({ ownerName: "صاحب المتجر", phone: "+9647100576405", businessName: "تاجر متنازع عليه", storeName: "متجر متنازع عليه", storeSlug: "phase17-raced-store", email: "raced.phase17@codiq.test", password: "raced-phase17-pass" }) });
+    assert.equal(racedRegister.status, 201, JSON.stringify(racedRegister.body));
+    const racedId = (await request("/platform/merchants/registration-requests", { headers: bearer(tokenOwner) })).body.requests[0].id;
+    const racedAnswers = await Promise.all(["approve", "reject", "approve", "reject"].map((action) => request(`/platform/merchants/${racedId}/approval`, { method: "POST", headers: bearer(tokenOwner), body: JSON.stringify({ action }) })));
+    assert.equal(racedAnswers.filter((answer) => answer.status === 200).length, 1, `exactly one of four racing decisions stands · ${racedAnswers.map((answer) => answer.status)}`);
+    assert.ok(racedAnswers.filter((answer) => answer.status !== 200).every((answer) => answer.body.error?.code === "ALREADY_DECIDED"), "…the rest are told it is decided");
+    const racedDecisions = await prisma.platformAuditEvent.count({ where: { entityType: "merchant", entityId: racedId, action: "registration_decided" } });
+    assert.equal(racedDecisions, 1, "…and the audit log holds one decision, not a contradiction");
+    summary.registration = { auto: autoLogin.status, pendingBlocked: pendingLogin.status, approvedUnlocked: approvedLogin.status, rejectedBlocked: rejectedLogin.status, racedDecisions };
   } finally {
     await request("/platform/settings/registration", { method: "PUT", headers: bearer(tokenOwner), body: JSON.stringify({ mode: "auto" }) });
   }
@@ -601,6 +610,67 @@ try {
   const foreignCursor = await request(`/merchant/stores/${storeSlug}/customers?cursor=${foreignCustomer.id}`, { headers: bearer(tokenMerchant) });
   assert.equal(foreignCursor.status, 404, "19-د: a cursor naming another store's row must be a plain 404, not a page positioned against it");
   summary.keysetCursor = { ...Object.fromEntries(Object.entries(cursorProbes).map(([name, probe]) => [name, probe.status])), emptyCursor: emptyCursor.status, foreignCursor: foreignCursor.status };
+
+  // =====================================================================
+  // EVERY LEDGER ENTRY IN EXACTLY ONE SETTLEMENT — the boundary and the race.
+  //
+  // Two ways an entry used to escape «paid exactly once», both permanent
+  // because settlements are immutable:
+  //   · the BOUNDARY: periods were summed `[from, to]` while the next period
+  //     must start at exactly `to`, so an entry stamped on that instant was in
+  //     both settlements — paid twice;
+  //   · the RACE: an entry stamped before a settlement's «now» but committed
+  //     after the settlement read the ledger was in neither settlement and not
+  //     in the wallet — paid never.
+  // =====================================================================
+  const settle = (periodFrom: string, periodTo: string) => request("/platform/finance/settlements", { method: "POST", headers: bearer(tokenOwner), body: JSON.stringify({ merchantId, periodFrom, periodTo }) });
+  const farFuture = () => new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  let ledgerOrders = 0;
+  const ledgerOrder = () => {
+    ledgerOrders += 1;
+    return prisma.storeOrder.create({ data: { storeId, orderNumber: `P17-LEDGER-${ledgerOrders}`, status: "completed", customerName: "زبون الحد", subtotalIqd: 5000, deliveryFeeIqd: 0, totalIqd: 5000, version: 1 } });
+  };
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // Clear whatever earlier sections left pending, so each figure below is exact.
+  const cleared = await settle(new Date((await walletNow()).period.from).toISOString(), farFuture());
+  assert.equal(cleared.status, 201, JSON.stringify(cleared.body));
+
+  // The boundary: an entry stamped EXACTLY where the next settlement closes.
+  await pause(20);
+  const boundaryAt = new Date();
+  await prisma.ledgerEntry.create({ data: { storeId, orderId: (await ledgerOrder()).id, entryType: "order_completed", subtotalIqd: 5000, deliveryFeeIqd: 0, commissionIqd: 0, commissionBps: 0, planCode: "free", createdAt: boundaryAt } });
+  await pause(20);
+  const upToBoundary = await settle(new Date(cleared.body.settlement.periodTo).toISOString(), boundaryAt.toISOString());
+  assert.equal(upToBoundary.status, 201, JSON.stringify(upToBoundary.body));
+  assert.equal(upToBoundary.body.settlement.subtotalIqd, 0, "a period is [from, to): an entry stamped ON `to` belongs to the NEXT period, not this one too");
+  assert.equal((await walletNow()).pending.subtotalIqd, 5000, "the entry on the boundary is still pending — owed, and on a screen");
+  const pastBoundary = await settle(boundaryAt.toISOString(), farFuture());
+  assert.equal(pastBoundary.status, 201, JSON.stringify(pastBoundary.body));
+  assert.equal(pastBoundary.body.settlement.subtotalIqd, 5000, "the next period pays the boundary entry — once in total, never twice");
+
+  // The race: a completion is mid-transaction (stamped, not committed) when the
+  // settlement runs. The settlement must wait for it and include it.
+  const raceOrder = await ledgerOrder();
+  let markStamped!: () => void;
+  const stamped = new Promise<void>((resolve) => { markStamped = resolve; });
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  const inFlight = prisma.$transaction(async (tx) => {
+    await recordOrderCompletion(tx, { storeId, orderId: raceOrder.id, subtotalIqd: 7000, deliveryFeeIqd: 0, loyaltyDiscountIqd: 0 });
+    markStamped();
+    await released;
+  }, { timeout: 30_000 });
+  await stamped;
+  const racing = settle(new Date(pastBoundary.body.settlement.periodTo).toISOString(), farFuture());
+  await pause(500); // long enough for the settlement to have read the ledger, had it not waited
+  release();
+  await inFlight;
+  const raced = await racing;
+  assert.equal(raced.status, 201, JSON.stringify(raced.body));
+  assert.equal(raced.body.settlement.subtotalIqd, 7000, "a settlement waits for a ledger entry already in flight — or that entry falls between two settlements and is paid never");
+  assert.equal((await walletNow()).pending.subtotalIqd, 0, "and once settled it is not pending as well");
+  summary.settlementBoundaryAndRace = { boundaryExcluded: upToBoundary.body.settlement.subtotalIqd, boundaryPaidNext: pastBoundary.body.settlement.subtotalIqd, racedIncluded: raced.body.settlement.subtotalIqd };
 
   console.log(JSON.stringify(summary, null, 2));
 } finally {

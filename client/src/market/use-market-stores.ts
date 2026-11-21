@@ -20,13 +20,13 @@ export function useMarketStores(url: string | null) {
   const generation = useRef(0);
 
   useEffect(() => {
-    if (!url) { setStores(null); return; }
+    if (!url) { setStores(null); setNextCursor(null); return; }
     const mine = ++generation.current;
     const controller = new AbortController();
     setStores(null);
-    setFailure(null);
+    setFailure(null); setNextCursor(null);
     marketGet<MarketStoresPage>(url, { signal: controller.signal })
-      .then((page) => { if (mine === generation.current) { setStores(page.stores); setNextCursor(page.nextCursor); } })
+      .then((page) => { if (mine === generation.current) { setStores(page.stores); setNextCursor(page.nextCursor ?? null); } })
       .catch((error: Error) => { if (mine === generation.current && error.name !== "AbortError") setFailure(error.message); });
     return () => controller.abort();
   }, [url]);

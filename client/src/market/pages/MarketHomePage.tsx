@@ -5,6 +5,7 @@
  * parallel; «شاهدته مؤخراً» and «مقترح لك» are built from this browser's own
  * history and stay hidden until there is one.
  */
+import { CurrentOrderStrip } from "./MarketOrdersPages";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Building2, ChevronLeft, Percent, ShoppingBag, Sparkles, Store, Truck, Wallet } from "lucide-react";
@@ -34,6 +35,7 @@ export function MarketHomePage() {
 
   return (
     <div className="space-y-6" data-testid="market-home">
+      <CurrentOrderStrip />
       {sections && !hasHero ? <Welcome /> : null}
       {failure ? <Welcome /> : null}
       {sections?.map((section) => {

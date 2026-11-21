@@ -10,6 +10,7 @@ import { parseOrThrow } from "../../http/validate.js";
 import { endCurrentSession } from "../../services/session.service.js";
 import { storeImageConstraints } from "../../services/product-image-storage.service.js";
 import { clearShopperCookie, requireShopper, setShopperCookie, shopperToken } from "./shopper-auth.js";
+import { storesBoughtFrom } from "../market-stores/directory.service.js";
 import {
   avatarBytes, createAddress, deleteAddress, deliveryQuote, listAddresses, removeAvatar, requestAddressPhoneCode, requestLoginCode, setAvatar, setDefaultAddress, shopperView,
   updateAddress, updateProfile, verifyLoginCode,
@@ -83,6 +84,13 @@ export function registerMarketAccountRoutes(app: Express) {
     // Private: the shopper's own picture, cached only by his own browser.
     response.setHeader("cache-control", "private, max-age=86400");
     response.status(200).contentType(avatar.contentType).send(avatar.bytes);
+  }));
+
+  // «اشتريت منها»: the stores this shopper completed an order from. Private — his own history.
+  app.get("/market/me/stores", asyncRoute(async (request, response) => {
+    const { shopper } = await requireShopper(request);
+    response.setHeader("cache-control", "private, no-store");
+    response.status(200).json(await storesBoughtFrom(shopper.id));
   }));
 
   // ── addresses ─────────────────────────────────────────────────────────────

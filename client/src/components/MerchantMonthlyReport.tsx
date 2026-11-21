@@ -31,7 +31,8 @@ type Report = {
 const money = new Intl.NumberFormat("ar-IQ");
 const monthName = (key: string) => new Intl.DateTimeFormat("ar-IQ", { year: "numeric", month: "long" }).format(new Date(`${key}-01T00:00:00Z`));
 const dayName = (value: string) => new Intl.DateTimeFormat("ar-IQ", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${value}T00:00:00Z`));
-const thisMonthKey = () => { const now = new Date(); return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`; };
+// The month in BAGHDAD (UTC+3, no daylight saving) — the server's report month.
+const thisMonthKey = () => { const now = new Date(Date.now() + 3 * 60 * 60 * 1000); return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`; };
 
 function Headline({ label, change, money: asMoney }: { label: string; change: Change; money?: boolean }) {
   const shown = asMoney ? `${money.format(change.value)} د.ع` : money.format(change.value);

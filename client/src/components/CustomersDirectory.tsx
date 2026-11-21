@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Ban, CircleAlert, LoaderCircle, RefreshCw, Search, UserRound, UserRoundCheck, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLatestRequest } from "@/hooks/useLatestRequest";
 
 type CustomerRow = {
   id: string;
@@ -53,8 +54,10 @@ export function CustomersDirectory({ storeSlug }: { storeSlug?: string }) {
   const [failure, setFailure] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  const beginRequest = useLatestRequest();
   const load = useCallback(async (cursor?: string) => {
     if (!storeSlug) return;
+    const isCurrent = beginRequest();
     if (cursor) setLoadingMore(true);
     try {
       const params = new URLSearchParams({ limit: "25" });
@@ -62,16 +65,18 @@ export function CustomersDirectory({ storeSlug }: { storeSlug?: string }) {
       if (appliedSearch.trim()) params.set("q", appliedSearch.trim());
       if (cursor) params.set("cursor", cursor);
       const result = await api<{ customers: CustomerRow[]; nextCursor: string | null }>(`/api/merchant/stores/${encodeURIComponent(storeSlug)}/customers?${params.toString()}`);
+      if (!isCurrent()) return;
       setCustomers((current) => (cursor ? [...(current ?? []), ...result.customers] : result.customers));
       setNextCursor(result.nextCursor);
       setFailure(null);
     } catch (error) {
+      if (!isCurrent()) return;
       setFailure(error instanceof Error ? error.message : "تعذر تحميل العملاء.");
       if (!cursor) setCustomers(null);
     } finally {
       setLoadingMore(false);
     }
-  }, [storeSlug, segment, appliedSearch]);
+  }, [beginRequest, storeSlug, segment, appliedSearch]);
   useEffect(() => { void load(); }, [load]);
 
   if (!storeSlug) {

@@ -6,9 +6,10 @@
  * the browser's Back does what he expects.
  */
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useParams } from "wouter";
+import { Link, useLocation, useParams, useSearch } from "wouter";
 import { ArrowRight, ChevronLeft, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLatestRequest } from "@/hooks/useLatestRequest";
 import { useStorefront } from "@/components/StorefrontProvider";
 import { ProductCard } from "@/components/ProductCard";
 import { EmptyState, ErrorState, LoadingState } from "@/components/StorefrontStates";
@@ -24,10 +25,14 @@ function readSort(raw: string | null): ProductSort {
 
 export default function StorefrontCatalogPage() {
   const { storeSlug, categoryId: routeCategoryId } = useParams<{ storeSlug: string; categoryId?: string }>();
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
   const { categories, setCart, setNotice } = useStorefront();
-  // The URL is the state. Re-read on every navigation; wouter re-renders on push.
-  const params = useMemo(() => new URLSearchParams(typeof window !== "undefined" ? window.location.search : ""), [location]);
+  // The URL is the state, read through `useSearch()`. wouter's `location` is the
+  // PATH only, so a memo keyed on it never saw `?q=…` or `?sort=…` change: a
+  // search or a sort typed on this page navigated, the address bar changed, and
+  // the products did not — the filters only worked on a fresh page load.
+  const search = useSearch();
+  const params = useMemo(() => new URLSearchParams(search), [search]);
   const query = params.get("q")?.trim() ?? "";
   const sort = readSort(params.get("sort"));
   const categoryId = routeCategoryId ?? params.get("categoryId") ?? "";
@@ -48,16 +53,19 @@ export default function StorefrontCatalogPage() {
     return categoryId ? find(tree) : tree;
   }, [tree, categoryId]);
 
+  const beginRequest = useLatestRequest();
   const load = useCallback(async (next?: string | null, append = false) => {
+    const isCurrent = beginRequest();
     try {
       append ? setMoreLoading(true) : setLoading(true);
       setError(null);
       const data = await storefrontApi.listProducts(storeSlug, { categoryId: categoryId || undefined, query: query || undefined, sort }, next);
+      if (!isCurrent()) return;
       setProducts((previous) => append ? [...previous, ...data.products.filter((product) => !previous.some((item) => item.id === product.id))] : data.products);
       setCursor(data.nextCursor);
-    } catch (caught) { setError(errorMessage(caught)); }
-    finally { setLoading(false); setMoreLoading(false); }
-  }, [storeSlug, categoryId, query, sort]);
+    } catch (caught) { if (isCurrent()) setError(errorMessage(caught)); }
+    finally { if (isCurrent()) { setLoading(false); setMoreLoading(false); } }
+  }, [beginRequest, storeSlug, categoryId, query, sort]);
   useEffect(() => { void load(); }, [load]);
 
   function go(next: { q?: string; sort?: ProductSort; categoryId?: string }) {

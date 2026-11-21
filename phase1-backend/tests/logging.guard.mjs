@@ -304,7 +304,9 @@ restoreSink();
 // only honest way to assert the default: a separate process.
 {
   const loggerUrl = pathToFileURL(path.join(repoRoot, "phase1-backend", "src", "logging", "logger.ts")).href;
-  const script = path.join(os.tmpdir(), `codiq-log-volume-${process.pid}.mjs`);
+  // A private directory (mkdtemp, mode 0700) rather than a guessable name in the shared temp dir.
+  const scriptDir = fs.mkdtempSync(path.join(os.tmpdir(), "codiq-log-volume-"));
+  const script = path.join(scriptDir, "probe.mjs");
   fs.writeFileSync(
     script,
     `const { logger } = await import(${JSON.stringify(loggerUrl)});\n` +
@@ -325,7 +327,7 @@ restoreSink();
     const events = emitted.map(assertShape);
     assert.deepEqual(events.map((event) => event.level), ["info", "error"]);
   } finally {
-    fs.rmSync(script, { force: true });
+    fs.rmSync(scriptDir, { recursive: true, force: true });
   }
 }
 

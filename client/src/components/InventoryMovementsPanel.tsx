@@ -8,6 +8,7 @@
  * product it belonged to is gone.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useLatestRequest } from "@/hooks/useLatestRequest";
 import { ArrowDownRight, ArrowUpRight, CircleAlert, History, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -50,7 +51,9 @@ export function InventoryMovementsPanel({ storeSlug, products }: {
   const [failure, setFailure] = useState<string | null>(null);
   const base = `/api/merchant/stores/${encodeURIComponent(storeSlug)}/inventory/movements`;
 
+  const beginRequest = useLatestRequest();
   const loadPage = useCallback(async (after: string | null, filter: string) => {
+    const isCurrent = beginRequest();
     setBusy(true);
     setFailure(null);
     try {
@@ -58,14 +61,16 @@ export function InventoryMovementsPanel({ storeSlug, products }: {
       if (filter) query.set("productId", filter);
       if (after) query.set("cursor", after);
       const result = await api<{ movements: Movement[]; nextCursor: string | null }>(`${base}?${query.toString()}`);
+      if (!isCurrent()) return;
       setRows((previous) => (after ? (previous ?? []).concat(result.movements) : result.movements));
       setCursor(result.nextCursor);
     } catch (error) {
+      if (!isCurrent()) return;
       setFailure(error instanceof ApiError ? error.message : "تعذر تحميل حركة المخزون.");
     } finally {
-      setBusy(false);
+      if (isCurrent()) setBusy(false);
     }
-  }, [base]);
+  }, [base, beginRequest]);
 
   useEffect(() => { void loadPage(null, productId); }, [loadPage, productId]);
 

@@ -139,6 +139,10 @@ try {
     const listed = await request(`/platform/market/stores/${store.id}/decision`, { method: "PUT", token: ownerToken, body: { decision: "list" } });
     assert.equal(listed.status, 200, JSON.stringify(listed.payload));
   }
+  // Every decision is in the platform audit log, with who made it and the reason.
+  const listingAudit = await prisma.platformAuditEvent.findMany({ where: { entityType: "store", entityId: a.id, action: "store_status_changed" }, orderBy: { createdAt: "asc" } });
+  assert.ok(listingAudit.some((event) => event.metadata.scope === "market_listing" && event.metadata.decision === "reject" && event.metadata.before === "pending" && event.metadata.note === "أضف صورة غلاف واضحة" && event.actorKind === "platform_owner"), "a market rejection is audited with its reason and its actor");
+  assert.equal(listingAudit.filter((event) => event.metadata.scope === "market_listing" && event.metadata.decision === "delist").length, 0, "a refused decision (409) leaves no audit row");
   summary.ownerDecisions = true;
 
   // ── 4. the reputation job ────────────────────────────────────────────────
@@ -214,6 +218,11 @@ try {
   assert.deepEqual(await bySort("recommended", "&brand=1"), [c.slug], "brand filter");
   assert.equal((await request(`/platform/market/stores/${c.id}/flags`, { method: "PUT", token: ownerToken, body: { boostedUntil: null } })).status, 200);
   assert.equal((await bySort("recommended"))[0], b.slug, "and back when the boost ends");
+  const flagAudit = await prisma.platformAuditEvent.findMany({ where: { entityType: "store", entityId: c.id, action: "setting_changed" }, orderBy: { createdAt: "asc" } });
+  const flagChanges = flagAudit.filter((event) => event.metadata.setting === "market_flags");
+  assert.equal(flagChanges.length, 2, "each change to a store's market marks is audited");
+  assert.equal(flagChanges[0].metadata.after.isBrand, true);
+  assert.equal(flagChanges[1].metadata.before.boostedUntil !== null && flagChanges[1].metadata.after.boostedUntil === null, true, "…with the boost before and after");
   summary.directory = true;
 
   // ── 5. the store page ────────────────────────────────────────────────────

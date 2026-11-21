@@ -48,7 +48,7 @@ function client() {
         body: body ? JSON.stringify(body) : undefined,
       });
       for (const line of response.headers.getSetCookie?.() ?? []) { const [pair] = line.split(";"); const eq = pair.indexOf("="); jar.set(pair.slice(0, eq).trim(), pair.slice(eq + 1)); }
-      return { status: response.status, payload: await response.json().catch(() => null) };
+      return { status: response.status, headers: response.headers, payload: await response.json().catch(() => null) };
     },
   };
 }
@@ -199,6 +199,143 @@ try {
   assert.equal((await stranger.shopper.request(`/market/orders/${order.id}`)).status, 404, "another shopper's order is a 404");
   assert.deepEqual((await stranger.shopper.request("/market/orders")).payload.orders, []);
   summary.orders = true;
+
+  // ── 8. «اشتريت منها» ─────────────────────────────────────────────────────
+  // Only a COMPLETED order makes a store «bought from»; open ones do not.
+  assert.deepEqual((await shopper.request("/market/me/stores")).payload.stores, [], "no completed order yet, no store");
+  await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "completed" } });
+  const bought = await shopper.request("/market/me/stores");
+  assert.equal(bought.status, 200);
+  assert.deepEqual(bought.payload.stores.map((store) => store.slug), [A.slug], "the store with a completed order, and only it");
+  assert.match(bought.headers.get("cache-control") ?? "", /private/, "a shopper's own history is never cached publicly");
+  assert.deepEqual((await stranger.shopper.request("/market/me/stores")).payload.stores, [], "another shopper's purchases are not his");
+  assert.equal((await client().request("/market/me/stores")).status, 401);
+  summary.boughtFrom = true;
+
+  // ── 9. M6 «إلغاء الطلب» ──────────────────────────────────────────────────
+  await shopper.request("/market/cart/items", { method: "POST", body: { productId: a1.id, quantity: 1 } });
+  const toCancel = (await shopper.request(`/market/checkout/${A.slug}`, { method: "POST", body: { addressId: home.id }, headers: { "idempotency-key": key("to-cancel") } })).payload.order;
+  assert.ok(toCancel?.id, "an order to call off");
+  const offered = (await shopper.request(`/market/orders/${toCancel.id}`)).payload;
+  assert.equal(offered.order.cancellable, true, "a new order can be cancelled");
+  assert.ok(offered.cancelReasons.some((reason) => reason.code === "other"), "…with reasons to choose from");
+  assert.equal((await prisma.inventoryReservation.count({ where: { orderId: toCancel.id, status: "active" } })) > 0, true, "the order holds stock");
+  assert.equal((await stranger.shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "changed_mind" } })).status, 404, "another shopper cannot cancel it");
+  assert.equal((await shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "because" } })).status, 422, "a reason off the list is refused");
+  assert.equal((await shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "other" } })).payload.error.code, "CANCELLATION_NOTE_REQUIRED", "«سبب آخر» needs words");
+  assert.equal((await shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "changed_mind" }, headers: { origin: "https://evil.example" } })).status, 403, "origin-checked");
+  const cancelled = await shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "delivery_too_long", note: "أحتاجه اليوم" } });
+  assert.equal(cancelled.status, 200, JSON.stringify(cancelled.payload));
+  assert.equal(cancelled.payload.order.status, "cancelled");
+  const cancelEvent = await prisma.orderStatusEvent.findFirst({ where: { orderId: toCancel.id, toStatus: "cancelled" } });
+  assert.equal(cancelEvent.note, "سبب الإلغاء: مدّة التوصيل طويلة — أحتاجه اليوم", "the merchant reads the reason on the order");
+  assert.equal(cancelEvent.actorKind, "customer", "…as the customer's own move");
+  assert.equal(await prisma.inventoryReservation.count({ where: { orderId: toCancel.id, status: "active" } }), 0, "the stock is released — the store's own transition ran");
+  assert.equal((await shopper.request(`/market/orders/${toCancel.id}/cancel`, { method: "POST", body: { reasonCode: "changed_mind" } })).payload.error.code, "ORDER_NOT_CANCELLABLE", "a cancelled order cannot be cancelled again");
+  assert.equal((await shopper.request(`/market/orders/${toCancel.id}`)).payload.order.cancellable, false);
+  // Past «new» the store has started: the shopper is sent to the store instead.
+  await prisma.storeOrder.update({ where: { id: bOrder.id }, data: { status: "processing" } });
+  const late = await shopper.request(`/market/orders/${bOrder.id}/cancel`, { method: "POST", body: { reasonCode: "changed_mind" } });
+  assert.equal(late.status, 409);
+  assert.equal(late.payload.error.code, "ORDER_NOT_CANCELLABLE");
+  assert.deepEqual((await shopper.request(`/market/orders/${bOrder.id}`)).payload.cancelReasons, [], "no reasons are offered once the store has started");
+  summary.cancel = true;
+
+  // ── 10. M6 «قيّم طلبك» ───────────────────────────────────────────────────
+  // `order` (store A, delivery) was completed in section 8.
+  const rateUrl = `/market/orders/${order.id}/rating`;
+  assert.equal((await shopper.request(`/market/orders/${toCancel.id}/rating`, { method: "PUT", body: { tags: ["fast_delivery"] } })).payload.error.code, "ORDER_NOT_RATEABLE", "only a completed order is rated");
+  const before = (await shopper.request(`/market/orders/${order.id}`)).payload;
+  assert.equal(before.order.rateable, true);
+  assert.equal(before.order.rating, null, "not rated yet");
+  assert.ok(before.ratingTags.some((tag) => tag.code === "great_service"), "the tags to choose from");
+  assert.ok((await shopper.request("/market/me/ratings/pending")).payload.orders.some((row) => row.id === order.id), "«بانتظار تقييمك» lists it");
+  assert.equal((await stranger.shopper.request(rateUrl, { method: "PUT", body: { tags: ["fast_delivery"] } })).status, 404, "another shopper cannot rate it");
+  assert.equal((await shopper.request(rateUrl, { method: "PUT", body: {} })).payload.error.code, "EMPTY_RATING");
+  assert.equal((await shopper.request(rateUrl, { method: "PUT", body: { tags: ["lovely"] } })).status, 422, "a tag off the list is refused");
+  assert.equal((await shopper.request(rateUrl, { method: "PUT", body: { products: [{ productId: b1.id, rating: 5 }] } })).payload.error.code, "PRODUCT_NOT_IN_ORDER");
+  assert.equal((await shopper.request(rateUrl, { method: "PUT", body: { deliveryRating: 6 } })).status, 422, "stars are one to five");
+  const rated = await shopper.request(rateUrl, { method: "PUT", body: { products: [{ productId: a1.id, rating: 4, comment: "رائحة جميلة" }], deliveryRating: 5, tags: ["fast_delivery", "as_described"], note: "شكراً" } });
+  assert.equal(rated.status, 200, JSON.stringify(rated.payload));
+  assert.deepEqual(rated.payload.rating.tags.map((tag) => tag.code), ["fast_delivery", "as_described"]);
+  const review = await prisma.productReview.findFirst({ where: { productId: a1.id, customerId: order.customerId, withdrawnAt: null } });
+  assert.equal(review.rating, 4, "the product's stars are a verified-buyer review of the store");
+  assert.equal(review.orderId, order.id);
+  assert.equal(review.body, "رائحة جميلة");
+  assert.ok(!(await shopper.request("/market/me/ratings/pending")).payload.orders.some((row) => row.id === order.id), "…and leaves «بانتظار تقييمك»");
+  // Revised: still one review, now two stars; the comment kept when none is sent.
+  await shopper.request(rateUrl, { method: "PUT", body: { products: [{ productId: a1.id, rating: 2 }], deliveryRating: 3, tags: ["late_delivery"] } });
+  const reviews = await prisma.productReview.findMany({ where: { productId: a1.id, customerId: order.customerId, withdrawnAt: null } });
+  assert.deepEqual(reviews.map((row) => [row.rating, row.body]), [[2, "رائحة جميلة"]], "one review per product, revised in place");
+  assert.equal(await prisma.orderRating.count({ where: { orderId: order.id } }), 1);
+  const mine = (await shopper.request("/market/me/ratings")).payload;
+  assert.deepEqual(mine.ratings.map((row) => [row.order.id, row.deliveryRating, row.tags.map((tag) => tag.code)]), [[order.id, 3, ["late_delivery"]]], "«تقييماتي»");
+  assert.deepEqual((await stranger.shopper.request("/market/me/ratings")).payload.ratings, []);
+  // A pick-up has no delivery to rate.
+  await prisma.storeOrder.update({ where: { id: pickupOrder.id }, data: { status: "completed" } });
+  assert.equal((await shopper.request(`/market/orders/${pickupOrder.id}/rating`, { method: "PUT", body: { deliveryRating: 5 } })).payload.error.code, "NO_DELIVERY_TO_RATE");
+  assert.equal((await shopper.request(`/market/orders/${pickupOrder.id}/rating`, { method: "PUT", body: { tags: ["great_service"] } })).status, 200, "…its service can still be rated");
+  // The database holds the list too: a tag the code does not know cannot be written past it.
+  await assert.rejects(prisma.orderRating.update({ where: { orderId: order.id }, data: { tags: ["lovely"] } }), "order_ratings_known_tags");
+  summary.rating = true;
+
+  // ── 11. M6 «رمز الاستلام» ────────────────────────────────────────────────
+  await shopper.request("/market/cart/items", { method: "POST", body: { productId: a1.id, quantity: 1 } });
+  const collect = (await shopper.request(`/market/checkout/${A.slug}`, { method: "POST", body: { addressId: home.id, fulfilment: "pickup" }, headers: { "idempotency-key": key("collect") } })).payload.order;
+  assert.equal((await shopper.request(`/market/orders/${collect.id}`)).payload.order.pickupCode, null, "no code before the order is ready");
+  const asMerchantPost = async (path, body) => {
+    const response = await fetch(`${base}/merchant/stores/${A.slug}/orders/${path}`, { method: "POST", headers: { authorization: `Bearer ${merchantToken}`, "content-type": "application/json", origin: base }, body: JSON.stringify(body) });
+    return { status: response.status, payload: await response.json() };
+  };
+  for (const toStatus of ["processing", "preparation", "out_for_delivery"]) {
+    const { version } = await prisma.storeOrder.findUniqueOrThrow({ where: { id: collect.id }, select: { version: true } });
+    assert.equal((await asMerchantPost(`${collect.id}/status`, { toStatus, expectedVersion: version })).status, 200, toStatus);
+  }
+  const ready = (await shopper.request(`/market/orders/${collect.id}`)).payload.order;
+  assert.match(ready.pickupCode ?? "", /^\d{6}$/, "a ready pick-up shows six digits");
+  assert.equal(ready.statusLabel, "جاهز للاستلام");
+  assert.equal((await shopper.request("/market/orders?limit=50")).payload.orders.find((row) => row.id === collect.id).statusLabel, "جاهز للاستلام", "…in «طلباتي» too");
+  const wrong = String((Number(ready.pickupCode) + 1) % 1_000_000).padStart(6, "0");
+  assert.equal((await asMerchantPost(`${collect.id}/pickup-confirm`, { code: "12ab" })).status, 422, "six digits");
+  assert.equal((await asMerchantPost(`${collect.id}/pickup-confirm`, { code: wrong })).payload.error.code, "WRONG_PICKUP_CODE");
+  assert.equal((await prisma.storeOrder.findUniqueOrThrow({ where: { id: collect.id } })).status, "out_for_delivery", "a wrong code changes nothing");
+  assert.equal((await asMerchantPost(`${order.id}/pickup-confirm`, { code: ready.pickupCode })).payload.error.code, "NOT_A_PICKUP_ORDER", "a delivery order has no pick-up code");
+  const confirmedPickup = await asMerchantPost(`${collect.id}/pickup-confirm`, { code: ready.pickupCode });
+  assert.equal(confirmedPickup.status, 200, JSON.stringify(confirmedPickup.payload));
+  assert.equal(confirmedPickup.payload.order.status, "completed");
+  const handedOver = await prisma.orderStatusEvent.findFirst({ where: { orderId: collect.id, toStatus: "completed" } });
+  assert.match(handedOver.note, /رمز الاستلام/, "the history says how it was confirmed");
+  assert.equal((await shopper.request(`/market/orders/${collect.id}`)).payload.order.pickupCode, null, "a collected order shows no code");
+  assert.equal((await asMerchantPost(`${collect.id}/pickup-confirm`, { code: ready.pickupCode })).payload.error.code, "PICKUP_NOT_READY", "a second confirmation is refused");
+  summary.pickupCode = true;
+
+  // ── 12. M6 «طلباتي» tabs, «طلبك الحالي», and what each state means ────────
+  const tabIds = async (tab) => (await shopper.request(`/market/orders?limit=50${tab ? `&status=${tab}` : ""}`)).payload.orders.map((row) => row.id);
+  const allIds = await tabIds("");
+  const completedIds = await tabIds("completed");
+  const cancelledIds = await tabIds("cancelled");
+  const activeIds = await tabIds("active");
+  assert.ok(completedIds.includes(order.id) && completedIds.includes(collect.id), "«المكتملة»");
+  assert.ok(cancelledIds.includes(toCancel.id) && !cancelledIds.includes(order.id), "«الملغاة»");
+  assert.ok(activeIds.every((id) => !completedIds.includes(id) && !cancelledIds.includes(id)), "«الجارية» holds neither");
+  assert.equal(new Set([...activeIds, ...completedIds, ...cancelledIds]).size, allIds.length, "the three tabs partition «الكل»");
+  await shopper.request("/market/cart/items", { method: "POST", body: { productId: a3.id, quantity: 1 } });
+  const preordered = (await shopper.request(`/market/checkout/${A.slug}`, { method: "POST", body: { addressId: home.id }, headers: { "idempotency-key": key("preorder") } })).payload.order;
+  assert.ok(preordered?.id, "a pre-order placed");
+  const preorderIds = await tabIds("preorder");
+  assert.ok(preorderIds.includes(preordered.id), "«المسبقة» holds the pre-order");
+  for (const id of preorderIds) {
+    assert.ok(await prisma.orderItem.count({ where: { orderId: id, productId: a3.id } }), "…and only orders that hold a pre-order product");
+  }
+  assert.ok(!preorderIds.includes(collect.id));
+  assert.deepEqual(await tabIds("whatever"), await tabIds(""), "an unknown tab is «الكل»");
+  const current = (await shopper.request("/market/orders/current")).payload.order;
+  assert.equal(current.id, preordered.id, "«طلبك الحالي» is the newest open order");
+  assert.match(current.statusHint, /يمكنك إلغاؤه/, "…with what it means");
+  assert.equal((await stranger.shopper.request("/market/orders/current")).payload.order, null);
+  assert.equal((await client().request("/market/orders/current")).status, 401);
+  assert.match((await shopper.request(`/market/orders/${collect.id}`)).payload.order.statusHint, /من المتجر/, "a collected pick-up speaks of the store, not a courier");
+  summary.tabs = true;
 
   console.log(JSON.stringify({ suite: "market-cart", ok: true, summary }, null, 2));
 } finally {

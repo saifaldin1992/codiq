@@ -309,6 +309,9 @@ export async function requireStorefrontCustomer(request: Request) {
   const store = await resolveStorefrontStore(request.params.storeSlug);
   const customer = await prisma.customer.findFirst({ where: { id: claims.subjectId, storeId: store.id, isActive: true }, select: { id: true, storeId: true, fullName: true, email: true, phoneNormalized: true, isGuest: true } });
   if (!customer) throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This customer session does not belong to the requested store.");
+  // The shopper's session list reads the device and last use stamped here —
+  // the same fire-and-forget bookkeeping every dashboard identity gets.
+  touchSession(claims, request);
   return { claims, store, customer };
 }
 

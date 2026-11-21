@@ -38,6 +38,16 @@ export type QueueRecord = {
   totalIqd: number;
   changeDue: number;
   result: QueueResult | null;
+  /**
+   * WHO RANG IT — `"<kind>:<id>"` of the session that was signed in at the
+   * counter. The server attributes a sale to the session that SENDS it, so a
+   * sale queued offline by one cashier and flushed after the next one signed
+   * in used to be credited to the second — and the owner's price-deviation
+   * queue names the seller. A record is sent only under its own owner's
+   * session; anyone else's waits for them. Absent on records queued before
+   * this field existed, which keep the old behaviour.
+   */
+  ownerKey?: string | null;
 };
 
 /** revoked/gone halt everything for the CURRENT device; session pauses until re-login. */
@@ -52,6 +62,8 @@ export type QueueSnapshot = {
   flushing: boolean;
   offline: boolean;
   halt: QueueHalt;
+  /** Pending sales rung under ANOTHER signed-in user, waiting for them to sign in here. */
+  waitingForOthers: number;
 };
 
 export type ConfirmOutcome =
@@ -176,6 +188,8 @@ class TillQueue {
   private offline = false;
   private halt: QueueHalt = null;
   private activeDeviceId: string | null = null;
+  /** The signed-in user (`"<kind>:<id>"`); null until the till has learned it. */
+  private activeOwner: string | null = null;
   private backoffStep = 0;
   private timer: number | null = null;
   private snapshot: QueueSnapshot;
@@ -183,7 +197,7 @@ class TillQueue {
   constructor(slug: string) {
     this.slug = slug;
     this.url = `/api/merchant/stores/${encodeURIComponent(slug)}/pos/tickets`;
-    this.snapshot = { records: [], pending: 0, failed: 0, confirmed: 0, flushing: false, offline: false, halt: null };
+    this.snapshot = { records: [], pending: 0, failed: 0, confirmed: 0, flushing: false, offline: false, halt: null, waitingForOthers: 0 };
     if (typeof window !== "undefined") {
       window.addEventListener("online", () => {
         this.resetBackoff();
@@ -226,6 +240,25 @@ class TillQueue {
     this.triggerFlush();
   }
 
+  /** The signed-in user; a change re-runs the flush for that user's own sales. */
+  setActiveOwner(ownerKey: string | null): void {
+    if (this.activeOwner === ownerKey) return;
+    this.activeOwner = ownerKey;
+    this.emit();
+    this.triggerFlush();
+  }
+
+  /** Stamped on every record rung from now on. */
+  activeOwnerKey(): string | null {
+    return this.activeOwner;
+  }
+
+  /** A record goes out only under the session that rang it (legacy records: anyone's). */
+  private sendable(record: QueueRecord): boolean {
+    if (!record.ownerKey) return true;
+    return this.activeOwner !== null && record.ownerKey === this.activeOwner;
+  }
+
   /** Clears a revoked/gone halt after the cashier re-pairs («تحديث الأجهزة»). */
   resetHalt(): void {
     if (this.halt === null) return;
@@ -242,7 +275,7 @@ class TillQueue {
    */
   async confirmEnqueue(record: QueueRecord): Promise<ConfirmOutcome> {
     await this.init();
-    const otherPending = this.records.filter((entry) => entry.ticketId !== record.ticketId && entry.state === "pending").length;
+    const otherPending = this.records.filter((entry) => entry.ticketId !== record.ticketId && entry.state === "pending" && this.sendable(entry)).length;
     const saved = await this.enqueue(record);
     if (!saved) return { kind: "unsaved" };
 
@@ -353,6 +386,25 @@ class TillQueue {
       }
       await idbPut(this.db, "kv", value, "catalog");
     } catch { /* convenience */ }
+  }
+
+  /** The last signed-in user, so an OFFLINE reboot still knows whose sales it holds. */
+  async saveOwner(ownerKey: string): Promise<void> {
+    try {
+      await this.init();
+      if (this.db) await idbPut(this.db, "kv", ownerKey, "owner");
+    } catch { /* convenience */ }
+  }
+
+  async loadOwner(): Promise<string | null> {
+    try {
+      await this.init();
+      if (!this.db) return null;
+      const value = await idbGet(this.db, "kv", "owner");
+      return typeof value === "string" ? value : null;
+    } catch {
+      return null;
+    }
   }
 
   async saveDevice<D>(device: D): Promise<void> {
@@ -598,7 +650,7 @@ class TillQueue {
 
   private nextPending(): QueueRecord | null {
     for (const record of this.records) {
-      if (record.state === "pending") return record;
+      if (record.state === "pending" && this.sendable(record)) return record;
     }
     return null;
   }
@@ -611,7 +663,9 @@ class TillQueue {
     let pending = 0;
     let failed = 0;
     let confirmed = 0;
+    let waitingForOthers = 0;
     for (const record of this.records) {
+      if (record.state === "pending" && !this.sendable(record)) waitingForOthers += 1;
       if (record.state === "pending") pending += 1;
       else if (record.state === "failed") failed += 1;
       else confirmed += 1;
@@ -624,6 +678,7 @@ class TillQueue {
       flushing: this.flushing,
       offline: this.offline,
       halt: this.halt,
+      waitingForOthers,
     };
     for (const listener of this.listeners.slice()) listener();
   }

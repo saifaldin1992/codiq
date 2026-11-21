@@ -238,11 +238,18 @@ try {
 
   // ---------------------------------------------------------------- 10: returns
   // completed → returned is the EXISTING lifecycle edge; a POS sale must ride it.
+  const stockBeforeReturn = (await prisma.productVariant.findUniqueOrThrow({ where: { id: variant.id }, select: { stockQuantity: true } })).stockQuantity;
   const returned = await request(`/merchant/stores/${storeA.slug}/orders/${order.id}/status`, {
     method: "POST", token: tokenA,
     body: { toStatus: "returned", expectedVersion: 1 },
   });
   assert.equal(returned.status, 200, `ق-132: the return machinery accepts a POS sale untouched — ${JSON.stringify(returned.payload)}`);
+  // The goods are back at the counter, so they are back on the shelf — at once.
+  const stockAfterReturn = (await prisma.productVariant.findUniqueOrThrow({ where: { id: variant.id }, select: { stockQuantity: true } })).stockQuantity;
+  assert.equal(stockAfterReturn, stockBeforeReturn + 3, "a returned counter sale puts its 3 units straight back into stock");
+  const restoreMovement = await prisma.inventoryMovement.findFirstOrThrow({ where: { storeId: storeA.id, variantId: variant.id, reason: "pos_returned_restored" } });
+  assert.equal(restoreMovement.delta, 3, "…with a movement that says why");
+  summary.posReturns = { restored: 3 };
   // Ledger stays empty even after the return: there was no completion entry to
   // reverse, and a reversal row here would subtract from revenue the ledger
   // never added (the exact trap the sign guard documents).
@@ -501,6 +508,94 @@ try {
   const queueStockAfter = (await prisma.productVariant.findUniqueOrThrow({ where: { id: queueVariant.id }, select: { stockQuantity: true } })).stockQuantity;
   assert.equal(queueStockAfter, 0, "clamped at zero — both sales accepted, the truth recorded");
   summary.arrivalOrder = { firstShortfalls: 0, secondShortfalls: 1, rule: "FIFO attribution" };
+
+  // ------------------------------------------------- 15: price deviations
+  // The till's price is accepted as sent — and set beside the catalog's, for
+  // the owner. A line under the catalog, a line over it, and a ticket discount
+  // each leave one row; a line at the catalog price leaves none; the sale is
+  // never refused for any of it.
+  const deviationProduct = await prisma.product.create({ data: { storeId: storeA.id, sku: "POS-DEVIATE", name: "صنف الانحراف", priceIqd: 4000, isActive: true } });
+  const deviationVariant = await prisma.productVariant.findFirstOrThrow({ where: { productId: deviationProduct.id, isDefault: true } });
+  await prisma.productVariant.update({ where: { id: deviationVariant.id }, data: { stockQuantity: 50, lowStockThreshold: 0 } });
+  const deviationTicketId = randomUUID();
+  const deviationBody = {
+    deviceId: device2.id, ticketId: deviationTicketId,
+    lines: [
+      { variantId: deviationVariant.id, quantity: 2, unitPriceIqd: 0 },
+      { variantId: deviationVariant.id, quantity: 1, unitPriceIqd: 4000 },
+      { variantId: deviationVariant.id, quantity: 1, unitPriceIqd: 4500 },
+    ],
+    discountIqd: 500, totalIqd: 8000, deviceReportedAt: new Date().toISOString(),
+  };
+  const deviated = await request(`${posBase}/tickets`, { method: "POST", token: tokenA, body: deviationBody });
+  assert.equal(deviated.status, 201, `a price the catalog disagrees with is still a sale · ${JSON.stringify(deviated.payload)}`);
+  const deviationTicket = await prisma.posTicket.findFirstOrThrow({ where: { storeId: storeA.id, deviceId: device2.id, ticketId: deviationTicketId }, select: { id: true } });
+  const deviationRows = await prisma.posPriceDeviation.findMany({ where: { posTicketId: deviationTicket.id }, orderBy: { kind: "asc" }, select: { kind: true, quantity: true, soldUnitPriceIqd: true, catalogUnitPriceIqd: true, amountIqd: true } });
+  assert.deepEqual(deviationRows, [
+    { kind: "price_above_catalog", quantity: 1, soldUnitPriceIqd: 4500, catalogUnitPriceIqd: 4000, amountIqd: 500 },
+    { kind: "price_below_catalog", quantity: 2, soldUnitPriceIqd: 0, catalogUnitPriceIqd: 4000, amountIqd: 8000 },
+    { kind: "ticket_discount", quantity: 1, soldUnitPriceIqd: 8000, catalogUnitPriceIqd: 8500, amountIqd: 500 },
+  ], "one row per deviating line and one for the discount; the line at the catalog price leaves none");
+  // A replay is the same sale: it must not write the rows a second time.
+  const deviationReplay = await request(`${posBase}/tickets`, { method: "POST", token: tokenA, body: deviationBody });
+  assert.equal(deviationReplay.status, 200);
+  assert.equal(await prisma.posPriceDeviation.count({ where: { posTicketId: deviationTicket.id } }), 3, "a replay writes no second set");
+
+  const deviationQueue = await request(`${posBase}/price-deviations`, { token: tokenA });
+  assert.equal(deviationQueue.status, 200, JSON.stringify(deviationQueue.payload));
+  const belowRow = deviationQueue.payload.deviations.find((row) => row.kind === "price_below_catalog" && row.sku === "POS-DEVIATE");
+  assert.ok(belowRow, "the owner sees the line sold under the catalog");
+  assert.equal(belowRow.orderNumber, deviated.payload.order.orderNumber, "…with the receipt it came from");
+  assert.equal(belowRow.deviceLabel, "كاشير ٢");
+  assert.equal(belowRow.soldBy.kind, "merchant", "…and who rang it");
+  // The first sale of this suite carried a 1,000 discount: it is in the queue too.
+  assert.ok(deviationQueue.payload.deviations.some((row) => row.kind === "ticket_discount" && row.amountIqd === 1000), "every ticket discount is visible, not only today's");
+
+  // The queue is the OWNER's: a cashier holds `pos.sell` and `inventory.update`
+  // by default and must not be able to read or clear what he charged.
+  const cashier = await prisma.staff.create({ data: { email: `${testId}.cashier@codiq.test`, passwordHash: "unused", displayName: "كاشير المسائي" } });
+  const cashierMembership = await prisma.storeStaffMembership.create({ data: { staffId: cashier.id, storeId: storeA.id, roleCode: "store_staff" } });
+  const { createTypedSession } = await import("../src/auth/identity.ts");
+  const cashierToken = await createTypedSession("staff", cashier.id, storeA.id, cashierMembership.id);
+  const cashierSale = await request(`${posBase}/tickets`, {
+    method: "POST", token: cashierToken,
+    body: { deviceId: device2.id, ticketId: randomUUID(), lines: [{ variantId: deviationVariant.id, quantity: 1, unitPriceIqd: 1000 }], discountIqd: 0, totalIqd: 1000, deviceReportedAt: new Date().toISOString() },
+  });
+  assert.equal(cashierSale.status, 201, `the cashier can sell · ${JSON.stringify(cashierSale.payload)}`);
+  assert.equal((await request(`${posBase}/price-deviations`, { token: cashierToken })).status, 403, "a cashier cannot read the deviation queue");
+  assert.equal((await request(`${posBase}/price-deviations/${belowRow.id}/review`, { method: "POST", token: cashierToken })).status, 403, "…nor clear it");
+  const cashierRow = (await request(`${posBase}/price-deviations`, { token: tokenA })).payload.deviations.find((row) => row.orderNumber === cashierSale.payload.order.orderNumber);
+  assert.deepEqual(cashierRow?.soldBy, { kind: "staff", name: "كاشير المسائي" }, "the owner sees WHICH cashier rang the price, by name");
+
+  // Another store cannot see or clear it.
+  assert.equal((await request(`/merchant/stores/${storeB.slug}/pos/price-deviations/${belowRow.id}/review`, { method: "POST", token: tokenB })).status, 404, "a foreign store's deviation is a plain 404");
+  assert.equal((await request(`${posBase}/price-deviations/${belowRow.id}/review`, { method: "POST", token: tokenA })).status, 204);
+  assert.ok(!(await request(`${posBase}/price-deviations`, { token: tokenA })).payload.deviations.some((row) => row.id === belowRow.id), "reviewed leaves the open queue");
+  summary.priceDeviations = { rows: deviationRows.map((row) => row.kind), replayRows: 3, cashierRead: 403 };
+
+  // ------------------------------------------------- 16: an oversold sale returned
+  // An OVERSOLD sale took only what the shelf had (2 of 5, the rest a
+  // shortfall). Its return gives back those 2 — not 5, which would mint the
+  // 3-unit gap as stock nobody counted. Its own product, so the suite's later
+  // takings figures are untouched.
+  const returnProduct = await prisma.product.create({ data: { storeId: storeA.id, sku: "POS-RETURN", name: "صنف المرتجع", priceIqd: 1500, isActive: true } });
+  const returnVariant = await prisma.productVariant.findFirstOrThrow({ where: { productId: returnProduct.id, isDefault: true } });
+  await prisma.productVariant.update({ where: { id: returnVariant.id }, data: { stockQuantity: 2, lowStockThreshold: 0 } });
+  const returnTill = (await request(`${posBase}/devices`, { method: "POST", token: tokenA, body: { label: "كاشير المرتجعات" } })).payload.device;
+  const overReturnSale = await request(`${posBase}/tickets`, {
+    method: "POST", token: tokenA,
+    body: { deviceId: returnTill.id, ticketId: randomUUID(), lines: [{ variantId: returnVariant.id, quantity: 5, unitPriceIqd: 1500 }], discountIqd: 0, totalIqd: 7500, deviceReportedAt: new Date().toISOString() },
+  });
+  assert.equal(overReturnSale.status, 201, JSON.stringify(overReturnSale.payload));
+  assert.equal(overReturnSale.payload.shortfalls[0].shortfallQty, 3);
+  const oversellReturned = await request(`/merchant/stores/${storeA.slug}/orders/${overReturnSale.payload.order.id}/status`, {
+    method: "POST", token: tokenA,
+    body: { toStatus: "returned", expectedVersion: 1 },
+  });
+  assert.equal(oversellReturned.status, 200, JSON.stringify(oversellReturned.payload));
+  const stockAfterOversellReturn = (await prisma.productVariant.findUniqueOrThrow({ where: { id: returnVariant.id }, select: { stockQuantity: true } })).stockQuantity;
+  assert.equal(stockAfterOversellReturn, 2, "an oversold sale's return restores what it actually took (2), never the shortfall");
+  summary.posReturns = { ...summary.posReturns, oversoldRestored: 2 };
 
   console.log(JSON.stringify({ pos: summary }, null, 2));
   console.log("pos OK");

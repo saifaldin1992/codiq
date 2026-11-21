@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { parseDeliveryFields } from "./delivery.service.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
@@ -8,6 +9,7 @@ import { awardLoyaltyPoints, reverseLoyaltyForReturn } from "./loyalty.service.j
 import { enqueueCourierDispatched, enqueueOrderStatusChanged } from "../notifications/notification-outbox.service.js";
 import { recordOrderCompletion, recordOrderReturn } from "./finance.service.js";
 import { settleStorefrontReservations } from "./storefront.service.js";
+import { restockPosReturn } from "./pos.service.js";
 import { domainEvents } from "../events/domain-events.js";
 
 export const ORDER_STATUSES = ["new", "processing", "preparation", "out_for_delivery", "completed", "cancelled", "rejected", "returned"] as const;
@@ -244,7 +246,20 @@ export async function orderHistoryForStore(storeId: string, orderId: string) {
 // (phase 8A), so no constraint change is needed.
 export type OrderTransitionActor = { kind: "merchant" | "staff" | "customer"; id: string };
 
-export async function transitionOrderStatus(storeId: string, actor: OrderTransitionActor, orderId: string, input: { toStatus?: unknown; expectedVersion?: unknown; note?: unknown; courierName?: unknown; trackingNumber?: unknown }) {
+export type OrderTransitionInput = { toStatus?: unknown; expectedVersion?: unknown; note?: unknown; courierName?: unknown; trackingNumber?: unknown };
+
+/**
+ * The order state machine. Runs in its own transaction and announces the
+ * transition once it has committed.
+ *
+ * `within` — a CALLER's transaction, for a caller whose own write must commit or
+ * fail with the transition (the return-request decision: «approved» beside an
+ * order that never returned, or a returned order whose request stays open
+ * forever, are both lies about money). Then nothing is announced here: the
+ * caller calls `announceOrderTransition` after ITS commit, never before, or a
+ * listener would act on a transition that may yet roll back.
+ */
+export async function transitionOrderStatus(storeId: string, actor: OrderTransitionActor, orderId: string, input: OrderTransitionInput, within?: Prisma.TransactionClient) {
   // ق-246: the «قيد التوصيل» click is the handover — the one moment the
   // merchant knows which courier has the parcel. The fields ride the same
   // transaction as the transition so a courier is never recorded on an order
@@ -255,8 +270,8 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
   const expectedVersion = Number(input.expectedVersion);
   if (!Number.isInteger(expectedVersion) || expectedVersion < 1) throw new HttpError(400, "INVALID_ORDER_VERSION", "expectedVersion must be a positive integer.");
   const note = orderTransitionNote(input.note);
-  let fromStatusForEvent = "";
-  const payload = await prisma.$transaction(async (tx) => {
+  let fromStatusForEvent: OrderStatus = toStatus;
+  const work = async (tx: Prisma.TransactionClient) => {
     const current = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, status: true, version: true, source: true, orderNumber: true, customerEmail: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, prescriptionStatus: true, customerId: true, loyaltyDiscountIqd: true } });
     if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
     if (current.version !== expectedVersion) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "The order was changed by another request.");
@@ -322,6 +337,8 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
         subtotalIqd: current.subtotalIqd - current.discountIqd - current.loyaltyDiscountIqd,
       });
     } else if (toStatus === "returned") {
+      // A counter sale comes back to the counter: its units return to the shelf now.
+      if (current.source === "pos") await restockPosReturn(tx, storeId, orderId);
       await recordOrderReturn(tx, { storeId, orderId });
       // CD-5: both sides. Without the clawback, buy → return prints points;
       // without the refund, points spent on a returned order are simply kept.
@@ -352,10 +369,15 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
     const updated = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, include: orderInclude });
     if (!updated) throw new HttpError(500, "ORDER_TRANSITION_FAILED", "Order transition could not be completed.");
     return orderPayload(updated);
-  });
-  // After commit: extension modules react without the state machine knowing them.
-  domainEvents.emit("order.status_changed", { storeId, orderId, orderNumber: payload.orderNumber, from: fromStatusForEvent, to: toStatus, actorKind: actor.kind });
+  };
+  const payload = within ? await work(within) : await prisma.$transaction(work);
+  if (!within) announceOrderTransition(storeId, actor, payload, fromStatusForEvent);
   return payload;
+}
+
+/** After commit: extension modules react without the state machine knowing them. */
+export function announceOrderTransition(storeId: string, actor: OrderTransitionActor, order: { id: string; orderNumber: string; status: string }, fromStatus: string) {
+  domainEvents.emit("order.status_changed", { storeId, orderId: order.id, orderNumber: order.orderNumber, from: fromStatus, to: order.status, actorKind: actor.kind });
 }
 
 export async function listPlatformOrders(query: Record<string, unknown>) {

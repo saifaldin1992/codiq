@@ -396,6 +396,10 @@
       {
         "route": "GET /market/me/addresses",
         "reason": "BOUNDED — one shopper's own delivery addresses, capped at MAX_ADDRESSES (20) by the service; the address book and the checkout picker show them all."
+      },
+      {
+        "route": "GET /market/me/stores",
+        "reason": "BOUNDED — the «اشتريت منها» shelf: at most twenty stores, the most recent purchase first (LIMIT 20 in storesBoughtFrom). A sideways shelf, not a list to page; every store's full order history is in «طلباتي», which is paged."
       }
     ],
     "missingStoreSlug": []
@@ -409,6 +413,14 @@
       {
         "route": "GET /market/checkout/:storeSlug",
         "reason": "NOT A LIST — one store's checkout summary: its lines from the shopper's basket (within the same hundred-line cap), the delivery fee, the coupon and the total."
+      },
+      {
+        "route": "GET /market/orders/:orderId",
+        "reason": "ONE ORDER — the shopper's order page. Its lists are the order's own lines (bounded by the order), its status timeline, and two fixed CATALOGS of choices for the actions it offers: six cancel reasons (CANCEL_REASONS) and twelve rating tags (ORDER_RATING_TAGS). Nothing in it grows with the shopper's data."
+      },
+      {
+        "route": "GET /market/me/ratings/pending",
+        "reason": "BOUNDED — the «بانتظار تقييمك» strip: at most twenty completed orders from the last sixty days that are not rated yet (take: 20). A strip, not a list to page; every rated order is in «تقييماتي», which is paged."
       }
     ],
     "missingStoreSlug": []

@@ -11,6 +11,7 @@
  * customers row with shopper_id set (or, if the store already knew his phone,
  * that existing row is linked — his phone is proven by the one-time code).
  */
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
 import { checkout, priorSucceededCheckout } from "../../services/storefront.service.js";
@@ -20,6 +21,8 @@ import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../.
 import { governorateLabel } from "../../services/governorates.js";
 import { listedStoreTenant } from "../market-stores/directory.service.js";
 import { marketCartView, repriceMarketLines } from "./cart.service.js";
+import { CANCEL_REASONS, ORDER_RATING_TAGS, SHOPPER_CANCELLABLE_STATUS, orderRatingView } from "./after-sale.service.js";
+import { PICKUP_READY_STATUS, pickupCode } from "../../services/pickup-code.service.js";
 
 type ShopperRef = { id: string; phoneNormalized: string; fullName: string | null };
 
@@ -157,12 +160,44 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "تم التسليم", cancelled: "ملغي", rejected: "مرفوض", returned: "مُرجع",
 };
 
+/**
+ * M6 (G1): what each state MEANS to the shopper — a sentence under the label,
+ * so «قيد المراجعة» says what happens next and what he can still do. A pick-up
+ * reads its own words where the delivery flow would mislead him.
+ */
+const STATUS_HINTS: Record<string, string> = {
+  new: "وصل طلبك إلى المتجر وسيراجعه قريباً. يمكنك إلغاؤه ما دام بهذه الحالة.",
+  processing: "قَبِل المتجر طلبك وبدأ العمل عليه.",
+  preparation: "المتجر يجهّز طلبك الآن.",
+  out_for_delivery: "طلبك مع المندوب في الطريق إليك. جهّز المبلغ إن كان الدفع عند الاستلام.",
+  completed: "استلمت طلبك. شاركنا رأيك بتقييمه.",
+  cancelled: "أُلغي هذا الطلب ولن يُشحن. لم يُحتسب عليك أيّ مبلغ.",
+  rejected: "اعتذر المتجر عن تنفيذ هذا الطلب. تواصل معه لمعرفة السبب.",
+  returned: "أُرجع هذا الطلب إلى المتجر.",
+};
+const PICKUP_HINTS: Record<string, string> = {
+  preparation: "المتجر يجهّز طلبك، وسنخبرك حين يصبح جاهزاً للاستلام.",
+  out_for_delivery: "طلبك جاهز في المتجر. أرِهم رمز الاستلام أدناه.",
+  completed: "استلمت طلبك من المتجر. شاركنا رأيك بتقييمه.",
+};
+const statusHint = (status: string, fulfilment: string) => (fulfilment === "pickup" ? PICKUP_HINTS[status] : undefined) ?? STATUS_HINTS[status] ?? null;
+
+const ACTIVE_STATUSES = ["new", "processing", "preparation", "out_for_delivery"];
+/** «طلباتي» tabs. `preorder` is any order holding a pre-order product, whatever its state. */
+const ORDER_TABS: Record<string, Prisma.StoreOrderWhereInput> = {
+  active: { status: { in: ACTIVE_STATUSES } },
+  completed: { status: "completed" },
+  cancelled: { status: { in: ["cancelled", "rejected", "returned"] } },
+  done: { status: { in: ["completed", "cancelled", "rejected", "returned"] } },
+  preorder: { items: { some: { product: { isPreorder: true } } } },
+};
+
 /** Every order the shopper placed, across every store, newest first. */
 export async function shopperOrders(shopperId: string, rawCursor: unknown, rawLimit: unknown, statusGroup: unknown) {
   const limit = parseListLimit(rawLimit, 50, 20);
   const cursor = decodeListCursor(ORDERS_KIND, rawCursor);
   const at = cursor ? new Date(cursor.value) : null;
-  const group = statusGroup === "active" ? { status: { in: ["new", "processing", "preparation", "out_for_delivery"] } } : statusGroup === "done" ? { status: { in: ["completed", "cancelled", "rejected", "returned"] } } : {};
+  const group = typeof statusGroup === "string" ? ORDER_TABS[statusGroup] ?? {} : {};
   const rows = await prisma.storeOrder.findMany({
     where: { customer: { shopperId }, ...group, ...(cursor && at ? { OR: [{ createdAt: { lt: at } }, { createdAt: at, id: { lt: cursor.id } }] } : {}) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -176,7 +211,7 @@ export async function shopperOrders(shopperId: string, rawCursor: unknown, rawLi
   });
   const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(ORDERS_KIND, last.createdAt, last.id));
   return {
-    orders: page.map((row) => ({ id: row.id, orderNumber: row.orderNumber, status: row.status, statusLabel: STATUS_LABELS[row.status] ?? row.status, fulfilment: row.fulfilment, totalIqd: row.totalIqd, createdAt: row.createdAt, store: row.store, itemCount: row._count.items, preview: row.items.map((item) => item.productName) })),
+    orders: page.map((row) => ({ id: row.id, orderNumber: row.orderNumber, status: row.status, statusLabel: row.fulfilment === "pickup" && row.status === PICKUP_READY_STATUS ? "جاهز للاستلام" : STATUS_LABELS[row.status] ?? row.status, fulfilment: row.fulfilment, totalIqd: row.totalIqd, createdAt: row.createdAt, store: row.store, itemCount: row._count.items, preview: row.items.map((item) => item.productName) })),
     nextCursor,
   };
 }
@@ -186,6 +221,7 @@ export async function shopperOrder(shopperId: string, orderId: string) {
   const order = await prisma.storeOrder.findFirst({
     where: { id: orderId, customer: { shopperId } },
     select: {
+      storeId: true, customerId: true,
       id: true, orderNumber: true, status: true, fulfilment: true, createdAt: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, loyaltyDiscountIqd: true, totalIqd: true,
       couponCode: true, paymentMethodCode: true, customerName: true, recipientPhone: true, shippingGovernorate: true, shippingAddressLine1: true, customerNote: true,
       store: { select: { slug: true, name: true, supportWhatsapp: true, addressLine: true, latitude: true, longitude: true } },
@@ -194,12 +230,36 @@ export async function shopperOrder(shopperId: string, orderId: string) {
     },
   });
   if (!order) throw new HttpError(404, "ORDER_NOT_FOUND", "الطلب غير موجود.");
+  // The store and customer ids are read for the rating lookup only; the shopper's view does not carry them.
+  const { storeId, customerId, ...visible } = order;
   return {
     order: {
-      ...order,
-      statusLabel: STATUS_LABELS[order.status] ?? order.status,
+      ...visible,
+      statusLabel: order.fulfilment === "pickup" && order.status === PICKUP_READY_STATUS ? "جاهز للاستلام" : STATUS_LABELS[order.status] ?? order.status,
+      statusHint: statusHint(order.status, order.fulfilment),
       governorateName: order.shippingGovernorate ? governorateLabel(order.shippingGovernorate) : null,
       timeline: order.statusEvents.map((event) => ({ status: event.toStatus, label: STATUS_LABELS[event.toStatus] ?? event.toStatus, at: event.createdAt })),
+      // M6: whether «إلغاء الطلب» is offered, and the reasons to choose from.
+      cancellable: order.status === SHOPPER_CANCELLABLE_STATUS,
+      // M6: a completed order can be rated (and the rating revised).
+      rateable: order.status === "completed",
+      // M6 (G5): a pick-up ready at the counter shows its code (and the QR the merchant scans).
+      pickupCode: order.fulfilment === "pickup" && order.status === PICKUP_READY_STATUS ? pickupCode(order.id) : null,
+      rating: order.status === "completed" && customerId ? await orderRatingView(storeId, customerId, order.id) : null,
     },
+    cancelReasons: order.status === SHOPPER_CANCELLABLE_STATUS ? CANCEL_REASONS : [],
+    ratingTags: order.status === "completed" ? ORDER_RATING_TAGS : [],
   };
+}
+
+/** «طلبك الحالي» on the front page: the newest order still on its way, or nothing. */
+export async function latestOpenOrder(shopperId: string) {
+  const row = await prisma.storeOrder.findFirst({
+    where: { customer: { shopperId }, status: { in: ACTIVE_STATUSES } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: { id: true, orderNumber: true, status: true, fulfilment: true, store: { select: { slug: true, name: true } } },
+  });
+  if (!row) return { order: null };
+  const label = row.fulfilment === "pickup" && row.status === PICKUP_READY_STATUS ? "جاهز للاستلام" : STATUS_LABELS[row.status] ?? row.status;
+  return { order: { id: row.id, orderNumber: row.orderNumber, status: row.status, statusLabel: label, statusHint: statusHint(row.status, row.fulfilment), store: row.store } };
 }

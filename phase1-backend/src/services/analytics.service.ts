@@ -147,10 +147,18 @@ export async function salesSeries(storeId: string, query: Record<string, unknown
   const interval = parseInterval(query.interval);
   // `interval` is validated against the closed SERIES_INTERVALS allowlist above
   // and still travels as a bound parameter, never interpolated SQL.
-  const rows = await prisma.$queryRaw<Array<{ bucket: Date; orders_count: number; total_iqd: number }>>(Prisma.sql`
-    SELECT date_trunc(${interval}, created_at) AS bucket,
+  // BAGHDAD days, weeks and months — the calendar the merchant lives in, and the
+  // one merchant-home (hours) and store-traffic (days) already use. A plain
+  // date_trunc cut at UTC midnight, so every sale between 00:00 and 03:00 in
+  // Baghdad was drawn on the previous day's bar.
+  //
+  // BIGINT sums: SUM(int) is bigint in Postgres, and casting it back to int
+  // raised «integer out of range» — a 500 — for any bucket past 2.1 billion
+  // dinars, i.e. a good month for a large shop.
+  const rows = await prisma.$queryRaw<Array<{ bucket: Date; orders_count: number; total_iqd: bigint }>>(Prisma.sql`
+    SELECT date_trunc(${interval}, created_at, 'Asia/Baghdad') AS bucket,
            COUNT(*)::int AS orders_count,
-           COALESCE(SUM(total_iqd), 0)::int AS total_iqd
+           COALESCE(SUM(total_iqd), 0)::bigint AS total_iqd
     FROM store_orders
     WHERE store_id = ${storeId}::uuid
       AND created_at >= ${from} AND created_at <= ${to}
@@ -164,7 +172,7 @@ export async function salesSeries(storeId: string, query: Record<string, unknown
   return {
     period: { from, to },
     interval,
-    series: rows.map((row) => ({ bucketStart: row.bucket, ordersCount: row.orders_count, totalIqd: row.total_iqd })),
+    series: rows.map((row) => ({ bucketStart: row.bucket, ordersCount: row.orders_count, totalIqd: Number(row.total_iqd) })),
   };
 }
 
@@ -178,13 +186,13 @@ export async function topProducts(storeId: string, query: Record<string, unknown
   const by = query.by === undefined || query.by === "" || query.by === "revenue" ? "revenue" : query.by === "units" ? "units" : null;
   if (!by) throw new HttpError(422, "INVALID_TOP_PRODUCTS_SORT", "by must be revenue or units.");
   const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50);
-  const rows = await prisma.$queryRaw<Array<{ product_id: string | null; variant_id: string | null; product_name: string; variant_name: string | null; sku: string | null; units: number; revenue_iqd: number }>>(Prisma.sql`
+  const rows = await prisma.$queryRaw<Array<{ product_id: string | null; variant_id: string | null; product_name: string; variant_name: string | null; sku: string | null; units: bigint; revenue_iqd: bigint }>>(Prisma.sql`
     SELECT oi.product_id, oi.variant_id,
            MAX(oi.product_name) AS product_name,
            MAX(oi.variant_name) AS variant_name,
            MAX(oi.sku) AS sku,
-           SUM(oi.quantity)::int AS units,
-           SUM(oi.line_total_iqd)::int AS revenue_iqd
+           SUM(oi.quantity)::bigint AS units,
+           SUM(oi.line_total_iqd)::bigint AS revenue_iqd
     FROM order_items oi
     JOIN store_orders o ON o.id = oi.order_id
     WHERE o.store_id = ${storeId}::uuid
@@ -207,8 +215,8 @@ export async function topProducts(storeId: string, query: Record<string, unknown
       productName: row.product_name,
       variantName: row.variant_name,
       sku: row.sku,
-      units: row.units,
-      revenueIqd: row.revenue_iqd,
+      units: Number(row.units),
+      revenueIqd: Number(row.revenue_iqd),
     })),
   };
 }

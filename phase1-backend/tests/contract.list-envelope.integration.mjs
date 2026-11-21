@@ -291,6 +291,7 @@ try {
       [`/merchant/stores/${storeA.slug}/reviews`, "reviews", tokenA],
       [`/merchant/stores/${storeA.slug}/inventory/returns`, "returns", tokenA],
       [`/merchant/stores/${storeA.slug}/pos/shortfalls`, "shortfalls", tokenA],
+      [`/merchant/stores/${storeA.slug}/pos/price-deviations`, "deviations", tokenA],
       [`/merchant/stores/${storeA.slug}/marketing/abandoned-carts`, "carts", tokenA],
     ];
     for (const [path, key, token] of shapes) {

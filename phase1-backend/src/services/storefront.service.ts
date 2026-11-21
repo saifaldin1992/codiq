@@ -461,7 +461,8 @@ export async function currentCart(storeId: string, context: CartContext) {
  * variant of the product already in this cart.
  */
 async function assertWithinOrderLimit(tx: Prisma.TransactionClient, cartId: string, productId: string, adding: number) {
-  const product = await tx.product.findUnique({ where: { id: productId }, select: { maxPerOrder: true } });
+  // A product in the trash has no cap to apply; the add itself is refused elsewhere.
+  const product = await tx.product.findFirst({ where: { id: productId, ...LIVE }, select: { maxPerOrder: true } });
   if (!product?.maxPerOrder) return;
   const inCart = await tx.cartItem.aggregate({ where: { cartId, productId }, _sum: { quantity: true } });
   if ((inCart._sum.quantity ?? 0) + adding > product.maxPerOrder) {
@@ -919,7 +920,9 @@ export async function checkout(storeId: string, customerId: string, input: Check
     // to a clean re-read); the row lock alone would NOT be enough — do not
     // lower the isolation level. No coupon sent → this line is a no-op and
     // the transaction is byte-identical to 20A.
-    const coupon = couponCodeNormalized ? await lockCouponForCheckout(tx, storeId, customerId, couponCodeNormalized) : null;
+    // The delivery phone rides along: the per-customer limit counts by the
+    // number the courier calls, not only by the customer row (coupon.service).
+    const coupon = couponCodeNormalized ? await lockCouponForCheckout(tx, storeId, customerId, couponCodeNormalized, address.phoneContactNormalized ?? undefined) : null;
     // Phase 20A: stock, price, and the FOR UPDATE lock live on the variant. The
     // JOIN locks the variant AND its parent product together (FOR UPDATE OF v, p)
     // so the parent's is_active is a lock-fresh read — a concurrent deactivation

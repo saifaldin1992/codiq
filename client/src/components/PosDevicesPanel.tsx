@@ -21,9 +21,14 @@
  * only `pos.sell`, pairing/revoking need `settings.manage`, the shortfall
  * queue needs `inventory.update`. This panel computes nothing locally — a 403
  * arrives with an Arabic message and is shown where the refused act happened.
+ *
+ * THE THIRD CARD IS THE OWNER'S: prices the till charged that differ from the
+ * catalog, and ticket discounts (`settings.manage`). A cashier whose session
+ * cannot read it does not see the card at all — it is not an error he caused,
+ * and an empty red box would only tell him there is something he may not see.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BadgeCheck, CircleAlert, LoaderCircle, MonitorSmartphone, PackageMinus, ScanBarcode } from "lucide-react";
+import { BadgeCheck, CircleAlert, LoaderCircle, MonitorSmartphone, PackageMinus, ReceiptText, ScanBarcode } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +43,23 @@ type PosDevice = {
   createdAt: string;
 };
 
+type PriceDeviation = {
+  id: string;
+  kind: "price_below_catalog" | "price_above_catalog" | "ticket_discount";
+  quantity: number;
+  soldUnitPriceIqd: number;
+  catalogUnitPriceIqd: number;
+  amountIqd: number;
+  createdAt: string;
+  productName: string | null;
+  variantName: string | null;
+  sku: string | null;
+  orderNumber: string | null;
+  soldAt: string | null;
+  deviceLabel: string | null;
+  soldBy: { kind: string; name: string | null } | null;
+};
+
 type Shortfall = {
   id: string;
   soldQty: number;
@@ -50,6 +72,7 @@ type Shortfall = {
 
 const when = new Intl.DateTimeFormat("ar-IQ", { dateStyle: "medium", timeStyle: "short" });
 const count = new Intl.NumberFormat("ar-IQ");
+const money = (value: number) => `${count.format(value)} د.ع`;
 
 function formatWhen(value: string | null): string {
   if (!value) return "—";
@@ -97,6 +120,7 @@ export function PosDevicesPanel({ storeSlug }: { storeSlug?: string }) {
     <div className="max-w-[900px] space-y-5">
       <DevicesCard storeSlug={storeSlug} />
       <ShortfallsCard storeSlug={storeSlug} />
+      <PriceDeviationsCard storeSlug={storeSlug} />
     </div>
   );
 }
@@ -442,6 +466,151 @@ function ShortfallsCard({ storeSlug }: { storeSlug: string }) {
         </ul>
       )}
       <LoadMoreButton cursor={nextCursor} busy={loadingMore} onLoad={(cursor) => void load(cursor)} testId="pos-shortfalls-more" />
+    </div>
+  );
+}
+
+const DEVIATION_LABEL: Record<PriceDeviation["kind"], string> = {
+  price_below_catalog: "أقل من سعر الكتالوج",
+  price_above_catalog: "أعلى من سعر الكتالوج",
+  ticket_discount: "خصم على الفاتورة",
+};
+
+function sellerPhrase(soldBy: PriceDeviation["soldBy"]): string {
+  if (!soldBy) return "—";
+  if (soldBy.kind === "merchant") return "صاحب المتجر";
+  return soldBy.name ?? "موظف";
+}
+
+function PriceDeviationsCard({ storeSlug }: { storeSlug: string }) {
+  const base = `/api/merchant/stores/${encodeURIComponent(storeSlug)}/pos`;
+  const [deviations, setDeviations] = useState<PriceDeviation[] | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async (cursor?: string) => {
+    if (cursor) setLoadingMore(true);
+    try {
+      const query = new URLSearchParams({ limit: "50" });
+      if (cursor) query.set("cursor", cursor);
+      const response = await fetch(`${base}/price-deviations?${query.toString()}`, { credentials: "same-origin" });
+      if (response.status === 403) {
+        setForbidden(true);
+        return;
+      }
+      if (!response.ok) throw new Error(await readError(response));
+      const body = await response.json();
+      setDeviations((current) => (cursor ? [...(current ?? []), ...((body.deviations ?? []) as PriceDeviation[])] : ((body.deviations ?? []) as PriceDeviation[])));
+      setNextCursor(body.nextCursor ?? null);
+      setFailure(null);
+    } catch (error) {
+      if (!cursor) setDeviations(null);
+      setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [base]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function review(deviationId: string) {
+    setBusy(deviationId);
+    setFailure(null);
+    try {
+      const response = await fetch(`${base}/price-deviations/${encodeURIComponent(deviationId)}/review`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      if (!response.ok) throw new Error(await readError(response));
+      await load();
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (forbidden) return null;
+
+  return (
+    <div data-testid="pos-price-deviations" className="rounded-[26px] border border-[var(--codiq-surface)] bg-[var(--codiq-surface)] p-7 shadow-[0_16px_44px_rgba(31,55,98,0.055)] sm:p-9">
+      <p className="mb-2 flex items-center gap-2 text-xs font-bold tracking-wide text-[var(--codiq-accent)]">
+        <ReceiptText className="h-4 w-4" /> الكاشير
+      </p>
+      <h2 className="mb-1 text-xl font-bold text-[var(--codiq-text)]">أسعار تختلف عن الكتالوج</h2>
+      {/* What the row IS, and the honest caveat: an offline sale is priced
+          when it was rung, and the catalog may have moved since. */}
+      <p className="mb-6 text-sm leading-7 text-[var(--codiq-text-muted)]">
+        بيعٌ في الكاشير بسعر غير سعر الكتالوج، أو بخصم على الفاتورة. البيع سُجّل كما هو — راجع السبب مع من باع، ثم علّم السجل كمُراجَع. قد يكون السعر تغيّر بعد بيعةٍ سُجّلت دون اتصال.
+      </p>
+
+      {failure && (
+        <p
+          data-testid="pos-price-deviations-error"
+          className="mb-5 flex items-center gap-2 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold text-[var(--codiq-danger)]"
+        >
+          <CircleAlert className="h-4 w-4 shrink-0" /> {failure}
+        </p>
+      )}
+
+      {deviations === null ? (
+        !failure && <p className="text-sm text-[var(--codiq-text-muted)]">جارٍ التحميل…</p>
+      ) : deviations.length === 0 ? (
+        <p data-testid="pos-price-deviations-empty" className="text-sm text-[var(--codiq-text-muted)]">
+          لا شيء للمراجعة — كل ما بِيع في الكاشير بسعر الكتالوج.
+        </p>
+      ) : (
+        <ul className="space-y-3" data-testid="pos-price-deviation-list">
+          {deviations.map((row) => (
+            <li key={row.id} className="rounded-2xl border border-[var(--codiq-border)] px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-[var(--codiq-text)]">
+                    <span className="truncate">
+                      {row.kind === "ticket_discount" ? "الفاتورة كاملة" : row.productName ?? "صنف محذوف"}
+                      {/* A default variant carries the product's own name; saying it twice says nothing. */}
+                      {row.variantName && row.variantName !== row.productName ? <span className="font-semibold text-[var(--codiq-text-secondary)]"> — {row.variantName}</span> : null}
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${row.kind === "price_above_catalog" ? "bg-[var(--codiq-warning-soft)] text-[var(--codiq-warning)]" : "bg-[var(--codiq-danger-soft)] text-[var(--codiq-danger)]"}`}
+                    >
+                      {DEVIATION_LABEL[row.kind]}: {money(row.amountIqd)}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-[var(--codiq-text-secondary)]">
+                    {row.kind === "ticket_discount"
+                      ? `مجموع الأسطر: ${money(row.catalogUnitPriceIqd)} · المدفوع: ${money(row.soldUnitPriceIqd)}`
+                      : `بِيع بـ ${money(row.soldUnitPriceIqd)} · سعر الكتالوج ${money(row.catalogUnitPriceIqd)} · الكمية ${count.format(row.quantity)}`}
+                  </p>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--codiq-text-muted)]">
+                    <span>البائع: {sellerPhrase(row.soldBy)}</span>
+                    {row.deviceLabel ? <span>الجهاز: {row.deviceLabel}</span> : null}
+                    {row.sku ? <span dir="ltr" className="font-mono">{row.sku}</span> : null}
+                    <span>
+                      الطلب: <span dir="ltr" className="font-mono">{row.orderNumber ?? "—"}</span>
+                    </span>
+                    <span>{formatWhen(row.soldAt ?? row.createdAt)}</span>
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy === row.id}
+                  data-testid={`pos-price-deviation-review-${row.id}`}
+                  className="shrink-0 rounded-xl"
+                  onClick={() => void review(row.id)}
+                >
+                  {busy === row.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : "علّمه مُراجَعاً"}
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <LoadMoreButton cursor={nextCursor} busy={loadingMore} onLoad={(cursor) => void load(cursor)} testId="pos-price-deviations-more" />
     </div>
   );
 }

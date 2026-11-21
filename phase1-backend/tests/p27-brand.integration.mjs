@@ -151,7 +151,7 @@ async function main() {
   const publicBrand = await request("/api/public/brand");
   assert.ok(publicBrand.payload.logo?.url, "the public endpoint now serves a URL for every surface to read");
   const firstUrl = publicBrand.payload.logo.url;
-  const bytes = await request(firstUrl.replace(/^\/api/, "/api"));
+  const bytes = await request(firstUrl);
   assert.equal(bytes.status, 200, "the logo bytes are readable without a session — the storefront has no owner to authenticate");
   assert.equal(bytes.headers.get("content-type"), "image/png");
   assert.ok(bytes.headers.get("cache-control")?.includes("immutable"), "the bytes at a versioned URL never change, so they are cached hard");

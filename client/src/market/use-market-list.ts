@@ -13,7 +13,7 @@ export function useMarketList<T>(url: string | null, key: string) {
     if (!url) { setItems(null); setNextCursor(null); return; }
     const mine = ++generation.current;
     const controller = new AbortController();
-    setItems(null); setFailure(null);
+    setItems(null); setFailure(null); setNextCursor(null);
     marketGet<Record<string, unknown>>(url, { signal: controller.signal })
       .then((page) => { if (mine === generation.current) { setItems((page[key] as T[]) ?? []); setNextCursor((page.nextCursor as string | null) ?? null); } })
       .catch((error: Error) => { if (mine === generation.current && error.name !== "AbortError") setFailure(error.message); });
