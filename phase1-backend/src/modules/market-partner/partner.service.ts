@@ -186,6 +186,13 @@ export async function completePaymentLink(rawBody: Buffer, signature: string | u
   const row = await prisma.checkoutToken.findUnique({ where: { tokenHash: hashToken(body.token) }, include: { shopper: true, store: { select: { slug: true } } } });
   if (!row || row.partner !== config.id) return { ok: false, refund: true, reason: "LINK_UNKNOWN" };
   if (row.status === "used") return { ok: false, refund: true, reason: "LINK_USED", orderId: row.orderId };
+  // Review 2026-11-21: a report already being handled (or one interrupted by a crash) is not
+  // «used» — the partner must not take it for paid. Retry later; long after the link's life it is refused.
+  if (row.status === "using") {
+    if (row.expiresAt.getTime() + 5 * 60 * 1000 > Date.now()) return { ok: false, refund: false, retryLater: true, reason: "LINK_IN_PROGRESS" };
+    await prisma.checkoutToken.updateMany({ where: { id: row.id, status: "using" }, data: { status: "refused", refusal: "INTERRUPTED" } });
+    return { ok: false, refund: true, reason: "INTERRUPTED" };
+  }
   if (row.status !== "issued") return { ok: false, refund: true, reason: `LINK_${row.status.toUpperCase()}` };
   const refuse = async (reason: string) => {
     await prisma.checkoutToken.updateMany({ where: { id: row.id, status: { in: ["issued", "using"] } }, data: { status: "refused", refusal: reason } });
@@ -193,7 +200,7 @@ export async function completePaymentLink(rawBody: Buffer, signature: string | u
   };
   // Single use, even against two reports at once: only one claims it.
   const claimed = await prisma.checkoutToken.updateMany({ where: { id: row.id, status: "issued" }, data: { status: "using" } });
-  if (claimed.count !== 1) return { ok: false, refund: true, reason: "LINK_USED" };
+  if (claimed.count !== 1) return { ok: false, refund: false, retryLater: true, reason: "LINK_IN_PROGRESS" };
   if (row.expiresAt < new Date()) return refuse("LINK_EXPIRED");
   const link = await prisma.shopperPartnerLink.findUnique({ where: { shopperId_partner: { shopperId: row.shopperId, partner: config.id } } });
   if (!link || link.partnerAccountId !== body.partnerAccountId) return refuse("ACCOUNT_MISMATCH");

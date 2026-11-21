@@ -127,6 +127,12 @@ try {
   assert.deepEqual([order.paymentMethodCode, order.paymentStatus, order.totalIqd], ["market_partner", "paid", 39_000]);
   const replay = await report({ token: tokenOf(link.deepLink), partnerAccountId: account, amountIqd: 39_000, paymentRef: "p-6" });
   assert.deepEqual([replay.payload.reason, replay.payload.orderId], ["LINK_USED", order.id], "a link pays once");
+  // Two reports at once for one link: one pays, the other is told to retry — never «paid» twice, never «used» without an order.
+  await add(1);
+  const twin = (await makeLink()).payload;
+  const both = await Promise.all([1, 2].map((n) => report({ token: tokenOf(twin.deepLink), partnerAccountId: account, amountIqd: twin.amountIqd, paymentRef: `p-twin-${n}` })));
+  assert.equal(both.filter((r) => r.payload.ok).length, 1, JSON.stringify(both.map((r) => r.payload)));
+  assert.ok(both.every((r) => r.payload.ok || r.payload.reason === "LINK_IN_PROGRESS" || (r.payload.reason === "LINK_USED" && r.payload.orderId)), "the other one is told the truth");
   assert.deepEqual([(await shopper(`/market/partner-links/${link.linkId}`)).payload.link.status, (await shopper(`/market/partner-links/${link.linkId}`)).payload.link.orderId], ["used", order.id], "the checkout page sees it paid");
   assert.equal(await prisma.marketCartItem.count({ where: { cart: { shopperId: entered.payload.shopper.id }, storeId: store.id } }), 0, "bought: out of the cart");
   summary.paymentLink = true;

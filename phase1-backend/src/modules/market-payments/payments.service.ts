@@ -36,9 +36,22 @@ async function event(paymentId: string, kind: string, extra: { providerEventId?:
 
 // ── what the checkout may offer ─────────────────────────────────────────────
 
+/**
+ * Review 2026-11-21: the expiry sweep ran only when a payment page was opened, so with no
+ * scheduler an unpaid order could hold its stock for hours. Every checkout page now nudges it —
+ * at most once a minute per process, off the request — besides `pnpm market:payments:expire`.
+ */
+let lastSweep = 0;
+export function sweepSoon(now = Date.now()) {
+  if (now - lastSweep < 60_000) return;
+  lastSweep = now;
+  setImmediate(() => { void expireStalePayments().catch((error: Error) => logger.warn("payments.sweep_failed", { reason: error.message })); });
+}
+
 /** Which online methods this order could use, and — for instalments — each lender's answer. */
 export async function onlineOptions(shopper: Shopper, storeId: string, goodsIqd: number) {
   if (paymentsMode() === "off") return { card: null, instalments: null };
+  sweepSoon();
   const card = cardGateway();
   const lines = await prisma.marketCartItem.findMany({ where: { cart: { shopperId: shopper.id }, storeId }, select: { productId: true } });
   const products = await prisma.product.findMany({ where: { id: { in: lines.map((line) => line.productId) }, storeId, deletedAt: null }, select: { instalmentsEligible: true, instalmentsCashPrice: true } });
@@ -108,11 +121,14 @@ export async function handleCardNotification(rawBody: Buffer, signature: string 
     if (payment.status === "pending") await prisma.marketPayment.update({ where: { id: payment.id }, data: { status: "failed" } });
     return { ok: true, status: "failed" };
   }
-  // Succeeded. Late (after the window closed and the order was cancelled): take it, then give it back.
-  const claimed = await prisma.marketPayment.updateMany({ where: { id: payment.id, status: { in: ["pending", "failed"] } }, data: { status: "paid", paidAt: new Date() } });
+  // Succeeded. Late — after the window closed, or after the order was cancelled while he was
+  // paying — the money still arrived: take it, then give it back. (Review 2026-11-21: «expired»
+  // and «cancelled» were not claimable, so a late payment was neither recorded nor refunded.)
+  const claimed = await prisma.marketPayment.updateMany({ where: { id: payment.id, status: { in: ["pending", "failed", "expired", "cancelled"] } }, data: { status: "paid", paidAt: new Date() } });
   await event(payment.id, "provider_paid", { providerEventId: note.eventId, amountIqd: note.amountIqd });
   if (claimed.count === 1) {
-    if (payment.order.status === "cancelled" || payment.order.status === "rejected") {
+    const order = await prisma.storeOrder.findUniqueOrThrow({ where: { id: payment.order.id }, select: { status: true } });
+    if (order.status === "cancelled" || order.status === "rejected" || payment.status === "expired" || payment.status === "cancelled") {
       await refundCard(payment.id, "وصل الدفع بعد إلغاء الطلب.");
       return { ok: true, status: "refunded" };
     }

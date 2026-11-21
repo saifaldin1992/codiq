@@ -143,6 +143,11 @@ try {
   await settle();
   assert.equal((await order(late.order.id)).status, "cancelled");
   assert.ok((await held()).every((row) => row.status !== "active"), "the hold is released");
+  // The money arrives anyway, late: recorded and given back, not lost.
+  const lateRow = await prisma.marketPayment.findUniqueOrThrow({ where: { id: late.payment.paymentId } });
+  assert.equal((await notify({ eventId: "evt-late", type: "payment.succeeded", providerRef: lateRow.providerRef, amountIqd: lateRow.amountIqd })).payload.status, "refunded");
+  const lateAfter = await prisma.marketPayment.findUniqueOrThrow({ where: { id: lateRow.id } });
+  assert.deepEqual([lateAfter.status, lateAfter.refundedIqd], ["refunded", lateRow.amountIqd], "a late payment is refunded");
   summary.expiry = true;
 
   // ── 4. instalments ───────────────────────────────────────────────────────
