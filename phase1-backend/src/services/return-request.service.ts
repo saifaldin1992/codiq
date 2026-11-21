@@ -105,11 +105,13 @@ export async function withdrawReturnRequest(storeId: string, customerId: string,
   if (request.status !== "requested") {
     throw new HttpError(409, "RETURN_ALREADY_DECIDED", "لا يمكن سحب طلب أُجيب عليه.");
   }
-  return prisma.returnRequest.update({
-    where: { id: request.id },
-    data: { status: "withdrawn" },
-    select: { id: true, status: true },
-  });
+  // The status test sits in the WHERE, as in decideReturnRequest. Read-then-
+  // update let a withdrawal that read «requested» overwrite an approval that
+  // committed in between — a request saying «withdrawn» beside an order that
+  // was returned and reversed.
+  const withdrawn = await prisma.returnRequest.updateMany({ where: { id: request.id, storeId, status: "requested" }, data: { status: "withdrawn" } });
+  if (withdrawn.count !== 1) throw new HttpError(409, "RETURN_ALREADY_DECIDED", "لا يمكن سحب طلب أُجيب عليه.");
+  return { id: request.id, status: "withdrawn" };
 }
 
 /** The cursor's list kinds. One per list, so a cursor cannot cross lists. */
