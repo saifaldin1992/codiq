@@ -92,6 +92,7 @@ export function MarketAccountPage() {
       </section>
       <nav className="divide-y divide-[var(--codiq-border)] overflow-hidden rounded-[26px] bg-[var(--codiq-surface)] shadow-sm">
         <MenuLink href="/orders" icon={Package} label="طلباتي" testId="market-account-orders-link" />
+        <MenuLink href="/ratings" icon={Star} label="تقييماتي" testId="market-account-ratings-link" />
         <MenuLink href="/account/info" icon={UserRound} label="بياناتي" testId="market-account-info-link" />
         <MenuLink href="/account/addresses" icon={MapPin} label="العناوين" testId="market-account-addresses-link" />
       </nav>

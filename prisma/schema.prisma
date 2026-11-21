@@ -769,6 +769,11 @@ model StoreOrder {
   status            String             @db.Text
   /// Marketplace M5: delivery | pickup (at the store's counter, no delivery fee).
   fulfilment        String             @default("delivery") @db.Text
+  /// Marketplace M6: the finer step reported while the courier has it. Shown, never a status.
+  deliveryStage     String?            @map("delivery_stage") @db.Text
+  deliveryStageAt   DateTime?          @map("delivery_stage_at") @db.Timestamptz(6)
+  /// Marketplace M6: why the shopper cancelled, from a fixed list.
+  cancelReasonCode  String?            @map("cancel_reason_code") @db.Text
   customerName      String             @map("customer_name") @db.Text
   /// PG-6 (ق-74): GENERATED ALWAYS AS (codiq_ar_normalize_v1(order_number)) STORED — migration 20260904090000.
   /// Read-only. NEVER name this field in a `data:` object; Postgres rejects a write to a generated column.
@@ -830,6 +835,10 @@ model StoreOrder {
   // reason the notes are: no storefront/customer query names it, so the
   // recipient phone and message bodies can never ride the customer payload.
   whatsappSends     OrderWhatsappSend[]
+  // Marketplace M6. The hand-over code is a RELATION for the MD-1 reason: the
+  // store's order payload never names it, so the store never sees the code.
+  handoverCode      OrderHandoverCode?
+  rating            OrderRating?
 
   @@unique([storeId, orderNumber])
   @@unique([id, storeId])
@@ -2307,6 +2316,7 @@ model Shopper {
   otpChallenges     ShopperOtpChallenge[]
   addresses         ShopperAddress[]
   customers         Customer[]
+  orderRatings      OrderRating[]
   marketCart        MarketCart?
 
   @@map("shoppers")
@@ -2398,4 +2408,39 @@ model MarketCartItem {
   @@index([cartId, storeId, createdAt], map: "market_cart_items_cart_idx")
   @@index([variantId], map: "market_cart_items_variant_idx")
   @@map("market_cart_items")
+}
+
+/// Marketplace M6: four digits the shopper hands over; the store types them to mark the order delivered.
+model OrderHandoverCode {
+  orderId   String    @id @map("order_id") @db.Uuid
+  storeId   String    @map("store_id") @db.Uuid
+  code      String    @db.Text
+  failures  Int       @default(0)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  order     StoreOrder @relation(fields: [orderId, storeId], references: [id, storeId], onDelete: Cascade)
+
+  @@unique([orderId, storeId])
+  @@map("order_handover_codes")
+}
+
+/// Marketplace M6: the shopper's rating of one delivered order.
+model OrderRating {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId       String   @unique @map("order_id") @db.Uuid
+  storeId       String   @map("store_id") @db.Uuid
+  shopperId     String?  @map("shopper_id") @db.Uuid
+  storeStars    Int      @map("store_stars") @db.SmallInt
+  deliveryStars Int?     @map("delivery_stars") @db.SmallInt
+  tags          String[] @default([])
+  note          String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  order         StoreOrder @relation(fields: [orderId, storeId], references: [id, storeId], onDelete: Cascade)
+  shopper       Shopper?   @relation(fields: [shopperId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, storeId])
+  @@index([storeId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([shopperId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("order_ratings")
 }

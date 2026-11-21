@@ -20,6 +20,7 @@ import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../.
 import { governorateLabel } from "../../services/governorates.js";
 import { listedStoreTenant } from "../market-stores/directory.service.js";
 import { marketCartView, repriceMarketLines } from "./cart.service.js";
+import { afterSalesState, ensureHandoverCode } from "../market-orders/after-sales.service.js";
 
 type ShopperRef = { id: string; phoneNormalized: string; fullName: string | null };
 
@@ -136,6 +137,8 @@ export async function placeMarketOrder(shopper: ShopperRef, storeSlug: string, i
       note: extra || undefined,
       fulfilment: input.fulfilment,
     });
+    // The shopper's receipt code, issued with the order (idempotent on a replay).
+    await ensureHandoverCode(result.order.id, store.id);
     // Bought: those lines leave the market cart. Lines added meanwhile stay.
     const bought = new Set(result.order.items.map((item) => item.variantId));
     if (cart) {
@@ -186,7 +189,7 @@ export async function shopperOrder(shopperId: string, orderId: string) {
   const order = await prisma.storeOrder.findFirst({
     where: { id: orderId, customer: { shopperId } },
     select: {
-      id: true, orderNumber: true, status: true, fulfilment: true, createdAt: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, loyaltyDiscountIqd: true, totalIqd: true,
+      id: true, storeId: true, orderNumber: true, status: true, statusUpdatedAt: true, fulfilment: true, deliveryStage: true, cancelReasonCode: true, createdAt: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, loyaltyDiscountIqd: true, totalIqd: true,
       couponCode: true, paymentMethodCode: true, customerName: true, recipientPhone: true, shippingGovernorate: true, shippingAddressLine1: true, customerNote: true,
       store: { select: { slug: true, name: true, supportWhatsapp: true, addressLine: true, latitude: true, longitude: true } },
       items: { select: { id: true, productId: true, productName: true, variantName: true, quantity: true, unitPriceIqd: true, lineTotalIqd: true, addons: true } },
@@ -194,9 +197,11 @@ export async function shopperOrder(shopperId: string, orderId: string) {
     },
   });
   if (!order) throw new HttpError(404, "ORDER_NOT_FOUND", "الطلب غير موجود.");
+  const { storeId: _storeId, deliveryStage: _stage, cancelReasonCode: _reason, ...shown } = order;
   return {
+    afterSales: await afterSalesState(order),
     order: {
-      ...order,
+      ...shown,
       statusLabel: STATUS_LABELS[order.status] ?? order.status,
       governorateName: order.shippingGovernorate ? governorateLabel(order.shippingGovernorate) : null,
       timeline: order.statusEvents.map((event) => ({ status: event.toStatus, label: STATUS_LABELS[event.toStatus] ?? event.toStatus, at: event.createdAt })),
