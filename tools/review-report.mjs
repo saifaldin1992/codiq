@@ -11,9 +11,9 @@
  * deleted or renamed, lines added and removed, and the line ranges (before →
  * after). A commit of up to DETAIL_LIMIT changed lines is printed in full,
  * before and after. A bigger one (a formatting pass) is summarised per file,
- * and `--ast-proof` adds, per changed TypeScript/JavaScript file, the proof that
- * its syntax tree is the same before and after (see tools/ast-same.mjs) —
- * which is what «no behaviour changed» means for a formatting commit.
+ * and `--ast-proof` adds, for every commit whose title says it formats, per changed
+ * TypeScript/JavaScript file, the proof that its syntax tree is the same before and
+ * after (see tools/ast-same.mjs) — which is what «no behaviour changed» means there.
  */
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -73,6 +73,9 @@ for (const hash of commits) {
   if (message.length) part.push(...message.map((line) => `> ${line}`), "");
   part.push("| الملفّ | التغيير | أُضيف | حُذف | الأسطر (قبل ← بعد) |", "|---|---|---|---|---|");
   const proofs = [];
+  // The proof is for FORMATTING commits only: a commit that changes code on purpose is
+  // expected to change its syntax tree, so «0 of 1 the same» there would say nothing.
+  const proveThis = astProof && /\bformat/i.test(subject);
   for (const row of status) {
     const [code, ...paths] = row.split("\t");
     const path = paths.at(-1);
@@ -108,7 +111,7 @@ for (const hash of commits) {
     part.push(
       `| \`${path}\` | ${KIND[code[0]] ?? code} | ${added} | ${removed} | ${shown || "—"} |`
     );
-    if (astProof && code[0] === "M" && /\.(ts|tsx|mjs|js)$/.test(path)) {
+    if (proveThis && code[0] === "M" && /\.(ts|tsx|mjs|js)$/.test(path)) {
       const before = show(`${hash}^`, path);
       const after = show(hash, path);
       proofs.push({
