@@ -36,7 +36,7 @@ export async function mapStoreCategory(storeId: string, categoryId: string, mark
 const FIELDS_SELECT = {
   id: true, name: true, priceIqd: true, isActive: true, createdAt: true,
   marketCategoryId: true, compareAtPriceIqd: true, condition: true, tags: true, specs: true,
-  isPreorder: true, preorderReleaseOn: true, preorderShipsBy: true, maxPerOrder: true,
+  isPreorder: true, preorderReleaseOn: true, preorderShipsBy: true, maxPerOrder: true, instalmentsEligible: true, instalmentsCashPrice: true,
   category: { select: { name: true, marketCategoryId: true } },
   addons: { select: { id: true, name: true, priceIqd: true, isActive: true }, orderBy: [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }] },
 } satisfies Prisma.ProductSelect;
@@ -62,6 +62,8 @@ function fieldsView(row: FieldsRow) {
     preorderReleaseOn: dateOnly(row.preorderReleaseOn),
     preorderShipsBy: dateOnly(row.preorderShipsBy),
     maxPerOrder: row.maxPerOrder,
+    instalmentsEligible: row.instalmentsEligible,
+    instalmentsCashPrice: row.instalmentsCashPrice,
     addons: row.addons,
   };
 }
@@ -105,6 +107,9 @@ export async function updateProductMarketFields(storeId: string, productId: stri
       preorderReleaseOn: input.preorderReleaseOn ? new Date(`${input.preorderReleaseOn}T00:00:00Z`) : null,
       preorderShipsBy: input.preorderShipsBy ? new Date(`${input.preorderShipsBy}T00:00:00Z`) : null,
       maxPerOrder: input.maxPerOrder,
+      ...(input.instalmentsEligible !== undefined ? { instalmentsEligible: input.instalmentsEligible } : {}),
+      // Not sold in instalments means not at the cash price either.
+      ...(input.instalmentsCashPrice !== undefined || input.instalmentsEligible === false ? { instalmentsCashPrice: input.instalmentsEligible === false ? false : input.instalmentsCashPrice } : {}),
     },
     select: FIELDS_SELECT,
   });

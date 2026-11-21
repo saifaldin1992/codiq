@@ -4,7 +4,7 @@
     "title": "CODIQ — واجهة المنصة",
     "version": "1.0.0",
     "summary": "وثيقة مولّدة آلياً من جدول التوجيه الفعلي ومن مخططات zod. لا تُحرَّر بخط اليد.",
-    "description": "## وثيقة مولّدة، لا مكتوبة\n\nهذه الوثيقة تصف 487 مسار endpoint، وكلُّ حقيقةٍ فيها مقروءة من الشيفرة التي تعمل:\n\n- **المسارات والأفعال** من جدول توجيه Express الذي يبنيه `createApp()` — لا من قائمة تُحدَّث باليد.\n- **أشكال الطلب** من مخططات zod في `src/http/schemas/` عبر `z.toJSONSchema` من zod نفسها.\n- **الباب المطلوب** من الحارس الذي يستدعيه المعالج، ومعه رمز الصلاحية إن وُجد.\n- **رموز الأخطاء** من كل موضع `new HttpError(...)` في الواجهة الخلفية.\n\nولأن قراءتين مستقلتين للشيفرة يجب أن تتطابقا قبل أن يُكتب أي شيء، فإن مساراً يعرفه الموجِّه ولا يراه الماسح — أو العكس — يُسقِط التوليد بدل أن يُنتج وثيقةً ناقصة بهدوء.\n\n## بابان، تطبيق واحد\n\n`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.\n\n**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.\n\n## مسار غير معروف\n\nأي مسار تحت البادئتين لا يطابق شيئاً هنا يُجيب `404 RESOURCE_NOT_FOUND` — بالمغلّف نفسه وبمعرّف الطلب نفسه، لا بصفحة HTML. هذا مقصود: قبل المرحلة 20-2 كان يسقط إلى الصدفة ويُجيب `200 text/html`، فيقرأه العميل نجاحاً ويسلّم `null`، وتظهر النتيجة شاشةً فارغة بعد أيام و200 في كل سجل.\n\n## الأخطاء عقد\n\nالرسائل عربية وهي جزء من العقد: المرحلة 22 تترجمها **بالرمز**. ابنِ على `error.code`، لا على نص `error.message`. المجموعة كاملة في `x-codiq-error-catalogue`، وكل استجابة خطأ هنا تُسمّي الرموز التي يمكن أن تصل منها.\n\n## القوائم\n\nكل قائمة تُجيب بمَغلَّف `ListEnvelope` نفسه — موصوف مرة واحدة ومُشار إليه — بمؤشر معتم واحد. لا تبنِ مؤشراً بيدك: الوثيقة تصفه سلسلةً معتمة لأنه كذلك.",
+    "description": "## وثيقة مولّدة، لا مكتوبة\n\nهذه الوثيقة تصف 492 مسار endpoint، وكلُّ حقيقةٍ فيها مقروءة من الشيفرة التي تعمل:\n\n- **المسارات والأفعال** من جدول توجيه Express الذي يبنيه `createApp()` — لا من قائمة تُحدَّث باليد.\n- **أشكال الطلب** من مخططات zod في `src/http/schemas/` عبر `z.toJSONSchema` من zod نفسها.\n- **الباب المطلوب** من الحارس الذي يستدعيه المعالج، ومعه رمز الصلاحية إن وُجد.\n- **رموز الأخطاء** من كل موضع `new HttpError(...)` في الواجهة الخلفية.\n\nولأن قراءتين مستقلتين للشيفرة يجب أن تتطابقا قبل أن يُكتب أي شيء، فإن مساراً يعرفه الموجِّه ولا يراه الماسح — أو العكس — يُسقِط التوليد بدل أن يُنتج وثيقةً ناقصة بهدوء.\n\n## بابان، تطبيق واحد\n\n`/api/v1` و`/api` هما **الكائن نفسه** مركَّباً على مسارين. لا فرق بينهما في أي استجابة، ولا دلو سقفٍ ثانٍ: مفتاح السقف هو (النطاق، صاحب الطلب) ولا يدخل فيه المسار.\n\n**استثناء واحد ودائم**: واجهة المتجر العام `‎/api/store/*‎` لا تُصدَّر بنسخة. كعكة جلسة الزبون مقصورة على المسار `/api/store/{storeSlug}`، فالدخول عبر البادئة المُصدَّرة يمنح الزبون كعكةً يرفض متصفحه إعادتها إلى العنوان نفسه — يدخل ثم يصير مجهولاً في الطلب التالي، و200 على كليهما. لذلك `‎/api/v1/store/*‎` يُرفض بـ 404 صريحة.\n\n## مسار غير معروف\n\nأي مسار تحت البادئتين لا يطابق شيئاً هنا يُجيب `404 RESOURCE_NOT_FOUND` — بالمغلّف نفسه وبمعرّف الطلب نفسه، لا بصفحة HTML. هذا مقصود: قبل المرحلة 20-2 كان يسقط إلى الصدفة ويُجيب `200 text/html`، فيقرأه العميل نجاحاً ويسلّم `null`، وتظهر النتيجة شاشةً فارغة بعد أيام و200 في كل سجل.\n\n## الأخطاء عقد\n\nالرسائل عربية وهي جزء من العقد: المرحلة 22 تترجمها **بالرمز**. ابنِ على `error.code`، لا على نص `error.message`. المجموعة كاملة في `x-codiq-error-catalogue`، وكل استجابة خطأ هنا تُسمّي الرموز التي يمكن أن تصل منها.\n\n## القوائم\n\nكل قائمة تُجيب بمَغلَّف `ListEnvelope` نفسه — موصوف مرة واحدة ومُشار إليه — بمؤشر معتم واحد. لا تبنِ مؤشراً بيدك: الوثيقة تصفه سلسلةً معتمة لأنه كذلك.",
     "license": {
       "name": "MIT"
     }
@@ -55,6 +55,9 @@
     },
     {
       "name": "market-orders"
+    },
+    {
+      "name": "market-payments"
     },
     {
       "name": "market-reels"
@@ -339,6 +342,14 @@
                   "IMAGE_UNREADABLE",
                   "INCIDENT_NOT_FOUND",
                   "INCIDENT_RESOLVED",
+                  "INSTALMENT_AMOUNT_CHANGED",
+                  "INSTALMENT_CODE_LOCKED",
+                  "INSTALMENT_CODE_WRONG",
+                  "INSTALMENT_LENDER_UNKNOWN",
+                  "INSTALMENT_NOT_ELIGIBLE",
+                  "INSTALMENT_PLAN_EXPIRED",
+                  "INSTALMENT_PLAN_REQUIRED",
+                  "INSTALMENT_TERM_INVALID",
                   "INSUFFICIENT_AVAILABLE_STOCK",
                   "INSUFFICIENT_LOYALTY_POINTS",
                   "INTERNAL_ERROR",
@@ -481,6 +492,7 @@
                   "ORDER_NOT_RATABLE",
                   "ORDER_NOT_RETURNABLE",
                   "ORDER_NOT_RETURNED",
+                  "ORDER_PAYMENT_PENDING",
                   "ORDER_TAGS_CONFLICT",
                   "ORDER_TOTAL_TOO_LARGE",
                   "ORDER_TRANSITION_FAILED",
@@ -496,8 +508,14 @@
                   "OWNER_ONLY_FIELD",
                   "PASSWORD_CHANGE_REQUIRED",
                   "PASSWORD_UNCHANGED",
+                  "PAYMENTS_OFF",
+                  "PAYMENT_AMOUNT_MISMATCH",
                   "PAYMENT_METHOD_NOT_SUPPORTED",
                   "PAYMENT_METHOD_UNAVAILABLE",
+                  "PAYMENT_NOTIFICATION_EMPTY",
+                  "PAYMENT_NOT_FOUND",
+                  "PAYMENT_PROVIDER_UNAVAILABLE",
+                  "PAYMENT_SIGNATURE_INVALID",
                   "PICKUP_NOT_AVAILABLE",
                   "PLAN_LIMIT_EXCEEDED",
                   "PLAN_NOT_AVAILABLE",
@@ -1834,6 +1852,61 @@
           }
         }
       },
+      "modules.market-cart.schema.instalmentStartSchema": {
+        "type": "object",
+        "properties": {
+          "lender": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "months": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 36
+          },
+          "addressId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "fulfilment": {
+            "default": "delivery",
+            "type": "string",
+            "enum": [
+              "delivery",
+              "pickup"
+            ]
+          },
+          "couponCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "platformCouponWalletId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "lender",
+          "months"
+        ]
+      },
       "modules.market-cart.schema.placeOrderSchema": {
         "type": "object",
         "properties": {
@@ -1884,6 +1957,29 @@
                 "type": "string",
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instalmentPaymentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instalmentCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{6}$"
               },
               {
                 "type": "null"
@@ -2254,6 +2350,12 @@
                 "type": "null"
               }
             ]
+          },
+          "instalmentsEligible": {
+            "type": "boolean"
+          },
+          "instalmentsCashPrice": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -3375,6 +3477,45 @@
         },
         "required": [
           "reasonCode"
+        ]
+      },
+      "modules.market-payments.schema.ownerPaymentsQuerySchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "code_sent",
+              "paid",
+              "approved",
+              "failed",
+              "expired",
+              "cancelled",
+              "refunded",
+              "adjusted"
+            ]
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "limit": {}
+        }
+      },
+      "modules.market-payments.schema.testProviderSchema": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "decline"
+            ]
+          }
+        },
+        "required": [
+          "outcome"
         ]
       },
       "modules.market-reels.schema.reelDecisionSchema": {
@@ -14830,7 +14971,7 @@
             }
           },
           "400": {
-            "description": "`INVALID_JSON_BODY`",
+            "description": "`INVALID_JSON_BODY` · `INVALID_ORDER_VERSION`",
             "content": {
               "application/json": {
                 "schema": {
@@ -14839,7 +14980,8 @@
               }
             },
             "x-codiq-error-codes": [
-              "INVALID_JSON_BODY"
+              "INVALID_JSON_BODY",
+              "INVALID_ORDER_VERSION"
             ]
           },
           "401": {
@@ -14874,7 +15016,7 @@
             ]
           },
           "404": {
-            "description": "`ADDRESS_NOT_FOUND` · `STORE_NOT_FOUND`",
+            "description": "`ADDRESS_NOT_FOUND` · `RESOURCE_NOT_FOUND` · `STORE_NOT_FOUND`",
             "content": {
               "application/json": {
                 "schema": {
@@ -14884,11 +15026,12 @@
             },
             "x-codiq-error-codes": [
               "ADDRESS_NOT_FOUND",
+              "RESOURCE_NOT_FOUND",
               "STORE_NOT_FOUND"
             ]
           },
           "409": {
-            "description": "`CART_ALREADY_CHECKED_OUT` · `CART_VERSION_CONFLICT` · `IDEMPOTENCY_KEY_REUSED` · `STORE_NOT_ACCEPTING_ORDERS`",
+            "description": "`CART_ALREADY_CHECKED_OUT` · `CART_VERSION_CONFLICT` · `IDEMPOTENCY_KEY_REUSED` · `ORDER_VERSION_CONFLICT` · `STORE_NOT_ACCEPTING_ORDERS`",
             "content": {
               "application/json": {
                 "schema": {
@@ -14900,6 +15043,7 @@
               "CART_ALREADY_CHECKED_OUT",
               "CART_VERSION_CONFLICT",
               "IDEMPOTENCY_KEY_REUSED",
+              "ORDER_VERSION_CONFLICT",
               "STORE_NOT_ACCEPTING_ORDERS"
             ]
           },
@@ -14917,7 +15061,7 @@
             ]
           },
           "422": {
-            "description": "`ADDON_UNAVAILABLE` · `CART_EMPTY` · `CART_PRICE_CHANGED` · `INSUFFICIENT_AVAILABLE_STOCK` · `INVALID_FULFILMENT` · `INVALID_INCIDENT` · `ORDER_LIMIT_EXCEEDED` · `ORDER_TOTAL_TOO_LARGE` · `PICKUP_NOT_AVAILABLE` · `PRODUCT_UNAVAILABLE` · `STORE_ON_VACATION` · `VALIDATION_FAILED`",
+            "description": "`ADDON_UNAVAILABLE` · `CART_EMPTY` · `CART_PRICE_CHANGED` · `INSTALMENT_AMOUNT_CHANGED` · `INSTALMENT_CODE_WRONG` · `INSTALMENT_PLAN_EXPIRED` · `INSTALMENT_PLAN_REQUIRED` · `INSUFFICIENT_AVAILABLE_STOCK` · `INVALID_FULFILMENT` · `INVALID_INCIDENT` · `INVALID_ORDER_TRANSITION` · `ORDER_LIMIT_EXCEEDED` · `ORDER_PAYMENT_PENDING` · `ORDER_TOTAL_TOO_LARGE` · `PAYMENT_METHOD_NOT_SUPPORTED` · `PICKUP_NOT_AVAILABLE` · `PRESCRIPTION_NOT_APPROVED` · `PRODUCT_UNAVAILABLE` · `STORE_ON_VACATION` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -14929,12 +15073,20 @@
               "ADDON_UNAVAILABLE",
               "CART_EMPTY",
               "CART_PRICE_CHANGED",
+              "INSTALMENT_AMOUNT_CHANGED",
+              "INSTALMENT_CODE_WRONG",
+              "INSTALMENT_PLAN_EXPIRED",
+              "INSTALMENT_PLAN_REQUIRED",
               "INSUFFICIENT_AVAILABLE_STOCK",
               "INVALID_FULFILMENT",
               "INVALID_INCIDENT",
+              "INVALID_ORDER_TRANSITION",
               "ORDER_LIMIT_EXCEEDED",
+              "ORDER_PAYMENT_PENDING",
               "ORDER_TOTAL_TOO_LARGE",
+              "PAYMENT_METHOD_NOT_SUPPORTED",
               "PICKUP_NOT_AVAILABLE",
+              "PRESCRIPTION_NOT_APPROVED",
               "PRODUCT_UNAVAILABLE",
               "STORE_ON_VACATION",
               "VALIDATION_FAILED"
@@ -14953,8 +15105,34 @@
               "STORE_IN_MAINTENANCE"
             ]
           },
+          "429": {
+            "description": "`INSTALMENT_CODE_LOCKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INSTALMENT_CODE_LOCKED"
+            ]
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "502": {
+            "description": "`PAYMENT_PROVIDER_UNAVAILABLE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PAYMENT_PROVIDER_UNAVAILABLE"
+            ]
           },
           "default": {
             "$ref": "#/components/responses/Error"
@@ -17427,6 +17605,117 @@
           "shopper"
         ],
         "x-codiq-source": "phase1-backend/src/modules/market-support/routes.ts",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
+      }
+    },
+    "/market/payments/{paymentId}": {
+      "get": {
+        "operationId": "getMarketPaymentsByPaymentId",
+        "tags": [
+          "market-payments"
+        ],
+        "summary": "GET /market/payments/{paymentId}",
+        "description": "**الباب**: shopper.",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `SHOPPER_SESSION_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "SHOPPER_SESSION_REQUIRED"
+            ]
+          },
+          "403": {
+            "description": "`IDENTITY_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "IDENTITY_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`PAYMENT_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PAYMENT_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "shopper"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-payments/routes.ts",
         "security": [
           {
             "sessionCookie": []
@@ -37002,6 +37291,154 @@
         }
       }
     },
+    "/platform/market/payments": {
+      "get": {
+        "operationId": "getPlatformMarketPayments",
+        "tags": [
+          "market-payments"
+        ],
+        "summary": "GET /platform/market/payments",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `merchants.manage`.\n\n**قائمة**: تُجيب بمَغلَّف المرحلة 20-2 — `{ <resource>: T[], nextCursor, …facets }` مع مؤشر معتم واحد.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "code_sent",
+                "paid",
+                "approved",
+                "failed",
+                "expired",
+                "cancelled",
+                "refunded",
+                "adjusted"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_LIMIT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_LIMIT"
+            ]
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PLATFORM_ACCESS_REVOKED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PLATFORM_ACCESS_REVOKED"
+            ]
+          },
+          "403": {
+            "description": "`IDENTITY_BOUNDARY_DENIED` · `PLATFORM_PERMISSION_DENIED` · `SECOND_FACTOR_ENROLMENT_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "IDENTITY_BOUNDARY_DENIED",
+              "PLATFORM_PERMISSION_DENIED",
+              "SECOND_FACTOR_ENROLMENT_REQUIRED"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "platform_owner",
+          "platform_staff"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-payments/routes.ts",
+        "x-codiq-permissions": [
+          "merchants.manage"
+        ],
+        "x-codiq-list-envelope": true,
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ]
+      }
+    },
     "/platform/market/reels": {
       "get": {
         "operationId": "getPlatformMarketReels",
@@ -50624,6 +51061,167 @@
         }
       }
     },
+    "/market/checkout/{storeSlug}/instalments": {
+      "post": {
+        "operationId": "postMarketCheckoutByStoreSlugInstalments",
+        "tags": [
+          "market-cart"
+        ],
+        "summary": "POST /market/checkout/{storeSlug}/instalments",
+        "description": "**الباب**: shopper.\n\n**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً.",
+        "parameters": [
+          {
+            "name": "storeSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `SHOPPER_SESSION_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "SHOPPER_SESSION_REQUIRED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`STORE_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "STORE_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`CART_EMPTY` · `INSTALMENT_LENDER_UNKNOWN` · `INSTALMENT_NOT_ELIGIBLE` · `INSTALMENT_TERM_INVALID` · `INVALID_INCIDENT` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CART_EMPTY",
+              "INSTALMENT_LENDER_UNKNOWN",
+              "INSTALMENT_NOT_ELIGIBLE",
+              "INSTALMENT_TERM_INVALID",
+              "INVALID_INCIDENT",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "shopper"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-cart/routes.ts",
+        "x-codiq-rate-limited": true,
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-cart.schema.instalmentStartSchema"
+              }
+            }
+          }
+        }
+      }
+    },
     "/market/contact": {
       "post": {
         "operationId": "postMarketContact",
@@ -51659,6 +52257,155 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/modules.market-orders.schema.cancelSchema"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/market/payments/{paymentId}/test-provider": {
+      "post": {
+        "operationId": "postMarketPaymentsByPaymentIdTestProvider",
+        "tags": [
+          "market-payments"
+        ],
+        "summary": "POST /market/payments/{paymentId}/test-provider",
+        "description": "**الباب**: shopper.",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_DATE_FILTER` · `INVALID_JSON_BODY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_DATE_FILTER",
+              "INVALID_JSON_BODY"
+            ]
+          },
+          "401": {
+            "description": "`INVALID_SESSION` · `MISSING_SESSION` · `PAYMENT_SIGNATURE_INVALID` · `SHOPPER_SESSION_REQUIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_SESSION",
+              "MISSING_SESSION",
+              "PAYMENT_SIGNATURE_INVALID",
+              "SHOPPER_SESSION_REQUIRED"
+            ]
+          },
+          "403": {
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "CSRF_ORIGIN_DENIED",
+              "IDENTITY_BOUNDARY_DENIED"
+            ]
+          },
+          "404": {
+            "description": "`PAYMENTS_OFF` · `PAYMENT_NOT_FOUND` · `RESOURCE_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PAYMENTS_OFF",
+              "PAYMENT_NOT_FOUND",
+              "RESOURCE_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "description": "`REQUEST_BODY_TOO_LARGE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REQUEST_BODY_TOO_LARGE"
+            ]
+          },
+          "422": {
+            "description": "`INVALID_DELIVERY_WINDOW` · `INVALID_INCIDENT` · `PAYMENT_AMOUNT_MISMATCH` · `VALIDATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_DELIVERY_WINDOW",
+              "INVALID_INCIDENT",
+              "PAYMENT_AMOUNT_MISMATCH",
+              "VALIDATION_FAILED"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "shopper"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-payments/routes.ts",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/modules.market-payments.schema.testProviderSchema"
               }
             }
           }
@@ -54883,7 +55630,7 @@
             ]
           },
           "422": {
-            "description": "`HANDOVER_CODE_WRONG` · `INVALID_INCIDENT` · `INVALID_ORDER_TRANSITION` · `PRESCRIPTION_NOT_APPROVED` · `VALIDATION_FAILED`",
+            "description": "`HANDOVER_CODE_WRONG` · `INVALID_INCIDENT` · `INVALID_ORDER_TRANSITION` · `ORDER_PAYMENT_PENDING` · `PRESCRIPTION_NOT_APPROVED` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -54895,6 +55642,7 @@
               "HANDOVER_CODE_WRONG",
               "INVALID_INCIDENT",
               "INVALID_ORDER_TRANSITION",
+              "ORDER_PAYMENT_PENDING",
               "PRESCRIPTION_NOT_APPROVED",
               "VALIDATION_FAILED"
             ]
@@ -55231,7 +55979,7 @@
             ]
           },
           "422": {
-            "description": "`INSUFFICIENT_AVAILABLE_STOCK` · `INVALID_INCIDENT` · `INVALID_ORDER_TRANSITION` · `PRESCRIPTION_NOT_APPROVED` · `VALIDATION_FAILED`",
+            "description": "`INSUFFICIENT_AVAILABLE_STOCK` · `INVALID_INCIDENT` · `INVALID_ORDER_TRANSITION` · `ORDER_PAYMENT_PENDING` · `PRESCRIPTION_NOT_APPROVED` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -55243,6 +55991,7 @@
               "INSUFFICIENT_AVAILABLE_STOCK",
               "INVALID_INCIDENT",
               "INVALID_ORDER_TRANSITION",
+              "ORDER_PAYMENT_PENDING",
               "PRESCRIPTION_NOT_APPROVED",
               "VALIDATION_FAILED"
             ]
@@ -55557,7 +56306,7 @@
             ]
           },
           "422": {
-            "description": "`BULK_LIMIT_EXCEEDED` · `INVALID_BULK_SELECTION` · `INVALID_INCIDENT` · `INVALID_ORDER_STATUS` · `INVALID_ORDER_TRANSITION` · `PRESCRIPTION_NOT_APPROVED` · `VALIDATION_FAILED`",
+            "description": "`BULK_LIMIT_EXCEEDED` · `INVALID_BULK_SELECTION` · `INVALID_INCIDENT` · `INVALID_ORDER_STATUS` · `INVALID_ORDER_TRANSITION` · `ORDER_PAYMENT_PENDING` · `PRESCRIPTION_NOT_APPROVED` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -55571,6 +56320,7 @@
               "INVALID_INCIDENT",
               "INVALID_ORDER_STATUS",
               "INVALID_ORDER_TRANSITION",
+              "ORDER_PAYMENT_PENDING",
               "PRESCRIPTION_NOT_APPROVED",
               "VALIDATION_FAILED"
             ]
@@ -56317,7 +57067,7 @@
             ]
           },
           "422": {
-            "description": "`INVALID_INCIDENT` · `INVALID_INPUT` · `INVALID_ORDER_TRANSITION` · `PRESCRIPTION_NOT_APPROVED` · `RETURN_REJECTION_NOTE_REQUIRED` · `VALIDATION_FAILED`",
+            "description": "`INVALID_INCIDENT` · `INVALID_INPUT` · `INVALID_ORDER_TRANSITION` · `ORDER_PAYMENT_PENDING` · `PRESCRIPTION_NOT_APPROVED` · `RETURN_REJECTION_NOTE_REQUIRED` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -56329,6 +57079,7 @@
               "INVALID_INCIDENT",
               "INVALID_INPUT",
               "INVALID_ORDER_TRANSITION",
+              "ORDER_PAYMENT_PENDING",
               "PRESCRIPTION_NOT_APPROVED",
               "RETURN_REJECTION_NOTE_REQUIRED",
               "VALIDATION_FAILED"
@@ -57299,6 +58050,98 @@
             }
           }
         }
+      }
+    },
+    "/payments/webhooks/card": {
+      "post": {
+        "operationId": "postPaymentsWebhooksCard",
+        "tags": [
+          "market-payments"
+        ],
+        "summary": "POST /payments/webhooks/card",
+        "description": "**الباب**: مفتوح بلا جلسة.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`PAYMENT_NOTIFICATION_EMPTY`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PAYMENT_NOTIFICATION_EMPTY"
+            ]
+          },
+          "401": {
+            "description": "`PAYMENT_SIGNATURE_INVALID`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PAYMENT_SIGNATURE_INVALID"
+            ]
+          },
+          "404": {
+            "description": "`PAYMENTS_OFF` · `PAYMENT_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "PAYMENTS_OFF",
+              "PAYMENT_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "$ref": "#/components/responses/BodyTooLarge"
+          },
+          "422": {
+            "description": "`INVALID_INCIDENT` · `PAYMENT_AMOUNT_MISMATCH`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "INVALID_INCIDENT",
+              "PAYMENT_AMOUNT_MISMATCH"
+            ]
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "x-codiq-identity": [
+          "public"
+        ],
+        "x-codiq-source": "phase1-backend/src/modules/market-payments/routes.ts",
+        "security": []
       }
     },
     "/platform/feature-flags/{code}/rules": {
@@ -62527,7 +63370,7 @@
             "$ref": "#/components/responses/BodyTooLarge"
           },
           "422": {
-            "description": "`INVALID_INCIDENT` · `INVALID_ORDER_TRANSITION` · `PRESCRIPTION_NOT_APPROVED`",
+            "description": "`INVALID_INCIDENT` · `INVALID_ORDER_TRANSITION` · `ORDER_PAYMENT_PENDING` · `PRESCRIPTION_NOT_APPROVED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -62538,6 +63381,7 @@
             "x-codiq-error-codes": [
               "INVALID_INCIDENT",
               "INVALID_ORDER_TRANSITION",
+              "ORDER_PAYMENT_PENDING",
               "PRESCRIPTION_NOT_APPROVED"
             ]
           },
@@ -69914,6 +70758,67 @@
         "الحادث حُلّ — افتح حادثاً جديداً إن عاد."
       ]
     },
+    "INSTALMENT_AMOUNT_CHANGED": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "تغيّر مبلغ الطلب منذ اخترت التقسيط — اختر المدّة من جديد."
+      ]
+    },
+    "INSTALMENT_CODE_LOCKED": {
+      "statuses": [
+        429
+      ],
+      "messages": [
+        "محاولات كثيرة — اطلب رمزاً جديداً."
+      ]
+    },
+    "INSTALMENT_CODE_WRONG": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "الرمز غير صحيح."
+      ]
+    },
+    "INSTALMENT_LENDER_UNKNOWN": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "جهة التقسيط غير متاحة."
+      ]
+    },
+    "INSTALMENT_NOT_ELIGIBLE": {
+      "statuses": [
+        422
+      ],
+      "messages": []
+    },
+    "INSTALMENT_PLAN_EXPIRED": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "انتهت مهلة الرمز — اطلبه من جديد."
+      ]
+    },
+    "INSTALMENT_PLAN_REQUIRED": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "اختر جهة التقسيط والمدّة أوّلاً.",
+        "اختر جهة التقسيط والمدّة من جديد."
+      ]
+    },
+    "INSTALMENT_TERM_INVALID": {
+      "statuses": [
+        422
+      ],
+      "messages": []
+    },
     "INSUFFICIENT_AVAILABLE_STOCK": {
       "statuses": [
         422
@@ -71142,6 +72047,14 @@
         "التسوية اليدوية متاحة للطلبات المرتجعة فقط."
       ]
     },
+    "ORDER_PAYMENT_PENDING": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "الزبون لم يُكمل الدفع الإلكترونيّ بعد — اقبل الطلب بعد وصول الدفع."
+      ]
+    },
     "ORDER_TAGS_CONFLICT": {
       "statuses": [
         409
@@ -71263,11 +72176,21 @@
         "كلمة المرور الجديدة مطابقة للحالية. اختر كلمة مختلفة."
       ]
     },
+    "PAYMENT_AMOUNT_MISMATCH": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "المبلغ في الإشعار لا يطابق الطلب."
+      ]
+    },
     "PAYMENT_METHOD_NOT_SUPPORTED": {
       "statuses": [
         422
       ],
       "messages": [
+        "الدفع الإلكترونيّ غير متاح الآن.",
+        "جهة التقسيط غير متاحة الآن.",
         "هذا المتجر لا يقبل وسيلة الدفع المختارة.",
         "وسيلة الدفع غير مدعومة."
       ]
@@ -71277,6 +72200,47 @@
         422
       ],
       "messages": []
+    },
+    "PAYMENT_NOT_FOUND": {
+      "statuses": [
+        404
+      ],
+      "messages": [
+        "عملية الدفع غير موجودة.",
+        "لا توجد جلسة دفع بهذا المرجع."
+      ]
+    },
+    "PAYMENT_NOTIFICATION_EMPTY": {
+      "statuses": [
+        400
+      ],
+      "messages": [
+        "إشعار فارغ."
+      ]
+    },
+    "PAYMENT_PROVIDER_UNAVAILABLE": {
+      "statuses": [
+        502
+      ],
+      "messages": [
+        "تعذّر الوصول إلى بوابة الدفع — لم يُحتسب أيّ مبلغ وأُلغي الطلب. جرّب مرّة أخرى أو ادفع نقداً."
+      ]
+    },
+    "PAYMENT_SIGNATURE_INVALID": {
+      "statuses": [
+        401
+      ],
+      "messages": [
+        "توقيع الإشعار غير صحيح."
+      ]
+    },
+    "PAYMENTS_OFF": {
+      "statuses": [
+        404
+      ],
+      "messages": [
+        "الدفع الإلكترونيّ غير مفعّل."
+      ]
     },
     "PICKUP_NOT_AVAILABLE": {
       "statuses": [
@@ -71623,6 +72587,7 @@
         "طلب الإرجاع غير موجود.",
         "طلب الترقية غير موجود.",
         "عضو طاقم المنصة المطلوب غير موجود.",
+        "غير موجود.",
         "لا توجد صورة غلاف لحذفها.",
         "لا توجد صورة غلاف لهذا المتجر.",
         "لا توجد صورة لحذفها.",
@@ -72295,8 +73260,8 @@
       "the zod schemas in src/http/schemas",
       "every new HttpError(...) throw site in src"
     ],
-    "routesInRoutingTable": 486,
-    "operations": 487,
+    "routesInRoutingTable": 491,
+    "operations": 492,
     "note": "مولّدة آلياً — أي تحرير يدوي يسقط في أول تشغيل لـ `pnpm openapi:guard`."
   }
 }

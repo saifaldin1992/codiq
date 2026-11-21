@@ -14,7 +14,7 @@ type Addon = { id?: string; name: string; priceIqd: number; isActive: boolean };
 type Row = {
   id: string; name: string; priceIqd: number; isActive: boolean; storeCategory: string | null; effectiveMarketCategoryId: number | null;
   marketCategoryId: number | null; compareAtPriceIqd: number | null; condition: "new" | "used" | "refurbished"; tags: string[]; specs: { name: string; value: string }[];
-  isPreorder: boolean; preorderReleaseOn: string | null; preorderShipsBy: string | null; maxPerOrder: number | null; addons: Addon[];
+  isPreorder: boolean; preorderReleaseOn: string | null; preorderShipsBy: string | null; maxPerOrder: number | null; instalmentsEligible: boolean; instalmentsCashPrice: boolean; addons: Addon[];
 };
 
 const TAGS: { code: string; label: string }[] = [
@@ -146,6 +146,8 @@ function ProductEditor({ base, row, tree, onSaved, onError }: { base: string; ro
           preorderReleaseOn: draft.isPreorder ? draft.preorderReleaseOn || null : null,
           preorderShipsBy: draft.isPreorder ? draft.preorderShipsBy || null : null,
           maxPerOrder: draft.max ? Number(draft.max) : null,
+          instalmentsEligible: draft.instalmentsEligible,
+          instalmentsCashPrice: draft.instalmentsEligible && draft.instalmentsCashPrice,
         }),
       });
       const withAddons = await call<{ product: Row }>(`${base}/products/${row.id}/addons`, { method: "PUT", body: JSON.stringify({ addons: addons.filter((addon) => addon.name.trim()).map(({ name, priceIqd, isActive }) => ({ name, priceIqd, isActive })) }) });
@@ -186,6 +188,10 @@ function ProductEditor({ base, row, tree, onSaved, onError }: { base: string; ro
         </div>
       </div>
       <div className="space-y-2">
+<div className="flex flex-wrap gap-4" data-testid="market-editor-instalments">
+          <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={draft.instalmentsEligible} onChange={(event) => set({ instalmentsEligible: event.target.checked, ...(event.target.checked ? {} : { instalmentsCashPrice: false }) })} data-testid="market-editor-instalments-eligible" /> متاح بالتقسيط</label>
+          <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" disabled={!draft.instalmentsEligible} checked={draft.instalmentsCashPrice} onChange={(event) => set({ instalmentsCashPrice: event.target.checked })} data-testid="market-editor-instalments-cash" /> أقساط بسعر الكاش (يتحمّل المتجر رسوم الجهة)</label>
+        </div>
         <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={draft.isPreorder} onChange={(event) => set({ isPreorder: event.target.checked })} data-testid="market-editor-preorder" /> طلب مسبق (يُحجز قبل وصول الشحنة)</label>
         {draft.isPreorder ? (
           <div className="grid gap-2 sm:grid-cols-2">

@@ -54,8 +54,12 @@ export const productMarketFieldsSchema = z.object({
   preorderReleaseOn: isoDate.nullable(),
   preorderShipsBy: isoDate.nullable(),
   maxPerOrder: z.number().int().min(1).max(99).nullable(),
+  /** Marketplace M13a (E6): optional, so older callers leave them as they are. */
+  instalmentsEligible: z.boolean().optional(),
+  instalmentsCashPrice: z.boolean().optional(),
 }).refine((value) => value.isPreorder || (value.preorderReleaseOn === null && value.preorderShipsBy === null), { message: "تواريخ الطلب المسبق للمنتجات المسبقة فقط", path: ["isPreorder"] })
-  .refine((value) => !value.preorderReleaseOn || !value.preorderShipsBy || value.preorderShipsBy >= value.preorderReleaseOn, { message: "تاريخ الشحن قبل تاريخ الإصدار", path: ["preorderShipsBy"] });
+  .refine((value) => !value.preorderReleaseOn || !value.preorderShipsBy || value.preorderShipsBy >= value.preorderReleaseOn, { message: "تاريخ الشحن قبل تاريخ الإصدار", path: ["preorderShipsBy"] })
+  .refine((value) => !(value.instalmentsCashPrice === true && value.instalmentsEligible === false), { message: "«بسعر الكاش» يحتاج أن يكون المنتج متاحاً بالتقسيط", path: ["instalmentsCashPrice"] });
 export type ProductMarketFieldsInput = z.infer<typeof productMarketFieldsSchema>;
 
 export const productAddonsSchema = z.object({

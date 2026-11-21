@@ -528,5 +528,13 @@
         "reason": "NOT A LIST — two counts and the model's name."
       }
     ]
+  },
+  "modules/market-payments/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/payments/:paymentId",
+        "reason": "NOT A LIST — one payment and its order."
+      }
+    ]
   }
 }
