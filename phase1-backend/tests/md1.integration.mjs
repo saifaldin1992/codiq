@@ -901,10 +901,12 @@ try {
 
   // Two orders placed in a known month, and one in the month before, written
   // straight to the database so the boundary is not a guess.
+  // The month is BAGHDAD's (UTC+3): July begins at 2026-06-30T21:00Z. On a UTC
+  // calendar an order at 01:00 on 1 July in Baghdad was counted in June.
   const lastMonth = new Date(Date.UTC(2026, 5, 15));  // 2026-06-15
-  const thisMonthStart = new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)); // 2026-07-01 00:00:00.000
-  const thisMonthEnd = new Date(Date.UTC(2026, 6, 31, 23, 59, 59, 999));
-  const nextMonthStart = new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0));
+  const thisMonthStart = new Date(Date.UTC(2026, 5, 30, 21, 0, 0, 0)); // 2026-07-01 00:00:00.000 Baghdad
+  const thisMonthEnd = new Date(Date.UTC(2026, 6, 31, 20, 59, 59, 999)); // 2026-07-31 23:59:59.999 Baghdad
+  const nextMonthStart = new Date(Date.UTC(2026, 6, 31, 21, 0, 0, 0)); // 2026-08-01 00:00:00.000 Baghdad
   let md7Counter = 0;
   const md7Order = async (createdAt, totalIqd) => {
     md7Counter += 1;
@@ -936,6 +938,10 @@ try {
   });
   assert.equal(julyDayTotals._count._all, 2, "MD-7: the first and last instants of the month both belong to it");
   assert.equal(julyDayTotals._sum.totalIqd, 50_000, "MD-7: …and August's order is not among them");
+  // The headline reads the same Baghdad month: both July orders, not August's.
+  assert.equal(julyReport.headline.revenueIqd.value >= 0, true);
+  assert.equal(julyReport.month.from, thisMonthStart.toISOString(), "MD-7: July starts at Baghdad midnight, 21:00 UTC the day before");
+  assert.equal(julyReport.bestDay.date.slice(0, 7), "2026-07", "MD-7: the best day is a Baghdad date inside the month — the 1 July order is not dated 30 June");
 
   // A month with no predecessor states no ratio rather than inventing one.
   const june = (await request(reportPath("2026-06"), { token: tokenA })).payload.report;
@@ -972,6 +978,17 @@ try {
     growthFromZero: june.headline.completedOrders.changePercent,
     emptyMonthAchievements: emptyMonth.achievements.length,
   };
+
+  // A good month for a large shop passes 2.1 billion dinars. SUM(int) is bigint
+  // in Postgres, and the series and best-sellers used to cast it back to int —
+  // «integer out of range», a 500, on exactly the month worth looking at.
+  const bigMonthStart = new Date(Date.UTC(2027, 0, 10, 12));
+  await md7Order(bigMonthStart, 1_500_000_000);
+  await md7Order(new Date(bigMonthStart.valueOf() + 60_000), 1_500_000_000);
+  const bigSeries = await request(`/merchant/stores/${storeA.slug}/marketing/analytics/sales-series?from=2027-01-01T00:00:00Z&to=2027-02-01T00:00:00Z&interval=month`, { token: tokenA });
+  assert.equal(bigSeries.status, 200, `a month past the int range still answers · ${JSON.stringify(bigSeries.payload)}`);
+  assert.equal(bigSeries.payload.series.reduce((sum, bucket) => sum + bucket.totalIqd, 0), 3_000_000_000, "…with the exact total");
+  summary.bigMonthTotal = 3_000_000_000;
 
   console.log(JSON.stringify(summary, null, 2));
 } finally {
