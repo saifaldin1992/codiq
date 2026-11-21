@@ -31,6 +31,7 @@
     "phase9a:test": "tsx phase1-backend/tests/phase9a.storefront.integration.mjs",
     "phase9b:cookie": "node --import tsx phase1-backend/tests/phase9b.cookie-session.acceptance.mjs",
     "phase9b:browser": "pnpm build && tsx phase1-backend/tests/phase9b.browser-acceptance.mjs",
+    "catalog:browser": "pnpm build && tsx phase1-backend/tests/storefront-catalog.browser-acceptance.mjs",
     "phase13:test": "node --import tsx phase1-backend/tests/phase13.store-switcher.integration.ts",
     "phase13:browser": "node --import tsx phase1-backend/tests/phase13.browser-flow.mjs",
     "phase14:test": "node --import tsx phase1-backend/tests/phase14.staff-permissions.integration.ts",

@@ -946,6 +946,9 @@ jobs:
       - name: Browser — phase 9B cookie scope
         run: pnpm phase9b:cookie
 
+      - name: Browser — the storefront catalog follows its address bar, and only the latest one
+        run: pnpm exec tsx phase1-backend/tests/storefront-catalog.browser-acceptance.mjs
+
       - name: Browser — phase 13 store switcher
         run: pnpm phase13:browser
         env:

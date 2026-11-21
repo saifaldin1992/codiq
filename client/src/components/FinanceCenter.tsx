@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Banknote, CircleAlert, LoaderCircle, RefreshCw, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLatestRequest } from "@/hooks/useLatestRequest";
 import { Input } from "@/components/ui/input";
 import { LoadMoreButton } from "@/components/LoadMoreButton";
 
@@ -67,16 +68,20 @@ export function FinanceCenter() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [adjustOrderId, setAdjustOrderId] = useState("");
 
+  const beginRequest = useLatestRequest();
   const load = useCallback(async () => {
+    const isCurrent = beginRequest();
     try {
       const result = await api<Report>(`/api/platform/finance/report?from=${from}T00:00:00Z&to=${to}T23:59:59Z`);
+      if (!isCurrent()) return;
       setReport(result);
       setFailure(null);
     } catch (error) {
+      if (!isCurrent()) return;
       setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
       setReport(null);
     }
-  }, [from, to]);
+  }, [beginRequest, from, to]);
   useEffect(() => { void load(); }, [load]);
 
   /**
