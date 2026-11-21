@@ -5,6 +5,7 @@
  * Shopping itself still happens in the store's own storefront until the
  * unified cart (M5); the page links there.
  */
+import { FollowStoreButton } from "../components/FavouriteButtons";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
 import { BadgeCheck, ChevronLeft, Clock3, CreditCard, ExternalLink, Eye, LoaderCircle, MapPin, MessageCircle, Package, Share2, Star, Store, X } from "lucide-react";
@@ -14,6 +15,7 @@ import { TIER_LABELS, WEEKDAYS } from "../market-types";
 import { BADGE_ICONS, MarkChips, RatingInline, TIER_CLASSES, TierChip } from "../components/StoreBadges";
 import { MarketEmptyState } from "../MarketEmptyState";
 import { ProductShelf } from "../components/ProductShelf";
+import { ReelsShelf } from "./MarketReelsPage";
 
 type Review = { id: string; rating: number; body: string | null; createdAt: string; author: string; product: { id: string; name: string } };
 
@@ -78,6 +80,7 @@ export function MarketStorePage() {
             </h1>
             <p className="truncate text-xs text-[var(--codiq-text-muted)]">{[store.businessType, place].filter(Boolean).join(" · ")}</p>
           </div>
+          <FollowStoreButton storeSlug={store.slug} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <RatingInline rating={store.rating} count={store.ratingCount} />
@@ -109,6 +112,7 @@ export function MarketStorePage() {
       </section>
 
       <div className="mx-4 space-y-5" data-testid="market-store-products">
+        <ReelsShelf storeSlug={store.slug} title="ريلز المتجر" />
         <ProductShelf testId="market-store-newest" title="أحدث المنتجات" url={`/api/market/products?store=${encodeURIComponent(store.slug)}&sort=newest&limit=10`} action={<Link href={`/s/${encodeURIComponent(store.slug)}/products`} className="text-xs font-bold text-[var(--codiq-accent)]" data-testid="market-store-all-products">عرض الكل</Link>} />
         <ProductShelf testId="market-store-discounts" title="التخفيضات" url={`/api/market/products?store=${encodeURIComponent(store.slug)}&discount=any&sort=discount&limit=10`} />
         <ProductShelf testId="market-store-trending" title="الأكثر رواجاً" url={`/api/market/products?store=${encodeURIComponent(store.slug)}&sort=trending&limit=10`} />

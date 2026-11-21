@@ -254,7 +254,7 @@ export default function MerchantDashboard() {
   // sidebar «الإرجاع» opened a mere returned-orders list and the CD-3 refund
   // queue was unreachable dead code (flagged during RI-1, fixed with it). The
   // returned-status LIST is still one chip away inside the workspace.
-  const orderMode = orderRoute && orderSegment !== "delivery" && orderSegment !== "settlements" && orderSegment !== "reports" && orderSegment !== "returns" ? (orderFilters[orderSegment ?? ""] ? { kind: "list" as const, ...orderFilters[orderSegment ?? ""] } : { kind: "detail" as const, orderId: orderSegment!, backPath: merchantPathForStore("/merchant/dashboard/orders", storeSlug) }) : null;
+  const orderMode = orderRoute && orderSegment !== "delivery" && orderSegment !== "settlements" && orderSegment !== "reports" && orderSegment !== "returns" && orderSegment !== "support-tickets" ? (orderFilters[orderSegment ?? ""] ? { kind: "list" as const, ...orderFilters[orderSegment ?? ""] } : { kind: "detail" as const, orderId: orderSegment!, backPath: merchantPathForStore("/merchant/dashboard/orders", storeSlug) }) : null;
   // ق-226: nothing of the merchant's chrome is drawn until the probe answers.
   if (gate === "checking") {
     return <main dir="rtl" className="grid min-h-screen place-items-center bg-[var(--codiq-canvas)] p-5"><p className="text-sm font-semibold text-[var(--codiq-text-secondary)]">جارٍ التحقق من الجلسة…</p></main>;

@@ -303,6 +303,7 @@ model Store {
   /// PR-1: customer reset tokens only — a storefront customer is keyed per store.
   passwordResetTokens  PasswordResetToken[]
 
+  productImageEmbeddings ProductImageEmbedding[]
   @@index([merchantId])
   // 20-3: the platform store directory pages (createdAt, id) desc across all tenants.
   @@index([createdAt(sort: Desc), id(sort: Desc)], map: "stores_created_id_idx")
@@ -310,6 +311,10 @@ model Store {
   @@map("stores")
   productReviews ProductReview[]
   wishlistItems  WishlistItem[]
+  marketFollowers ShopperFollowedStore[]
+  supportTickets SupportTicket[]
+  platformCouponStores PlatformCouponStore[]
+  marketReels MarketReel[]
   returnRequests ReturnRequest[]
   /// CD-5: off until the merchant turns it on — nobody discovers he has been
   /// giving discounts because an update defaulted a programme on.
@@ -616,6 +621,7 @@ model Product {
   // the same policy as plans_single_recommended (20260827170000) and order_tags.
   // Do NOT bring it back here: doing so re-locks the SKU on a product that is
   // sitting in the trash bin.
+  imageEmbedding        ProductImageEmbedding?
   @@unique([id, storeId])
   @@index([storeId])
   @@index([storeId, categoryId])
@@ -627,6 +633,9 @@ model Product {
   @@map("products")
   reviews        ProductReview[]
   wishlistItems  WishlistItem[]
+  marketFavourites ShopperFavouriteProduct[]
+  marketDeals MarketDeal[]
+  marketReels MarketReel[]
 }
 
 model ProductVariant {
@@ -728,6 +737,7 @@ model ProductImage {
   store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  embeddings  ProductImageEmbedding[]
   @@index([storeId, productId, sortOrder])
   @@map("product_images")
 }
@@ -771,6 +781,15 @@ model StoreOrder {
   status            String             @db.Text
   /// Marketplace M5: delivery | pickup (at the store's counter, no delivery fee).
   fulfilment        String             @default("delivery") @db.Text
+  /// Marketplace M6: the finer step reported while the courier has it. Shown, never a status.
+  deliveryStage     String?            @map("delivery_stage") @db.Text
+  deliveryStageAt   DateTime?          @map("delivery_stage_at") @db.Timestamptz(6)
+  /// Marketplace M6: why the shopper cancelled, from a fixed list.
+  cancelReasonCode  String?            @map("cancel_reason_code") @db.Text
+  /// Marketplace M8b: what a PLATFORM coupon took off. The platform's cost, not the store's:
+  /// never part of `discountIqd` (commission base) and never subtracted from the payout.
+  platformDiscountIqd    Int           @default(0) @map("platform_discount_iqd")
+  platformCouponWalletId String?       @map("platform_coupon_wallet_id") @db.Uuid
   customerName      String             @map("customer_name") @db.Text
   /// PG-6 (ق-74): GENERATED ALWAYS AS (codiq_ar_normalize_v1(order_number)) STORED — migration 20260904090000.
   /// Read-only. NEVER name this field in a `data:` object; Postgres rejects a write to a generated column.
@@ -832,6 +851,11 @@ model StoreOrder {
   // reason the notes are: no storefront/customer query names it, so the
   // recipient phone and message bodies can never ride the customer payload.
   whatsappSends     OrderWhatsappSend[]
+  // Marketplace M6. The hand-over code is a RELATION for the MD-1 reason: the
+  // store's order payload never names it, so the store never sees the code.
+  handoverCode      OrderHandoverCode?
+  rating            OrderRating?
+  supportTickets    SupportTicket[]
 
   @@unique([storeId, orderNumber])
   @@unique([id, storeId])
@@ -1404,6 +1428,9 @@ model LedgerEntry {
   /// net (decision §8.4). Nullable because rows written before the column
   /// existed cannot be corrected: the ledger is append-only.
   loyaltyDiscountIqd Int?  @default(0) @map("loyalty_discount_iqd")
+  /// Marketplace M8b: the platform coupon on this order — the platform's cost. NOT subtracted
+  /// from the payout: the store is paid as if the shopper had paid it.
+  platformDiscountIqd Int  @default(0) @map("platform_discount_iqd")
   commissionIqd Int        @map("commission_iqd")
   commissionBps Int        @map("commission_bps")
   planCode      String     @map("plan_code") @db.Text
@@ -2332,6 +2359,20 @@ model Shopper {
   otpChallenges     ShopperOtpChallenge[]
   addresses         ShopperAddress[]
   customers         Customer[]
+  orderRatings      OrderRating[]
+  favouriteProducts ShopperFavouriteProduct[]
+  followedStores    ShopperFollowedStore[]
+  inboxState        ShopperInboxState?
+  inboxReads        ShopperInboxRead[]
+  contactMessages   MarketContactMessage[]
+  appFeedback       MarketAppFeedback[]
+  supportTickets    SupportTicket[]
+  platformCoupons   ShopperCoupon[]
+  pointsEntries     ShopperPointsEntry[]
+  wheelGrants       WheelSpinGrant[]
+  wheelSpins        WheelSpin[]
+  wheelWins         WheelWin[]
+  reelLikes         MarketReelLike[]
   marketCart        MarketCart?
 
   @@map("shoppers")
@@ -2423,4 +2464,529 @@ model MarketCartItem {
   @@index([cartId, storeId, createdAt], map: "market_cart_items_cart_idx")
   @@index([variantId], map: "market_cart_items_variant_idx")
   @@map("market_cart_items")
+}
+
+/// Marketplace M6: four digits the shopper hands over; the store types them to mark the order delivered.
+model OrderHandoverCode {
+  orderId   String    @id @map("order_id") @db.Uuid
+  storeId   String    @map("store_id") @db.Uuid
+  code      String    @db.Text
+  failures  Int       @default(0)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  order     StoreOrder @relation(fields: [orderId, storeId], references: [id, storeId], onDelete: Cascade)
+
+  @@unique([orderId, storeId])
+  @@map("order_handover_codes")
+}
+
+/// Marketplace M6: the shopper's rating of one delivered order.
+model OrderRating {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId       String   @unique @map("order_id") @db.Uuid
+  storeId       String   @map("store_id") @db.Uuid
+  shopperId     String?  @map("shopper_id") @db.Uuid
+  storeStars    Int      @map("store_stars") @db.SmallInt
+  deliveryStars Int?     @map("delivery_stars") @db.SmallInt
+  tags          String[] @default([])
+  note          String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  order         StoreOrder @relation(fields: [orderId, storeId], references: [id, storeId], onDelete: Cascade)
+  shopper       Shopper?   @relation(fields: [shopperId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, storeId])
+  @@index([storeId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([shopperId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("order_ratings")
+}
+
+/// Marketplace M7: «المفضّلة» — a product the shopper saved.
+model ShopperFavouriteProduct {
+  shopperId String   @map("shopper_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade)
+
+  @@id([shopperId, productId])
+  @@index([shopperId, createdAt(sort: Desc), productId(sort: Desc)], map: "shopper_favourite_products_page_idx")
+  @@index([productId], map: "shopper_favourite_products_product_idx")
+  @@map("shopper_favourite_products")
+}
+
+/// Marketplace M7: a store the shopper follows.
+model ShopperFollowedStore {
+  shopperId String   @map("shopper_id") @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([shopperId, storeId])
+  @@index([shopperId, createdAt(sort: Desc), storeId(sort: Desc)], map: "shopper_followed_stores_page_idx")
+  @@index([storeId], map: "shopper_followed_stores_store_idx")
+  @@map("shopper_followed_stores")
+}
+
+/// Marketplace M7: the inbox's «read everything» mark. The inbox itself is derived, not stored.
+model ShopperInboxState {
+  shopperId String   @id @map("shopper_id") @db.Uuid
+  readAllAt DateTime @default(now()) @map("read_all_at") @db.Timestamptz(6)
+  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@map("shopper_inbox_state")
+}
+
+model ShopperInboxRead {
+  shopperId String   @map("shopper_id") @db.Uuid
+  itemKey   String   @map("item_key") @db.Text
+  readAt    DateTime @default(now()) @map("read_at") @db.Timestamptz(6)
+  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@id([shopperId, itemKey])
+  @@map("shopper_inbox_reads")
+}
+
+/// Marketplace M7: FAQ sections and articles, managed by the platform owner.
+model HelpSection {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String        @unique @db.Text
+  title     String        @db.Text
+  position  Int           @default(0)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  articles  HelpArticle[]
+
+  @@map("help_sections")
+}
+
+model HelpArticle {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectionId   String      @map("section_id") @db.Uuid
+  question    String      @db.Text
+  answer      String      @db.Text
+  isQuick     Boolean     @default(false) @map("is_quick")
+  isPublished Boolean     @default(true) @map("is_published")
+  position    Int         @default(0)
+  /// GENERATED ALWAYS AS (codiq_ar_normalize_v1(question || ' ' || answer)) STORED. Read-only.
+  searchText  String?     @default(dbgenerated()) @map("search_text") @db.Text
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  section     HelpSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId, position, id], map: "help_articles_section_idx")
+  @@map("help_articles")
+}
+
+/// Marketplace M7: «تواصل معنا».
+model MarketContactMessage {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId   String?   @map("shopper_id") @db.Uuid
+  kind        String    @db.Text
+  name        String    @db.Text
+  phone       String    @db.Text
+  body        String    @db.Text
+  status      String    @default("new") @db.Text
+  handledAt   DateTime? @map("handled_at") @db.Timestamptz(6)
+  handledNote String?   @map("handled_note") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper     Shopper?  @relation(fields: [shopperId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)], map: "market_contact_messages_queue_idx")
+  @@map("market_contact_messages")
+}
+
+/// Marketplace M7: «قيّم التطبيق».
+model MarketAppFeedback {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId String?  @map("shopper_id") @db.Uuid
+  stars     Int      @db.SmallInt
+  liked     String[] @default([])
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper   Shopper? @relation(fields: [shopperId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "market_app_feedback_page_idx")
+  @@index([shopperId, createdAt(sort: Desc)], map: "market_app_feedback_shopper_idx")
+  @@map("market_app_feedback")
+}
+
+/// Marketplace M7: small owner-set values, e.g. the support contacts.
+model MarketSetting {
+  key       String   @id @db.Text
+  value     Json
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("market_settings")
+}
+
+/// Marketplace M7b: a support ticket, opened from a delivered order.
+model SupportTicket {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number        Int       @unique @default(dbgenerated("nextval('support_ticket_number_seq'::regclass)"))
+  shopperId     String?   @map("shopper_id") @db.Uuid
+  storeId       String    @map("store_id") @db.Uuid
+  orderId       String    @map("order_id") @db.Uuid
+  type          String    @db.Text
+  subject       String?   @db.Text
+  description   String    @db.Text
+  status        String    @default("open") @db.Text
+  escalatedAt   DateTime? @map("escalated_at") @db.Timestamptz(6)
+  resolvedAt    DateTime? @map("resolved_at") @db.Timestamptz(6)
+  closedAt      DateTime? @map("closed_at") @db.Timestamptz(6)
+  lastSupportAt DateTime? @map("last_support_at") @db.Timestamptz(6)
+  shopperReadAt DateTime  @default(now()) @map("shopper_read_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  shopper       Shopper?  @relation(fields: [shopperId], references: [id], onDelete: SetNull)
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order         StoreOrder @relation(fields: [orderId, storeId], references: [id, storeId], onDelete: Cascade)
+  comments      SupportTicketComment[]
+  attachments   SupportTicketAttachment[]
+
+  @@index([shopperId, updatedAt(sort: Desc), id(sort: Desc)], map: "support_tickets_shopper_idx")
+  @@index([storeId, status, updatedAt(sort: Desc), id(sort: Desc)], map: "support_tickets_store_idx")
+  @@index([status, updatedAt(sort: Desc), id(sort: Desc)], map: "support_tickets_platform_idx")
+  @@map("support_tickets")
+}
+
+model SupportTicketComment {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId   String        @map("ticket_id") @db.Uuid
+  authorKind String        @map("author_kind") @db.Text
+  authorId   String?       @map("author_id") @db.Uuid
+  body       String        @db.Text
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt, id], map: "support_ticket_comments_ticket_idx")
+  @@map("support_ticket_comments")
+}
+
+model SupportTicketAttachment {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId    String        @map("ticket_id") @db.Uuid
+  authorKind  String        @map("author_kind") @db.Text
+  objectKey   String        @unique @map("object_key") @db.Text
+  contentType String        @map("content_type") @db.Text
+  byteSize    Int           @map("byte_size")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt], map: "support_ticket_attachments_ticket_idx")
+  @@map("support_ticket_attachments")
+}
+
+/// Marketplace M8a: a seasonal campaign with its own page.
+model MarketCampaign {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String              @unique @db.Text
+  title       String              @db.Text
+  subtitle    String?             @db.Text
+  startsAt    DateTime            @map("starts_at") @db.Timestamptz(6)
+  endsAt      DateTime            @map("ends_at") @db.Timestamptz(6)
+  isPublished Boolean             @default(false) @map("is_published")
+  minPercent  Int                 @default(10) @map("min_percent") @db.SmallInt
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  days        MarketCampaignDay[]
+  slots       MarketDealSlot[]
+
+  @@map("market_campaigns")
+}
+
+model MarketCampaignDay {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String         @map("campaign_id") @db.Uuid
+  day        DateTime       @db.Date
+  title      String         @db.Text
+  note       String?        @db.Text
+  campaign   MarketCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, day], map: "market_campaign_days_unique")
+  @@map("market_campaign_days")
+}
+
+/// Marketplace M8a: one hour of «عرض الساعة».
+model MarketDealSlot {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String         @map("campaign_id") @db.Uuid
+  title      String?        @db.Text
+  startsAt   DateTime       @map("starts_at") @db.Timestamptz(6)
+  endsAt     DateTime       @map("ends_at") @db.Timestamptz(6)
+  campaign   MarketCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  deals      MarketDeal[]
+
+  @@index([campaignId, startsAt], map: "market_deal_slots_campaign_idx")
+  @@index([startsAt, endsAt], map: "market_deal_slots_window_idx")
+  @@map("market_deal_slots")
+}
+
+/// Marketplace M8a: a store's product at a percentage off for one hour, once the owner approves.
+model MarketDeal {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slotId       String         @map("slot_id") @db.Uuid
+  storeId      String         @map("store_id") @db.Uuid
+  productId    String         @map("product_id") @db.Uuid
+  percentOff   Int            @map("percent_off") @db.SmallInt
+  status       String         @default("pending") @db.Text
+  decisionNote String?        @map("decision_note") @db.Text
+  decidedAt    DateTime?      @map("decided_at") @db.Timestamptz(6)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  slot         MarketDealSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  product      Product        @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade)
+
+  @@unique([slotId, productId], map: "market_deals_unique")
+  @@index([slotId, status], map: "market_deals_slot_idx")
+  @@index([storeId, createdAt(sort: Desc), id(sort: Desc)], map: "market_deals_store_idx")
+  @@map("market_deals")
+}
+
+/// Marketplace M8b: a coupon the PLATFORM funds.
+model PlatformCoupon {
+  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String                @unique @db.Text
+  title          String                @db.Text
+  description    String?               @db.Text
+  kind           String                @db.Text
+  percentOff     Int?                  @map("percent_off") @db.SmallInt
+  amountOffIqd   Int?                  @map("amount_off_iqd")
+  maxDiscountIqd Int?                  @map("max_discount_iqd")
+  minSubtotalIqd Int                   @default(0) @map("min_subtotal_iqd")
+  startsAt       DateTime              @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime              @map("ends_at") @db.Timestamptz(6)
+  totalLimit     Int?                  @map("total_limit")
+  issuedCount    Int                   @default(0) @map("issued_count")
+  pointsCost     Int                   @default(0) @map("points_cost")
+  allStores      Boolean               @default(true) @map("all_stores")
+  isActive       Boolean               @default(true) @map("is_active")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  stores         PlatformCouponStore[]
+  wallet         ShopperCoupon[]
+  pointsEntries  ShopperPointsEntry[]
+  wheelPrizes    WheelPrize[]
+
+  @@map("platform_coupons")
+}
+
+model PlatformCouponStore {
+  couponId String         @map("coupon_id") @db.Uuid
+  storeId  String         @map("store_id") @db.Uuid
+  coupon   PlatformCoupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  store    Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([couponId, storeId])
+  @@index([storeId], map: "platform_coupon_stores_store_idx")
+  @@map("platform_coupon_stores")
+}
+
+/// Marketplace M8b: «كوبوناتي» — a platform coupon a shopper holds; used once.
+model ShopperCoupon {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId   String         @map("shopper_id") @db.Uuid
+  couponId    String         @map("coupon_id") @db.Uuid
+  source      String         @db.Text
+  usedOrderId String?        @map("used_order_id") @db.Uuid
+  usedAt      DateTime?      @map("used_at") @db.Timestamptz(6)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper     Shopper        @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  coupon      PlatformCoupon @relation(fields: [couponId], references: [id], onDelete: Restrict)
+
+  @@index([shopperId, createdAt(sort: Desc), id(sort: Desc)], map: "shopper_coupons_wallet_idx")
+  @@map("shopper_coupons")
+}
+
+/// Marketplace M8b: the platform points ledger. Append-only; the balance is the sum.
+model ShopperPointsEntry {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId String          @map("shopper_id") @db.Uuid
+  delta     Int
+  reason    String          @db.Text
+  orderId   String?         @map("order_id") @db.Uuid
+  couponId  String?         @map("coupon_id") @db.Uuid
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper   Shopper         @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  coupon    PlatformCoupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  @@index([shopperId, createdAt(sort: Desc), id(sort: Desc)], map: "shopper_points_entries_shopper_idx")
+  @@map("shopper_points_entries")
+}
+
+/// Marketplace M9: the prize wheel.
+model MarketWheel {
+  id                     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                   String           @unique @db.Text
+  title                  String           @db.Text
+  howToPlay              String?          @map("how_to_play") @db.Text
+  isOpen                 Boolean          @default(false) @map("is_open")
+  startsAt               DateTime         @map("starts_at") @db.Timestamptz(6)
+  endsAt                 DateTime         @map("ends_at") @db.Timestamptz(6)
+  dailyFreeSpins         Int              @default(1) @map("daily_free_spins") @db.SmallInt
+  iqdPerExtraSpin        Int              @default(25000) @map("iqd_per_extra_spin")
+  maxExtraSpinsPerOrder  Int              @default(3) @map("max_extra_spins_per_order") @db.SmallInt
+  maxWinsPerShopper      Int              @default(3) @map("max_wins_per_shopper") @db.SmallInt
+  claimDays              Int              @default(7) @map("claim_days") @db.SmallInt
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  prizes                 WheelPrize[]
+  grants                 WheelSpinGrant[]
+  spins                  WheelSpin[]
+  wins                   WheelWin[]
+
+  @@map("market_wheels")
+}
+
+/// Marketplace M9: a segment of the wheel. `weight` and `stock` never leave the server.
+model WheelPrize {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wheelId   String          @map("wheel_id") @db.Uuid
+  label     String          @db.Text
+  kind      String          @db.Text
+  weight    Int
+  stock     Int?
+  wonCount  Int             @default(0) @map("won_count")
+  points    Int?
+  couponId  String?         @map("coupon_id") @db.Uuid
+  position  Int             @default(0) @db.SmallInt
+  isActive  Boolean         @default(true) @map("is_active")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  wheel     MarketWheel     @relation(fields: [wheelId], references: [id], onDelete: Cascade)
+  coupon    PlatformCoupon? @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  spins     WheelSpin[]
+  wins      WheelWin[]
+
+  @@index([wheelId, position], map: "wheel_prizes_wheel_idx")
+  @@map("wheel_prizes")
+}
+
+model WheelSpinGrant {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wheelId   String      @map("wheel_id") @db.Uuid
+  shopperId String      @map("shopper_id") @db.Uuid
+  orderId   String?     @map("order_id") @db.Uuid
+  spins     Int         @db.SmallInt
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  wheel     MarketWheel @relation(fields: [wheelId], references: [id], onDelete: Cascade)
+  shopper   Shopper     @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@unique([wheelId, orderId], map: "wheel_spin_grants_order_once")
+  @@index([wheelId, shopperId], map: "wheel_spin_grants_shopper_idx")
+  @@map("wheel_spin_grants")
+}
+
+model WheelSpin {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wheelId    String      @map("wheel_id") @db.Uuid
+  shopperId  String      @map("shopper_id") @db.Uuid
+  kind       String      @db.Text
+  day        DateTime    @db.Date
+  prizeId    String?     @map("prize_id") @db.Uuid
+  prizeLabel String      @map("prize_label") @db.Text
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  wheel      MarketWheel @relation(fields: [wheelId], references: [id], onDelete: Cascade)
+  shopper    Shopper     @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  prize      WheelPrize? @relation(fields: [prizeId], references: [id], onDelete: SetNull)
+  win        WheelWin?
+
+  @@index([wheelId, shopperId, createdAt(sort: Desc), id(sort: Desc)], map: "wheel_spins_shopper_idx")
+  @@index([wheelId, shopperId, day, kind], map: "wheel_spins_day_idx")
+  @@map("wheel_spins")
+}
+
+/// Marketplace M9: what a spin won, and where it is.
+model WheelWin {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wheelId   String      @map("wheel_id") @db.Uuid
+  spinId    String      @unique @map("spin_id") @db.Uuid
+  shopperId String      @map("shopper_id") @db.Uuid
+  prizeId   String      @map("prize_id") @db.Uuid
+  status    String      @default("pending") @db.Text
+  claimBy   DateTime    @map("claim_by") @db.Timestamptz(6)
+  claimedAt DateTime?   @map("claimed_at") @db.Timestamptz(6)
+  walletId  String?     @map("wallet_id") @db.Uuid
+  addressId String?     @map("address_id") @db.Uuid
+  note      String?     @db.Text
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  wheel     MarketWheel @relation(fields: [wheelId], references: [id], onDelete: Cascade)
+  spin      WheelSpin   @relation(fields: [spinId], references: [id], onDelete: Cascade)
+  shopper   Shopper     @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  prize     WheelPrize  @relation(fields: [prizeId], references: [id], onDelete: Restrict)
+
+  @@index([shopperId, createdAt(sort: Desc), id(sort: Desc)], map: "wheel_wins_shopper_idx")
+  @@index([wheelId, shopperId], map: "wheel_wins_board_idx")
+  @@index([wheelId, status, createdAt], map: "wheel_wins_queue_idx")
+  @@map("wheel_wins")
+}
+
+/// Marketplace M10: a store's short video. Shown once the owner approves it.
+model MarketReel {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId           String           @map("store_id") @db.Uuid
+  productId         String?          @map("product_id") @db.Uuid
+  caption           String?          @db.Text
+  videoObjectKey    String           @unique @map("video_object_key") @db.Text
+  videoContentType  String           @map("video_content_type") @db.Text
+  videoByteSize     Int              @map("video_byte_size")
+  posterObjectKey   String?          @unique @map("poster_object_key") @db.Text
+  posterContentType String?          @map("poster_content_type") @db.Text
+  status            String           @default("pending") @db.Text
+  decisionNote      String?          @map("decision_note") @db.Text
+  decidedAt         DateTime?        @map("decided_at") @db.Timestamptz(6)
+  publishedAt       DateTime?        @map("published_at") @db.Timestamptz(6)
+  viewCount         Int              @default(0) @map("view_count")
+  likeCount         Int              @default(0) @map("like_count")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  store             Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product           Product?         @relation(fields: [productId, storeId], references: [id, storeId], onDelete: NoAction)
+  likes             MarketReelLike[]
+  views             MarketReelView[]
+
+  @@index([storeId, createdAt(sort: Desc), id(sort: Desc)], map: "market_reels_store_idx")
+  @@index([status, createdAt, id], map: "market_reels_queue_idx")
+  @@map("market_reels")
+}
+
+model MarketReelLike {
+  reelId    String     @map("reel_id") @db.Uuid
+  shopperId String     @map("shopper_id") @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  reel      MarketReel @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  shopper   Shopper    @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@id([reelId, shopperId])
+  @@map("market_reel_likes")
+}
+
+model MarketReelView {
+  reelId    String     @map("reel_id") @db.Uuid
+  viewerKey String     @map("viewer_key") @db.Text
+  day       DateTime   @db.Date
+  reel      MarketReel @relation(fields: [reelId], references: [id], onDelete: Cascade)
+
+  @@id([reelId, viewerKey, day])
+  @@index([day], map: "market_reel_views_day_idx")
+  @@map("market_reel_views")
+}
+
+/// Marketplace M12 — «البحث بالصورة»: one fingerprint per product, of its main
+/// picture (vector(256), read and written with raw SQL — Prisma cannot type it).
+model ProductImageEmbedding {
+  productId String                   @id @map("product_id") @db.Uuid
+  storeId   String                   @map("store_id") @db.Uuid
+  imageId   String                   @map("image_id") @db.Uuid
+  model     String                   @db.Text
+  embedding Unsupported("vector(256)")
+  createdAt DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  product   Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store     Store                    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  image     ProductImage             @relation(fields: [imageId], references: [id], onDelete: Cascade)
+
+  @@index([storeId], map: "product_image_embeddings_store_idx")
+  @@map("product_image_embeddings")
 }

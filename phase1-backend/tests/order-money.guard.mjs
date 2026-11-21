@@ -70,6 +70,10 @@ const TERMS = [
   { inFormula: "discountIqd", column: "discountIqd" },
   { inFormula: "loyaltyPreview.discountIqd", column: "loyaltyDiscountIqd" },
   { inFormula: "deliveryFeeIqd", column: "deliveryFeeIqd" },
+  // Marketplace M8b: a market coupon the platform funds. The courier collects
+  // less by this much while the store is still owed it — so the merchant must
+  // see it, or his cash and his statement disagree by exactly this line.
+  { inFormula: "platformDiscountIqd", column: "platformDiscountIqd" },
 ];
 
 // 1. The formula still contains exactly the terms this guard knows about. A new

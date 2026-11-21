@@ -76,7 +76,7 @@ function Line({ line, busy, onQuantity, onRemove }: { line: CartLine; busy: bool
         {line.variant.name ? <p className="text-[11px] text-[var(--codiq-text-muted)]">{line.variant.name}</p> : null}
         {line.addons.length ? <p className="text-[11px] text-[var(--codiq-text-muted)]">+ {line.addons.map((addon) => addon.name).join("، ")}</p> : null}
         {line.product.isPreorder ? <p className="text-[11px] font-bold text-[var(--codiq-accent)]">طلب مسبق</p> : null}
-        <p className="text-sm font-black text-[var(--codiq-text)]">{iqd(line.unitPriceIqd)}{line.problem === "price_changed" ? <span className="mr-1 text-[11px] font-semibold text-[var(--codiq-warning)]">← {iqd(line.livePriceIqd)}</span> : null}</p>
+        <p className="text-sm font-black text-[var(--codiq-text)]">{line.listPriceIqd && line.problem !== "price_changed" ? <span className="ml-1 text-[11px] font-semibold text-[var(--codiq-text-muted)] line-through">{iqd(line.listPriceIqd)}</span> : null}{iqd(line.unitPriceIqd)}{line.problem === "price_changed" ? <span className="mr-1 text-[11px] font-semibold text-[var(--codiq-warning)]">← {iqd(line.livePriceIqd)}</span> : null}</p>
         {line.problem ? <p className="text-[11px] font-semibold text-[var(--codiq-danger)]" data-testid="market-cart-line-problem">{PROBLEM_TEXT[line.problem]}{line.problem === "insufficient_stock" && line.available ? ` (المتوفّر ${line.available.toLocaleString("ar-IQ")})` : ""}</p> : null}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 rounded-full border border-[var(--codiq-border)] px-1">

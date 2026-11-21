@@ -698,14 +698,17 @@ export async function addProductImages(storeId: string, productId: string, files
   const uploaded: Awaited<ReturnType<typeof putProductImage>>[] = [];
   try {
     for (const set of rendered) uploaded.push(await putProductImage(storeId, product.id, set));
-    return await prisma.$transaction(async (tx) => {
-      const images = [];
+    const images = await prisma.$transaction(async (tx) => {
+      const created = [];
       for (let index = 0; index < uploaded.length; index += 1) {
-        images.push(await tx.productImage.create({ data: { storeId, productId: product.id, ...uploaded[index]!, sortOrder: maxSort + index + 1 }, select: { id: true, contentType: true, byteSize: true, sortOrder: true } }));
+        created.push(await tx.productImage.create({ data: { storeId, productId: product.id, ...uploaded[index]!, sortOrder: maxSort + index + 1 }, select: { id: true, contentType: true, byteSize: true, sortOrder: true } }));
       }
       if (imageWriteHooks.beforeCommit) await imageWriteHooks.beforeCommit();
-      return images;
+      return created;
     });
+    // Marketplace M12: the product's fingerprint for «البحث بالصورة», after the commit and off the request.
+    afterImageCommit(product.id);
+    return images;
   } catch (error) {
     await deleteProductImageObjects(uploaded.flatMap((image) => productImageObjectKeys(image))).catch(() => { /* best effort — the error below is the one that matters */ });
     throw error;
@@ -718,6 +721,15 @@ export async function addProductImages(storeId: string, productId: string, files
  * go away. Production never sets it; same shape as `inventoryWriteHooks`.
  */
 export const imageWriteHooks: { beforeCommit: null | (() => Promise<void>) } = { beforeCommit: null };
+
+/**
+ * Marketplace M12 sets this (modules/market-visual) so a new picture is
+ * fingerprinted for image search without this service importing the module.
+ */
+export const imageCommitListeners: ((productId: string) => void)[] = [];
+function afterImageCommit(productId: string) {
+  for (const listener of imageCommitListeners) { try { listener(productId); } catch { /* a listener never fails an upload */ } }
+}
 
 export async function productImageForStore(storeId: string, productId: string, imageId: string) {
   // PG-2: the image itself has no deleted_at (plan §0 — the alleged "public

@@ -1,7 +1,10 @@
 import { Prisma } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
-import { prescriptionImageConstraints, productImageConstraints, storeImageConstraints } from "../services/product-image-storage.service.js";
+import { prescriptionImageConstraints, productImageConstraints, REEL_MAX_BYTES, storeImageConstraints } from "../services/product-image-storage.service.js";
+
+/** Marketplace M12: the search photo's ceiling (modules/market-visual/routes.ts keeps the same number). */
+const SEARCH_PHOTO_MAX_BYTES = 8 * 1024 * 1024;
 import { HttpError } from "../auth/auth.errors.js";
 import { currentCorrelationId, currentLogContext, newCorrelationId } from "../logging/context.js";
 import { logger } from "../logging/logger.js";
@@ -148,8 +151,17 @@ const SECURITY_401 = /^INVALID_[A-Z_]*CREDENTIALS$|^INVALID_SECOND_FACTOR$|_ACCE
 const SECURITY_403 = /DENIED$|BOUNDARY|PERMISSION|CSRF|REVOKED$|DISABLED$|FORBIDDEN/;
 
 /** Exported for the logging guard. */
+/**
+ * Security pass 2026-11 — a WRONG ONE-TIME CODE is a 422 (the shopper typed a
+ * digit wrong), but a run of them is what guessing looks like: the sign-in code,
+ * the authenticator code, the receipt code a store types at the door. Logged as
+ * refusals so an alert can count them per IP and per account.
+ */
+const SECURITY_422 = /^(OTP_INVALID|INVALID_TOTP_CODE|HANDOVER_CODE_WRONG)$/;
+
 export function isSecurityRefusal(status: number, code: string): boolean {
   if (status === 429) return true;
+  if (status === 422) return SECURITY_422.test(code);
   if (status === 401) return SECURITY_401.test(code);
   if (status === 403) return SECURITY_403.test(code);
   return false;
@@ -189,8 +201,22 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
     // it began telling a merchant a number the server does not enforce — which
     // is worse than saying nothing: it sends him to shrink a file that would
     // have been accepted.
+    // The marketplace's own uploads each name their own ceiling: a search photo
+    // and a reel are not product pictures, and an avatar, a cover, a market
+    // banner or a ticket picture is held to the store-image ceiling — before
+    // this they were all told the product-image number.
+    const marketCeiling = request.path.endsWith("/market/search/image")
+      ? { code: "INVALID_SEARCH_IMAGE", noun: "صورة البحث", maxBytes: SEARCH_PHOTO_MAX_BYTES }
+      : request.path.includes("/market-reels")
+        ? { code: "INVALID_REEL_VIDEO", noun: "ملف الفيديو", maxBytes: REEL_MAX_BYTES }
+        : null;
+    if (marketCeiling) {
+      const mb = Math.round(marketCeiling.maxBytes / (1024 * 1024));
+      return { status: 422, error: { code: marketCeiling.code, message: error.code === "LIMIT_FILE_SIZE" ? `${marketCeiling.noun} يجب أن يكون ${mb} MB أو أصغر.` : `رفع ${marketCeiling.noun} غير صالح.` }, mapped: true };
+    }
     const prescription = request.path.includes("/prescription");
-    const storeImage = request.path.includes("/banners") || request.path.endsWith("/storefront/logo");
+    const storeImage = request.path.includes("/banners") || request.path.endsWith("/storefront/logo")
+      || request.path.endsWith("/market/me/avatar") || request.path.endsWith("/market-profile/cover") || request.path.endsWith("/attachments");
     const code = prescription ? "INVALID_PRESCRIPTION_IMAGE" : "INVALID_PRODUCT_IMAGE";
     const noun = prescription ? "صورة الوصفة" : storeImage ? "صورة المتجر" : "صورة المنتج";
     const maxBytes = prescription

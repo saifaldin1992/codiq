@@ -19,6 +19,9 @@ import { DeliveryRatesManager } from "@/components/DeliveryRatesManager";
 import { LoyaltySettingsCard } from "@/components/LoyaltySettingsCard";
 import { MarketProfilePanel } from "@/components/MarketProfilePanel";
 import { MarketCatalogPanel } from "@/components/MarketCatalogPanel";
+import { SupportTicketsWorkspace } from "@/components/SupportTicketsWorkspace";
+import { MarketDealsPanel } from "@/components/MarketDealsPanel";
+import { MarketReelsPanel } from "@/components/MarketReelsPanel";
 import { ManualCustomerForm } from "@/components/ManualCustomerForm";
 import { MarketingIntegrationsPanel } from "@/components/MarketingIntegrationsPanel";
 import { MerchantAnalytics } from "@/components/MerchantAnalytics";
@@ -57,6 +60,7 @@ export const MERCHANT_SCREENS: Readonly<Record<string, MerchantScreen>> = {
   "/merchant/dashboard/products/forecast": ({ storeSlug }) => <StockForecastPanel storeSlug={storeSlug ?? ""} />,
   "/merchant/dashboard/marketing/monthly": ({ storeSlug }) => <MerchantMonthlyReport storeSlug={storeSlug ?? ""} />,
   "/merchant/dashboard/orders/returns": ({ storeSlug }) => <ReturnsQueue storeSlug={storeSlug ?? ""} />,
+  "/merchant/dashboard/orders/support-tickets": ({ storeSlug }) => <SupportTicketsWorkspace kind="store" storeSlug={storeSlug} />,
   "/merchant/dashboard/products/reviews": ({ storeSlug }) => <ReviewModeration storeSlug={storeSlug ?? ""} />,
   "/merchant/dashboard/marketing/coupons": ({ storeSlug }) => <CouponsManager storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/payments": ({ storeSlug }) => <MerchantPaymentsPanel storeSlug={storeSlug} />,
@@ -68,6 +72,8 @@ export const MERCHANT_SCREENS: Readonly<Record<string, MerchantScreen>> = {
   "/merchant/dashboard/settings/loyalty": ({ storeSlug }) => <LoyaltySettingsCard storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/market": ({ storeSlug }) => <MarketProfilePanel storeSlug={storeSlug} />,
   "/merchant/dashboard/products/market": ({ storeSlug }) => <MarketCatalogPanel storeSlug={storeSlug} />,
+  "/merchant/dashboard/products/market-deals": ({ storeSlug }) => <MarketDealsPanel storeSlug={storeSlug} />,
+  "/merchant/dashboard/products/market-reels": ({ storeSlug }) => <MarketReelsPanel storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/pos": ({ storeSlug }) => <PosDevicesPanel storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/trash": ({ storeSlug }) => <TrashBin storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/subscription": () => <SubscriptionPanel />,

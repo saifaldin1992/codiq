@@ -5,10 +5,14 @@
  */
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronDown, Grid2x2, House, MapPin, Search, ShoppingBag, Store, UserRound } from "lucide-react";
+import { Bell, ChevronDown, Grid2x2, House, MapPin, Search, ShoppingBag, Store, UserRound } from "lucide-react";
+import { useUnreadCount } from "./pages/MarketHelpPages";
+import { useShopper } from "./market-shopper";
 import { LocationPicker } from "./LocationPicker";
 import { useMarketLocation } from "./market-location";
 import { useMarketCart } from "./market-cart";
+import { PhotoPickerButton } from "./pages/MarketImageSearchPage";
+import { setPendingPhoto } from "./market-photo";
 
 const TABS = [
   { href: "/", label: "الرئيسية", icon: House, testId: "home" },
@@ -28,6 +32,8 @@ export function MarketShell({ children }: { children: ReactNode }) {
   const [picking, setPicking] = useState(false);
   const [query, setQuery] = useState("");
   const cart = useMarketCart();
+  const unread = useUnreadCount();
+  const { shopper } = useShopper();
 
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -40,7 +46,15 @@ export function MarketShell({ children }: { children: ReactNode }) {
       <div className="mx-auto flex min-h-screen w-full max-w-[560px] flex-col bg-[var(--codiq-canvas)]">
         <header className="sticky top-0 z-30 space-y-3 border-b border-[var(--codiq-border)] bg-[var(--codiq-surface)] px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-3">
-            <Link href="/" className="text-lg font-black tracking-tight text-[var(--codiq-accent)]" data-testid="market-brand">Codiq ماركت</Link>
+            <div className="flex items-center gap-2">
+              <Link href="/" className="text-lg font-black tracking-tight text-[var(--codiq-accent)]" data-testid="market-brand">Codiq ماركت</Link>
+              {shopper ? (
+                <Link href="/notifications" aria-label={unread ? `الإشعارات، ${unread} غير مقروء` : "الإشعارات"} className="relative rounded-full p-1.5 text-[var(--codiq-text-secondary)]" data-testid="market-bell">
+                  <Bell className="h-5 w-5" />
+                  {unread ? <span className="absolute -left-1 -top-0.5 min-w-4 rounded-full bg-[var(--codiq-danger)] px-1 text-center text-[9px] font-black leading-4 text-[var(--codiq-surface)]" data-testid="market-bell-badge">{unread > 99 ? "99+" : unread.toLocaleString("ar-IQ")}</span> : null}
+                </Link>
+              ) : null}
+            </div>
             <button type="button" onClick={() => setPicking(true)} className="flex min-w-0 items-center gap-1 rounded-full bg-[var(--codiq-surface-sunken)] px-3 py-1.5 text-xs font-semibold text-[var(--codiq-text-secondary)]" data-testid="market-location-button">
               <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--codiq-accent)]" />
               <span className="truncate">التوصيل إلى: {marketLocation ? [marketLocation.governorateName, marketLocation.districtName].filter(Boolean).join(" · ") : "اختر محافظتك"}</span>
@@ -51,6 +65,7 @@ export function MarketShell({ children }: { children: ReactNode }) {
             <label className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-surface-sunken)] px-3 py-2.5">
               <Search className="h-4 w-4 text-[var(--codiq-text-muted)]" />
               <input value={query} onChange={(event) => setQuery(event.target.value)} type="search" enterKeyHint="search" placeholder="ابحث عن منتج، علامة، متجر…" aria-label="بحث" className="w-full bg-transparent text-sm outline-none" data-testid="market-search-input" />
+              <PhotoPickerButton onPick={(file) => { setPendingPhoto(file); navigate(`/search/image?t=${Date.now()}`); }} />
             </label>
           </form>
         </header>

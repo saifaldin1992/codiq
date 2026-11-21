@@ -1,12 +1,14 @@
 /** طلباتي — every order across every store, and one order's story. */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearch } from "wouter";
-import { CheckCircle2, LoaderCircle, MessageCircle, Package, Store } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MessageCircle, Package, Star, Store, Truck } from "lucide-react";
 import { accountCall, useShopper } from "../market-shopper";
 import { iqd } from "../market-products";
 import { useMarketList } from "../use-market-list";
 import { MarketSignIn } from "./MarketAccountPages";
 import { MarketEmptyState } from "../MarketEmptyState";
+import { OrderTicketLink } from "./MarketTicketsPages";
+import { CancelOrder, HandoverCode, RateOrder, ReturnOrder, Stars, type AfterSales } from "../components/OrderAfterSales";
 
 type OrderCard = { id: string; orderNumber: string; status: string; statusLabel: string; fulfilment: string; totalIqd: number; createdAt: string; store: { slug: string; name: string }; itemCount: number; preview: string[] };
 const TABS = [{ value: "", label: "الكل" }, { value: "active", label: "الجارية" }, { value: "done", label: "المنتهية" }];
@@ -62,12 +64,14 @@ export function MarketOrderPage() {
   const placed = new URLSearchParams(useSearch()).get("placed") === "1";
   const { status, shopper } = useShopper();
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [afterSales, setAfterSales] = useState<AfterSales | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
-  useEffect(() => { if (shopper) accountCall<{ order: OrderDetail }>(`/api/market/orders/${encodeURIComponent(id)}`).then((body) => setOrder(body.order)).catch((error: Error) => setFailure(error.message)); }, [shopper, id]);
+  const load = useCallback(() => accountCall<{ order: OrderDetail; afterSales: AfterSales }>(`/api/market/orders/${encodeURIComponent(id)}`).then((body) => { setOrder(body.order); setAfterSales(body.afterSales); }).catch((error: Error) => setFailure(error.message)), [id]);
+  useEffect(() => { if (shopper) void load(); }, [shopper, load]);
   if (status === "loading") return null;
   if (!shopper) return <MarketSignIn />;
   if (failure) return <MarketEmptyState icon={Package} title="الطلب غير موجود" body={failure} action={<Link href="/orders" className="rounded-full bg-[var(--codiq-accent)] px-5 py-2.5 text-sm font-bold text-[var(--codiq-surface)]">طلباتي</Link>} />;
-  if (!order) return <p className="py-10 text-center text-sm text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ التحميل…</p>;
+  if (!order || !afterSales) return <p className="py-10 text-center text-sm text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ التحميل…</p>;
   const rank = RANK[order.status] ?? -1;
   const whatsapp = order.store.supportWhatsapp ? `https://wa.me/${order.store.supportWhatsapp.replace(/[^\d]/g, "")}?text=${encodeURIComponent(`مرحباً، بخصوص الطلب رقم ${order.orderNumber}`)}` : null;
   return (
@@ -81,8 +85,11 @@ export function MarketOrderPage() {
             {STEPS.map((step, at) => <li key={step.key} className="space-y-1 text-center"><span className={`block h-1.5 rounded-full ${at <= rank ? "bg-[var(--codiq-accent)]" : "bg-[var(--codiq-border)]"}`} /><span className={`text-[10px] ${at <= rank ? "font-bold text-[var(--codiq-text)]" : "text-[var(--codiq-text-muted)]"}`}>{step.label}</span></li>)}
           </ol>
         ) : null}
+        {afterSales.deliveryStage ? <p className="flex items-center gap-1.5 rounded-2xl bg-[var(--codiq-accent-soft)] px-3 py-2 text-xs font-bold text-[var(--codiq-accent)]" data-testid="market-order-stage"><Truck className="h-4 w-4" /> {afterSales.deliveryStage.label}</p> : null}
+        {afterSales.cancelReason ? <p className="text-xs text-[var(--codiq-text-secondary)]" data-testid="market-order-cancel-reason">سبب الإلغاء: {afterSales.cancelReason}</p> : null}
         <p className="text-xs text-[var(--codiq-text-muted)]">تاريخ الطلب: {new Date(order.createdAt).toLocaleString("ar-IQ")}</p>
       </section>
+      {afterSales.handoverCode ? <HandoverCode code={afterSales.handoverCode} pickup={order.fulfilment === "pickup"} /> : null}
       <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm">
         <Link href={`/s/${encodeURIComponent(order.store.slug)}`} className="flex items-center gap-1 text-sm font-black text-[var(--codiq-text)]"><Store className="h-4 w-4 text-[var(--codiq-accent)]" /> {order.store.name}</Link>
         <ul className="divide-y divide-[var(--codiq-border)]">
@@ -107,6 +114,10 @@ export function MarketOrderPage() {
           ? <p>{order.store.addressLine ?? "سيتواصل معك المتجر بموعد الاستلام."}{order.store.latitude !== null ? <> — <a href={`https://www.openstreetmap.org/?mlat=${order.store.latitude}&mlon=${order.store.longitude}#map=17/${order.store.latitude}/${order.store.longitude}`} target="_blank" rel="noopener noreferrer" className="font-bold text-[var(--codiq-accent)]">الاتجاهات</a></> : null}</p>
           : <p>{order.customerName} · {order.governorateName} — {order.shippingAddressLine1}</p>}
       </section>
+      {afterSales.canRate || afterSales.rating ? (afterSales.canRate ? <RateOrder key={afterSales.rating ? "edit" : "new"} orderId={order.id} items={order.items} pickup={order.fulfilment === "pickup"} current={afterSales.rating} rateBy={afterSales.rateBy} onDone={() => void load()} /> : <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm"><p className="text-sm font-black text-[var(--codiq-text)]">تقييمك</p><Stars value={afterSales.rating?.storeStars ?? 0} label="تقييم المتجر" /></section>) : null}
+      <ReturnOrder orderId={order.id} state={afterSales} onDone={() => void load()} />
+      {order.status === "completed" ? <OrderTicketLink orderId={order.id} /> : null}
+      {afterSales.canCancel ? <CancelOrder orderId={order.id} onDone={() => void load()} /> : null}
       {whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-full border border-[var(--codiq-border)] bg-[var(--codiq-surface)] py-3 text-sm font-bold text-[var(--codiq-text)]"><MessageCircle className="h-4 w-4" /> تواصل مع التاجر</a> : null}
     </div>
   );
@@ -114,4 +125,50 @@ export function MarketOrderPage() {
 
 function Line({ label, value }: { label: string; value: string }) {
   return <div className="flex justify-between text-[var(--codiq-text-secondary)]"><span>{label}</span><span className="font-bold text-[var(--codiq-text)]">{value}</span></div>;
+}
+
+// ── تقييماتي ─────────────────────────────────────────────────────────────────
+
+type PendingRating = { id: string; orderNumber: string; deliveredAt: string; rateBy: string; store: { slug: string; name: string }; preview: string[] };
+type MyRating = { id: string; storeStars: number; deliveryStars: number | null; tagLabels: string[]; note: string | null; createdAt: string; order: { id: string; orderNumber: string; store: { slug: string; name: string } } };
+
+export function MarketRatingsPage() {
+  const { status, shopper } = useShopper();
+  const [tab, setTab] = useState<"pending" | "mine">("pending");
+  const pending = useMarketList<PendingRating>(shopper && tab === "pending" ? "/api/market/ratings/pending?limit=20" : null, "orders");
+  const mine = useMarketList<MyRating>(shopper && tab === "mine" ? "/api/market/ratings?limit=20" : null, "ratings");
+  if (status === "loading") return null;
+  if (!shopper) return <MarketSignIn />;
+  const list = tab === "pending" ? pending : mine;
+  return (
+    <div className="space-y-4" data-testid="market-ratings">
+      <h1 className="text-xl font-black text-[var(--codiq-text)]">تقييماتي</h1>
+      <div className="flex gap-2">
+        {([["pending", "بانتظار تقييمك"], ["mine", "قيّمتها"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={tab === value} onClick={() => setTab(value)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${tab === value ? "bg-[var(--codiq-accent)] text-[var(--codiq-surface)]" : "bg-[var(--codiq-surface)] text-[var(--codiq-text-secondary)]"}`} data-testid={`market-ratings-tab-${value}`}>{label}</button>)}
+      </div>
+      {!list.items ? <p className="text-center text-sm text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ التحميل…</p> : null}
+      {list.items?.length === 0 ? <MarketEmptyState icon={Star} title={tab === "pending" ? "لا طلبات بانتظار تقييمك" : "لم تقيّم أيّ طلب بعد"} body="بعد استلام طلبك يظهر هنا لتقيّم المتجر والمنتجات." /> : null}
+      <ul className="space-y-3">
+        {tab === "pending" ? pending.items?.map((row) => (
+          <li key={row.id}>
+            <Link href={`/orders/${row.id}`} className="block space-y-1.5 rounded-[22px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid={`market-pending-${row.id}`}>
+              <div className="flex items-center justify-between"><span className="text-sm font-black text-[var(--codiq-text)]">{row.store.name}</span><span className="rounded-full bg-[var(--codiq-accent)] px-3 py-1 text-[11px] font-bold text-[var(--codiq-surface)]">قيّم الآن</span></div>
+              <p className="truncate text-xs text-[var(--codiq-text-secondary)]">{row.preview.join("، ")}</p>
+              <p className="text-[11px] text-[var(--codiq-text-muted)]">طلب #{row.orderNumber} — التقييم متاح حتّى {new Date(row.rateBy).toLocaleDateString("ar-IQ")}</p>
+            </Link>
+          </li>
+        )) : mine.items?.map((row) => (
+          <li key={row.id}>
+            <Link href={`/orders/${row.order.id}`} className="block space-y-1.5 rounded-[22px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid={`market-rated-${row.order.id}`}>
+              <div className="flex items-center justify-between"><span className="text-sm font-black text-[var(--codiq-text)]">{row.order.store.name}</span><Stars value={row.storeStars} label="تقييم المتجر" /></div>
+              {row.tagLabels.length ? <p className="text-xs text-[var(--codiq-text-secondary)]">{row.tagLabels.join("، ")}</p> : null}
+              {row.note ? <p className="text-xs text-[var(--codiq-text)]">{row.note}</p> : null}
+              <p className="text-[11px] text-[var(--codiq-text-muted)]">طلب #{row.order.orderNumber} — {new Date(row.createdAt).toLocaleDateString("ar-IQ")}</p>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {list.nextCursor ? <button type="button" onClick={() => void list.loadMore()} className="w-full rounded-full border border-[var(--codiq-border)] bg-[var(--codiq-surface)] py-2.5 text-sm font-bold text-[var(--codiq-accent)]">عرض المزيد</button> : null}
+    </div>
+  );
 }

@@ -10,6 +10,8 @@ export type CartLine = {
   quantity: number;
   unitPriceIqd: number;
   livePriceIqd: number;
+  /** Marketplace M8a: the list price while «عرض الساعة» lowers it. */
+  listPriceIqd: number | null;
   lineTotalIqd: number;
   available: number | null;
   problem: null | "unavailable" | "addon_unavailable" | "out_of_stock" | "insufficient_stock" | "price_changed";

@@ -320,6 +320,14 @@
       {
         "route": "GET /market/stores/:storeSlug/cover",
         "reason": "NOT A LIST — the bytes of one image. Detected because the listed-store check that guards it is a raw query."
+      },
+      {
+        "route": "GET /market/stores/map",
+        "reason": "BOUNDED — the pins inside the visible box, at most 300, with `truncated` telling the map to ask for a zoom-in; paging a map makes no sense."
+      },
+      {
+        "route": "GET /market/stores/on-route",
+        "reason": "BOUNDED — at most 50 stores along one errand, ordered by where they fall on the line, with `truncated`."
       }
     ],
     "missingStoreSlug": [
@@ -412,5 +420,113 @@
       }
     ],
     "missingStoreSlug": []
+  },
+  "modules/market-help/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/favourites/flags",
+        "reason": "BOUNDED — answers which of at most 48 given products and 48 given stores the shopper saved: the hearts for one page of cards, never the whole list (that is /market/favourites/products|stores, paged)."
+      },
+      {
+        "route": "GET /market/me/purchased-from",
+        "reason": "BOUNDED — the twelve stores the shopper bought from most recently, a home-page shelf (LIMIT 12 in the query)."
+      },
+      {
+        "route": "GET /market/inbox/unread",
+        "reason": "NOT A LIST — returns one number, the unread count, itself capped at 100 in the query."
+      },
+      {
+        "route": "GET /market/help",
+        "reason": "BOUNDED — the FAQ: at most 30 sections of at most 100 published answers, or at most 50 search matches; read whole as one help page."
+      },
+      {
+        "route": "GET /platform/market/help",
+        "reason": "BOUNDED — the owner's editor of the same FAQ: at most 30 sections of at most 100 answers each."
+      }
+    ]
+  },
+  "modules/market-campaigns/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/campaigns/live",
+        "reason": "BOUNDED — at most three campaigns running or starting within a day, for the front page (take: 3)."
+      },
+      {
+        "route": "GET /market/campaigns/:slug",
+        "reason": "BOUNDED — one campaign's page: at most 60 days, the hours (take 500, a campaign lasts ≤ 60 days with hours that do not overlap), 24 products per hour shown, 24 stores."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/market-campaigns",
+        "reason": "BOUNDED — the at most ten open campaigns a store can join, each with its future hours (≤ 200) and the store's own deals in them."
+      },
+      {
+        "route": "GET /platform/market/campaigns",
+        "reason": "BOUNDED — the owner's last fifty campaigns (take: 50); campaigns are a handful a year."
+      },
+      {
+        "route": "GET /platform/market/campaigns/:campaignId",
+        "reason": "BOUNDED — one campaign's editor: ≤ 60 days and its hours (take 500); the deals are paged separately at /deals."
+      }
+    ]
+  },
+  "modules/market-rewards/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/coupons",
+        "reason": "BOUNDED — the coupons the market offers right now (take: 100); the platform issues a handful at a time."
+      },
+      {
+        "route": "GET /market/coupons/:code",
+        "reason": "BOUNDED — one coupon and the stores it works in (take: 60)."
+      },
+      {
+        "route": "GET /platform/market/coupons",
+        "reason": "BOUNDED — the owner's last hundred coupons (take: 100)."
+      },
+      {
+        "route": "GET /platform/market/rewards/report",
+        "reason": "NOT A LIST — four totals of the programme's cost."
+      }
+    ]
+  },
+  "modules/market-wheel/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/wheel",
+        "reason": "BOUNDED — the open wheel's segments (labels only), a handful by design."
+      },
+      {
+        "route": "GET /market/wheel/board",
+        "reason": "BOUNDED — the top twenty winners and the shopper's own rank (rank <= 20 in the query)."
+      },
+      {
+        "route": "GET /platform/market/wheels",
+        "reason": "BOUNDED — the owner's last twenty wheels with at most forty prizes each."
+      },
+      {
+        "route": "GET /platform/market/wheels/:wheelId/report",
+        "reason": "BOUNDED — one wheel's prizes (≤ 40) with their tallies, and two counts."
+      }
+    ]
+  },
+  "modules/market-reels/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/reels/:reelId",
+        "reason": "One reel (a shared link); its product card is a single object, not a list."
+      }
+    ]
+  },
+  "modules/market-visual/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/products/:productId/look-alike",
+        "reason": "BOUNDED — the 12 nearest products to one product's picture."
+      },
+      {
+        "route": "GET /platform/market/image-index",
+        "reason": "NOT A LIST — two counts and the model's name."
+      }
+    ]
   }
 }

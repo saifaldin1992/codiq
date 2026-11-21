@@ -82,8 +82,13 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
     key: "database",
     consequence: "لا شيء يعمل — الخادم لا يقلع أصلاً.",
     required: ["DATABASE_URL"],
-    optional: ["CODIQ_POSTGRES_URL", "CODIQ_POSTGRES_URL_UNPOOLED"],
+    optional: ["CODIQ_POSTGRES_URL", "CODIQ_POSTGRES_URL_UNPOOLED", "CODIQ_DATABASE_PLAINTEXT_OK"],
     requiredInDeployment: true,
+    // Security pass 2026-11: a database across a network is reached over TLS.
+    // Neon and Supabase refuse plaintext themselves; this makes it the
+    // platform's rule rather than the provider's courtesy, so moving providers
+    // cannot silently send every password hash and address in clear.
+    weakWhen: (environment) => databaseTlsWeakness(environment),
   },
   {
     key: "session",
@@ -94,15 +99,10 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
     // ق-231: D-62 required the secret to EXIST and said nothing about its
     // length. A short key that signs five identities' sessions is not a
     // configured platform, so the preflight says so in the word it already has.
-    weakWhen: (environment) => {
-      const value = environment.SESSION_JWT_SECRET ?? "";
-      const bytes = Buffer.byteLength(value, "utf8");
-      if (!value || bytes >= SESSION_SECRET_MIN_BYTES) return null;
-      return {
-        names: ["SESSION_JWT_SECRET"],
-        consequence: `مفتاح توقيع الجلسات ${bytes} بايت — والحدّ ${SESSION_SECRET_MIN_BYTES} (ASVS 2.10). مفتاحٌ قصير يُكسَر خارج الخادم من رمزٍ واحد ملتقَط، ومن كسره يسكّ جلسةً لأيّ تاجر أو مالك أو زبون. دوّره مع SESSION_JWT_SECRET_PREVIOUS كي لا يخرج أحد: openssl rand -base64 48`,
-      };
-    },
+    // Security pass 2026-11: the test switches that open sign-in (codes in the
+    // log, anyone an owner) are an authentication failure too, so they are
+    // reported under this group when left on in a deployed environment.
+    weakWhen: (environment) => testSwitchesLeftOn(environment) ?? weakSessionSecret(environment),
   },
   {
     key: "encryption",
@@ -167,6 +167,22 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
     key: "observability",
     consequence: "لا شيء يُبلّغ عن أعطال الخادم من خارجه — انقطاعٌ كالذي جرى في 2026-09-09 يمرّ صامتاً حتى يشتكي تاجر.",
     required: ["SENTRY_DSN"],
+    requiredInDeployment: false,
+  },
+  {
+    // Marketplace M11. Optional: without it the market's map draws its pins on a
+    // plain background. The key inside the URL stays here — tiles go through
+    // /api/market/map/tiles — so it must be an https template with {z} {x} {y}
+    // (the same rule as modules/market-stores/map-tiles.service.ts).
+    key: "mapTiles",
+    consequence: "خريطة المتاجر تعرض الدبابيس على خلفيّة فارغة بلا شوارع.",
+    required: ["CODIQ_MAP_TILE_URL"],
+    optional: ["CODIQ_MAP_TILE_ATTRIBUTION", "CODIQ_MAP_MAX_ZOOM"],
+    weakWhen: (env) => {
+      const raw = env.CODIQ_MAP_TILE_URL?.trim() ?? "";
+      const fine = raw.startsWith("https://") && ["{z}", "{x}", "{y}"].every((part) => raw.includes(part));
+      return raw && !fine ? { names: ["CODIQ_MAP_TILE_URL"], consequence: "قالب البلاطات يجب أن يكون https وفيه {z} و{x} و{y} — والخريطة بلا خلفيّة حتى يُصحَّح." } : null;
+    },
     requiredInDeployment: false,
   },
   {
@@ -278,4 +294,55 @@ export function readinessSummary(environment: NodeJS.ProcessEnv = process.env): 
   const groups: Record<string, GroupVerdict> = {};
   for (const group of report.groups) groups[group.key] = group.verdict;
   return { ok: report.ok, groups };
+}
+
+/** Hosts a connection never leaves the machine to reach. */
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+const TLS_MODES = new Set(["require", "verify-ca", "verify-full"]);
+
+/**
+ * Security pass 2026-11 — every configured connection string to a host that is
+ * not this machine must ask for TLS (`sslmode=require` or stricter). A private
+ * network where the database has no certificate (a compose file's `db` service)
+ * says so explicitly with CODIQ_DATABASE_PLAINTEXT_OK=true.
+ */
+export function databaseTlsWeakness(environment: NodeJS.ProcessEnv): { names: string[]; consequence: string } | null {
+  if (environment.CODIQ_DATABASE_PLAINTEXT_OK?.trim() === "true") return null;
+  const weak = ["DATABASE_URL", "CODIQ_POSTGRES_URL", "CODIQ_POSTGRES_URL_UNPOOLED"].filter((name) => {
+    const raw = environment[name]?.trim();
+    if (!raw) return false;
+    let url: URL;
+    try { url = new URL(raw); } catch { return false; }
+    if (LOOPBACK_HOSTS.has(url.hostname)) return false;
+    return !TLS_MODES.has(url.searchParams.get("sslmode") ?? "");
+  });
+  if (!weak.length) return null;
+  return {
+    names: weak,
+    consequence: "اتّصال قاعدة البيانات عبر الشبكة بلا TLS — كلمات السرّ المشفّرة والعناوين والطلبات تمرّ نصّاً مقروءاً. أضف sslmode=require إلى العنوان، أو CODIQ_DATABASE_PLAINTEXT_OK=true لشبكة خاصّة فقط.",
+  };
+}
+
+/** Security pass 2026-11 — the test switches that must never stay on outside development. */
+export function testSwitchesLeftOn(environment: NodeJS.ProcessEnv): { names: string[]; consequence: string } | null {
+  if ((environment.NODE_ENV ?? "") === "development") return null;
+  const names: string[] = [];
+  if (environment.CODIQ_OTP_PROVIDER?.trim() === "insecure-log") names.push("CODIQ_OTP_PROVIDER");
+  if (environment.CODIQ_ALLOW_OWNER_REGISTRATION?.trim() === "true") names.push("CODIQ_ALLOW_OWNER_REGISTRATION");
+  if (!names.length) return null;
+  return {
+    names,
+    consequence: `مفاتيح اختبار مفعّلة في بيئة منشورة: ${names.join("، ")}. رموز الدخول تُكتب في السجلّ و/أو يستطيع أيّ أحد التسجيل مالكاً للمنصّة. أزلها بعد الاستعمال.`,
+  };
+}
+
+/** ق-231: present is not adequate — a short session key is reported as incomplete. */
+function weakSessionSecret(environment: NodeJS.ProcessEnv): { names: string[]; consequence: string } | null {
+  const value = environment.SESSION_JWT_SECRET ?? "";
+  const bytes = Buffer.byteLength(value, "utf8");
+  if (!value || bytes >= SESSION_SECRET_MIN_BYTES) return null;
+  return {
+    names: ["SESSION_JWT_SECRET"],
+    consequence: `مفتاح توقيع الجلسات ${bytes} بايت — والحدّ ${SESSION_SECRET_MIN_BYTES} (ASVS 2.10). مفتاحٌ قصير يُكسَر خارج الخادم من رمزٍ واحد ملتقَط، ومن كسره يسكّ جلسةً لأيّ تاجر أو مالك أو زبون. دوّره مع SESSION_JWT_SECRET_PREVIOUS كي لا يخرج أحد: openssl rand -base64 48`,
+  };
 }

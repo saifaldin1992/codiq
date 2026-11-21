@@ -49,7 +49,7 @@ export async function orderPrintSheet(storeId: string, ids: string[]) {
         subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, totalIqd: true,
         // ق-187: the courier carries this sheet, and without the loyalty line
         // its arithmetic is short by exactly what the shopper redeemed.
-        loyaltyDiscountIqd: true, loyaltyPointsSpent: true,
+        loyaltyDiscountIqd: true, loyaltyPointsSpent: true, platformDiscountIqd: true,
         couponCode: true, customerNote: true, paymentStatus: true,
         // ق-246: the waybill on the sheet is the courier's own reference.
         courierName: true, trackingNumber: true, handedOverAt: true,

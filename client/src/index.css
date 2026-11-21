@@ -446,3 +446,12 @@ button:not(:disabled), a[href] { cursor: pointer; }
   .cq-plan[data-recommended="true"], .cq-plan[data-recommended="true"]:hover { transform: none !important; }
   .cq-faq__panel { transition: none !important; }
 }
+
+/* Marketplace M11 — the stores map (Leaflet). Markers are DOM, styled with the theme's tokens. */
+.leaflet-container { font-family: inherit; background: var(--codiq-surface-sunken); }
+.codiq-map-pin { display: flex; height: 36px; width: 36px; align-items: center; justify-content: center; overflow: hidden; border-radius: 9999px 9999px 9999px 2px; transform: rotate(-45deg); border: 3px solid var(--codiq-surface); background: var(--codiq-accent); color: var(--codiq-surface); font-weight: 900; box-shadow: 0 2px 6px color-mix(in srgb, var(--codiq-text) 25%, transparent); }
+.codiq-map-pin > img { height: 100%; width: 100%; object-fit: cover; transform: rotate(45deg); }
+.codiq-map-pin--on { border-color: var(--codiq-warning); transform: rotate(-45deg) scale(1.2); }
+.codiq-map-point { display: flex; height: 28px; width: 28px; align-items: center; justify-content: center; border-radius: 9999px; border: 3px solid var(--codiq-surface); background: var(--codiq-text); color: var(--codiq-surface); font-size: 12px; font-weight: 900; }
+.codiq-map-route { stroke: var(--codiq-accent); }
+.codiq-map-me { stroke: var(--codiq-surface); fill: var(--codiq-accent); }

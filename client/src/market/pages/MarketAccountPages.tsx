@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Camera, ChevronLeft, CircleAlert, Copy, Crosshair, LoaderCircle, LogOut, MapPin, Package, Phone, Plus, Star, Trash2, UserRound } from "lucide-react";
+import { Bell, Camera, Crown, Sparkles, Clapperboard, ChevronLeft, CircleAlert, Copy, Crosshair, Heart, LifeBuoy, LoaderCircle, LogOut, MapPin, MessageCircle, Package, Phone, Plus, Star, ThumbsUp, Ticket, Trash2, UserRound } from "lucide-react";
 import { accountCall, displayPhone, setShopper, signOut, useShopper, type Shopper } from "../market-shopper";
 import { loadMarketGeography, marketGet, type MarketGeography } from "../market-api";
 import { writeMarketLocation } from "../market-location";
@@ -92,8 +92,21 @@ export function MarketAccountPage() {
       </section>
       <nav className="divide-y divide-[var(--codiq-border)] overflow-hidden rounded-[26px] bg-[var(--codiq-surface)] shadow-sm">
         <MenuLink href="/orders" icon={Package} label="طلباتي" testId="market-account-orders-link" />
+        <MenuLink href="/ratings" icon={Star} label="تقييماتي" testId="market-account-ratings-link" />
+        <MenuLink href="/favourites" icon={Heart} label="المفضّلة" testId="market-account-favourites-link" />
+        <MenuLink href="/coupons?tab=active" icon={Ticket} label="كوبوناتي" testId="market-account-coupons-link" />
+        <MenuLink href="/points" icon={Crown} label="نقاطي" testId="market-account-points-link" />
+        <MenuLink href="/wheel" icon={Sparkles} label="عجلة الجوائز" testId="market-account-wheel-link" />
+        <MenuLink href="/reels" icon={Clapperboard} label="ريلز" testId="market-account-reels-link" />
+        <MenuLink href="/notifications" icon={Bell} label="الإشعارات" testId="market-account-notifications-link" />
         <MenuLink href="/account/info" icon={UserRound} label="بياناتي" testId="market-account-info-link" />
         <MenuLink href="/account/addresses" icon={MapPin} label="العناوين" testId="market-account-addresses-link" />
+      </nav>
+      <nav className="divide-y divide-[var(--codiq-border)] overflow-hidden rounded-[26px] bg-[var(--codiq-surface)] shadow-sm">
+        <MenuLink href="/tickets" icon={Ticket} label="تذاكر الدعم" testId="market-account-tickets-link" />
+        <MenuLink href="/help" icon={LifeBuoy} label="المساعدة والأسئلة الشائعة" testId="market-account-help-link" />
+        <MenuLink href="/help/contact" icon={MessageCircle} label="تواصل معنا" testId="market-account-contact-link" />
+        <MenuLink href="/feedback" icon={ThumbsUp} label="قيّم التطبيق" testId="market-account-feedback-link" />
       </nav>
       <button type="button" onClick={() => void signOut()} className="flex w-full items-center justify-center gap-2 rounded-full border border-[var(--codiq-border)] bg-[var(--codiq-surface)] py-3 text-sm font-bold text-[var(--codiq-danger)]" data-testid="market-sign-out"><LogOut className="h-4 w-4" /> تسجيل الخروج</button>
     </div>

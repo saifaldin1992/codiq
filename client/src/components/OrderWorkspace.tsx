@@ -26,7 +26,7 @@ type Order = {
   // MD-1: internal merchant labels. Present on merchant list rows only — the
   // platform payload and every customer/storefront payload omit them entirely.
   internalTags?: string[];
-  totalIqd: number; loyaltyPointsSpent: number; loyaltyDiscountIqd: number; paymentStatus: string; paymentMethodCode?: string; source: string; version: number; statusUpdatedAt: string; createdAt: string; items?: OrderLine[]; statusEvents?: OrderEvent[];
+  totalIqd: number; loyaltyPointsSpent: number; loyaltyDiscountIqd: number; platformDiscountIqd?: number; paymentStatus: string; paymentMethodCode?: string; source: string; version: number; statusUpdatedAt: string; createdAt: string; items?: OrderLine[]; statusEvents?: OrderEvent[];
   store?: { id?: string; slug: string; name: string; merchant?: { id: string; businessName: string } };
 };
 
@@ -600,6 +600,77 @@ function OrderWhatsappPanel({ scope, orderId, orderStatus }: { scope: Extract<Sc
   </section>;
 }
 
+/**
+ * Marketplace M6 — the market side of one order: the finer delivery step the
+ * shopper sees, the shopper's receipt code typed in to mark it delivered, and
+ * what the shopper said (cancel reason, rating). The code itself never reaches
+ * this screen; the store only types what the shopper hands over.
+ */
+type MarketOrderView = {
+  deliveryStage: string | null; deliveryStageAt: string | null; deliveryStages: { code: string; label: string }[];
+  cancelReason: string | null; handover: { used: boolean; attemptsLeft: number } | null;
+  rating: { storeStars: number; deliveryStars: number | null; tagLabels: string[]; note: string | null } | null;
+};
+function OrderMarketPanel({ scope, orderId, orderStatus, fulfilment, onChanged }: { scope: Extract<Scope, { kind: "merchant" }>; orderId: string; orderStatus: OrderStatus; fulfilment?: string; onChanged: () => void }) {
+  const base = `${basePath(scope)}/${orderId}`;
+  const [view, setView] = useState<MarketOrderView | null>(null);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
+  const load = useCallback(async () => { try { setView(await api<MarketOrderView>(`${base}/market`)); } catch { setView(null); } }, [base]);
+  useEffect(() => { void load(); }, [load, orderStatus]);
+  if (!view) return null;
+  const pickup = fulfilment === "pickup";
+  const stageOpen = !pickup && (orderStatus === "preparation" || orderStatus === "out_for_delivery");
+  const handoverOpen = view.handover && !view.handover.used && view.handover.attemptsLeft > 0 && (orderStatus === "out_for_delivery" || (pickup && orderStatus === "preparation"));
+  if (!stageOpen && !handoverOpen && !view.cancelReason && !view.rating) return null;
+  async function setStage(stage: string) {
+    setBusy(true); setMessage(null);
+    try { setView(await api<MarketOrderView>(`${base}/delivery-stage`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ stage: stage || null }) })); }
+    catch (error) { setMessage({ kind: "error", text: errorMessage(error) }); } finally { setBusy(false); }
+  }
+  async function confirm(event: React.FormEvent) {
+    event.preventDefault(); setBusy(true); setMessage(null);
+    try {
+      await api(`${base}/handover`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) });
+      setCode(""); setMessage({ kind: "success", text: "تمّ التسليم واكتمل الطلب." }); onChanged();
+    } catch (error) { setMessage({ kind: "error", text: errorMessage(error) }); await load(); } finally { setBusy(false); }
+  }
+  return (
+    <section className="space-y-4 rounded-[24px] bg-[var(--codiq-surface)] p-5 shadow-sm" data-testid="order-market-panel">
+      <h3 className="text-base font-bold text-[var(--codiq-text)]">السوق</h3>
+      {stageOpen ? (
+        <label className="block space-y-1.5 text-sm">
+          <span className="font-semibold text-[var(--codiq-text-secondary)]">مرحلة التوصيل التي يراها الزبون</span>
+          <select value={view.deliveryStage ?? ""} disabled={busy} onChange={(event) => void setStage(event.target.value)} className="h-11 w-full rounded-xl border border-[var(--codiq-border)] bg-[var(--codiq-surface)] px-3" data-testid="order-market-stage">
+            <option value="">بلا تفصيل</option>
+            {view.deliveryStages.map((stage) => <option key={stage.code} value={stage.code}>{stage.label}</option>)}
+          </select>
+        </label>
+      ) : null}
+      {handoverOpen ? (
+        <form onSubmit={(event) => void confirm(event)} className="space-y-2">
+          <p className="text-sm font-semibold text-[var(--codiq-text-secondary)]">{pickup ? "اطلب من الزبون رمز الاستلام وأدخله لتسليم الطلب" : "أدخل رمز الاستلام الذي يعطيه الزبون للمندوب"}</p>
+          <div className="flex gap-2">
+            <input value={code} onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 4))} inputMode="numeric" dir="ltr" placeholder="0000" aria-label="رمز الاستلام" className="h-11 w-32 rounded-xl border border-[var(--codiq-border)] bg-[var(--codiq-surface)] px-3 text-center text-lg font-bold tracking-[0.3em]" data-testid="order-market-code" />
+            <Button type="submit" disabled={busy || code.length !== 4} data-testid="order-market-handover">تأكيد التسليم</Button>
+          </div>
+          <p className="text-xs text-[var(--codiq-text-muted)]">المحاولات المتبقّية: {view.handover?.attemptsLeft}</p>
+        </form>
+      ) : null}
+      {message ? <Notice kind={message.kind}>{message.text}</Notice> : null}
+      {view.cancelReason ? <p className="text-sm text-[var(--codiq-text-secondary)]" data-testid="order-market-cancel-reason">سبب إلغاء الزبون: <b>{view.cancelReason}</b></p> : null}
+      {view.rating ? (
+        <div className="space-y-1 text-sm" data-testid="order-market-rating">
+          <p className="font-semibold text-[var(--codiq-text)]">تقييم الزبون: المتجر {view.rating.storeStars}/5{view.rating.deliveryStars ? `، التوصيل ${view.rating.deliveryStars}/5` : ""}</p>
+          {view.rating.tagLabels.length ? <p className="text-xs text-[var(--codiq-text-secondary)]">{view.rating.tagLabels.join("، ")}</p> : null}
+          {view.rating.note ? <p className="text-xs text-[var(--codiq-text)]">{view.rating.note}</p> : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function OrderDetail({ scope, mode, navigate }: { scope: Scope; mode: DetailMode; navigate: (path: string) => void }) {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -692,10 +763,10 @@ function OrderDetail({ scope, mode, navigate }: { scope: Scope; mode: DetailMode
     </section> : null}
     {/* MD-1: internal notes + tags. Merchant scope only — the platform overview
         stays a read-only mirror and never carries the merchant's private labels. */}
-    {scope.kind === "merchant" ? <OrderInternalPanel scope={scope} orderId={order.id} /> : null}
+    {scope.kind === "merchant" ? <><OrderMarketPanel scope={scope} orderId={order.id} orderStatus={order.status} fulfilment={order.fulfilment} onChanged={() => void load()} /><OrderInternalPanel scope={scope} orderId={order.id} /></> : null}
     {/* WA-1 (ق-131/ق-139): merchant scope only, like the notes. */}
     {scope.kind === "merchant" ? <OrderWhatsappPanel scope={scope} orderId={order.id} orderStatus={order.status} /> : null}
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)]"><div className="space-y-5"><section className="rounded-[24px] bg-[var(--codiq-surface)] p-5 shadow-sm sm:p-6"><h3 className="text-base font-bold text-[#30435F]">بنود الطلب</h3><div className="mt-4 divide-y divide-[var(--codiq-border)]">{order.items?.map((item) => <div key={item.id} className="flex items-start justify-between gap-3 py-3"><div><p className="font-semibold text-[#344761]">{item.productName}</p><p className="mt-1 text-xs text-[#8290A5]">{item.sku ? `SKU: ${item.sku} · ` : ""}الكمية: {item.quantity} × {formatAmount(item.unitPriceIqd)}</p>{item.addons?.length ? <p className="mt-1 text-xs font-semibold text-[var(--codiq-accent)]" data-testid="order-line-addons">+ {item.addons.map((addon) => `${addon.name} (${formatAmount(addon.priceIqd)})`).join("، ")}</p> : null}</div><p className="shrink-0 font-bold text-[#344761]">{formatAmount(item.lineTotalIqd)}</p></div>)}{!order.items?.length ? <p className="py-3 text-sm text-[#7A879A]">لا توجد بنود مسجلة لهذا الطلب.</p> : null}</div><div className="mt-4 space-y-2 border-t border-[var(--codiq-border)] pt-4 text-sm"><div className="flex justify-between text-[var(--codiq-text-muted)]"><span>المجموع الفرعي</span><span>{formatAmount(order.subtotalIqd)}</span></div><div className="flex justify-between text-[var(--codiq-text-muted)]"><span>{order.fulfilment === "pickup" ? "استلام من المتجر" : "التوصيل"}</span><span>{formatAmount(order.deliveryFeeIqd)}</span></div><div className="flex justify-between text-[var(--codiq-text-muted)]"><span>الخصم{order.couponCode ? ` — كوبون ${order.couponCode}` : ""}</span><span>{formatAmount(order.discountIqd)}</span></div>{order.loyaltyDiscountIqd > 0 ? <div className="flex justify-between text-[var(--codiq-text-muted)]"><span>خصم النقاط{order.loyaltyPointsSpent ? ` — ${order.loyaltyPointsSpent} نقطة` : ""}</span><span>{formatAmount(order.loyaltyDiscountIqd)}</span></div> : null}<div className="flex justify-between pt-1 font-bold text-[#283C59]"><span>الإجمالي</span><span>{formatAmount(order.totalIqd)}</span></div></div></section><section className="rounded-[24px] bg-[var(--codiq-surface)] p-5 shadow-sm sm:p-6"><h3 className="text-base font-bold text-[#30435F]">سجل الحالة</h3><div className="mt-5 space-y-0">{order.statusEvents?.map((event, index) => <div key={event.id} className="relative flex gap-3 pb-5 last:pb-0"><div className="relative z-10 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--codiq-accent-soft)] text-[var(--codiq-accent)]"><ClipboardList className="h-3.5 w-3.5" /></div>{index < (order.statusEvents?.length ?? 0) - 1 ? <div className="absolute right-[13px] top-7 h-[calc(100%-16px)] w-px bg-[var(--codiq-border-strong)]" /> : null}<div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-bold text-[#364963]">{event.fromStatus ? `${statuses[event.fromStatus].label} ← ` : ""}{statuses[event.toStatus].label}</span><span className="text-[11px] text-[#8592A6]">{labelForActor(event.actorKind)} · {formatDate(event.createdAt)}</span></div>{event.note ? <p className="mt-1 text-sm leading-6 text-[var(--codiq-text-muted)]">{event.note}</p> : null}</div></div>)}{!order.statusEvents?.length ? <p className="text-sm text-[#7A879A]">لا توجد أحداث حالة مسجلة بعد.</p> : null}</div></section></div>
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)]"><div className="space-y-5"><section className="rounded-[24px] bg-[var(--codiq-surface)] p-5 shadow-sm sm:p-6"><h3 className="text-base font-bold text-[#30435F]">بنود الطلب</h3><div className="mt-4 divide-y divide-[var(--codiq-border)]">{order.items?.map((item) => <div key={item.id} className="flex items-start justify-between gap-3 py-3"><div><p className="font-semibold text-[#344761]">{item.productName}</p><p className="mt-1 text-xs text-[#8290A5]">{item.sku ? `SKU: ${item.sku} · ` : ""}الكمية: {item.quantity} × {formatAmount(item.unitPriceIqd)}</p>{item.addons?.length ? <p className="mt-1 text-xs font-semibold text-[var(--codiq-accent)]" data-testid="order-line-addons">+ {item.addons.map((addon) => `${addon.name} (${formatAmount(addon.priceIqd)})`).join("، ")}</p> : null}</div><p className="shrink-0 font-bold text-[#344761]">{formatAmount(item.lineTotalIqd)}</p></div>)}{!order.items?.length ? <p className="py-3 text-sm text-[#7A879A]">لا توجد بنود مسجلة لهذا الطلب.</p> : null}</div><div className="mt-4 space-y-2 border-t border-[var(--codiq-border)] pt-4 text-sm"><div className="flex justify-between text-[var(--codiq-text-muted)]"><span>المجموع الفرعي</span><span>{formatAmount(order.subtotalIqd)}</span></div><div className="flex justify-between text-[var(--codiq-text-muted)]"><span>{order.fulfilment === "pickup" ? "استلام من المتجر" : "التوصيل"}</span><span>{formatAmount(order.deliveryFeeIqd)}</span></div><div className="flex justify-between text-[var(--codiq-text-muted)]"><span>الخصم{order.couponCode ? ` — كوبون ${order.couponCode}` : ""}</span><span>{formatAmount(order.discountIqd)}</span></div>{order.loyaltyDiscountIqd > 0 ? <div className="flex justify-between text-[var(--codiq-text-muted)]"><span>خصم النقاط{order.loyaltyPointsSpent ? ` — ${order.loyaltyPointsSpent} نقطة` : ""}</span><span>{formatAmount(order.loyaltyDiscountIqd)}</span></div> : null}{order.platformDiscountIqd ? <div className="flex justify-between text-[var(--codiq-text-muted)]" data-testid="order-platform-discount"><span>كوبون السوق — تتحمّله المنصّة وتدفعه لك</span><span>{formatAmount(order.platformDiscountIqd)}</span></div> : null}<div className="flex justify-between pt-1 font-bold text-[#283C59]"><span>الإجمالي</span><span>{formatAmount(order.totalIqd)}</span></div></div></section><section className="rounded-[24px] bg-[var(--codiq-surface)] p-5 shadow-sm sm:p-6"><h3 className="text-base font-bold text-[#30435F]">سجل الحالة</h3><div className="mt-5 space-y-0">{order.statusEvents?.map((event, index) => <div key={event.id} className="relative flex gap-3 pb-5 last:pb-0"><div className="relative z-10 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--codiq-accent-soft)] text-[var(--codiq-accent)]"><ClipboardList className="h-3.5 w-3.5" /></div>{index < (order.statusEvents?.length ?? 0) - 1 ? <div className="absolute right-[13px] top-7 h-[calc(100%-16px)] w-px bg-[var(--codiq-border-strong)]" /> : null}<div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-bold text-[#364963]">{event.fromStatus ? `${statuses[event.fromStatus].label} ← ` : ""}{statuses[event.toStatus].label}</span><span className="text-[11px] text-[#8592A6]">{labelForActor(event.actorKind)} · {formatDate(event.createdAt)}</span></div>{event.note ? <p className="mt-1 text-sm leading-6 text-[var(--codiq-text-muted)]">{event.note}</p> : null}</div></div>)}{!order.statusEvents?.length ? <p className="text-sm text-[#7A879A]">لا توجد أحداث حالة مسجلة بعد.</p> : null}</div></section></div>
       <aside className="space-y-5"><section className="rounded-[24px] bg-[var(--codiq-surface)] p-5 shadow-sm"><h3 className="text-base font-bold text-[#30435F]">بيانات المستلم</h3><div className="mt-4 space-y-3 text-sm"><p><span className="block text-[11px] font-bold text-[#8995A8]">الاسم</span><span className="mt-1 block font-semibold text-[#40536D]">{order.customerName}</span></p>{order.customerEmail ? <p><span className="block text-[11px] font-bold text-[#8995A8]">البريد</span><span className="mt-1 block font-semibold text-[#40536D]">{order.customerEmail}</span></p> : null}{order.recipientPhone ? <p><span className="block text-[11px] font-bold text-[#8995A8]">الهاتف</span><span className="mt-1 block font-semibold text-[#40536D]">{order.recipientPhone}</span></p> : null}<p data-testid="order-payment"><span className="block text-[11px] font-bold text-[var(--codiq-text-muted)]">الدفع</span><span className="mt-1 block font-semibold text-[var(--codiq-text)]">{PAYMENT_METHOD_LABEL[order.paymentMethodCode ?? ""] ?? order.paymentMethodCode ?? "—"}{order.paymentStatus === "awaiting_transfer" ? <span className="mr-2 rounded-full bg-[var(--codiq-warning-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--codiq-warning)]">بانتظار التحويل</span> : order.paymentStatus === "paid" ? <span className="mr-2 rounded-full bg-[var(--codiq-success-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--codiq-success)]">مدفوع</span> : null}</span></p>{order.customerNote ? <p data-testid="order-customer-note" className="rounded-2xl bg-[#FFFBF4] p-3.5"><span className="block text-[11px] font-bold text-[#A9741F]">ملاحظة الزبون</span><span className="mt-1 block whitespace-pre-wrap font-semibold leading-6 text-[#7A5514]">{order.customerNote}</span></p> : null}{order.shippingGovernorate || order.shippingAddressLine1 ? <p><span className="block text-[11px] font-bold text-[#8995A8]">عنوان التسليم</span><span className="mt-1 block font-semibold leading-6 text-[#40536D]">{[order.shippingGovernorate, order.shippingAddressLine1, order.shippingAddressLine2].filter(Boolean).join("، ")}</span></p> : <p className="text-xs leading-6 text-[#8491A5]">لا توجد بيانات عنوان مسجلة لهذا الطلب.</p>}</div></section><section className="rounded-[24px] bg-[var(--codiq-surface)] p-5 shadow-sm"><h3 className="text-base font-bold text-[#30435F]">بيانات تشغيلية</h3><div className="mt-4 space-y-3 text-sm"><p><span className="block text-[11px] font-bold text-[#8995A8]">حالة الدفع</span><span className="mt-1 block font-semibold text-[#40536D]">{order.paymentStatus}</span></p><p><span className="block text-[11px] font-bold text-[#8995A8]">مصدر الطلب</span><span className="mt-1 block font-semibold text-[#40536D]">{order.source}</span></p>{scope.kind === "platform" && order.store ? <><p><span className="block text-[11px] font-bold text-[#8995A8]">المتجر</span><span className="mt-1 block font-semibold text-[#40536D]">{order.store.name}</span></p><p><span className="block text-[11px] font-bold text-[#8995A8]">التاجر</span><span className="mt-1 block font-semibold text-[#40536D]">{order.store.merchant?.businessName ?? "—"}</span></p></> : null}</div></section></aside>
     </div>
   </section>;
