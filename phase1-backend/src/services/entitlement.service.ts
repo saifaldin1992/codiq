@@ -146,7 +146,7 @@ function monthStartUtc(now = new Date()): Date {
 }
 
 export async function merchantUsage(client: DbClient, merchantId: string): Promise<Record<PlanFeatureCode, number>> {
-  const [stores, products, staff, monthlyOrders, storage, prescriptionStorage, bannerStorage, logoStorage] = await Promise.all([
+  const [stores, products, staff, monthlyOrders, storage, prescriptionStorage, bannerStorage, logoStorage, reelStorage] = await Promise.all([
     client.store.count({ where: { merchantId } }),
     // PG-2: a product in the trash bin does NOT spend the plan quota — otherwise a
     // merchant at his limit could not replace a product for thirty days. Staff is
@@ -192,13 +192,17 @@ export async function merchantUsage(client: DbClient, merchantId: string): Promi
     // would still read the product images alone.
     client.storeBanner.aggregate({ where: { store: { merchantId } }, _sum: { byteSize: true } }),
     client.store.aggregate({ where: { merchantId }, _sum: { logoByteSize: true } }),
+    // Marketplace M10: the store's reels (up to 30 MB each) sit in the same bucket.
+    // Pending, approved and rejected ones are all still stored; only a removed
+    // reel's video has been deleted.
+    client.marketReel.aggregate({ where: { store: { merchantId }, status: { not: "removed" } }, _sum: { videoByteSize: true } }),
   ]);
   return {
     max_stores: stores,
     max_products: products,
     max_staff: staff,
     max_monthly_orders: monthlyOrders,
-    max_image_storage_mb: Math.ceil(((storage._sum.byteSize ?? 0) + (prescriptionStorage._sum.byteSize ?? 0) + (bannerStorage._sum.byteSize ?? 0) + (logoStorage._sum.logoByteSize ?? 0)) / (1024 * 1024)),
+    max_image_storage_mb: Math.ceil(((storage._sum.byteSize ?? 0) + (prescriptionStorage._sum.byteSize ?? 0) + (bannerStorage._sum.byteSize ?? 0) + (logoStorage._sum.logoByteSize ?? 0) + (reelStorage._sum.videoByteSize ?? 0)) / (1024 * 1024)),
   };
 }
 

@@ -165,6 +165,31 @@ try {
   assert.equal((await A.api.request(`/merchant/stores/${A.store.slug}/market-reels?limit=5`)).payload.reels.length, 5);
   summary.takenDown = true;
 
+  // ── 7. a reel is charged to the plan's storage, like the store's images ────
+  const { merchantUsage, activePlanForMerchant } = await import("../src/services/entitlement.service.ts");
+  const { applyPlanTermsNow } = await import("./helpers/plan-terms.ts");
+  const merchantB = B.store.merchantId;
+  const usageBefore = (await merchantUsage(prisma, merchantB)).max_image_storage_mb;
+  const big = await prisma.marketReel.create({ data: { storeId: B.store.id, videoObjectKey: `test/${testId}/big.mp4`, videoContentType: "video/mp4", videoByteSize: 3 * 1024 * 1024 } });
+  assert.equal((await merchantUsage(prisma, merchantB)).max_image_storage_mb - usageBefore, 3, "a stored reel counts in the storage meter");
+  await prisma.marketReel.update({ where: { id: big.id }, data: { status: "removed" } });
+  assert.equal((await merchantUsage(prisma, merchantB)).max_image_storage_mb, usageBefore, "…and a removed one (its bytes deleted) does not");
+  const planB = await activePlanForMerchant(prisma, merchantB);
+  const planRow = await prisma.plan.findUniqueOrThrow({ where: { code: planB.code }, select: { id: true } });
+  const storageFeature = await prisma.planFeature.findFirstOrThrow({ where: { planId: planRow.id, featureCode: "max_image_storage_mb" }, select: { id: true, limitValue: true } });
+  await prisma.planFeature.update({ where: { id: storageFeature.id }, data: { limitValue: usageBefore } });
+  await applyPlanTermsNow(prisma, planRow.id);
+  let overCap;
+  try {
+    overCap = await up(B, reelForm(mp4));
+  } finally {
+    await prisma.planFeature.update({ where: { id: storageFeature.id }, data: { limitValue: storageFeature.limitValue } });
+    await applyPlanTermsNow(prisma, planRow.id);
+  }
+  assert.equal(overCap.status, 403, `an upload past the plan's storage is refused — ${JSON.stringify(overCap.payload)}`);
+  assert.equal(overCap.payload.error.code, "PLAN_LIMIT_EXCEEDED");
+  summary.storageMeter = true;
+
   console.log(JSON.stringify({ suite: "market-reels", ok: true, summary }, null, 2));
 } finally {
   setOtpProviderForTests(null);
