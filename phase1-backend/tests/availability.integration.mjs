@@ -274,6 +274,13 @@ try {
   resetExternalDependencyCache();
   console.log(JSON.stringify({ suite: "availability", status: "passed", summary }, null, 2));
 } finally {
+  // Review 2026-11-21: the flag this suite rolls out must not outlive it. Left behind (off by
+  // default) it closed «بيان الشحنات» for every later suite on the same database.
+  const flag = await prisma.featureFlag.findUnique({ where: { code: "delivery.manifest" }, select: { id: true } }).catch(() => null);
+  if (flag) {
+    await prisma.featureFlagRule.deleteMany({ where: { flagId: flag.id } }).catch(() => undefined);
+    await prisma.featureFlag.delete({ where: { id: flag.id } }).catch(() => undefined);
+  }
   server.close();
   await prisma.$disconnect();
 }
