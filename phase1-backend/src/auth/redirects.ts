@@ -1,7 +1,7 @@
 /**
  * codiq phase 1 identity contract: redirects are type-specific and never infer a role.
  */
-export type IdentityKind = "platform_owner" | "merchant" | "customer" | "staff" | "platform_staff";
+export type IdentityKind = "platform_owner" | "merchant" | "customer" | "staff" | "platform_staff" | "shopper";
 
 /**
  * PS-3 — what each identity is CALLED, for the one refusal a person reads about
@@ -17,6 +17,8 @@ export const IDENTITY_LABELS: Record<IdentityKind, string> = {
   merchant: "تاجر",
   staff: "موظّف متجر",
   customer: "زبون",
+  // Marketplace M4: the market's shopper — one account across every store.
+  shopper: "متسوّق في السوق",
 };
 
 /**

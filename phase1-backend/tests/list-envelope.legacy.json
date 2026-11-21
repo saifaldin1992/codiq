@@ -301,5 +301,116 @@
       }
     ],
     "missingStoreSlug": []
+  },
+  "modules/market-geo/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/geo",
+        "reason": "BOUNDED — the eighteen governorates and their districts (about 150 rows, a seed the owner extends rarely). A location picker needs the whole tree at once, and the answer is the same for every visitor, so it is cached for an hour."
+      }
+    ],
+    "missingStoreSlug": []
+  },
+  "modules/market-stores/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/stores/:storeSlug",
+        "reason": "NOT A LIST — one store's market page. Detected because it reads the store's opening hours (at most seven rows, one per weekday) and its enabled payment methods (a fixed catalog of six) beside the store itself."
+      },
+      {
+        "route": "GET /market/stores/:storeSlug/cover",
+        "reason": "NOT A LIST — the bytes of one image. Detected because the listed-store check that guards it is a raw query."
+      }
+    ],
+    "missingStoreSlug": [
+      {
+        "route": "GET /market/stores/:storeSlug/cover",
+        "reason": "NOT A JSON ENVELOPE — an image byte stream with its own content type. There is no object to carry an echo in."
+      }
+    ]
+  },
+  "modules/market-catalog/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/categories",
+        "reason": "BOUNDED — the market's category tree, two levels, about fifty rows owned by the platform. A category picker needs the whole tree, and the answer is the same for every visitor (cached five minutes)."
+      },
+      {
+        "route": "GET /market/categories/:slug",
+        "reason": "NOT A LIST of the category — one category with its children (a handful) and a fixed top-12 of the stores selling in it. Its products page through GET /market/products?category=…"
+      },
+      {
+        "route": "GET /market/products/:productId",
+        "reason": "NOT A LIST — one product's page. Detected because it reads that product's images (capped at 12), variants and add-ons (capped at 20 by the schema)."
+      },
+      {
+        "route": "GET /market/search/suggest",
+        "reason": "BOUNDED — as-you-type suggestions: at most five products, three stores and five categories. The full results page through GET /market/products?q=…"
+      },
+      {
+        "route": "GET /market/search/popular",
+        "reason": "BOUNDED — the week's ten most searched terms, a fixed top-N."
+      },
+      {
+        "route": "GET /merchant/stores/:storeSlug/market-catalog/categories",
+        "reason": "BOUNDED — the store's own categories (three levels, a few dozen at most) beside the market tree, on the one screen where the merchant maps one onto the other; mapping needs both lists whole."
+      }
+    ],
+    "missingStoreSlug": []
+  },
+  "modules/market-home/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/home",
+        "reason": "AGGREGATE — the market's front page in one payload: at most forty owner-arranged blocks, each resolved to a fixed top-N (twelve banners per placement, twenty collections, twenty malls with four logos). Product and store shelves page through their own list routes."
+      },
+      {
+        "route": "GET /market/malls/:slug",
+        "reason": "NOT A LIST of malls — one mall with its member stores, capped at a hundred by mallStoresSchema. Its products page through GET /market/products?mall=…"
+      },
+      {
+        "route": "GET /platform/market/banners",
+        "reason": "BOUNDED — the owner's banner board, capped at two hundred, across four placements; the editor shows them all to schedule and reorder."
+      },
+      {
+        "route": "GET /platform/market/collections",
+        "reason": "BOUNDED — the owner's collections (capped at two hundred), each with its product list (capped at two hundred by collectionItemsSchema); edited on one screen."
+      },
+      {
+        "route": "GET /platform/market/malls",
+        "reason": "BOUNDED — the owner's malls (capped at a hundred), each with up to a hundred stores."
+      },
+      {
+        "route": "GET /platform/market/home-sections",
+        "reason": "BOUNDED — the front page's blocks, at most forty by homeSectionsSchema; reordering needs the whole page in hand."
+      },
+      {
+        "route": "GET /platform/market/categories",
+        "reason": "BOUNDED — the market category tree, two levels, about fifty rows, edited as one tree."
+      }
+    ],
+    "missingStoreSlug": []
+  },
+  "modules/market-account/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/me/addresses",
+        "reason": "BOUNDED — one shopper's own delivery addresses, capped at MAX_ADDRESSES (20) by the service; the address book and the checkout picker show them all."
+      }
+    ],
+    "missingStoreSlug": []
+  },
+  "modules/market-cart/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/cart",
+        "reason": "BOUNDED — one shopper's own basket, capped at a hundred lines by the cart service; a basket is shown whole, grouped by store, with its totals."
+      },
+      {
+        "route": "GET /market/checkout/:storeSlug",
+        "reason": "NOT A LIST — one store's checkout summary: its lines from the shopper's basket (within the same hundred-line cap), the delivery fee, the coupon and the total."
+      }
+    ],
+    "missingStoreSlug": []
   }
 }

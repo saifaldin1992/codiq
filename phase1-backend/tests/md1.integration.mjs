@@ -982,10 +982,13 @@ try {
   // A good month for a large shop passes 2.1 billion dinars. SUM(int) is bigint
   // in Postgres, and the series and best-sellers used to cast it back to int —
   // «integer out of range», a 500, on exactly the month worth looking at.
-  const bigMonthStart = new Date(Date.UTC(2027, 0, 10, 12));
+  // A month years ahead of the real clock: never «this month» for any default
+  // report, and clear of the July fixtures above.
+  const bigYear = new Date().getUTCFullYear() + 5;
+  const bigMonthStart = new Date(Date.UTC(bigYear, 0, 10, 12));
   await md7Order(bigMonthStart, 1_500_000_000);
   await md7Order(new Date(bigMonthStart.valueOf() + 60_000), 1_500_000_000);
-  const bigSeries = await request(`/merchant/stores/${storeA.slug}/marketing/analytics/sales-series?from=2027-01-01T00:00:00Z&to=2027-02-01T00:00:00Z&interval=month`, { token: tokenA });
+  const bigSeries = await request(`/merchant/stores/${storeA.slug}/marketing/analytics/sales-series?from=${new Date(Date.UTC(bigYear, 0, 1)).toISOString()}&to=${new Date(Date.UTC(bigYear, 1, 1)).toISOString()}&interval=month`, { token: tokenA });
   assert.equal(bigSeries.status, 200, `a month past the int range still answers · ${JSON.stringify(bigSeries.payload)}`);
   assert.equal(bigSeries.payload.series.reduce((sum, bucket) => sum + bucket.totalIqd, 0), 3_000_000_000, "…with the exact total");
   summary.bigMonthTotal = 3_000_000_000;

@@ -47,7 +47,8 @@
  */
 import crypto from "node:crypto";
 
-export type KeyPurpose = "session" | "unsubscribe";
+/** Marketplace M4 adds `otp`: the HMAC key one-time sign-in codes are stored under. */
+export type KeyPurpose = "session" | "unsubscribe" | "otp";
 
 /** 32 bytes out, matching HMAC-SHA256's block-effective key size. */
 const KEY_BYTES = 32;
@@ -93,5 +94,5 @@ export function buildKeys(root: string, previous: string | null): Record<KeyPurp
     verifying.push(legacy);
     return { signing, verifying };
   };
-  return { session: build("session"), unsubscribe: build("unsubscribe") };
+  return { session: build("session"), unsubscribe: build("unsubscribe"), otp: build("otp") };
 }

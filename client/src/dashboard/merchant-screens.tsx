@@ -17,6 +17,8 @@ import { CustomersDirectory } from "@/components/CustomersDirectory";
 import { DeliveryCenter } from "@/components/DeliveryCenter";
 import { DeliveryRatesManager } from "@/components/DeliveryRatesManager";
 import { LoyaltySettingsCard } from "@/components/LoyaltySettingsCard";
+import { MarketProfilePanel } from "@/components/MarketProfilePanel";
+import { MarketCatalogPanel } from "@/components/MarketCatalogPanel";
 import { ManualCustomerForm } from "@/components/ManualCustomerForm";
 import { MarketingIntegrationsPanel } from "@/components/MarketingIntegrationsPanel";
 import { MerchantAnalytics } from "@/components/MerchantAnalytics";
@@ -64,6 +66,8 @@ export const MERCHANT_SCREENS: Readonly<Record<string, MerchantScreen>> = {
   "/merchant/dashboard/settings/shipping": ({ storeSlug }) => <DeliveryRatesManager storeSlug={storeSlug} />,
   "/merchant/dashboard/orders/delivery": ({ storeSlug }) => <DeliveryCenter storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/loyalty": ({ storeSlug }) => <LoyaltySettingsCard storeSlug={storeSlug} />,
+  "/merchant/dashboard/settings/market": ({ storeSlug }) => <MarketProfilePanel storeSlug={storeSlug} />,
+  "/merchant/dashboard/products/market": ({ storeSlug }) => <MarketCatalogPanel storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/pos": ({ storeSlug }) => <PosDevicesPanel storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/trash": ({ storeSlug }) => <TrashBin storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/subscription": () => <SubscriptionPanel />,

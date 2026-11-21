@@ -337,3 +337,44 @@ export async function explainSearch(target: SearchTarget, request: SearchRequest
   const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(`EXPLAIN (FORMAT JSON) ${statement.text}`, ...statement.values);
   return rows[0]?.["QUERY PLAN"];
 }
+
+/**
+ * Marketplace M2 — the product match for the MARKET, across every listed store.
+ *
+ * Not a `search()` call: the market list filters, sorts and pages in ONE
+ * statement (price, category, discount… and the match), so it needs the match
+ * as SQL fragments rather than a ranked id list. The fragments come from here
+ * so that every piece of search SQL still lives in this file, built the same
+ * way: the needle normalized ONCE by statement 0 and bound as a constant, the
+ * fuzzy `<%` only on the name and only for a single word, and the
+ * description matched by substring. The caller aliases products as `p`.
+ */
+export type MarketProductMatch = { where: Prisma.Sql; exact: Prisma.Sql; rank: Prisma.Sql; normalized: string; like: string };
+
+export async function marketProductMatch(raw: string): Promise<MarketProductMatch | null> {
+  const needle = await normalizeNeedle(raw);
+  if (!needle) return null;
+  // Every word must match somewhere — «ايفون ١٥ ازرق» finds «ايفون 15 برو ازرق»
+  // although the words are not adjacent. Each word: in the name (with typo
+  // tolerance from three letters up), or in the description by substring.
+  const words = Array.from(new Set(needle.normalized.split(" ").filter((word) => word.length > 0))).slice(0, 6);
+  const wordMatches = words.map((word) => {
+    const like = Prisma.sql`codiq_like_escape(${word})`;
+    const fuzzy = word.length >= 3 ? Prisma.sql` OR ${word} <% p.search_name` : Prisma.empty;
+    return Prisma.sql`(p.search_name LIKE '%' || ${like} || '%'${fuzzy} OR p.search_description LIKE '%' || ${like} || '%')`;
+  });
+  return {
+    where: Prisma.sql`(${Prisma.join(wordMatches, " AND ")})`,
+    // The whole phrase, contiguous, in the name: ranks above everything else.
+    exact: Prisma.sql`(p.search_name LIKE '%' || ${needle.like} || '%')`,
+    rank: Prisma.sql`word_similarity(${needle.normalized}, p.search_name)`,
+    normalized: needle.normalized,
+    // LIKE-escaped, for a caller matching the same needle against another normalized column.
+    like: needle.like,
+  };
+}
+
+/** The normalized form of a search term, for counting searches by what was meant rather than how it was typed. */
+export async function normalizedSearchTerm(raw: string): Promise<string | null> {
+  return (await normalizeNeedle(raw))?.normalized ?? null;
+}

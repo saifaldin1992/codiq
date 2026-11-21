@@ -243,6 +243,30 @@ model Store {
   verifiedByOwnerId    String?   @map("verified_by_owner_id") @db.Uuid
   verificationNote     String?   @map("verification_note") @db.Text
   verifiedByOwner      PlatformOwner? @relation("StoreVerifiedByOwner", fields: [verifiedByOwnerId], references: [id], onDelete: Restrict)
+  /// Marketplace M0 (migration 20261121090000): what the market directory shows.
+  /// `district` must lie inside `governorateKey` — a composite FK, not a promise.
+  businessType         String?   @map("business_type") @db.Text
+  coverObjectKey       String?   @unique @map("cover_object_key") @db.Text
+  coverContentType     String?   @map("cover_content_type") @db.Text
+  coverByteSize        Int?      @map("cover_byte_size")
+  governorateKey       String?   @map("governorate_key") @db.Text
+  districtId           Int?      @map("district_id")
+  latitude             Float?
+  longitude            Float?
+  pickupEnabled        Boolean   @default(false) @map("pickup_enabled")
+  district             District? @relation(fields: [districtId, governorateKey], references: [id, governorateKey], onDelete: Restrict, map: "stores_district_in_governorate")
+  openingHours         StoreOpeningHour[]
+  /// Marketplace M1 (migration 20261121100000): listing request → owner decision.
+  /// unlisted | pending | listed | rejected | delisted.
+  marketStatus         String    @default("unlisted") @map("market_status") @db.Text
+  marketStatusAt       DateTime? @map("market_status_at") @db.Timestamptz(6)
+  marketStatusNote     String?   @map("market_status_note") @db.Text
+  marketListedAt       DateTime? @map("market_listed_at") @db.Timestamptz(6)
+  isBrand              Boolean   @default(false) @map("is_brand")
+  boostedUntil         DateTime? @map("boosted_until") @db.Timestamptz(6)
+  ambassadorUntil      DateTime? @map("ambassador_until") @db.Timestamptz(6)
+  marketMetrics        StoreMarketMetrics?
+  mallMemberships      MarketMallStore[]
   merchant             Merchant              @relation(fields: [merchantId], references: [id], onDelete: Restrict)
   customers            Customer[]
   paymentMethods       PaymentMethod[]
@@ -282,6 +306,7 @@ model Store {
   @@index([merchantId])
   // 20-3: the platform store directory pages (createdAt, id) desc across all tenants.
   @@index([createdAt(sort: Desc), id(sort: Desc)], map: "stores_created_id_idx")
+  @@index([governorateKey, districtId], map: "stores_market_location_idx")
   @@map("stores")
   productReviews ProductReview[]
   wishlistItems  WishlistItem[]
@@ -371,6 +396,9 @@ model Customer {
   @@map("customers")
   productReviews ProductReview[]
   wishlistItems  WishlistItem[]
+  /// Marketplace M4: the market shopper this store customer is, when he came through the market.
+  shopperId      String?           @map("shopper_id") @db.Uuid
+  shopper        Shopper?          @relation(fields: [shopperId], references: [id], onDelete: SetNull)
   returnRequests ReturnRequest[]
   loyaltyEntries LoyaltyEntry[]
 }
@@ -547,6 +575,20 @@ model Product {
   /// ق-199: typed attribute groups («النوتة العطرية»: مقدمة/قلب/قاعدة) — a list of
   /// `{ group, rows: [{ key, value }] }`, shape fixed by zod, label owned by the merchant.
   attributes  Json        @default("[]") @db.JsonB
+  /// Marketplace M2 (migration 20261121110000): what the market shows about a product.
+  marketCategoryId  Int?      @map("market_category_id")
+  compareAtPriceIqd Int?      @map("compare_at_price_iqd")
+  condition         String    @default("new") @db.Text
+  tags              String[]  @default([])
+  specs             Json      @default("[]") @db.JsonB
+  isPreorder        Boolean   @default(false) @map("is_preorder")
+  preorderReleaseOn DateTime? @map("preorder_release_on") @db.Date
+  preorderShipsBy   DateTime? @map("preorder_ships_by") @db.Date
+  maxPerOrder       Int?      @map("max_per_order")
+  marketCategory    MarketCategory? @relation(fields: [marketCategoryId], references: [id], onDelete: SetNull)
+  addons            ProductAddon[]
+  marketStats       ProductMarketStats?
+  collectionItems   MarketCollectionItem[]
   viewsDaily  ProductViewDaily[]
   isActive    Boolean     @default(true) @map("is_active")
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -608,6 +650,7 @@ model ProductVariant {
   deletedAt        DateTime? @map("deleted_at")         @db.Timestamptz(6)
   deletedEventId   String?   @map("deleted_event_id")   @db.Uuid
   deletedWasActive Boolean?  @map("deleted_was_active")
+  marketCartItems   MarketCartItem[]
   product           Product  @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade, map: "product_variants_product_store_fk")
   deletedEvent      StoreAuditEvent? @relation("VariantDeletedEvent", fields: [deletedEventId], references: [id], onDelete: Restrict)
   cartItems         CartItem[]
@@ -633,6 +676,9 @@ model ProductCategory {
   parentCategoryId String?   @map("parent_category_id") @db.Uuid
   name             String    @db.Text
   normalizedName   String    @map("normalized_name") @db.Text
+  /// Marketplace M2: which market category this store category maps to.
+  marketCategoryId Int?      @map("market_category_id")
+  marketCategory   MarketCategory? @relation(fields: [marketCategoryId], references: [id], onDelete: SetNull)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   // PG-2 soft delete. No deletedWasActive: the model has no is_active column.
@@ -651,6 +697,7 @@ model ProductCategory {
   @@unique([id, storeId], map: "product_categories_id_store_unique")
   @@index([storeId])
   @@index([storeId, parentCategoryId], map: "product_categories_store_parent_idx")
+  @@index([marketCategoryId], map: "product_categories_market_category_idx")
   @@map("product_categories")
 }
 
@@ -722,6 +769,8 @@ model StoreOrder {
   customerId        String?            @map("customer_id") @db.Uuid
   orderNumber       String             @map("order_number") @db.Text
   status            String             @db.Text
+  /// Marketplace M5: delivery | pickup (at the store's counter, no delivery fee).
+  fulfilment        String             @default("delivery") @db.Text
   customerName      String             @map("customer_name") @db.Text
   /// PG-6 (ق-74): GENERATED ALWAYS AS (codiq_ar_normalize_v1(order_number)) STORED — migration 20260904090000.
   /// Read-only. NEVER name this field in a `data:` object; Postgres rejects a write to a generated column.
@@ -824,6 +873,8 @@ model OrderItem {
   quantity     Int
   unitPriceIqd Int        @map("unit_price_iqd")
   lineTotalIqd Int        @map("line_total_iqd")
+  /// Marketplace M5: [{id, name, priceIqd}] — the add-ons already inside unitPriceIqd, by name.
+  addons       Json       @default("[]") @db.JsonB
   createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   order        StoreOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product      Product?   @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -899,6 +950,9 @@ model CartItem {
   variantId        String       @map("variant_id") @db.Uuid
   quantity         Int
   priceSnapshotIqd Int          @map("price_snapshot_iqd")
+  /// Marketplace M5: chosen paid add-ons and their sum when added; priced into the order line at checkout.
+  addonIds         String[]     @default([]) @map("addon_ids") @db.Uuid
+  addonsSnapshotIqd Int         @default(0) @map("addons_snapshot_iqd")
   createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   cart             ShoppingCart @relation(fields: [cartId, storeId], references: [id, storeId], onDelete: Cascade)
@@ -2046,4 +2100,327 @@ model MerchantSetting {
 
   @@id([merchantId, code])
   @@map("merchant_settings")
+}
+
+/// Marketplace M0: an area inside a governorate (القضاء / المنطقة).
+model District {
+  id             Int      @id @default(autoincrement())
+  governorateKey String   @map("governorate_key") @db.Text
+  nameAr         String   @map("name_ar") @db.Text
+  sortOrder      Int      @default(0) @map("sort_order")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  stores         Store[]
+  shopperAddresses ShopperAddress[]
+
+  @@unique([governorateKey, nameAr], map: "districts_governorate_name_key")
+  @@unique([id, governorateKey], map: "districts_id_governorate_key")
+  @@map("districts")
+}
+
+/// Marketplace M0: one row per open weekday (0 = Sunday). No row = closed that day.
+/// `closesAt` earlier than `opensAt` means the shift crosses midnight.
+model StoreOpeningHour {
+  storeId  String   @map("store_id") @db.Uuid
+  weekday  Int      @db.SmallInt
+  opensAt  DateTime @map("opens_at") @db.Time(0)
+  closesAt DateTime @map("closes_at") @db.Time(0)
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([storeId, weekday])
+  @@map("store_opening_hours")
+}
+
+/// Marketplace M1: the computed reputation the directory sorts by. Written only
+/// by the market-metrics job; see modules/market-stores/market-score.ts.
+model StoreMarketMetrics {
+  storeId               String   @id @map("store_id") @db.Uuid
+  score                 Decimal? @db.Decimal(5, 2)
+  tier                  String?  @db.Text
+  ratingAvg             Decimal? @map("rating_avg") @db.Decimal(3, 2)
+  ratingCount           Int      @default(0) @map("rating_count")
+  completedOrders       Int      @default(0) @map("completed_orders")
+  completedOrders30d    Int      @default(0) @map("completed_orders_30d")
+  cancelRate            Decimal? @map("cancel_rate") @db.Decimal(5, 4)
+  repeatRate            Decimal? @map("repeat_rate") @db.Decimal(5, 4)
+  medianResponseMinutes Int?     @map("median_response_minutes")
+  inStockRate           Decimal? @map("in_stock_rate") @db.Decimal(5, 4)
+  views30d              Int      @default(0) @map("views_30d")
+  productCount          Int      @default(0) @map("product_count")
+  badges                Json     @default("[]") @db.JsonB
+  computedAt            DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  store                 Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_market_metrics")
+}
+
+/// Marketplace M2: the market's one category tree (two levels).
+model MarketCategory {
+  id                Int               @id @default(autoincrement())
+  parentId          Int?              @map("parent_id")
+  slug              String            @unique @db.Text
+  nameAr            String            @map("name_ar") @db.Text
+  sortOrder         Int               @default(0) @map("sort_order")
+  isActive          Boolean           @default(true) @map("is_active")
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  parent            MarketCategory?   @relation("MarketCategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children          MarketCategory[]  @relation("MarketCategoryTree")
+  products          Product[]
+  storeCategories   ProductCategory[]
+
+  @@index([parentId, sortOrder], map: "market_categories_parent_idx")
+  @@map("market_categories")
+}
+
+/// Marketplace M2: an optional extra sold with a product.
+model ProductAddon {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  name      String   @db.Text
+  priceIqd  Int      @map("price_iqd")
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  product   Product  @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade, map: "product_addons_product_fk")
+
+  @@index([storeId, productId, sortOrder], map: "product_addons_product_idx")
+  @@map("product_addons")
+}
+
+/// Marketplace M2: per-product numbers the market lists sort by. Written only by the market-metrics job.
+model ProductMarketStats {
+  productId   String   @id @map("product_id") @db.Uuid
+  storeId     String   @map("store_id") @db.Uuid
+  ratingAvg   Decimal? @map("rating_avg") @db.Decimal(3, 2)
+  ratingCount Int      @default(0) @map("rating_count")
+  sold1d      Int      @default(0) @map("sold_1d")
+  sold7d      Int      @default(0) @map("sold_7d")
+  sold30d     Int      @default(0) @map("sold_30d")
+  sold90d     Int      @default(0) @map("sold_90d")
+  views7d     Int      @default(0) @map("views_7d")
+  views30d    Int      @default(0) @map("views_30d")
+  computedAt  DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  product     Product  @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade, map: "product_market_stats_product_fk")
+
+  @@unique([productId, storeId], map: "product_market_stats_product_store_key")
+  @@map("product_market_stats")
+}
+
+/// Marketplace M2: searches per normalized term per day — words and counts only, nothing about who searched.
+model MarketSearchTerm {
+  term     String   @db.Text
+  day      DateTime @db.Date
+  searches Int      @default(0)
+
+  @@id([term, day])
+  @@index([day], map: "market_search_terms_day_idx")
+  @@map("market_search_terms")
+}
+
+/// Marketplace M3: a slide or an ad on a market page, scheduled, with where it leads and how it performed.
+model MarketBanner {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  placement        String    @db.Text
+  title            String    @db.Text
+  subtitle         String?   @db.Text
+  imageObjectKey   String?   @unique @map("image_object_key") @db.Text
+  imageContentType String?   @map("image_content_type") @db.Text
+  imageByteSize    Int?      @map("image_byte_size")
+  linkKind         String    @default("none") @map("link_kind") @db.Text
+  linkTarget       String?   @map("link_target") @db.Text
+  startsAt         DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt           DateTime? @map("ends_at") @db.Timestamptz(6)
+  sortOrder        Int       @default(0) @map("sort_order")
+  isActive         Boolean   @default(true) @map("is_active")
+  isAd             Boolean   @default(false) @map("is_ad")
+  views            Int       @default(0)
+  clicks           Int       @default(0)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("market_banners")
+}
+
+/// Marketplace M3: a curated product list, or a discount event.
+model MarketCollection {
+  id                      String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                    String                 @unique @db.Text
+  kind                    String                 @default("collection") @db.Text
+  title                   String                 @db.Text
+  subtitle                String?                @db.Text
+  headlineDiscountPercent Int?                   @map("headline_discount_percent")
+  startsAt                DateTime?              @map("starts_at") @db.Timestamptz(6)
+  endsAt                  DateTime?              @map("ends_at") @db.Timestamptz(6)
+  sortOrder               Int                    @default(0) @map("sort_order")
+  isActive                Boolean                @default(true) @map("is_active")
+  createdAt               DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  items                   MarketCollectionItem[]
+
+  @@map("market_collections")
+}
+
+model MarketCollectionItem {
+  collectionId String           @map("collection_id") @db.Uuid
+  productId    String           @map("product_id") @db.Uuid
+  storeId      String           @map("store_id") @db.Uuid
+  sortOrder    Int              @default(0) @map("sort_order")
+  collection   MarketCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product          @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade, map: "market_collection_items_product_fk")
+
+  @@id([collectionId, productId])
+  @@index([productId], map: "market_collection_items_product_idx")
+  @@map("market_collection_items")
+}
+
+/// Marketplace M3: a group of stores («مول»).
+model MarketMall {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String            @unique @db.Text
+  name        String            @db.Text
+  description String?           @db.Text
+  sortOrder   Int               @default(0) @map("sort_order")
+  isActive    Boolean           @default(true) @map("is_active")
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  stores      MarketMallStore[]
+
+  @@map("market_malls")
+}
+
+model MarketMallStore {
+  mallId    String     @map("mall_id") @db.Uuid
+  storeId   String     @map("store_id") @db.Uuid
+  sortOrder Int        @default(0) @map("sort_order")
+  mall      MarketMall @relation(fields: [mallId], references: [id], onDelete: Cascade)
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([mallId, storeId])
+  @@index([storeId], map: "market_mall_stores_store_idx")
+  @@map("market_mall_stores")
+}
+
+/// Marketplace M3: the market's front page, block by block, in order.
+model MarketHomeSection {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind     String  @db.Text
+  title    String? @db.Text
+  config   Json    @default("{}") @db.JsonB
+  position Int     @unique(map: "market_home_sections_position_key")
+  isActive Boolean @default(true) @map("is_active")
+
+  @@map("market_home_sections")
+}
+
+/// Marketplace M4: the market's shopper — one account across every store, signed in by phone.
+model Shopper {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phoneNormalized   String             @unique @map("phone_normalized") @db.Text
+  fullName          String?            @map("full_name") @db.Text
+  email             String?            @db.Text
+  gender            String?            @db.Text
+  interests         Int[]              @default([])
+  avatarObjectKey   String?            @unique @map("avatar_object_key") @db.Text
+  avatarContentType String?            @map("avatar_content_type") @db.Text
+  avatarByteSize    Int?               @map("avatar_byte_size")
+  isActive          Boolean            @default(true) @map("is_active")
+  lastLoginAt       DateTime?          @map("last_login_at") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sessions          ShopperSession[]
+  otpChallenges     ShopperOtpChallenge[]
+  addresses         ShopperAddress[]
+  customers         Customer[]
+  marketCart        MarketCart?
+
+  @@map("shoppers")
+}
+
+model ShopperSession {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId  String    @map("shopper_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash") @db.Text
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  userAgent  String?   @map("user_agent") @db.Text
+  lastSeenAt DateTime? @map("last_seen_at") @db.Timestamptz(6)
+  shopper    Shopper   @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@index([shopperId], map: "shopper_sessions_shopper_idx")
+  @@map("shopper_sessions")
+}
+
+model ShopperOtpChallenge {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phoneNormalized String    @map("phone_normalized") @db.Text
+  purpose         String    @db.Text
+  shopperId       String?   @map("shopper_id") @db.Uuid
+  codeHash        String    @map("code_hash") @db.Text
+  attempts        Int       @default(0)
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt      DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  shopper         Shopper?  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@index([phoneNormalized, createdAt(sort: Desc)], map: "shopper_otp_phone_idx")
+  @@map("shopper_otp_challenges")
+}
+
+model ShopperAddress {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId          String   @map("shopper_id") @db.Uuid
+  label              String   @db.Text
+  recipientName      String   @map("recipient_name") @db.Text
+  phoneNormalized    String   @map("phone_normalized") @db.Text
+  phoneVerifiedAt    DateTime @map("phone_verified_at") @db.Timestamptz(6)
+  altPhoneNormalized String?  @map("alt_phone_normalized") @db.Text
+  governorateKey     String   @map("governorate_key") @db.Text
+  districtId         Int      @map("district_id")
+  addressLine        String   @map("address_line") @db.Text
+  latitude           Float?
+  longitude          Float?
+  isDefault          Boolean  @default(false) @map("is_default")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  shopper            Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  district           District @relation(fields: [districtId, governorateKey], references: [id, governorateKey], onDelete: Restrict, map: "shopper_addresses_district_in_governorate")
+
+  @@index([shopperId, createdAt], map: "shopper_addresses_shopper_idx")
+  @@map("shopper_addresses")
+}
+
+/// Marketplace M5: the shopper's basket across every store.
+model MarketCart {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId String           @unique @map("shopper_id") @db.Uuid
+  version   Int              @default(1)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  shopper   Shopper          @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  items     MarketCartItem[]
+
+  @@map("market_carts")
+}
+
+model MarketCartItem {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cartId            String         @map("cart_id") @db.Uuid
+  storeId           String         @map("store_id") @db.Uuid
+  productId         String         @map("product_id") @db.Uuid
+  variantId         String         @map("variant_id") @db.Uuid
+  quantity          Int
+  addonIds          String[]       @default([]) @map("addon_ids") @db.Uuid
+  priceSnapshotIqd  Int            @map("price_snapshot_iqd")
+  addonsSnapshotIqd Int            @default(0) @map("addons_snapshot_iqd")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  cart              MarketCart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant           ProductVariant @relation(fields: [variantId, productId, storeId], references: [id, productId, storeId], onDelete: Cascade, map: "market_cart_items_variant_fk")
+
+  @@unique([cartId, variantId], map: "market_cart_items_cart_variant_key")
+  @@index([cartId, storeId, createdAt], map: "market_cart_items_cart_idx")
+  @@index([variantId], map: "market_cart_items_variant_idx")
+  @@map("market_cart_items")
 }

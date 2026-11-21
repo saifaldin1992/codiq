@@ -375,6 +375,27 @@ jobs:
       - name: Integration — domain events (after commit, isolated, once)
         run: pnpm events:test
 
+      - name: Integration — marketplace M0 (districts, store location, opening hours, /market/geo)
+        run: pnpm market:foundation
+
+      - name: Unit — marketplace reputation (score, tiers, badges, opening hours)
+        run: pnpm market:score
+
+      - name: Integration — marketplace M1 (listing requests, owner queue, directory sorts and paging, store page)
+        run: pnpm market:stores
+
+      - name: Integration — marketplace M2 (categories, product list filters and sorts, Arabic search, product page, per-order cap)
+        run: pnpm market:catalog
+
+      - name: Integration — marketplace M3 (banners, collections, malls, front page, category tree)
+        run: pnpm market:home
+
+      - name: Integration — marketplace M4 (shopper phone sign-in, one-time codes, profile, addresses)
+        run: pnpm market:account
+
+      - name: Integration — marketplace M5 (one cart, per-store checkout through the store's own checkout, my orders)
+        run: pnpm market:cart
+
       - name: Guard — every implemented merchant menu entry has a screen
         run: pnpm screens:guard
 
@@ -987,6 +1008,24 @@ jobs:
 
       - name: Browser — phase 20B unified growth acceptance
         run: pnpm phase20b:browser
+
+      - name: Browser — marketplace shell (tabs, delivery location, search)
+        run: node --import tsx phase1-backend/tests/market-shell.browser-acceptance.mjs
+
+      - name: Browser — marketplace stores directory (merchant asks, owner lists, shopper finds)
+        run: node --import tsx phase1-backend/tests/market-stores.browser-acceptance.mjs
+
+      - name: Browser — marketplace catalog (merchant market details, categories, search, filters, product page)
+        run: node --import tsx phase1-backend/tests/market-catalog.browser-acceptance.mjs
+
+      - name: Browser — marketplace front page (owner content, banners, collections, recently viewed)
+        run: node --import tsx phase1-backend/tests/market-home.browser-acceptance.mjs
+
+      - name: Browser — marketplace shopper account (sign-in by code, profile, addresses)
+        run: node --import tsx phase1-backend/tests/market-account.browser-acceptance.mjs
+
+      - name: Browser — marketplace cart and checkout (two stores, add-on, coupon, delivery and pick-up)
+        run: node --import tsx phase1-backend/tests/market-cart.browser-acceptance.mjs
 
       # PG-2: the sheet's ق-10 promise («the movement count comes from the
       # server or is not shown») and the no-silent-rename rule are UI contracts,

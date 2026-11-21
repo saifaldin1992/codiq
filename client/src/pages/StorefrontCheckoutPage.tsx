@@ -268,7 +268,7 @@ export default function StorefrontCheckoutPage() {
         {refused.map((line) => (
           <li key={line.cartItemId} className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="font-bold">{line.productName ?? "منتج لم يعد متاحاً"}{line.variantName ? <span className="font-semibold text-[var(--storefront-muted)]"> — {line.variantName}</span> : null}</span>
-            <span className="text-xs text-[var(--storefront-muted)]">{line.reason === "unavailable" ? "لم يعد متاحاً" : line.available === 0 ? "نفد المخزون" : `طلبت ${line.requested} والمتاح ${line.available}`}</span>
+            <span className="text-xs text-[var(--storefront-muted)]">{line.reason === "unavailable" ? "لم يعد متاحاً" : line.reason === "order_limit" ? `الحدّ الأقصى ${line.available} لكل طلب` : line.available === 0 ? "نفد المخزون" : `طلبت ${line.requested} والمتاح ${line.available}`}</span>
           </li>
         ))}
         <li className="pt-1"><Link href={`/store/${slug}/cart`} className="text-xs font-bold text-[var(--storefront-accent)] hover:underline">عدّل السلة</Link></li>

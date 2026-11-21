@@ -60,7 +60,7 @@ export function createApp() {
     // both names share. Anchoring it would have silently stopped marking
     // authenticated answers `no-store` in production only — the one place it
     // matters.
-    const carriesIdentity = Boolean(request.header("authorization")) || /codiq_session|codiq_customer_/.test(request.header("cookie") ?? "");
+    const carriesIdentity = Boolean(request.header("authorization")) || /codiq_session|codiq_customer_|codiq_shopper_/.test(request.header("cookie") ?? "");
     // Set as the DEFAULT rather than forced at write time: a later
     // `setHeader("cache-control", …)` in a handler simply replaces it, so the
     // image routes keep their immutable year and nothing needs an exemption
