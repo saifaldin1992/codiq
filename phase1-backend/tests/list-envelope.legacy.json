@@ -500,5 +500,13 @@
         "reason": "BOUNDED — one wheel's prizes (≤ 40) with their tallies, and two counts."
       }
     ]
+  },
+  "modules/market-reels/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/reels/:reelId",
+        "reason": "One reel (a shared link); its product card is a single object, not a list."
+      }
+    ]
   }
 }

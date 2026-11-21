@@ -308,7 +308,7 @@ export async function deleteStoreCoverObjects(objectKeys: readonly string[]) {
  * Marketplace M3 — the platform's own market images (banners). Same validator
  * and bucket as every store image; no plan meter, because the platform pays.
  */
-export async function putMarketImage(kind: "banners" | "avatars" | "tickets", file: Express.Multer.File) {
+export async function putMarketImage(kind: "banners" | "avatars" | "tickets" | "reel-posters", file: Express.Multer.File) {
   const detected = validateStoreImage(file);
   const config = s3Config();
   const objectKey = `market/${kind}/${randomUUID()}.${detected.extension}`;
@@ -323,3 +323,53 @@ export async function deleteMarketImageObjects(objectKeys: readonly string[]) {
 export const productImageConstraints = { maxBytes: MAX_IMAGE_BYTES, allowedContentTypes };
 export const prescriptionImageConstraints = { maxBytes: MAX_PRESCRIPTION_BYTES, allowedContentTypes };
 export const storeImageConstraints = { maxBytes: MAX_STORE_IMAGE_BYTES, allowedContentTypes };
+
+
+// ── Marketplace M10: short videos ──────────────────────────────────────────
+
+/** A reel's ceiling. Thirty seconds of phone video at a sensible bitrate fits well inside it. */
+export const REEL_MAX_BYTES = 30 * 1024 * 1024;
+export const reelVideoConstraints = { maxBytes: REEL_MAX_BYTES, allowedContentTypes: new Set(["video/mp4", "video/webm", "video/quicktime"]) };
+
+/**
+ * The container is read from the BYTES, never from the name or the declared
+ * type: an ISO-BMFF file (MP4, MOV) carries `ftyp` at offset 4, a WebM file
+ * starts with the EBML magic. Anything else — a script renamed .mp4 — is refused.
+ */
+export function detectReelVideo(buffer: Buffer): { contentType: string; extension: string } | null {
+  if (buffer.length >= 12 && buffer.subarray(4, 8).toString("latin1") === "ftyp") {
+    const brand = buffer.subarray(8, 12).toString("latin1");
+    return brand === "qt  " ? { contentType: "video/quicktime", extension: "mov" } : { contentType: "video/mp4", extension: "mp4" };
+  }
+  if (buffer.length >= 4 && buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) return { contentType: "video/webm", extension: "webm" };
+  return null;
+}
+
+export async function putReelVideo(storeId: string, file: Express.Multer.File) {
+  if (file.size > REEL_MAX_BYTES) throw new HttpError(413, "REEL_TOO_LARGE", "المقطع أكبر من ٣٠ ميغابايت.");
+  const detected = detectReelVideo(file.buffer);
+  if (!detected) throw new HttpError(422, "REEL_TYPE_NOT_ALLOWED", "المقطع يجب أن يكون فيديو MP4 أو MOV أو WebM.");
+  const config = s3Config();
+  const objectKey = `market/reels/${storeId}/${randomUUID()}.${detected.extension}`;
+  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
+  return { objectKey, contentType: detected.contentType, byteSize: file.size };
+}
+
+/**
+ * A byte range of a stored object, streamed — a video player asks for pieces
+ * (seeking, the first frames) and must get 206 with Content-Range, not the whole
+ * file every time. `range` is the client's header, passed through to S3 only if
+ * it is one well-formed `bytes=` range.
+ */
+export async function getObjectRange(objectKey: string, range: string | undefined) {
+  const config = s3Config();
+  const valid = range && /^bytes=\d*-\d*$/.test(range) && range !== "bytes=-" ? range : undefined;
+  const object = await client(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: objectKey, ...(valid ? { Range: valid } : {}) }));
+  if (!object.Body) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الملفّ غير موجود.");
+  return {
+    body: object.Body as NodeJS.ReadableStream,
+    partial: Boolean(valid && object.ContentRange),
+    contentRange: object.ContentRange ?? null,
+    contentLength: object.ContentLength ?? null,
+  };
+}

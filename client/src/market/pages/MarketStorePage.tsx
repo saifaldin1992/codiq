@@ -15,6 +15,7 @@ import { TIER_LABELS, WEEKDAYS } from "../market-types";
 import { BADGE_ICONS, MarkChips, RatingInline, TIER_CLASSES, TierChip } from "../components/StoreBadges";
 import { MarketEmptyState } from "../MarketEmptyState";
 import { ProductShelf } from "../components/ProductShelf";
+import { ReelsShelf } from "./MarketReelsPage";
 
 type Review = { id: string; rating: number; body: string | null; createdAt: string; author: string; product: { id: string; name: string } };
 
@@ -111,6 +112,7 @@ export function MarketStorePage() {
       </section>
 
       <div className="mx-4 space-y-5" data-testid="market-store-products">
+        <ReelsShelf storeSlug={store.slug} title="ريلز المتجر" />
         <ProductShelf testId="market-store-newest" title="أحدث المنتجات" url={`/api/market/products?store=${encodeURIComponent(store.slug)}&sort=newest&limit=10`} action={<Link href={`/s/${encodeURIComponent(store.slug)}/products`} className="text-xs font-bold text-[var(--codiq-accent)]" data-testid="market-store-all-products">عرض الكل</Link>} />
         <ProductShelf testId="market-store-discounts" title="التخفيضات" url={`/api/market/products?store=${encodeURIComponent(store.slug)}&discount=any&sort=discount&limit=10`} />
         <ProductShelf testId="market-store-trending" title="الأكثر رواجاً" url={`/api/market/products?store=${encodeURIComponent(store.slug)}&sort=trending&limit=10`} />

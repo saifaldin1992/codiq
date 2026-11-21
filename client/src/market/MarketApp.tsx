@@ -14,6 +14,7 @@ import { MarketOrderPage, MarketOrdersPage, MarketRatingsPage } from "./pages/Ma
 import { MarketCampaignPage } from "./pages/MarketCampaignPage";
 import { MarketCouponPage, MarketCouponsPage, MarketPointsPage } from "./pages/MarketRewardsPages";
 import { MarketWheelLogPage, MarketWheelPage } from "./pages/MarketWheelPage";
+import { MarketReelPage, MarketReelsPage } from "./pages/MarketReelsPage";
 import { MarketNewTicketPage, MarketTicketPage, MarketTicketsPage } from "./pages/MarketTicketsPages";
 import { MarketContactPage, MarketFavouritesPage, MarketFeedbackPage, MarketHelpPage, MarketNotificationsPage } from "./pages/MarketHelpPages";
 import { MarketAccountInfoPage, MarketAccountPage, MarketAddressesPage, MarketAddressFormPage } from "./pages/MarketAccountPages";
@@ -58,6 +59,8 @@ export default function MarketApp() {
         <Route path="/points" component={MarketPointsPage} />
         <Route path="/wheel" component={MarketWheelPage} />
         <Route path="/wheel/log" component={MarketWheelLogPage} />
+        <Route path="/reels" component={MarketReelsPage} />
+        <Route path="/reels/:id" component={MarketReelPage} />
         <Route path="/tickets" component={MarketTicketsPage} />
         <Route path="/tickets/new" component={MarketNewTicketPage} />
         <Route path="/tickets/:id" component={MarketTicketPage} />

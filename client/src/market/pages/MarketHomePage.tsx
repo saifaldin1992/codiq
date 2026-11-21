@@ -18,6 +18,7 @@ import { readRecentProducts } from "../market-products";
 import { BannerCarousel, type MarketBanner } from "../components/BannerCarousel";
 import { ProductShelf } from "../components/ProductShelf";
 import { StoreShelf } from "../components/StoreShelf";
+import { ReelsShelf } from "./MarketReelsPage";
 
 type Collection = { slug: string; kind: string; title: string; subtitle: string | null; headlineDiscountPercent: number | null; endsAt: string | null; products: number };
 type Mall = { slug: string; name: string; description: string | null; stores: number; logos: { slug: string; name: string; logoUrl: string | null }[] };
@@ -94,6 +95,7 @@ export function MarketHomePage() {
           default: return null;
         }
       })}
+      {sections ? <ReelsShelf title="ريلز" /> : null}
       {sections && shopper ? <StoreShelf testId="market-home-purchased-from" title="اشتريت منها" subtitle="المتاجر التي طلبت منها سابقاً" url="/api/market/me/purchased-from" /> : null}
       {sections && shopper ? <StoreShelf testId="market-home-followed" title="متاجر تتابعها" url="/api/market/favourites/stores?limit=10" action={<Link href="/favourites?tab=stores" className="text-xs font-bold text-[var(--codiq-accent)]">عرض الكل</Link>} /> : null}
       {sections ? <Link href="/categories" className="flex items-center justify-between rounded-[22px] bg-[var(--codiq-surface)] p-4 text-sm font-bold text-[var(--codiq-text)] shadow-sm">تصفّح كل الفئات <ChevronLeft className="h-4 w-4" /></Link> : null}

@@ -312,6 +312,7 @@ model Store {
   marketFollowers ShopperFollowedStore[]
   supportTickets SupportTicket[]
   platformCouponStores PlatformCouponStore[]
+  marketReels MarketReel[]
   returnRequests ReturnRequest[]
   /// CD-5: off until the merchant turns it on — nobody discovers he has been
   /// giving discounts because an update defaulted a programme on.
@@ -631,6 +632,7 @@ model Product {
   wishlistItems  WishlistItem[]
   marketFavourites ShopperFavouriteProduct[]
   marketDeals MarketDeal[]
+  marketReels MarketReel[]
 }
 
 model ProductVariant {
@@ -2342,6 +2344,7 @@ model Shopper {
   wheelGrants       WheelSpinGrant[]
   wheelSpins        WheelSpin[]
   wheelWins         WheelWin[]
+  reelLikes         MarketReelLike[]
   marketCart        MarketCart?
 
   @@map("shoppers")
@@ -2890,4 +2893,55 @@ model WheelWin {
   @@index([wheelId, shopperId], map: "wheel_wins_board_idx")
   @@index([wheelId, status, createdAt], map: "wheel_wins_queue_idx")
   @@map("wheel_wins")
+}
+
+/// Marketplace M10: a store's short video. Shown once the owner approves it.
+model MarketReel {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId           String           @map("store_id") @db.Uuid
+  productId         String?          @map("product_id") @db.Uuid
+  caption           String?          @db.Text
+  videoObjectKey    String           @unique @map("video_object_key") @db.Text
+  videoContentType  String           @map("video_content_type") @db.Text
+  videoByteSize     Int              @map("video_byte_size")
+  posterObjectKey   String?          @unique @map("poster_object_key") @db.Text
+  posterContentType String?          @map("poster_content_type") @db.Text
+  status            String           @default("pending") @db.Text
+  decisionNote      String?          @map("decision_note") @db.Text
+  decidedAt         DateTime?        @map("decided_at") @db.Timestamptz(6)
+  publishedAt       DateTime?        @map("published_at") @db.Timestamptz(6)
+  viewCount         Int              @default(0) @map("view_count")
+  likeCount         Int              @default(0) @map("like_count")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  store             Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product           Product?         @relation(fields: [productId, storeId], references: [id, storeId], onDelete: NoAction)
+  likes             MarketReelLike[]
+  views             MarketReelView[]
+
+  @@index([storeId, createdAt(sort: Desc), id(sort: Desc)], map: "market_reels_store_idx")
+  @@index([status, createdAt, id], map: "market_reels_queue_idx")
+  @@map("market_reels")
+}
+
+model MarketReelLike {
+  reelId    String     @map("reel_id") @db.Uuid
+  shopperId String     @map("shopper_id") @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  reel      MarketReel @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  shopper   Shopper    @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  @@id([reelId, shopperId])
+  @@map("market_reel_likes")
+}
+
+model MarketReelView {
+  reelId    String     @map("reel_id") @db.Uuid
+  viewerKey String     @map("viewer_key") @db.Text
+  day       DateTime   @db.Date
+  reel      MarketReel @relation(fields: [reelId], references: [id], onDelete: Cascade)
+
+  @@id([reelId, viewerKey, day])
+  @@index([day], map: "market_reel_views_day_idx")
+  @@map("market_reel_views")
 }
