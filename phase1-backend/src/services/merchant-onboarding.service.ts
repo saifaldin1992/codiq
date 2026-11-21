@@ -23,7 +23,12 @@
  */
 import { prisma } from "../db/prisma.js";
 
-export type OnboardingStepKey = "first_product" | "product_image" | "delivery_enabled" | "order_preview" | "store_published";
+export type OnboardingStepKey =
+  | "first_product"
+  | "product_image"
+  | "delivery_enabled"
+  | "order_preview"
+  | "store_published";
 
 export interface OnboardingStep {
   key: OnboardingStepKey;
@@ -38,16 +43,35 @@ export interface MerchantOnboarding {
   totalCount: number;
   steps: OnboardingStep[];
   /** A live example built from HIS product — never inserted anywhere. */
-  preview: { productName: string; unitPriceIqd: number; quantity: number; deliveryFeeIqd: number; totalIqd: number } | null;
+  preview: {
+    productName: string;
+    unitPriceIqd: number;
+    quantity: number;
+    deliveryFeeIqd: number;
+    totalIqd: number;
+  } | null;
 }
 
-export async function merchantOnboarding(storeSlug: string, storeId: string): Promise<MerchantOnboarding> {
+export async function merchantOnboarding(
+  storeSlug: string,
+  storeId: string
+): Promise<MerchantOnboarding> {
   const base = `/merchant/stores/${encodeURIComponent(storeSlug)}/dashboard`;
   const [store, product, image, deliveryRate] = await Promise.all([
-    prisma.store.findUniqueOrThrow({ where: { id: storeId }, select: { isActive: true, onboardingPreviewSeenAt: true, onboardingDismissedAt: true } }),
-    prisma.product.findFirst({ where: { storeId, deletedAt: null }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { name: true, priceIqd: true } }),
+    prisma.store.findUniqueOrThrow({
+      where: { id: storeId },
+      select: { isActive: true, onboardingPreviewSeenAt: true, onboardingDismissedAt: true },
+    }),
+    prisma.product.findFirst({
+      where: { storeId, deletedAt: null },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { name: true, priceIqd: true },
+    }),
     prisma.productImage.findFirst({ where: { storeId }, select: { id: true } }),
-    prisma.deliveryRate.findFirst({ where: { storeId, isEnabled: true }, select: { amountIqd: true } }),
+    prisma.deliveryRate.findFirst({
+      where: { storeId, isEnabled: true },
+      select: { amountIqd: true },
+    }),
   ]);
 
   const steps: OnboardingStep[] = [
@@ -70,13 +94,24 @@ export async function merchantOnboarding(storeSlug: string, storeId: string): Pr
     completedCount,
     totalCount: steps.length,
     steps,
-    preview: product ? { productName: product.name, unitPriceIqd, quantity: 1, deliveryFeeIqd, totalIqd: unitPriceIqd + deliveryFeeIqd } : null,
+    preview: product
+      ? {
+          productName: product.name,
+          unitPriceIqd,
+          quantity: 1,
+          deliveryFeeIqd,
+          totalIqd: unitPriceIqd + deliveryFeeIqd,
+        }
+      : null,
   };
 }
 
 /** He looked at the example order. The only step whose state is not derivable. */
 export async function markOnboardingPreviewSeen(storeId: string, now = new Date()): Promise<void> {
-  await prisma.store.updateMany({ where: { id: storeId, onboardingPreviewSeenAt: null }, data: { onboardingPreviewSeenAt: now } });
+  await prisma.store.updateMany({
+    where: { id: storeId, onboardingPreviewSeenAt: null },
+    data: { onboardingPreviewSeenAt: now },
+  });
 }
 
 /**
@@ -85,5 +120,8 @@ export async function markOnboardingPreviewSeen(storeId: string, now = new Date(
  * spread over time.
  */
 export async function dismissOnboarding(storeId: string, now = new Date()): Promise<void> {
-  await prisma.store.updateMany({ where: { id: storeId, onboardingDismissedAt: null }, data: { onboardingDismissedAt: now } });
+  await prisma.store.updateMany({
+    where: { id: storeId, onboardingDismissedAt: null },
+    data: { onboardingDismissedAt: now },
+  });
 }

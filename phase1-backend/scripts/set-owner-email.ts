@@ -34,14 +34,18 @@ import { prisma } from "../src/db/prisma.js";
 
 function flag(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
-  if (index !== -1 && process.argv[index + 1] && !process.argv[index + 1]!.startsWith("--")) return process.argv[index + 1];
+  if (index !== -1 && process.argv[index + 1] && !process.argv[index + 1]!.startsWith("--"))
+    return process.argv[index + 1];
   const inline = process.argv.find((argument) => argument.startsWith(`--${name}=`));
   return inline ? inline.slice(name.length + 3) : undefined;
 }
 
 async function main() {
   if (process.argv.includes("--list")) {
-    const owners = await prisma.platformOwner.findMany({ select: { id: true, email: true, displayName: true, isActive: true }, orderBy: { createdAt: "asc" } });
+    const owners = await prisma.platformOwner.findMany({
+      select: { id: true, email: true, displayName: true, isActive: true },
+      orderBy: { createdAt: "asc" },
+    });
     console.log(JSON.stringify({ owners }, null, 2));
     return;
   }
@@ -50,7 +54,9 @@ async function main() {
   const from = flag("from");
   const id = flag("id");
   if (!to || (!from && !id)) {
-    console.error("Usage: pnpm owner:email -- --to <new@example.com> (--from <old@example.com> | --id <uuid>)\n       pnpm owner:email -- --list");
+    console.error(
+      "Usage: pnpm owner:email -- --to <new@example.com> (--from <old@example.com> | --id <uuid>)\n       pnpm owner:email -- --list"
+    );
     process.exitCode = 1;
     return;
   }
@@ -60,15 +66,22 @@ async function main() {
   const target = normalizeEmail(to);
   const owner = id
     ? await prisma.platformOwner.findUnique({ where: { id }, select: { id: true, email: true } })
-    : await prisma.platformOwner.findUnique({ where: { email: normalizeEmail(from) }, select: { id: true, email: true } });
+    : await prisma.platformOwner.findUnique({
+        where: { email: normalizeEmail(from) },
+        select: { id: true, email: true },
+      });
 
   if (!owner) {
-    console.error(`No platform owner matches ${id ? `id ${id}` : `email ${from}`}. Nothing was written. Run with --list to see the owner rows.`);
+    console.error(
+      `No platform owner matches ${id ? `id ${id}` : `email ${from}`}. Nothing was written. Run with --list to see the owner rows.`
+    );
     process.exitCode = 1;
     return;
   }
   if (owner.email === target) {
-    console.log(JSON.stringify({ status: "already_set", ownerId: owner.id, email: target }, null, 2));
+    console.log(
+      JSON.stringify({ status: "already_set", ownerId: owner.id, email: target }, null, 2)
+    );
     return;
   }
 
@@ -80,15 +93,34 @@ async function main() {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes("CODIQ_EMAIL_CONFLICT") || message.includes("Unique constraint")) {
-      console.error(`${target} already belongs to another identity on the platform (owner, platform staff, merchant, or store staff). Nothing was written.`);
+      console.error(
+        `${target} already belongs to another identity on the platform (owner, platform staff, merchant, or store staff). Nothing was written.`
+      );
       process.exitCode = 1;
       return;
     }
     throw error;
   }
-  console.log(JSON.stringify({ status: "changed", ownerId: owner.id, from: owner.email, to: target, passwordChanged: false }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        status: "changed",
+        ownerId: owner.id,
+        from: owner.email,
+        to: target,
+        passwordChanged: false,
+      },
+      null,
+      2
+    )
+  );
 }
 
 main()
-  .catch((error) => { console.error("set-owner-email failed:", error); process.exitCode = 1; })
-  .finally(async () => { await prisma.$disconnect(); });
+  .catch((error) => {
+    console.error("set-owner-email failed:", error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

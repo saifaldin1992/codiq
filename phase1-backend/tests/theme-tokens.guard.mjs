@@ -35,7 +35,9 @@ const LITERAL = /\b(?:bg|text|border|fill|ring|from|to|via)-(?:white|black)\b/g;
  *
  * NOT a permission to keep them — a measured debt with a name on it.
  */
-const LEGACY = JSON.parse(readFileSync(new URL("./theme-tokens.legacy.json", import.meta.url), "utf8"));
+const LEGACY = JSON.parse(
+  readFileSync(new URL("./theme-tokens.legacy.json", import.meta.url), "utf8")
+);
 
 function walk(dir) {
   const out = [];
@@ -60,19 +62,26 @@ for (const file of walk(CLIENT_SRC)) {
   const allowed = LEGACY[relative];
 
   if (count === 0) {
-    if (allowed !== undefined) improved.push(`${relative} is clean — delete its entry from theme-tokens.legacy.json`);
+    if (allowed !== undefined)
+      improved.push(`${relative} is clean — delete its entry from theme-tokens.legacy.json`);
     continue;
   }
   remaining += count;
   if (allowed === undefined) {
-    failures.push(`${relative}: ${count} raw colour${count === 1 ? "" : "s"} in a file with no legacy allowance.\n`
-      + `    Every screen written from now on names a ROLE, not a colour:\n`
-      + `    text-[#1E6FDB] → text-[var(--codiq-accent)] · bg-[#FFF0F1] → bg-[var(--codiq-danger-soft)]\n`
-      + `    The roles are defined and explained at the top of client/src/index.css.`);
+    failures.push(
+      `${relative}: ${count} raw colour${count === 1 ? "" : "s"} in a file with no legacy allowance.\n` +
+        `    Every screen written from now on names a ROLE, not a colour:\n` +
+        `    text-[#1E6FDB] → text-[var(--codiq-accent)] · bg-[#FFF0F1] → bg-[var(--codiq-danger-soft)]\n` +
+        `    The roles are defined and explained at the top of client/src/index.css.`
+    );
   } else if (count > allowed) {
-    failures.push(`${relative}: ${count} raw colours, up from ${allowed}. This file's debt may only shrink.`);
+    failures.push(
+      `${relative}: ${count} raw colours, up from ${allowed}. This file's debt may only shrink.`
+    );
   } else if (count < allowed) {
-    improved.push(`${relative} is down to ${count} (was ${allowed}) — lower its number in theme-tokens.legacy.json`);
+    improved.push(
+      `${relative} is down to ${count} (was ${allowed}) — lower its number in theme-tokens.legacy.json`
+    );
   }
 }
 
@@ -89,5 +98,9 @@ if (failures.length) {
 }
 
 const files = Object.keys(LEGACY).length;
-console.log(`theme:guard ok — no new raw colour. Phase 21 still owes ${remaining} value${remaining === 1 ? "" : "s"} across ${files} legacy file${files === 1 ? "" : "s"}.`);
-console.log(`  …plus ${literals} literal white/black utilities, which no hex check can see and dark mode will still break on.`);
+console.log(
+  `theme:guard ok — no new raw colour. Phase 21 still owes ${remaining} value${remaining === 1 ? "" : "s"} across ${files} legacy file${files === 1 ? "" : "s"}.`
+);
+console.log(
+  `  …plus ${literals} literal white/black utilities, which no hex check can see and dark mode will still break on.`
+);

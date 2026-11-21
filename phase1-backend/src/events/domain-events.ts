@@ -21,11 +21,29 @@ import { logger } from "../logging/logger.js";
 
 export interface DomainEventMap {
   /** A storefront or guest checkout created an order (replays do not re-emit). */
-  "order.created": { storeId: string; orderId: string; orderNumber: string; source: "storefront"; totalIqd: number };
+  "order.created": {
+    storeId: string;
+    orderId: string;
+    orderNumber: string;
+    source: "storefront";
+    totalIqd: number;
+  };
   /** A counter (POS) sale was recorded — born completed. */
-  "order.pos_sale_recorded": { storeId: string; orderId: string; orderNumber: string; totalIqd: number };
+  "order.pos_sale_recorded": {
+    storeId: string;
+    orderId: string;
+    orderNumber: string;
+    totalIqd: number;
+  };
   /** Any status transition through the order state machine. */
-  "order.status_changed": { storeId: string; orderId: string; orderNumber: string; from: string; to: string; actorKind: string };
+  "order.status_changed": {
+    storeId: string;
+    orderId: string;
+    orderNumber: string;
+    from: string;
+    to: string;
+    actorKind: string;
+  };
   /** A merchant account and its first store exist (self-registration or manual provisioning). */
   "merchant.registered": { merchantId: string; storeId: string | null; via: "self" | "manual" };
   /** A storefront customer account was created. */
@@ -37,10 +55,15 @@ export interface DomainEventMap {
 }
 
 export type DomainEventName = keyof DomainEventMap;
-export type DomainEventHandler<N extends DomainEventName> = (payload: DomainEventMap[N]) => void | Promise<void>;
+export type DomainEventHandler<N extends DomainEventName> = (
+  payload: DomainEventMap[N]
+) => void | Promise<void>;
 
 export class DomainEventBus {
-  private readonly handlers = new Map<DomainEventName, Array<{ owner: string; handler: DomainEventHandler<any> }>>();
+  private readonly handlers = new Map<
+    DomainEventName,
+    Array<{ owner: string; handler: DomainEventHandler<any> }>
+  >();
   private pending = new Set<Promise<void>>();
 
   /** `owner` names the subscribing module in logs. */
@@ -57,8 +80,12 @@ export class DomainEventBus {
     for (const { owner, handler } of list) {
       const run: Promise<void> = new Promise<void>((resolve) => setImmediate(resolve))
         .then(() => handler(payload))
-        .catch((error) => logger.warn("domain_event.handler_failed", { event: name, module: owner, err: error }))
-        .finally(() => { this.pending.delete(run); });
+        .catch((error) =>
+          logger.warn("domain_event.handler_failed", { event: name, module: owner, err: error })
+        )
+        .finally(() => {
+          this.pending.delete(run);
+        });
       this.pending.add(run);
     }
   }
@@ -70,7 +97,9 @@ export class DomainEventBus {
 
   /** Who listens to what — for the owner's modules screen and the docs. */
   subscriptions(): Array<{ event: DomainEventName; module: string }> {
-    return Array.from(this.handlers.entries()).flatMap(([event, list]) => list.map(({ owner }) => ({ event, module: owner })));
+    return Array.from(this.handlers.entries()).flatMap(([event, list]) =>
+      list.map(({ owner }) => ({ event, module: owner }))
+    );
   }
 
   /** Tests only. */

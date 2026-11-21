@@ -73,14 +73,36 @@ const PUBLIC_BASE = "https://demo.codiqos.test";
 const summary = {};
 
 try {
-  await prisma.$executeRawUnsafe("TRUNCATE TABLE storefront_rate_limits, notification_complaints, notification_unsubscribes, order_prescriptions, coupon_redemptions, coupons, settlements, ledger_entries, notification_outbox, notification_settings, inventory_reservations, checkout_requests, cart_items, shopping_carts, customer_addresses, order_status_events, order_items, store_orders, inventory_movements, product_images, product_variants, products, product_categories, customer_sessions, customers, merchant_sessions, stores, merchants, staff_sessions, staff_membership_permission_overrides, store_staff_memberships, staff, platform_owner_sessions, platform_owners CASCADE");
+  await prisma.$executeRawUnsafe(
+    "TRUNCATE TABLE storefront_rate_limits, notification_complaints, notification_unsubscribes, order_prescriptions, coupon_redemptions, coupons, settlements, ledger_entries, notification_outbox, notification_settings, inventory_reservations, checkout_requests, cart_items, shopping_carts, customer_addresses, order_status_events, order_items, store_orders, inventory_movements, product_images, product_variants, products, product_categories, customer_sessions, customers, merchant_sessions, stores, merchants, staff_sessions, staff_membership_permission_overrides, store_staff_memberships, staff, platform_owner_sessions, platform_owners CASCADE"
+  );
   compliance.resetNotificationKindCache();
 
   // ---------------------------------------------------------------- fixtures
-  const merchant = await registerMerchantDirect({ ownerName: "صاحب المتجر", phone: "+9647100399001", email: `${testId}.merchant@codiq.test`, password: "Pg3MerchantPass2026!", businessName: "متجر الامتثال" });
+  const merchant = await registerMerchantDirect({
+    ownerName: "صاحب المتجر",
+    phone: "+9647100399001",
+    email: `${testId}.merchant@codiq.test`,
+    password: "Pg3MerchantPass2026!",
+    businessName: "متجر الامتثال",
+  });
   assert.equal(merchant.status, 201);
-  const storeA = await prisma.store.create({ data: { merchantId: merchant.payload.account.id, name: "متجر الامتثال ألف", slug: `${testId}-a`, defaultSubdomain: `${testId}-a` } });
-  const storeB = await prisma.store.create({ data: { merchantId: merchant.payload.account.id, name: "متجر الامتثال باء", slug: `${testId}-b`, defaultSubdomain: `${testId}-b` } });
+  const storeA = await prisma.store.create({
+    data: {
+      merchantId: merchant.payload.account.id,
+      name: "متجر الامتثال ألف",
+      slug: `${testId}-a`,
+      defaultSubdomain: `${testId}-a`,
+    },
+  });
+  const storeB = await prisma.store.create({
+    data: {
+      merchantId: merchant.payload.account.id,
+      name: "متجر الامتثال باء",
+      slug: `${testId}-b`,
+      defaultSubdomain: `${testId}-b`,
+    },
+  });
   await prisma.notificationSettings.create({ data: { storeId: storeA.id, isEnabled: true } });
   await prisma.notificationSettings.create({ data: { storeId: storeB.id, isEnabled: true } });
 
@@ -98,7 +120,14 @@ try {
         channel: "email",
         recipient: shopper,
         dedupeKey: `${testId}-${sequence}`,
-        payload: { storeName: "متجر الامتثال", orderNumber: `PG3-${sequence}`, itemCount: 2, totalIqd: 15000, cartUrl: `/store/${testId}-a/cart`, trackingUrl: `/store/${testId}-a/track` },
+        payload: {
+          storeName: "متجر الامتثال",
+          orderNumber: `PG3-${sequence}`,
+          itemCount: 2,
+          totalIqd: 15000,
+          cartUrl: `/store/${testId}-a/cart`,
+          trackingUrl: `/store/${testId}-a/track`,
+        },
         ...extra,
       },
     });
@@ -153,49 +182,62 @@ try {
   // --- 1. classification is a database fact, and an unclassified type is refused ---
   const classified = await prisma.notificationEventKind.findMany({ orderBy: { eventType: "asc" } });
   const byType = Object.fromEntries(classified.map((row) => [row.eventType, row.kind]));
-  assert.deepEqual(byType, {
-    "cart.abandoned": "marketing",
-    "low_stock": "operational",
-    // CD-2: the shopper asked for this one, and it is still classified
-    // marketing — its timing is ours, its content promotes a purchase, and the
-    // sending domain is shared with every store's order confirmations. Listed
-    // here because this assertion is deliberately exhaustive: adding an event
-    // type must force a decision about its kind, never let one default in.
-    "stock.back_in_stock": "marketing",
-    // MD-3: a merchant's daily summary of his OWN shop. Operational, so a
-    // marketing unsubscribe never silences it. Listed here because this
-    // assertion is deliberately exhaustive — adding an event type is meant to
-    // force a decision about its kind rather than let one default in.
-    "merchant.daily_digest": "operational",
-    // ق-186 (D-90): the merchant's own trial is about to end and his plan will
-    // change. Operational, and the reasoning is the same shape as the recovery
-    // link below: a merchant who muted marketing has said nothing about wanting
-    // his own subscription changed without notice. It must also never queue
-    // behind a marketing backlog — the whole value of this message is that it
-    // arrives BEFORE the date it is warning about.
-    "trial.ending": "operational",
-    "order.courier_dispatched": "operational",
-    "order.created": "operational",
-    "order.status_changed": "operational",
-    // PR-1: the account-recovery link. Operational beyond argument — it is
-    // about something the recipient did seconds ago, and no unsubscribe may
-    // ever suppress it: a person who muted a store's marketing has said
-    // nothing about his own ability to get back into his account. Listed here
-    // for the same reason as the two above: this assertion is deliberately
-    // exhaustive, so a new event type forces a decision instead of defaulting
-    // into one. It is also the only type carrying a NEGATIVE priority and the
-    // only one allowed a NULL store_id — see the migration for both.
-    "auth.password_reset": "operational",
-    // ق-250: the merchant is told a maintenance window was scheduled and that it ended. Operational —
-    // it is about the platform he runs his shop on, and the second store must not send it twice
-    // (storeless rows, like the two account types above). Drained AFTER order mail, before marketing.
-    "maintenance.scheduled": "operational",
-    "maintenance.ended": "operational",
-  }, "every event type in use carries an explicit kind");
+  assert.deepEqual(
+    byType,
+    {
+      "cart.abandoned": "marketing",
+      low_stock: "operational",
+      // CD-2: the shopper asked for this one, and it is still classified
+      // marketing — its timing is ours, its content promotes a purchase, and the
+      // sending domain is shared with every store's order confirmations. Listed
+      // here because this assertion is deliberately exhaustive: adding an event
+      // type must force a decision about its kind, never let one default in.
+      "stock.back_in_stock": "marketing",
+      // MD-3: a merchant's daily summary of his OWN shop. Operational, so a
+      // marketing unsubscribe never silences it. Listed here because this
+      // assertion is deliberately exhaustive — adding an event type is meant to
+      // force a decision about its kind rather than let one default in.
+      "merchant.daily_digest": "operational",
+      // ق-186 (D-90): the merchant's own trial is about to end and his plan will
+      // change. Operational, and the reasoning is the same shape as the recovery
+      // link below: a merchant who muted marketing has said nothing about wanting
+      // his own subscription changed without notice. It must also never queue
+      // behind a marketing backlog — the whole value of this message is that it
+      // arrives BEFORE the date it is warning about.
+      "trial.ending": "operational",
+      "order.courier_dispatched": "operational",
+      "order.created": "operational",
+      "order.status_changed": "operational",
+      // PR-1: the account-recovery link. Operational beyond argument — it is
+      // about something the recipient did seconds ago, and no unsubscribe may
+      // ever suppress it: a person who muted a store's marketing has said
+      // nothing about his own ability to get back into his account. Listed here
+      // for the same reason as the two above: this assertion is deliberately
+      // exhaustive, so a new event type forces a decision instead of defaulting
+      // into one. It is also the only type carrying a NEGATIVE priority and the
+      // only one allowed a NULL store_id — see the migration for both.
+      "auth.password_reset": "operational",
+      // ق-250: the merchant is told a maintenance window was scheduled and that it ended. Operational —
+      // it is about the platform he runs his shop on, and the second store must not send it twice
+      // (storeless rows, like the two account types above). Drained AFTER order mail, before marketing.
+      "maintenance.scheduled": "operational",
+      "maintenance.ended": "operational",
+    },
+    "every event type in use carries an explicit kind"
+  );
 
   let refused = false;
   try {
-    await prisma.notificationOutbox.create({ data: { storeId: storeA.id, eventType: "campaign.blast", recipientKind: "customer", channel: "email", recipient: shopper, payload: {} } });
+    await prisma.notificationOutbox.create({
+      data: {
+        storeId: storeA.id,
+        eventType: "campaign.blast",
+        recipientKind: "customer",
+        channel: "email",
+        recipient: shopper,
+        payload: {},
+      },
+    });
   } catch {
     refused = true;
   }
@@ -208,15 +250,28 @@ try {
   const marketing = await drain();
   assert.equal(marketing.result.sent, 1, JSON.stringify(marketing.result));
   const marketingBody = marketing.provider.sent[0].body;
-  assert.ok(marketingBody.includes(`${PUBLIC_BASE}/unsubscribe/`), "the marketing message carries an absolute unsubscribe URL");
-  assert.ok(marketingBody.includes(`${PUBLIC_BASE}/store/${testId}-a/cart`), "the cart link is absolute, not a bare path");
+  assert.ok(
+    marketingBody.includes(`${PUBLIC_BASE}/unsubscribe/`),
+    "the marketing message carries an absolute unsubscribe URL"
+  );
+  assert.ok(
+    marketingBody.includes(`${PUBLIC_BASE}/store/${testId}-a/cart`),
+    "the cart link is absolute, not a bare path"
+  );
   assert.ok(!marketingBody.includes(" /store/"), "no relative path survives into the body");
-  assert.ok(marketingBody.includes("إشعارات طلباتك"), "the message says plainly that order notices keep coming");
+  assert.ok(
+    marketingBody.includes("إشعارات طلباتك"),
+    "the message says plainly that order notices keep coming"
+  );
 
   const linkToken = marketingBody.split(`${PUBLIC_BASE}/unsubscribe/`)[1].split(/\s/)[0];
   const decoded = compliance.verifyUnsubscribeToken(linkToken);
   assert.equal(decoded.storeId, storeA.id);
-  assert.equal(decoded.emailNormalized, shopperNormalized, "the token normalises the address it was minted from");
+  assert.equal(
+    decoded.emailNormalized,
+    shopperNormalized,
+    "the token normalises the address it was minted from"
+  );
   summary.marketingLink = { absolute: true, tokenResolves: true };
 
   // --- 3. no base URL => no working link => the marketing message must NOT go out,
@@ -227,15 +282,27 @@ try {
   assert.equal(unlinked.result.sent, 0, "a marketing message with no unsubscribe link never sends");
   assert.equal(unlinked.result.deadLettered, 1);
   assert.equal(unlinked.provider.sent.length, 0, "the provider was never called");
-  const deadRow = await prisma.notificationOutbox.findFirstOrThrow({ where: { storeId: storeA.id, status: "dead_letter" } });
+  const deadRow = await prisma.notificationOutbox.findFirstOrThrow({
+    where: { storeId: storeA.id, status: "dead_letter" },
+  });
   assert.equal(deadRow.lastOutcome, "missing_unsubscribe_link");
 
   await enqueue(storeA.id, "order.courier_dispatched");
   const operationalUnlinked = await drain();
-  assert.equal(operationalUnlinked.result.sent, 1, "operational mail is still worth sending without its link");
+  assert.equal(
+    operationalUnlinked.result.sent,
+    1,
+    "operational mail is still worth sending without its link"
+  );
   const operationalBody = operationalUnlinked.provider.sent[0].body;
-  assert.ok(!operationalBody.includes("/store/"), "the broken relative path is dropped, not shipped");
-  assert.ok(!operationalBody.includes("إلغاء اشتراك"), "operational mail carries no unsubscribe footer");
+  assert.ok(
+    !operationalBody.includes("/store/"),
+    "the broken relative path is dropped, not shipped"
+  );
+  assert.ok(
+    !operationalBody.includes("إلغاء اشتراك"),
+    "operational mail carries no unsubscribe footer"
+  );
   summary.missingLink = { marketing: "dead_letter", operational: "sent" };
 
   // --- 5/6/7. unsubscribe: scope, method, and forgery ---
@@ -247,7 +314,11 @@ try {
   assert.equal(described.payload.email, shopperNormalized);
   assert.equal(described.payload.alreadyUnsubscribed, false);
   assert.equal(described.payload.scope, "marketing_only");
-  assert.equal(await prisma.notificationUnsubscribe.count(), 0, "GET must not mutate — a pre-fetching mail client cannot unsubscribe anyone");
+  assert.equal(
+    await prisma.notificationUnsubscribe.count(),
+    0,
+    "GET must not mutate — a pre-fetching mail client cannot unsubscribe anyone"
+  );
 
   const acted = await request(`/public/unsubscribe/${token}`, { method: "POST" });
   assert.equal(acted.status, 200, JSON.stringify(acted.payload));
@@ -257,9 +328,18 @@ try {
   assert.equal(twice.status, 200, "pressing twice is the same intent, not an error");
   assert.equal(await prisma.notificationUnsubscribe.count(), 1, "no duplicate suppression row");
 
-  for (const forged of [`${token}x`, token.replace(/.$/, "z"), "not-a-token", `${token.split(".")[0]}.deadbeef`]) {
+  for (const forged of [
+    `${token}x`,
+    token.replace(/.$/, "z"),
+    "not-a-token",
+    `${token.split(".")[0]}.deadbeef`,
+  ]) {
     const refusedToken = await request(`/public/unsubscribe/${forged}`, { method: "POST" });
-    assert.equal(refusedToken.status, 400, `a tampered token must be refused: ${forged.slice(0, 24)}`);
+    assert.equal(
+      refusedToken.status,
+      400,
+      `a tampered token must be refused: ${forged.slice(0, 24)}`
+    );
     assert.equal(refusedToken.payload.error.code, "INVALID_UNSUBSCRIBE_TOKEN");
   }
 
@@ -268,17 +348,30 @@ try {
   const suppressed = await drain();
   assert.equal(suppressed.result.sent, 0);
   assert.equal(suppressed.result.skipped, 1);
-  const suppressedRow = await prisma.notificationOutbox.findFirstOrThrow({ where: { storeId: storeA.id, lastOutcome: "recipient_unsubscribed" } });
+  const suppressedRow = await prisma.notificationOutbox.findFirstOrThrow({
+    where: { storeId: storeA.id, lastOutcome: "recipient_unsubscribed" },
+  });
   assert.equal(suppressedRow.status, "skipped");
 
   await enqueue(storeA.id, "order.created");
   const stillOperational = await drain();
-  assert.equal(stillOperational.result.sent, 1, "the same address still receives its own order notices");
+  assert.equal(
+    stillOperational.result.sent,
+    1,
+    "the same address still receives its own order notices"
+  );
 
   await enqueue(storeB.id, "cart.abandoned");
   const otherStore = await drain();
   assert.equal(otherStore.result.sent, 1, "muting one store says nothing about another");
-  summary.unsubscribe = { getMutates: false, idempotent: true, forgedRefused: 4, marketingStopped: true, operationalIntact: true, otherStoreIntact: true };
+  summary.unsubscribe = {
+    getMutates: false,
+    idempotent: true,
+    forgedRefused: 4,
+    marketingStopped: true,
+    operationalIntact: true,
+    otherStoreIntact: true,
+  };
 
   // --- 8. over the cap: deferred to tomorrow, not dropped ---
   //
@@ -297,7 +390,10 @@ try {
   // stamps, and every later assertion below derives from capDay.
   const capDay = new Date(Date.now() + 2 * 86_400_000);
   capDay.setUTCHours(10, 0, 0, 0);
-  await prisma.notificationSettings.update({ where: { storeId: storeB.id }, data: { marketingDailyCap: 1 } });
+  await prisma.notificationSettings.update({
+    where: { storeId: storeB.id },
+    data: { marketingDailyCap: 1 },
+  });
   await enqueue(storeB.id, "cart.abandoned");
   const underCap = await drain(capDay);
   assert.equal(underCap.result.sent, 1, "the first marketing message of the day goes out");
@@ -306,9 +402,15 @@ try {
   const overCap = await drain(capDay);
   assert.equal(overCap.result.sent, 0, "the second is over a cap of one");
   assert.equal(overCap.result.deferred, 1, JSON.stringify(overCap.result));
-  const deferredRow = await prisma.notificationOutbox.findUniqueOrThrow({ where: { id: capped.id } });
+  const deferredRow = await prisma.notificationOutbox.findUniqueOrThrow({
+    where: { id: capped.id },
+  });
   assert.equal(deferredRow.status, "retry_scheduled", "still claimable — late, not lost");
-  assert.equal(deferredRow.attemptCount, 0, "waiting for tomorrow is not a failed attempt and must not spend the retry budget");
+  assert.equal(
+    deferredRow.attemptCount,
+    0,
+    "waiting for tomorrow is not a failed attempt and must not spend the retry budget"
+  );
   assert.equal(deferredRow.lastOutcome, "daily_cap_deferred:1");
   // Spread across a window after midnight rather than stacked on it: scheduling
   // every deferral on one instant rebuilds the pile-up the cap exists to prevent.
@@ -317,13 +419,26 @@ try {
   const nextMidnight = nextMidnightDate.valueOf() + 86_400_000;
   const spreadMs = compliance.MARKETING_DEFER_SPREAD_MINUTES * 60 * 1000;
   assert.ok(deferredRow.nextAttemptAt.valueOf() >= nextMidnight, "never earlier than the next day");
-  assert.ok(deferredRow.nextAttemptAt.valueOf() < nextMidnight + spreadMs, "and inside the spread window");
-  assert.equal(deferredRow.nextAttemptAt.valueOf(), compliance.deferredUntil(capDay, capped.id).valueOf(), "the offset is derived from the row id, so it is reproducible");
+  assert.ok(
+    deferredRow.nextAttemptAt.valueOf() < nextMidnight + spreadMs,
+    "and inside the spread window"
+  );
+  assert.equal(
+    deferredRow.nextAttemptAt.valueOf(),
+    compliance.deferredUntil(capDay, capped.id).valueOf(),
+    "the offset is derived from the row id, so it is reproducible"
+  );
 
   // The next day it goes out on its own, with no operator intervention.
   const nextDay = await drain(new Date(nextMidnight + 23 * 3_600_000));
   assert.equal(nextDay.result.sent, 1, "the deferred message sends itself the next day");
-  summary.dailyCap = { firstSent: true, secondDeferred: true, retryBudgetIntact: true, spreadNotStacked: true, sentNextDay: true };
+  summary.dailyCap = {
+    firstSent: true,
+    secondDeferred: true,
+    retryBudgetIntact: true,
+    spreadNotStacked: true,
+    sentNextDay: true,
+  };
 
   // --- 8b. operational mail never queues behind a marketing backlog ---
   //
@@ -331,10 +446,17 @@ try {
   // afterwards, so without a class priority the backlog sits at the head of the
   // queue and an unrelated store's order confirmation waits behind all of it.
   const backlogDay = utcDay(-2, 10);
-  await prisma.notificationSettings.update({ where: { storeId: storeB.id }, data: { marketingDailyCap: 1 } });
+  await prisma.notificationSettings.update({
+    where: { storeId: storeB.id },
+    data: { marketingDailyCap: 1 },
+  });
   const backlog = [];
-  for (let index = 0; index < 5; index += 1) backlog.push((await enqueue(storeB.id, "cart.abandoned")).id);
-  await prisma.notificationOutbox.updateMany({ where: { id: { in: backlog } }, data: { nextAttemptAt: new Date(backlogDay.valueOf() - 60_000) } });
+  for (let index = 0; index < 5; index += 1)
+    backlog.push((await enqueue(storeB.id, "cart.abandoned")).id);
+  await prisma.notificationOutbox.updateMany({
+    where: { id: { in: backlog } },
+    data: { nextAttemptAt: new Date(backlogDay.valueOf() - 60_000) },
+  });
   const urgent = await enqueue(storeA.id, "order.created");
   // PIN THE DUE TIME. `enqueue` leaves `next_attempt_at` at its column default,
   // which is the REAL clock — while the drain below runs at a FIXED calendar
@@ -348,31 +470,57 @@ try {
   // Pinned 30s before the drain and 30s AFTER the backlog, so the row is due and
   // still the NEWEST in the queue — which is the whole point: an operational
   // message must overtake an older marketing backlog on class, not on age.
-  await prisma.notificationOutbox.update({ where: { id: urgent.id }, data: { nextAttemptAt: new Date(backlogDay.valueOf() - 30_000) } });
+  await prisma.notificationOutbox.update({
+    where: { id: urgent.id },
+    data: { nextAttemptAt: new Date(backlogDay.valueOf() - 30_000) },
+  });
   const priority = await drain(backlogDay);
   const urgentRow = await prisma.notificationOutbox.findUniqueOrThrow({ where: { id: urgent.id } });
-  assert.equal(urgentRow.status, "sent", "the operational message goes out in the same batch, ahead of the older marketing backlog");
+  assert.equal(
+    urgentRow.status,
+    "sent",
+    "the operational message goes out in the same batch, ahead of the older marketing backlog"
+  );
   summary.priority = { operationalAheadOfMarketingBacklog: true, batch: priority.result };
 
   // --- 9. a cap of 0 disables marketing: terminal, not an endless deferral ---
-  await prisma.notificationSettings.update({ where: { storeId: storeB.id }, data: { marketingDailyCap: 0 } });
+  await prisma.notificationSettings.update({
+    where: { storeId: storeB.id },
+    data: { marketingDailyCap: 0 },
+  });
   // Same expiring pair as 8b above — this one had until 2026-09-06T08:00Z, so it
   // would have detonated tomorrow morning and looked like a brand-new defect in
   // the zero-cap rule. Both rows below are pinned relative to the drain instant
   // for the same reason.
   const zeroCapDay = utcDay(-1, 8);
   const disabled = await enqueue(storeB.id, "cart.abandoned");
-  await prisma.notificationOutbox.update({ where: { id: disabled.id }, data: { nextAttemptAt: new Date(zeroCapDay.valueOf() - 60_000) } });
+  await prisma.notificationOutbox.update({
+    where: { id: disabled.id },
+    data: { nextAttemptAt: new Date(zeroCapDay.valueOf() - 60_000) },
+  });
   const zeroCap = await drain(zeroCapDay);
   assert.equal(zeroCap.result.sent, 0);
-  assert.equal(zeroCap.result.deferred, 0, "a zero cap is not a deferral — that would queue forever and drain never");
-  const disabledRow = await prisma.notificationOutbox.findUniqueOrThrow({ where: { id: disabled.id } });
+  assert.equal(
+    zeroCap.result.deferred,
+    0,
+    "a zero cap is not a deferral — that would queue forever and drain never"
+  );
+  const disabledRow = await prisma.notificationOutbox.findUniqueOrThrow({
+    where: { id: disabled.id },
+  });
   assert.equal(disabledRow.status, "skipped");
   assert.equal(disabledRow.lastOutcome, "marketing_disabled_for_store");
   const operationalUnderZeroCap = await enqueue(storeB.id, "order.status_changed");
-  await prisma.notificationOutbox.update({ where: { id: operationalUnderZeroCap.id }, data: { nextAttemptAt: new Date(zeroCapDay.valueOf() - 60_000) } });
+  await prisma.notificationOutbox.update({
+    where: { id: operationalUnderZeroCap.id },
+    data: { nextAttemptAt: new Date(zeroCapDay.valueOf() - 60_000) },
+  });
   const zeroCapOperational = await drain(zeroCapDay);
-  assert.equal(zeroCapOperational.result.sent, 1, "a marketing cap of zero says nothing about operational mail");
+  assert.equal(
+    zeroCapOperational.result.sent,
+    1,
+    "a marketing cap of zero says nothing about operational mail"
+  );
   summary.zeroCap = { marketing: "skipped_terminal", operational: "sent" };
 
   // --- 9b. (19-د, ATTACK-SURFACE) the OPERATIONAL channel has ceilings too ---
@@ -393,13 +541,28 @@ try {
   // Both dimensions are asserted, and so is the thing that makes the cap safe to
   // apply HERE of all places: it defers, it does not drop.
   const capsDay = utcDay(1, 9);
-  await prisma.notificationSettings.update({ where: { storeId: storeA.id }, data: { operationalRecipientDailyCap: 2, operationalDailyCap: 5000 } });
+  await prisma.notificationSettings.update({
+    where: { storeId: storeA.id },
+    data: { operationalRecipientDailyCap: 2, operationalDailyCap: 5000 },
+  });
   const floodIds = [];
-  for (let index = 0; index < 5; index += 1) floodIds.push((await enqueue(storeA.id, "order.status_changed")).id);
-  await prisma.notificationOutbox.updateMany({ where: { id: { in: floodIds } }, data: { nextAttemptAt: new Date(capsDay.valueOf() - 60_000) } });
+  for (let index = 0; index < 5; index += 1)
+    floodIds.push((await enqueue(storeA.id, "order.status_changed")).id);
+  await prisma.notificationOutbox.updateMany({
+    where: { id: { in: floodIds } },
+    data: { nextAttemptAt: new Date(capsDay.valueOf() - 60_000) },
+  });
   const flood = await drain(capsDay);
-  assert.equal(flood.result.sent, 2, `19-د: the per-recipient operational ceiling must hold at 2 — ${JSON.stringify(flood.result)}`);
-  assert.equal(flood.result.deferred, 3, "19-د: …and the rest are DEFERRED, never dropped — a discarded order confirmation is the outage this module exists to prevent");
+  assert.equal(
+    flood.result.sent,
+    2,
+    `19-د: the per-recipient operational ceiling must hold at 2 — ${JSON.stringify(flood.result)}`
+  );
+  assert.equal(
+    flood.result.deferred,
+    3,
+    "19-د: …and the rest are DEFERRED, never dropped — a discarded order confirmation is the outage this module exists to prevent"
+  );
   // ق-214 — AND THE SAME CEILING DOES NOT APPLY TO THE STORE'S OWN OWNER.
   //
   // Everything the paragraph above reasons about is a message a store causes to
@@ -411,18 +574,45 @@ try {
   // him, which is the dimension that protects the sending domain.
   const merchantFloodIds = [];
   for (let index = 0; index < 5; index += 1) {
-    merchantFloodIds.push((await enqueue(storeA.id, "order.status_changed", { recipientKind: "merchant", recipient: `${testId}.owner@codiq.test` })).id);
+    merchantFloodIds.push(
+      (
+        await enqueue(storeA.id, "order.status_changed", {
+          recipientKind: "merchant",
+          recipient: `${testId}.owner@codiq.test`,
+        })
+      ).id
+    );
   }
-  await prisma.notificationOutbox.updateMany({ where: { id: { in: merchantFloodIds } }, data: { nextAttemptAt: new Date(capsDay.valueOf() - 60_000) } });
+  await prisma.notificationOutbox.updateMany({
+    where: { id: { in: merchantFloodIds } },
+    data: { nextAttemptAt: new Date(capsDay.valueOf() - 60_000) },
+  });
   const merchantFlood = await drain(capsDay);
-  assert.equal(merchantFlood.result.deferred, 0, `ق-214: the merchant's own mail is not held by the shopper's ceiling — ${JSON.stringify(merchantFlood.result)}`);
-  assert.equal(merchantFlood.result.sent, 5, "ق-214: …all five reach him, on the same day, with the store ceiling still standing above them");
+  assert.equal(
+    merchantFlood.result.deferred,
+    0,
+    `ق-214: the merchant's own mail is not held by the shopper's ceiling — ${JSON.stringify(merchantFlood.result)}`
+  );
+  assert.equal(
+    merchantFlood.result.sent,
+    5,
+    "ق-214: …all five reach him, on the same day, with the store ceiling still standing above them"
+  );
 
-  const floodRows = await prisma.notificationOutbox.findMany({ where: { id: { in: floodIds } }, select: { status: true, lastOutcome: true, attemptCount: true, nextAttemptAt: true } });
+  const floodRows = await prisma.notificationOutbox.findMany({
+    where: { id: { in: floodIds } },
+    select: { status: true, lastOutcome: true, attemptCount: true, nextAttemptAt: true },
+  });
   const held = floodRows.filter((row) => row.status === "retry_scheduled");
   assert.equal(held.length, 3);
-  assert.ok(held.every((row) => row.lastOutcome === "recipient_daily_cap_deferred:2"), JSON.stringify(held.map((row) => row.lastOutcome)));
-  assert.ok(held.every((row) => row.attemptCount === 0), "19-د: waiting for tomorrow is not a failed attempt — the retry budget must be untouched");
+  assert.ok(
+    held.every((row) => row.lastOutcome === "recipient_daily_cap_deferred:2"),
+    JSON.stringify(held.map((row) => row.lastOutcome))
+  );
+  assert.ok(
+    held.every((row) => row.attemptCount === 0),
+    "19-د: waiting for tomorrow is not a failed attempt — the retry budget must be untouched"
+  );
   // 19-د: the deferrals are SPREAD, not stacked on one instant.
   //
   // THIS ASSERTION USED TO DEMAND PAIRWISE DISTINCTNESS, AND IT WAS WRONG.
@@ -439,7 +629,10 @@ try {
   // DETERMINISTICALLY below, over many ids, instead of being sampled three at a
   // time and hoped over.
   const heldAt = held.map((row) => row.nextAttemptAt.valueOf());
-  assert.ok(new Set(heldAt).size > 1, `19-د: deferrals must not stack on one instant — ${JSON.stringify(heldAt)}`);
+  assert.ok(
+    new Set(heldAt).size > 1,
+    `19-د: deferrals must not stack on one instant — ${JSON.stringify(heldAt)}`
+  );
   // The day a deferral from `capsDay` lands on — DERIVED, never written down.
   // It was `Date.UTC(2026, 8, 8)`: correct only while `capsDay` was the 7th.
   const capsNextMidnight = new Date(capsDay);
@@ -447,47 +640,99 @@ try {
   const dayStart = capsNextMidnight.valueOf() + 86_400_000;
   for (const at of heldAt) {
     const offsetMinutes = (at - dayStart) / 60_000;
-    assert.ok(Number.isInteger(offsetMinutes) && offsetMinutes >= 0 && offsetMinutes < compliance.MARKETING_DEFER_SPREAD_MINUTES, `19-د: a deferral lands on the next day inside the spread window, not at an arbitrary time — ${offsetMinutes}`);
+    assert.ok(
+      Number.isInteger(offsetMinutes) &&
+        offsetMinutes >= 0 &&
+        offsetMinutes < compliance.MARKETING_DEFER_SPREAD_MINUTES,
+      `19-د: a deferral lands on the next day inside the spread window, not at an arbitrary time — ${offsetMinutes}`
+    );
   }
 
   // The property the three rows above can only sample: the spread is a pure
   // function of the id, and it actually uses its whole window. No randomness at
   // assertion time, so this can never flake.
   const spread = new Set();
-  for (let index = 0; index < 2000; index += 1) spread.add(compliance.deferredUntil(capsDay, `id-${index}`).valueOf());
-  assert.ok(spread.size > compliance.MARKETING_DEFER_SPREAD_MINUTES * 0.9, `19-د: the spread must use its whole six-hour window — only ${spread.size} distinct minutes out of ${compliance.MARKETING_DEFER_SPREAD_MINUTES}`);
-  assert.equal(compliance.deferredUntil(capsDay, "id-7").valueOf(), compliance.deferredUntil(capsDay, "id-7").valueOf(), "19-د: …and it is a pure function of the id, so a re-claimed row does not jump its slot");
+  for (let index = 0; index < 2000; index += 1)
+    spread.add(compliance.deferredUntil(capsDay, `id-${index}`).valueOf());
+  assert.ok(
+    spread.size > compliance.MARKETING_DEFER_SPREAD_MINUTES * 0.9,
+    `19-د: the spread must use its whole six-hour window — only ${spread.size} distinct minutes out of ${compliance.MARKETING_DEFER_SPREAD_MINUTES}`
+  );
+  assert.equal(
+    compliance.deferredUntil(capsDay, "id-7").valueOf(),
+    compliance.deferredUntil(capsDay, "id-7").valueOf(),
+    "19-د: …and it is a pure function of the id, so a re-claimed row does not jump its slot"
+  );
 
   // A DIFFERENT address on the same store is unaffected — the ceiling is per
   // recipient, so one victim's flood cannot silence an honest shopper.
   const otherShopper = `other.${shopper}`;
   await enqueue(storeA.id, "order.status_changed", { recipient: otherShopper });
   const otherRecipient = await drain(new Date(capsDay.valueOf() + 60_000));
-  assert.equal(otherRecipient.result.sent, 1, "19-د: the per-recipient ceiling must not spill onto another address");
+  assert.equal(
+    otherRecipient.result.sent,
+    1,
+    "19-د: the per-recipient ceiling must not spill onto another address"
+  );
 
   // The store-wide circuit breaker, proved with the same mechanism.
-  await prisma.notificationSettings.update({ where: { storeId: storeA.id }, data: { operationalRecipientDailyCap: 20, operationalDailyCap: 3 } });
+  await prisma.notificationSettings.update({
+    where: { storeId: storeA.id },
+    data: { operationalRecipientDailyCap: 20, operationalDailyCap: 3 },
+  });
   await enqueue(storeA.id, "order.created", { recipient: `third.${shopper}` });
   const storeCapped = await drain(new Date(capsDay.valueOf() + 120_000));
-  assert.equal(storeCapped.result.sent, 0, "19-د: the store-wide operational ceiling must hold once the day's total is reached");
+  assert.equal(
+    storeCapped.result.sent,
+    0,
+    "19-د: the store-wide operational ceiling must hold once the day's total is reached"
+  );
   assert.equal(storeCapped.result.deferred, 1);
-  const storeCappedRow = await prisma.notificationOutbox.findFirstOrThrow({ where: { storeId: storeA.id, recipient: `third.${shopper}` }, select: { status: true, lastOutcome: true } });
+  const storeCappedRow = await prisma.notificationOutbox.findFirstOrThrow({
+    where: { storeId: storeA.id, recipient: `third.${shopper}` },
+    select: { status: true, lastOutcome: true },
+  });
   assert.equal(storeCappedRow.status, "retry_scheduled");
   assert.equal(storeCappedRow.lastOutcome, "store_daily_cap_deferred:3");
 
   // And tomorrow the held messages go out on their own, with no intervention —
   // the same promise the marketing cap makes.
-  await prisma.notificationSettings.update({ where: { storeId: storeA.id }, data: { operationalRecipientDailyCap: 20, operationalDailyCap: 5000 } });
+  await prisma.notificationSettings.update({
+    where: { storeId: storeA.id },
+    data: { operationalRecipientDailyCap: 20, operationalDailyCap: 5000 },
+  });
   const capsNextDay = await drain(new Date(dayStart + 23 * 3_600_000));
-  assert.ok(capsNextDay.result.sent >= 4, `19-د: everything held must send itself the next day — ${JSON.stringify(capsNextDay.result)}`);
-  summary.operationalCaps = { perRecipientSent: 2, perRecipientDeferred: 3, otherRecipientUnaffected: 1, perStoreDeferred: 1, sentNextDay: capsNextDay.result.sent };
+  assert.ok(
+    capsNextDay.result.sent >= 4,
+    `19-د: everything held must send itself the next day — ${JSON.stringify(capsNextDay.result)}`
+  );
+  summary.operationalCaps = {
+    perRecipientSent: 2,
+    perRecipientDeferred: 3,
+    otherRecipientUnaffected: 1,
+    perStoreDeferred: 1,
+    sentNextDay: capsNextDay.result.sent,
+  };
 
   // --- 10. complaints are recorded and outlive the message ---
   const complained = await enqueue(storeA.id, "order.created");
-  const complaint = await prisma.notificationComplaint.create({ data: { storeId: storeA.id, outboxId: complained.id, emailNormalized: shopperNormalized, note: "شكوى تجريبية" } });
+  const complaint = await prisma.notificationComplaint.create({
+    data: {
+      storeId: storeA.id,
+      outboxId: complained.id,
+      emailNormalized: shopperNormalized,
+      note: "شكوى تجريبية",
+    },
+  });
   await prisma.notificationOutbox.delete({ where: { id: complained.id } });
-  const survivor = await prisma.notificationComplaint.findUniqueOrThrow({ where: { id: complaint.id } });
-  assert.equal(survivor.outboxId, null, "the complaint detaches from the deleted message rather than vanishing with it");
+  const survivor = await prisma.notificationComplaint.findUniqueOrThrow({
+    where: { id: complaint.id },
+  });
+  assert.equal(
+    survivor.outboxId,
+    null,
+    "the complaint detaches from the deleted message rather than vanishing with it"
+  );
   assert.equal(survivor.storeId, storeA.id);
   summary.complaints = { survivesMessageDeletion: true };
 

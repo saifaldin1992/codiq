@@ -21,7 +21,9 @@ import path from "node:path";
 import { routeFileLabel, routeSourceFiles } from "../source-layout.mjs";
 
 const ROUTES = fileURLToPath(new URL("../src/http/routes", import.meta.url));
-const LEGACY = JSON.parse(readFileSync(new URL("./validation-adoption.legacy.json", import.meta.url), "utf8"));
+const LEGACY = JSON.parse(
+  readFileSync(new URL("./validation-adoption.legacy.json", import.meta.url), "utf8")
+);
 
 /** Where a write route is registered. The BODY is sliced separately, below. */
 const ROUTE_HEAD = /app\.(post|put|patch|delete)\((["'`])(.*?)\2/g;
@@ -55,7 +57,7 @@ function unvalidated(source) {
   let match;
   while ((match = ROUTE_HEAD.exec(source))) {
     const handler = routeBody(source, match.index);
-    if (!handler.includes("request.body")) continue;         // nothing to validate
+    if (!handler.includes("request.body")) continue; // nothing to validate
     if (handler.includes("parseOrThrow") || handler.includes("validateBody")) continue;
     found.push(`${match[1].toUpperCase()} ${match[3]}`);
   }
@@ -77,11 +79,15 @@ for (const full of routeSourceFiles()) {
     continue;
   }
   if (allowed === undefined) {
-    failures.push(`${entry}: ${routes.length} write route(s) reading request.body with no schema, in a file with no legacy allowance.\n`
-      + `    ${routes.slice(0, 3).join(", ")}${routes.length > 3 ? ", …" : ""}\n`
-      + `    Give it a schema in src/http/schemas/ and parse with parseOrThrow — shape at the edge, meaning in the service.`);
+    failures.push(
+      `${entry}: ${routes.length} write route(s) reading request.body with no schema, in a file with no legacy allowance.\n` +
+        `    ${routes.slice(0, 3).join(", ")}${routes.length > 3 ? ", …" : ""}\n` +
+        `    Give it a schema in src/http/schemas/ and parse with parseOrThrow — shape at the edge, meaning in the service.`
+    );
   } else if (routes.length > allowed) {
-    failures.push(`${entry}: ${routes.length} unvalidated write routes, up from ${allowed}. This file's debt may only shrink.\n    ${routes.join(", ")}`);
+    failures.push(
+      `${entry}: ${routes.length} unvalidated write routes, up from ${allowed}. This file's debt may only shrink.\n    ${routes.join(", ")}`
+    );
   } else if (routes.length < allowed) {
     improved.push(`${entry} is down to ${routes.length} (was ${allowed}) — lower its number`);
   }
@@ -97,4 +103,6 @@ if (failures.length) {
   for (const failure of failures) console.error(`  ✗ ${failure}\n`);
   process.exit(1);
 }
-console.log(`validation:guard ok — no new hand-rolled validation. ${remaining} write route(s) still to convert.`);
+console.log(
+  `validation:guard ok — no new hand-rolled validation. ${remaining} write route(s) still to convert.`
+);

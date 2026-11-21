@@ -44,31 +44,124 @@ export function seededRandom(seed: number): () => number {
 
 // ── the corpus. Every string is a literal here; nothing is fetched. ─────────
 const GIVEN_NAMES = [
-  "أحمد", "محمد", "علي", "حسين", "فاطمة", "زينب", "مصطفى", "إبراهيم", "يوسف", "عمر",
-  "سعيد", "كريم", "نور", "هدى", "مريم", "زهراء", "رقية", "عباس", "جعفر", "حيدر",
-  "سجاد", "منتظر", "أمير", "رسول", "كاظم", "صادق", "باقر", "آمنة", "سكينة", "بتول",
+  "أحمد",
+  "محمد",
+  "علي",
+  "حسين",
+  "فاطمة",
+  "زينب",
+  "مصطفى",
+  "إبراهيم",
+  "يوسف",
+  "عمر",
+  "سعيد",
+  "كريم",
+  "نور",
+  "هدى",
+  "مريم",
+  "زهراء",
+  "رقية",
+  "عباس",
+  "جعفر",
+  "حيدر",
+  "سجاد",
+  "منتظر",
+  "أمير",
+  "رسول",
+  "كاظم",
+  "صادق",
+  "باقر",
+  "آمنة",
+  "سكينة",
+  "بتول",
 ];
 
 /** Family names carrying the definite article, as they are actually written on an invoice. */
 const FAMILY_NAMES = [
-  "الجبوري", "العبيدي", "التميمي", "الكاظمي", "البغدادي", "الموسوي", "الحسيني", "الربيعي",
-  "الشمري", "الدليمي", "الزبيدي", "العزاوي", "الخفاجي", "السوداني", "المالكي", "الجنابي",
+  "الجبوري",
+  "العبيدي",
+  "التميمي",
+  "الكاظمي",
+  "البغدادي",
+  "الموسوي",
+  "الحسيني",
+  "الربيعي",
+  "الشمري",
+  "الدليمي",
+  "الزبيدي",
+  "العزاوي",
+  "الخفاجي",
+  "السوداني",
+  "المالكي",
+  "الجنابي",
 ];
 
 const PRODUCT_HEADS = [
-  "قميص", "بنطال", "حذاء", "عباءة", "جاكيت", "فستان", "حقيبة", "ساعة", "نظارة", "عطر",
-  "زيت زيتون", "تمر", "عسل", "شاي", "قهوة", "سكر", "طحين", "رز عنبر", "معجون أسنان", "شامبو",
-  "مصباح", "مروحة", "سخان", "خلاط", "مكواة", "بطانية", "وسادة", "سجادة", "مرآة", "كرسي",
+  "قميص",
+  "بنطال",
+  "حذاء",
+  "عباءة",
+  "جاكيت",
+  "فستان",
+  "حقيبة",
+  "ساعة",
+  "نظارة",
+  "عطر",
+  "زيت زيتون",
+  "تمر",
+  "عسل",
+  "شاي",
+  "قهوة",
+  "سكر",
+  "طحين",
+  "رز عنبر",
+  "معجون أسنان",
+  "شامبو",
+  "مصباح",
+  "مروحة",
+  "سخان",
+  "خلاط",
+  "مكواة",
+  "بطانية",
+  "وسادة",
+  "سجادة",
+  "مرآة",
+  "كرسي",
 ];
 
 const PRODUCT_QUALIFIERS = [
-  "قطني", "صيفي", "شتوي", "فاخر", "منزلي", "عراقي", "مستورد", "أصلي", "خفيف", "كبير",
-  "صغير", "مزدوج", "ذهبي", "فضي", "أزرق", "أحمر", "أخضر", "أسود", "أبيض", "بنفسجي",
+  "قطني",
+  "صيفي",
+  "شتوي",
+  "فاخر",
+  "منزلي",
+  "عراقي",
+  "مستورد",
+  "أصلي",
+  "خفيف",
+  "كبير",
+  "صغير",
+  "مزدوج",
+  "ذهبي",
+  "فضي",
+  "أزرق",
+  "أحمر",
+  "أخضر",
+  "أسود",
+  "أبيض",
+  "بنفسجي",
 ];
 
 const GOVERNORATES = ["Baghdad", "Basra", "Erbil", "Najaf", "Karbala", "Mosul", "Kirkuk", "Diyala"];
 
-const ORDER_STATUSES = ["new", "processing", "preparation", "out_for_delivery", "completed", "cancelled"];
+const ORDER_STATUSES = [
+  "new",
+  "processing",
+  "preparation",
+  "out_for_delivery",
+  "completed",
+  "cancelled",
+];
 
 const TATWEEL = String.fromCodePoint(0x0640);
 const ZWNJ = String.fromCodePoint(0x200c);
@@ -85,7 +178,7 @@ const ARABIC_INDIC = "٠١٢٣٤٥٦٧٨٩";
  */
 function roughen(value: string, random: () => number): string {
   const roll = random();
-  if (roll < 0.30) {
+  if (roll < 0.3) {
     // The other keyboard form of the same name.
     return value
       .replace(/[أإآ]/g, "ا")
@@ -93,14 +186,17 @@ function roughen(value: string, random: () => number): string {
       .replace(/ى/g, "ي")
       .replace(/ك/g, String.fromCodePoint(0x06a9));
   }
-  if (roll < 0.40) {
+  if (roll < 0.4) {
     // A tatweel run, as typed to stretch a name across a form field.
     const cut = 1 + Math.floor(random() * Math.max(1, value.length - 1));
     return `${value.slice(0, cut)}${TATWEEL.repeat(2 + Math.floor(random() * 3))}${value.slice(cut)}`;
   }
   if (roll < 0.47) {
     // Harakat, as they arrive from a copied document.
-    return value.replace(/([ب-ي])/, (letter) => `${letter}${[FATHA, DAMMA, SHADDA][Math.floor(random() * 3)]}`);
+    return value.replace(
+      /([ب-ي])/,
+      (letter) => `${letter}${[FATHA, DAMMA, SHADDA][Math.floor(random() * 3)]}`
+    );
   }
   if (roll < 0.52) {
     // The invisible that arrives from a WhatsApp paste and breaks matching
@@ -112,10 +208,13 @@ function roughen(value: string, random: () => number): string {
 }
 
 function arabicIndicDigits(value: number, width: number): string {
-  return String(value).padStart(width, "0").replace(/[0-9]/g, (digit) => ARABIC_INDIC[Number(digit)]!);
+  return String(value)
+    .padStart(width, "0")
+    .replace(/[0-9]/g, (digit) => ARABIC_INDIC[Number(digit)]!);
 }
 
-const pick = <T,>(list: readonly T[], random: () => number): T => list[Math.floor(random() * list.length)]!;
+const pick = <T>(list: readonly T[], random: () => number): T =>
+  list[Math.floor(random() * list.length)]!;
 
 export interface CorpusVolume {
   products: number;
@@ -136,7 +235,9 @@ export interface CorpusOptions {
 /** `passwordHash` is NOT NULL on `customers`; a fixed bcrypt-shaped literal keeps the generator offline and instant. */
 const FIXTURE_PASSWORD_HASH = "$2a$10$pg6fixturepg6fixturepg6fixturepg6fixturepg6fixtureuO";
 
-export async function generateSearchCorpus(options: CorpusOptions): Promise<{ products: number; customers: number; orders: number }> {
+export async function generateSearchCorpus(
+  options: CorpusOptions
+): Promise<{ products: number; customers: number; orders: number }> {
   const batchSize = options.batchSize ?? 2_000;
   const random = seededRandom(options.seed);
   const { storeId, prefix } = options;
@@ -160,7 +261,10 @@ export async function generateSearchCorpus(options: CorpusOptions): Promise<{ pr
       lowStockThreshold: 3,
       isActive: random() > 0.08,
     });
-    if (productRows.length >= batchSize) { await prisma.product.createMany({ data: productRows as never }); productRows = []; }
+    if (productRows.length >= batchSize) {
+      await prisma.product.createMany({ data: productRows as never });
+      productRows = [];
+    }
   }
   if (productRows.length) await prisma.product.createMany({ data: productRows as never });
 
@@ -179,7 +283,10 @@ export async function generateSearchCorpus(options: CorpusOptions): Promise<{ pr
       passwordHash: FIXTURE_PASSWORD_HASH,
       isActive: true,
     });
-    if (customerRows.length >= batchSize) { await prisma.customer.createMany({ data: customerRows as never }); customerRows = []; }
+    if (customerRows.length >= batchSize) {
+      await prisma.customer.createMany({ data: customerRows as never });
+      customerRows = [];
+    }
   }
   if (customerRows.length) await prisma.customer.createMany({ data: customerRows as never });
 
@@ -211,7 +318,10 @@ export async function generateSearchCorpus(options: CorpusOptions): Promise<{ pr
       // because the offset is derived from the index, not from the clock.
       createdAt: new Date(now - index * 60_000),
     });
-    if (orderRows.length >= batchSize) { await prisma.storeOrder.createMany({ data: orderRows as never }); orderRows = []; }
+    if (orderRows.length >= batchSize) {
+      await prisma.storeOrder.createMany({ data: orderRows as never });
+      orderRows = [];
+    }
   }
   if (orderRows.length) await prisma.storeOrder.createMany({ data: orderRows as never });
 
@@ -223,7 +333,11 @@ export async function generateSearchCorpus(options: CorpusOptions): Promise<{ pr
   await prisma.$executeRawUnsafe("VACUUM ANALYZE customers");
   await prisma.$executeRawUnsafe("VACUUM ANALYZE store_orders");
 
-  return { products: options.volume.products, customers: options.volume.customers, orders: options.volume.orders };
+  return {
+    products: options.volume.products,
+    customers: options.volume.customers,
+    orders: options.volume.orders,
+  };
 }
 
 /**
@@ -232,7 +346,10 @@ export async function generateSearchCorpus(options: CorpusOptions): Promise<{ pr
  * behave the way it will at scale.
  */
 async function main() {
-  const store = await prisma.store.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true, slug: true } });
+  const store = await prisma.store.findFirst({
+    orderBy: { createdAt: "asc" },
+    select: { id: true, slug: true },
+  });
   if (!store) throw new Error("pg6:seed — there is no store to seed. Run the demo seed first.");
   const started = Date.now();
   const counts = await generateSearchCorpus({
@@ -241,7 +358,19 @@ async function main() {
     seed: 20260904,
     volume: { products: 20_000, customers: 20_000, orders: 20_000 },
   });
-  console.log(JSON.stringify({ pg6Seed: { store: store.slug, ...counts, seconds: Math.round((Date.now() - started) / 1000) } }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        pg6Seed: {
+          store: store.slug,
+          ...counts,
+          seconds: Math.round((Date.now() - started) / 1000),
+        },
+      },
+      null,
+      2
+    )
+  );
 }
 
 // Only when run directly, never when the integration suite imports it.

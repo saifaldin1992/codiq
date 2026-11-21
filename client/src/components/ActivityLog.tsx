@@ -18,11 +18,25 @@
  * Read-only by construction: `store_audit_events` is append-only in the database
  * (`store_audit_events_immutable`), so there is nothing here to edit or delete.
  */
-import { BadgeCheck, BadgeX, History, LoaderCircle, RotateCcw, ShieldAlert, Trash2, TriangleAlert } from "lucide-react";
+import {
+  BadgeCheck,
+  BadgeX,
+  History,
+  LoaderCircle,
+  RotateCcw,
+  ShieldAlert,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TrashApiError, merchantStoreBase, readableError, trashApi } from "@/components/DeleteConfirmSheet";
+import {
+  TrashApiError,
+  merchantStoreBase,
+  readableError,
+  trashApi,
+} from "@/components/DeleteConfirmSheet";
 
 interface AuditEvent {
   id: string;
@@ -54,12 +68,36 @@ const ACTION_NOUN: Record<string, string> = {
 };
 
 const ACTION_STYLE: Record<string, { icon: LucideIcon; tint: string; ring: string }> = {
-  soft_deleted: { icon: Trash2, tint: "bg-[var(--codiq-danger-soft)] text-[#B44B40]", ring: "bg-[#E9B7B1]" },
-  restored: { icon: RotateCcw, tint: "bg-[var(--codiq-success-soft)] text-[var(--codiq-success)]", ring: "bg-[#A9D5BE]" },
-  purged: { icon: Trash2, tint: "bg-[var(--codiq-neutral-soft)] text-[#65748B]", ring: "bg-[#C3CEDE]" },
-  purge_blocked: { icon: TriangleAlert, tint: "bg-[#FFF6EC] text-[var(--codiq-warning)]", ring: "bg-[#E4C79A]" },
-  "verification.granted": { icon: BadgeCheck, tint: "bg-[var(--codiq-accent-soft)] text-[var(--codiq-accent-hover)]", ring: "bg-[#AFC9EC]" },
-  "verification.revoked": { icon: BadgeX, tint: "bg-[#FFF6EC] text-[var(--codiq-warning)]", ring: "bg-[#E4C79A]" },
+  soft_deleted: {
+    icon: Trash2,
+    tint: "bg-[var(--codiq-danger-soft)] text-[#B44B40]",
+    ring: "bg-[#E9B7B1]",
+  },
+  restored: {
+    icon: RotateCcw,
+    tint: "bg-[var(--codiq-success-soft)] text-[var(--codiq-success)]",
+    ring: "bg-[#A9D5BE]",
+  },
+  purged: {
+    icon: Trash2,
+    tint: "bg-[var(--codiq-neutral-soft)] text-[#65748B]",
+    ring: "bg-[#C3CEDE]",
+  },
+  purge_blocked: {
+    icon: TriangleAlert,
+    tint: "bg-[#FFF6EC] text-[var(--codiq-warning)]",
+    ring: "bg-[#E4C79A]",
+  },
+  "verification.granted": {
+    icon: BadgeCheck,
+    tint: "bg-[var(--codiq-accent-soft)] text-[var(--codiq-accent-hover)]",
+    ring: "bg-[#AFC9EC]",
+  },
+  "verification.revoked": {
+    icon: BadgeX,
+    tint: "bg-[#FFF6EC] text-[var(--codiq-warning)]",
+    ring: "bg-[#E4C79A]",
+  },
 };
 
 const ENTITY_NOUN: Record<string, string> = {
@@ -115,24 +153,29 @@ export function ActivityLog({ storeSlug }: { storeSlug?: string }) {
   // rows under the filter the merchant selected.
   const request = useRef(0);
 
-  const fetchPage = useCallback(async (after: string | null, replace: boolean) => {
-    if (!base) return;
-    const ticket = (request.current += 1);
-    const query = new URLSearchParams({ limit: "25" });
-    if (after) query.set("cursor", after);
-    if (entityType) query.set("entityType", entityType);
-    try {
-      const data = await trashApi<{ events: AuditEvent[]; nextCursor: string | null }>(`${base}/audit-events?${query.toString()}`);
-      if (ticket !== request.current) return;
-      setEvents((current) => (replace ? data.events : [...current, ...data.events]));
-      setCursor(data.nextCursor);
-      setFailure(null);
-    } catch (error) {
-      if (ticket !== request.current) return;
-      setFailure(error instanceof TrashApiError ? readableError(error) : "تعذر الاتصال بالخادم.");
-      if (replace) setEvents([]);
-    }
-  }, [base, entityType]);
+  const fetchPage = useCallback(
+    async (after: string | null, replace: boolean) => {
+      if (!base) return;
+      const ticket = (request.current += 1);
+      const query = new URLSearchParams({ limit: "25" });
+      if (after) query.set("cursor", after);
+      if (entityType) query.set("entityType", entityType);
+      try {
+        const data = await trashApi<{ events: AuditEvent[]; nextCursor: string | null }>(
+          `${base}/audit-events?${query.toString()}`
+        );
+        if (ticket !== request.current) return;
+        setEvents((current) => (replace ? data.events : [...current, ...data.events]));
+        setCursor(data.nextCursor);
+        setFailure(null);
+      } catch (error) {
+        if (ticket !== request.current) return;
+        setFailure(error instanceof TrashApiError ? readableError(error) : "تعذر الاتصال بالخادم.");
+        if (replace) setEvents([]);
+      }
+    },
+    [base, entityType]
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -140,17 +183,33 @@ export function ActivityLog({ storeSlug }: { storeSlug?: string }) {
   }, [fetchPage]);
 
   if (!storeSlug || !base) {
-    return <div className="rounded-[24px] border border-[#F3CBCA] bg-[#FFF7F7] p-6 text-sm leading-7 text-[#9B3733]" dir="rtl"><ShieldAlert className="mb-3 h-6 w-6" />افتح لوحة التاجر عبر مسار متجر محدد قبل فتح سجل النشاط.</div>;
+    return (
+      <div
+        className="rounded-[24px] border border-[#F3CBCA] bg-[#FFF7F7] p-6 text-sm leading-7 text-[#9B3733]"
+        dir="rtl"
+      >
+        <ShieldAlert className="mb-3 h-6 w-6" />
+        افتح لوحة التاجر عبر مسار متجر محدد قبل فتح سجل النشاط.
+      </div>
+    );
   }
 
   return (
-    <section className="rounded-[26px] border border-[var(--codiq-surface)] bg-[var(--codiq-surface)] p-6 shadow-[0_16px_44px_rgba(31,55,98,0.055)] sm:p-8" dir="rtl">
+    <section
+      className="rounded-[26px] border border-[var(--codiq-surface)] bg-[var(--codiq-surface)] p-6 shadow-[0_16px_44px_rgba(31,55,98,0.055)] sm:p-8"
+      dir="rtl"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--codiq-neutral-soft)] text-[var(--codiq-text-secondary)]"><History className="h-5 w-5" strokeWidth={1.8} /></span>
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--codiq-neutral-soft)] text-[var(--codiq-text-secondary)]">
+            <History className="h-5 w-5" strokeWidth={1.8} />
+          </span>
           <div>
             <h2 className="font-bold text-[#273753]">سجل النشاط</h2>
-            <p className="mt-1 max-w-xl text-xs leading-6 text-[var(--codiq-text-muted)]">من أزال ماذا ومتى، ومن استعاده. السجل لا يُعدَّل ولا يُحذف، ويبقى بعد تنقية العنصر نفسه.</p>
+            <p className="mt-1 max-w-xl text-xs leading-6 text-[var(--codiq-text-muted)]">
+              من أزال ماذا ومتى، ومن استعاده. السجل لا يُعدَّل ولا يُحذف، ويبقى بعد تنقية العنصر
+              نفسه.
+            </p>
           </div>
         </div>
         <label className="text-right">
@@ -161,18 +220,36 @@ export function ActivityLog({ storeSlug }: { storeSlug?: string }) {
             onChange={(event) => setEntityType(event.target.value)}
             className="rounded-xl border border-[var(--codiq-border-strong)] bg-[var(--codiq-surface)] px-3 py-2 text-xs font-semibold text-[var(--codiq-text)]"
           >
-            {ENTITY_FILTERS.map((filter) => <option key={filter.value} value={filter.value}>{filter.label}</option>)}
+            {ENTITY_FILTERS.map((filter) => (
+              <option key={filter.value} value={filter.value}>
+                {filter.label}
+              </option>
+            ))}
           </select>
         </label>
       </div>
 
-      {loading ? <p className="mt-6 flex items-center gap-2 text-sm text-[#61708A]"><LoaderCircle className="h-4 w-4 animate-spin text-[var(--codiq-accent)]" />جارٍ تحميل سجل النشاط…</p> : null}
-
-      {failure ? (
-        <p data-testid="activity-error" className="mt-6 rounded-2xl border border-[#F3CBCA] bg-[#FFF7F7] px-4 py-3 text-sm leading-7 text-[#9B3733]">{failure}</p>
+      {loading ? (
+        <p className="mt-6 flex items-center gap-2 text-sm text-[#61708A]">
+          <LoaderCircle className="h-4 w-4 animate-spin text-[var(--codiq-accent)]" />
+          جارٍ تحميل سجل النشاط…
+        </p>
       ) : null}
 
-      {!loading && !failure && !events.length ? <p className="mt-6 text-sm text-[var(--codiq-text-muted)]">لا نشاط مسجّل بعد في هذا المتجر.</p> : null}
+      {failure ? (
+        <p
+          data-testid="activity-error"
+          className="mt-6 rounded-2xl border border-[#F3CBCA] bg-[#FFF7F7] px-4 py-3 text-sm leading-7 text-[#9B3733]"
+        >
+          {failure}
+        </p>
+      ) : null}
+
+      {!loading && !failure && !events.length ? (
+        <p className="mt-6 text-sm text-[var(--codiq-text-muted)]">
+          لا نشاط مسجّل بعد في هذا المتجر.
+        </p>
+      ) : null}
 
       {events.length ? (
         <ol data-testid="activity-timeline" className="mt-6 space-y-0">
@@ -182,24 +259,39 @@ export function ActivityLog({ storeSlug }: { storeSlug?: string }) {
             const last = index === events.length - 1;
             return (
               <li key={event.id} data-testid="activity-entry" className="relative flex gap-3 pb-5">
-                {last ? null : <span aria-hidden className={`absolute right-[19px] top-10 bottom-0 w-px ${style.ring}`} />}
-                <span className={`relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full ${style.tint}`}><Icon className="h-4 w-4" strokeWidth={1.8} /></span>
+                {last ? null : (
+                  <span
+                    aria-hidden
+                    className={`absolute right-[19px] top-10 bottom-0 w-px ${style.ring}`}
+                  />
+                )}
+                <span
+                  className={`relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full ${style.tint}`}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={1.8} />
+                </span>
                 <div className="min-w-0 flex-1 pt-1.5">
                   <p className="text-sm leading-7 text-[#31415C]">
-                    <span className="font-bold">{ACTION_NOUN[event.action] ?? event.action}</span>
-                    {" "}
+                    <span className="font-bold">{ACTION_NOUN[event.action] ?? event.action}</span>{" "}
                     {ENTITY_NOUN[event.entityType] ?? event.entityType} «{event.entityLabel}»
-                    {event.entitySecondary ? <span className="mr-1.5 text-xs text-[#8A96A9]" dir="ltr">{event.entitySecondary}</span> : null}
+                    {event.entitySecondary ? (
+                      <span className="mr-1.5 text-xs text-[#8A96A9]" dir="ltr">
+                        {event.entitySecondary}
+                      </span>
+                    ) : null}
                   </p>
                   {typeof event.metadata?.note === "string" && event.metadata.note ? (
                     // MD-6: the owner is told on his own screen that this note
                     // travels to the merchant. This is where it arrives — without
                     // it that warning would be asking him to self-censor for an
                     // audience that never reads him.
-                    <p className="mt-1 rounded-xl bg-[var(--codiq-canvas)] px-3 py-2 text-[13px] leading-6 text-[#3A4A63]">{event.metadata.note}</p>
+                    <p className="mt-1 rounded-xl bg-[var(--codiq-canvas)] px-3 py-2 text-[13px] leading-6 text-[#3A4A63]">
+                      {event.metadata.note}
+                    </p>
                   ) : null}
                   <p className="mt-0.5 text-xs text-[#8A96A9]">
-                    {event.actorLabel} ({ACTOR_KIND[event.actorKind] ?? event.actorKind}) · <time dateTime={event.createdAt}>{whenLabel(event.createdAt)}</time>
+                    {event.actorLabel} ({ACTOR_KIND[event.actorKind] ?? event.actorKind}) ·{" "}
+                    <time dateTime={event.createdAt}>{whenLabel(event.createdAt)}</time>
                   </p>
                 </div>
               </li>
@@ -216,7 +308,10 @@ export function ActivityLog({ storeSlug }: { storeSlug?: string }) {
           className="mt-2 rounded-xl"
           disabled={loadingMore}
           data-testid="activity-load-more"
-          onClick={() => { setLoadingMore(true); void fetchPage(cursor, false).finally(() => setLoadingMore(false)); }}
+          onClick={() => {
+            setLoadingMore(true);
+            void fetchPage(cursor, false).finally(() => setLoadingMore(false));
+          }}
         >
           {loadingMore ? <LoaderCircle className="ml-2 h-4 w-4 animate-spin" /> : null}عرض المزيد
         </Button>

@@ -34,7 +34,12 @@ const wrapper = read("client/src/pages/StorefrontWrapper.tsx");
 
 // What the app router delivers to the wrapper: `/store/:storeSlug/<tail>`.
 const delivered = new Set(
-  Array.from(app.matchAll(/<Route path=\{"\/store\/:storeSlug(\/[^"]*)?"\} component=\{StorefrontWrapper\}/g), (m) => m[1] ?? ""),
+  Array.from(
+    app.matchAll(
+      /<Route path=\{"\/store\/:storeSlug(\/[^"]*)?"\} component=\{StorefrontWrapper\}/g
+    ),
+    (m) => m[1] ?? ""
+  )
 );
 
 // What the wrapper knows how to dispatch: a regex ending in `$` over the tail.
@@ -45,14 +50,18 @@ const expandAlternation = (tail) => {
   if (!m) return [tail];
   return m[1].split("|").flatMap((alt) => expandAlternation(tail.replace(m[0], alt)));
 };
-const dispatched = Array.from(wrapper.matchAll(/\/\\\/([^$]+)\$\/\.test\(location\)/g), (m) => "/" + m[1].replace(/\\\//g, "/").replace(/\[\^\/\]\+/g, ":param")).flatMap(expandAlternation);
+const dispatched = Array.from(
+  wrapper.matchAll(/\/\\\/([^$]+)\$\/\.test\(location\)/g),
+  (m) => "/" + m[1].replace(/\\\//g, "/").replace(/\[\^\/\]\+/g, ":param")
+).flatMap(expandAlternation);
 
 const routerHas = (tail) => {
   for (const d of delivered) {
     const a = d.split("/").filter(Boolean);
     const b = tail.split("/").filter(Boolean);
     if (a.length !== b.length) continue;
-    if (a.every((seg, i) => seg === b[i] || (seg.startsWith(":") && b[i] === ":param"))) return true;
+    if (a.every((seg, i) => seg === b[i] || (seg.startsWith(":") && b[i] === ":param")))
+      return true;
   }
   return false;
 };
@@ -64,13 +73,26 @@ assert.deepEqual(
   [],
   `صفحات يعرفها موزّع المتجر ولا يوصلها موجّه التطبيق: ${orphaned.join(", ")}\n\n` +
     `Each of these has a branch in StorefrontWrapper and no <Route> in App.tsx, so the browser answers 404 before the ` +
-    `wrapper ever runs. Add <Route path={"/store/:storeSlug<tail>"} component={StorefrontWrapper} /> beside its siblings.`,
+    `wrapper ever runs. Add <Route path={"/store/:storeSlug<tail>"} component={StorefrontWrapper} /> beside its siblings.`
 );
 
-assert.ok(dispatched.length >= 8, `expected the wrapper's dispatch table, read ${dispatched.length} branches`);
+assert.ok(
+  dispatched.length >= 8,
+  `expected the wrapper's dispatch table, read ${dispatched.length} branches`
+);
 
-console.log(JSON.stringify({
-  suite: "storefront-routes",
-  status: "passed",
-  summary: { dispatched: dispatched.length, delivered: delivered.size, guarantee: "every storefront page the wrapper dispatches is one the app router delivers" },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "storefront-routes",
+      status: "passed",
+      summary: {
+        dispatched: dispatched.length,
+        delivered: delivered.size,
+        guarantee: "every storefront page the wrapper dispatches is one the app router delivers",
+      },
+    },
+    null,
+    2
+  )
+);

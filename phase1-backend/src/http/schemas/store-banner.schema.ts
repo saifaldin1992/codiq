@@ -14,7 +14,9 @@ const linkUrl = z
   .string()
   .trim()
   .max(2000)
-  .refine((value) => value === "" || /^https?:\/\//.test(value), { message: "رابط الشريحة يجب أن يبدأ بـ http:// أو https://" })
+  .refine((value) => value === "" || /^https?:\/\//.test(value), {
+    message: "رابط الشريحة يجب أن يبدأ بـ http:// أو https://",
+  })
   .nullish();
 
 const altText = z.string().trim().max(200).nullish();

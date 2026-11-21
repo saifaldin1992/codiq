@@ -31,7 +31,13 @@
 import { Prisma } from "@prisma/client";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -86,16 +92,27 @@ export async function loyaltySettings(tx: DbClient, storeId: string): Promise<Lo
     select: { loyaltyEnabled: true, loyaltyEarnPer1000: true, loyaltyPointValueIqd: true },
   });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
-  return { enabled: store.loyaltyEnabled, earnPer1000: store.loyaltyEarnPer1000, pointValueIqd: store.loyaltyPointValueIqd };
+  return {
+    enabled: store.loyaltyEnabled,
+    earnPer1000: store.loyaltyEarnPer1000,
+    pointValueIqd: store.loyaltyPointValueIqd,
+  };
 }
 
-export async function loyaltyBalance(tx: DbClient, storeId: string, customerId: string): Promise<number> {
+export async function loyaltyBalance(
+  tx: DbClient,
+  storeId: string,
+  customerId: string
+): Promise<number> {
   const groups = await tx.loyaltyEntry.groupBy({
     by: ["kind"],
     where: { storeId, customerId },
     _sum: { points: true },
   });
-  return groups.reduce((total, group) => total + (SIGN[group.kind] ?? 0) * (group._sum.points ?? 0), 0);
+  return groups.reduce(
+    (total, group) => total + (SIGN[group.kind] ?? 0) * (group._sum.points ?? 0),
+    0
+  );
 }
 
 /**
@@ -157,7 +174,10 @@ type FoldableEntry = {
  * `points` below equal to the signed sum the ledger reports — which is what the
  * cd5 suite checks a second, independent way.
  */
-export function foldLoyaltyLots(entries: readonly FoldableEntry[], currentPointValueIqd: number): LoyaltyHolding {
+export function foldLoyaltyLots(
+  entries: readonly FoldableEntry[],
+  currentPointValueIqd: number
+): LoyaltyHolding {
   type Working = LoyaltyLot & { earnedPoints: number };
   const lots: Working[] = [];
   /** What each order's spend actually consumed, so its refund can undo exactly that. */
@@ -251,14 +271,27 @@ export function foldLoyaltyLots(entries: readonly FoldableEntry[], currentPointV
   settleDeficit();
   const held = lots.filter((lot) => lot.points > 0);
   return {
-    lots: held.map(({ earnEntryId, orderId, pointValueIqd, points, earnedAt }) => ({ earnEntryId, orderId, pointValueIqd, points, earnedAt })),
+    lots: held.map(({ earnEntryId, orderId, pointValueIqd, points, earnedAt }) => ({
+      earnEntryId,
+      orderId,
+      pointValueIqd,
+      points,
+      earnedAt,
+    })),
     points: held.reduce((total, lot) => total + lot.points, 0) - deficit,
-    valueIqd: held.reduce((total, lot) => total + lot.points * lot.pointValueIqd, 0) - deficit * currentPointValueIqd,
+    valueIqd:
+      held.reduce((total, lot) => total + lot.points * lot.pointValueIqd, 0) -
+      deficit * currentPointValueIqd,
   };
 }
 
 /** What the shopper is holding, lot by lot, oldest first. */
-export async function loyaltyHolding(tx: DbClient, storeId: string, customerId: string, settings: LoyaltySettings): Promise<LoyaltyHolding> {
+export async function loyaltyHolding(
+  tx: DbClient,
+  storeId: string,
+  customerId: string,
+  settings: LoyaltySettings
+): Promise<LoyaltyHolding> {
   const entries = await tx.loyaltyEntry.findMany({
     where: { storeId, customerId },
     // The fold replays history, so the order is the history's own. `id` breaks a
@@ -266,7 +299,14 @@ export async function loyaltyHolding(tx: DbClient, storeId: string, customerId: 
     // `now()`, and a balance that depends on which one Postgres returns first is
     // not a balance.
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    select: { id: true, orderId: true, kind: true, points: true, pointValueIqd: true, createdAt: true },
+    select: {
+      id: true,
+      orderId: true,
+      kind: true,
+      points: true,
+      pointValueIqd: true,
+      createdAt: true,
+    },
   });
   return foldLoyaltyLots(entries, settings.pointValueIqd);
 }
@@ -289,7 +329,7 @@ export function pointsForSubtotal(subtotalIqd: number, settings: LoyaltySettings
  */
 export async function awardLoyaltyPoints(
   tx: Prisma.TransactionClient,
-  input: { storeId: string; orderId: string; customerId: string | null; subtotalIqd: number },
+  input: { storeId: string; orderId: string; customerId: string | null; subtotalIqd: number }
 ): Promise<number> {
   if (!input.customerId) return 0; // A guest has no account to hold points in.
   const settings = await loyaltySettings(tx, input.storeId);
@@ -305,7 +345,16 @@ export async function awardLoyaltyPoints(
     // LOY-1: the rate is stamped ON the award. This row is the LOT, and what it
     // is worth is settled here, once, at the moment it is earned — not looked up
     // again months later from a settings screen the merchant has edited since.
-    data: [{ storeId: input.storeId, customerId: input.customerId, orderId: input.orderId, kind: "earned", points, pointValueIqd: settings.pointValueIqd }],
+    data: [
+      {
+        storeId: input.storeId,
+        customerId: input.customerId,
+        orderId: input.orderId,
+        kind: "earned",
+        points,
+        pointValueIqd: settings.pointValueIqd,
+      },
+    ],
     skipDuplicates: true,
   });
   return written.count > 0 ? points : 0;
@@ -320,7 +369,7 @@ export async function awardLoyaltyPoints(
  */
 export async function reverseLoyaltyForReturn(
   tx: Prisma.TransactionClient,
-  input: { storeId: string; orderId: string },
+  input: { storeId: string; orderId: string }
 ): Promise<{ clawedBack: number; refunded: number }> {
   const entries = await tx.loyaltyEntry.findMany({
     where: { storeId: input.storeId, orderId: input.orderId, kind: { in: ["earned", "spent"] } },
@@ -334,14 +383,18 @@ export async function reverseLoyaltyForReturn(
     points: entry.points,
     // A refund is worth what it was worth when SPENT, not what the rate says
     // today: the merchant may have changed it since.
-    valueIqd: entry.kind === "earned" ? null : entry.valueIqd ?? 0,
+    valueIqd: entry.kind === "earned" ? null : (entry.valueIqd ?? 0),
   }));
   if (rows.length === 0) return { clawedBack: 0, refunded: 0 };
 
   // One statement, `skipDuplicates` — see awardLoyaltyPoints for why this must
   // not be a try/catch. Reversing twice writes nothing the second time.
   const before = await tx.loyaltyEntry.findMany({
-    where: { storeId: input.storeId, orderId: input.orderId, kind: { in: ["reversed_earn", "refunded_spend"] } },
+    where: {
+      storeId: input.storeId,
+      orderId: input.orderId,
+      kind: { in: ["reversed_earn", "refunded_spend"] },
+    },
     select: { kind: true },
   });
   const alreadyDone = new Set(before.map((row) => row.kind));
@@ -351,7 +404,8 @@ export async function reverseLoyaltyForReturn(
   let refunded = 0;
   for (const row of rows) {
     if (alreadyDone.has(row.kind)) continue;
-    if (row.kind === "reversed_earn") clawedBack += row.points; else refunded += row.points;
+    if (row.kind === "reversed_earn") clawedBack += row.points;
+    else refunded += row.points;
   }
   return { clawedBack, refunded };
 }
@@ -390,22 +444,37 @@ export interface LoyaltyRedemption {
  */
 export async function previewLoyaltyRedemption(
   tx: Prisma.TransactionClient,
-  input: { storeId: string; customerId: string; requestedPoints: unknown; subtotalIqd: number; couponDiscountIqd: number },
+  input: {
+    storeId: string;
+    customerId: string;
+    requestedPoints: unknown;
+    subtotalIqd: number;
+    couponDiscountIqd: number;
+  }
 ): Promise<LoyaltyRedemption> {
   const none: LoyaltyRedemption = { points: 0, discountIqd: 0 };
   if (input.requestedPoints === undefined || input.requestedPoints === null) return none;
   const requested = Number(input.requestedPoints);
   if (!Number.isInteger(requested) || requested < 0) {
-    throw new HttpError(422, "INVALID_LOYALTY_POINTS", "عدد النقاط يجب أن يكون رقماً صحيحاً موجباً.");
+    throw new HttpError(
+      422,
+      "INVALID_LOYALTY_POINTS",
+      "عدد النقاط يجب أن يكون رقماً صحيحاً موجباً."
+    );
   }
   if (requested === 0) return none;
 
   const settings = await loyaltySettings(tx, input.storeId);
-  if (!settings.enabled) throw new HttpError(422, "LOYALTY_DISABLED", "برنامج النقاط غير مفعّل في هذا المتجر.");
+  if (!settings.enabled)
+    throw new HttpError(422, "LOYALTY_DISABLED", "برنامج النقاط غير مفعّل في هذا المتجر.");
 
   const holding = await loyaltyHolding(tx, input.storeId, input.customerId, settings);
   if (requested > holding.points) {
-    throw new HttpError(422, "INSUFFICIENT_LOYALTY_POINTS", `رصيدك ${holding.points} نقطة، ولا يكفي لصرف ${requested}.`);
+    throw new HttpError(
+      422,
+      "INSUFFICIENT_LOYALTY_POINTS",
+      `رصيدك ${holding.points} نقطة، ولا يكفي لصرف ${requested}.`
+    );
   }
 
   // Spend what is useful rather than refusing: a shopper who offers his whole
@@ -435,13 +504,17 @@ export async function previewLoyaltyRedemption(
 /** Writes the spend row, once the order it belongs to exists. */
 export async function commitLoyaltyRedemption(
   tx: Prisma.TransactionClient,
-  input: { storeId: string; customerId: string; orderId: string; redemption: LoyaltyRedemption },
+  input: { storeId: string; customerId: string; orderId: string; redemption: LoyaltyRedemption }
 ): Promise<void> {
   if (input.redemption.points <= 0) return;
   await tx.loyaltyEntry.create({
     data: {
-      storeId: input.storeId, customerId: input.customerId, orderId: input.orderId,
-      kind: "spent", points: input.redemption.points, valueIqd: input.redemption.discountIqd,
+      storeId: input.storeId,
+      customerId: input.customerId,
+      orderId: input.orderId,
+      kind: "spent",
+      points: input.redemption.points,
+      valueIqd: input.redemption.discountIqd,
     },
   });
 }
@@ -455,7 +528,12 @@ const LOYALTY_ENTRIES_KIND = "storefront.account.loyalty";
  * earning points for a year could not see where the older ones came from —
  * which is the only question this statement answers.
  */
-export async function loyaltyStatement(storeId: string, customerId: string, rawLimit?: unknown, rawCursor?: unknown) {
+export async function loyaltyStatement(
+  storeId: string,
+  customerId: string,
+  rawLimit?: unknown,
+  rawCursor?: unknown
+) {
   const limit = parseListLimit(rawLimit, 100, 50);
   const cursor = await readListCursor(LOYALTY_ENTRIES_KIND, rawCursor);
   const settings = await loyaltySettings(prisma, storeId);
@@ -467,7 +545,12 @@ export async function loyaltyStatement(storeId: string, customerId: string, rawL
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       select: {
-        id: true, kind: true, points: true, valueIqd: true, pointValueIqd: true, createdAt: true,
+        id: true,
+        kind: true,
+        points: true,
+        valueIqd: true,
+        pointValueIqd: true,
+        createdAt: true,
         order: { select: { id: true, orderNumber: true } },
       },
     }),
@@ -488,10 +571,22 @@ export async function loyaltyStatement(storeId: string, customerId: string, rawL
     balanceValueIqd: holding.valueIqd,
     // The lots themselves travel, oldest first, so a screen can price ANY
     // redemption he is considering without asking the server to guess for him.
-    lots: holding.lots.map((lot) => ({ points: lot.points, pointValueIqd: lot.pointValueIqd, earnedAt: lot.earnedAt })),
+    lots: holding.lots.map((lot) => ({
+      points: lot.points,
+      pointValueIqd: lot.pointValueIqd,
+      earnedAt: lot.earnedAt,
+    })),
     ...(() => {
-      const { page, nextCursor } = pageOf(entries, limit, (last) => encodeListCursor(LOYALTY_ENTRIES_KIND, last.createdAt, last.id));
-      return { entries: page.map((entry) => ({ ...entry, signedPoints: (SIGN[entry.kind] ?? 0) * entry.points })), nextCursor };
+      const { page, nextCursor } = pageOf(entries, limit, (last) =>
+        encodeListCursor(LOYALTY_ENTRIES_KIND, last.createdAt, last.id)
+      );
+      return {
+        entries: page.map((entry) => ({
+          ...entry,
+          signedPoints: (SIGN[entry.kind] ?? 0) * entry.points,
+        })),
+        nextCursor,
+      };
     })(),
   };
 }
@@ -509,20 +604,34 @@ export async function loyaltyStatement(storeId: string, customerId: string, rawL
  * there is no longer anything to confiscate. Raising it is left free, because a
  * merchant may always choose to be more generous with what he awards next.
  */
-export async function updateLoyaltySettings(storeId: string, body: Record<string, unknown>): Promise<LoyaltySettings> {
-  const data: { loyaltyEnabled?: boolean; loyaltyEarnPer1000?: number; loyaltyPointValueIqd?: number } = {};
+export async function updateLoyaltySettings(
+  storeId: string,
+  body: Record<string, unknown>
+): Promise<LoyaltySettings> {
+  const data: {
+    loyaltyEnabled?: boolean;
+    loyaltyEarnPer1000?: number;
+    loyaltyPointValueIqd?: number;
+  } = {};
   if (body.enabled !== undefined) {
-    if (typeof body.enabled !== "boolean") throw new HttpError(422, "INVALID_INPUT", "enabled يجب أن يكون true أو false.");
+    if (typeof body.enabled !== "boolean")
+      throw new HttpError(422, "INVALID_INPUT", "enabled يجب أن يكون true أو false.");
     data.loyaltyEnabled = body.enabled;
   }
   if (body.earnPer1000 !== undefined) {
     const value = Number(body.earnPer1000);
-    if (!Number.isInteger(value) || value < 0 || value > LOYALTY_EARN_PER_1000_MAX) throw new HttpError(422, "INVALID_INPUT", "نقاط كل 1000 دينار: رقم صحيح بين 0 و1000.");
+    if (!Number.isInteger(value) || value < 0 || value > LOYALTY_EARN_PER_1000_MAX)
+      throw new HttpError(422, "INVALID_INPUT", "نقاط كل 1000 دينار: رقم صحيح بين 0 و1000.");
     data.loyaltyEarnPer1000 = value;
   }
   if (body.pointValueIqd !== undefined) {
     const value = Number(body.pointValueIqd);
-    if (!Number.isInteger(value) || value < LOYALTY_POINT_VALUE_MIN || value > LOYALTY_POINT_VALUE_MAX) throw new HttpError(422, "INVALID_INPUT", "قيمة النقطة: رقم صحيح بين 1 و10000 دينار.");
+    if (
+      !Number.isInteger(value) ||
+      value < LOYALTY_POINT_VALUE_MIN ||
+      value > LOYALTY_POINT_VALUE_MAX
+    )
+      throw new HttpError(422, "INVALID_INPUT", "قيمة النقطة: رقم صحيح بين 1 و10000 دينار.");
     data.loyaltyPointValueIqd = value;
   }
   // 19-د: the two rates are only dangerous TOGETHER, so the rule is checked on
@@ -537,7 +646,7 @@ export async function updateLoyaltySettings(storeId: string, body: Record<string
     throw new HttpError(
       422,
       "INVALID_LOYALTY_RATES",
-      `النقاط الممنوحة عن كل 1000 دينار لا يجوز أن تساوي أكثر من ${LOYALTY_MAX_AWARD_IQD_PER_1000} دينار عند الصرف. خفّض نقاط كل 1000 دينار أو قيمة النقطة.`,
+      `النقاط الممنوحة عن كل 1000 دينار لا يجوز أن تساوي أكثر من ${LOYALTY_MAX_AWARD_IQD_PER_1000} دينار عند الصرف. خفّض نقاط كل 1000 دينار أو قيمة النقطة.`
     );
   }
   await prisma.store.update({ where: { id: storeId }, data });

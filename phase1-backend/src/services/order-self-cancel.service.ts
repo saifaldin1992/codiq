@@ -30,16 +30,29 @@ const MAX_REASON_LENGTH = 500;
 function cancellationReason(value: unknown): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new HttpError(400, "INVALID_CANCELLATION_REASON", "reason must be a non-empty string when provided.");
+    throw new HttpError(
+      400,
+      "INVALID_CANCELLATION_REASON",
+      "reason must be a non-empty string when provided."
+    );
   }
   const trimmed = value.trim();
   if (trimmed.length > MAX_REASON_LENGTH) {
-    throw new HttpError(400, "INVALID_CANCELLATION_REASON", `reason must contain at most ${MAX_REASON_LENGTH} characters.`);
+    throw new HttpError(
+      400,
+      "INVALID_CANCELLATION_REASON",
+      `reason must contain at most ${MAX_REASON_LENGTH} characters.`
+    );
   }
   return trimmed;
 }
 
-export async function cancelOwnOrder(storeId: string, customerId: string, orderId: string, body: { reason?: unknown }) {
+export async function cancelOwnOrder(
+  storeId: string,
+  customerId: string,
+  orderId: string,
+  body: { reason?: unknown }
+) {
   const reason = cancellationReason(body?.reason);
   // Ownership and store scope in one predicate: a miss on any of the three is
   // indistinguishable from an order that was never created.
@@ -49,18 +62,27 @@ export async function cancelOwnOrder(storeId: string, customerId: string, orderI
   });
   if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found.");
   if (order.status !== SELF_CANCELLABLE_STATUS) {
-    throw new HttpError(409, "ORDER_NOT_CANCELLABLE", "This order has already been accepted by the store and can no longer be cancelled here.");
+    throw new HttpError(
+      409,
+      "ORDER_NOT_CANCELLABLE",
+      "This order has already been accepted by the store and can no longer be cancelled here."
+    );
   }
 
   // The version read above is what the transition checks against. If the store
   // moves the order between these two statements, the optimistic check fails and
   // the customer is told the store already started — which is exactly true.
   try {
-    const transitioned = await transitionOrderStatus(storeId, { kind: "customer", id: customerId }, orderId, {
-      toStatus: "cancelled",
-      expectedVersion: order.version,
-      note: reason,
-    });
+    const transitioned = await transitionOrderStatus(
+      storeId,
+      { kind: "customer", id: customerId },
+      orderId,
+      {
+        toStatus: "cancelled",
+        expectedVersion: order.version,
+        note: reason,
+      }
+    );
     // transitionOrderStatus answers with the MERCHANT projection — it carries the
     // merchant's business identity and the store's internal fields. A shopper
     // gets only what a shopper needs to see their own order change state.
@@ -75,7 +97,11 @@ export async function cancelOwnOrder(storeId: string, customerId: string, orderI
     };
   } catch (error) {
     if (error instanceof HttpError && error.code === "ORDER_VERSION_CONFLICT") {
-      throw new HttpError(409, "ORDER_NOT_CANCELLABLE", "This order has already been accepted by the store and can no longer be cancelled here.");
+      throw new HttpError(
+        409,
+        "ORDER_NOT_CANCELLABLE",
+        "This order has already been accepted by the store and can no longer be cancelled here."
+      );
     }
     throw error;
   }

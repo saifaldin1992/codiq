@@ -33,7 +33,13 @@ import type { LucideIcon } from "lucide-react";
 /** Mirrors the staff pattern: implemented now, or scheduled for a named phase. */
 export type NavEntryStatus = "implemented" | { phase: string };
 /** ق-251: `capability` names what the entry needs; the sidebar shows the platform's state beside it (قريباً / تحت الصيانة …). */
-export type NavEntry = { label: string; path: string; context?: string; status: NavEntryStatus; capability?: string };
+export type NavEntry = {
+  label: string;
+  path: string;
+  context?: string;
+  status: NavEntryStatus;
+  capability?: string;
+};
 export type NavGroup = { id: string; label: string; icon: LucideIcon; entries: NavEntry[] };
 
 /** Mirrors PERMISSION_CODES in phase1-backend/src/auth/staff-permissions.ts (the server source of truth). */
@@ -74,7 +80,11 @@ export type PlatformPermissionCode =
   | "availability.manage";
 
 export const ownerDashboardPath = "/platform/dashboard";
-export const ownerPrimaryEntry: NavEntry = { label: "الرئيسية", path: ownerDashboardPath, status: "implemented" };
+export const ownerPrimaryEntry: NavEntry = {
+  label: "الرئيسية",
+  path: ownerDashboardPath,
+  status: "implemented",
+};
 
 export const ownerNavGroups: NavGroup[] = [
   {
@@ -85,20 +95,44 @@ export const ownerNavGroups: NavGroup[] = [
       // «إدارة التجار» merged into «التجار»، و«التحقق» merged into «طلبات التسجيل» (pass A).
       { label: "التجار", path: "/platform/dashboard/merchants", status: "implemented" },
       { label: "إضافة تاجر", path: "/platform/dashboard/merchants/add", status: "implemented" },
-      { label: "طلبات التسجيل", path: "/platform/dashboard/merchants/registration-requests", status: "implemented" },
+      {
+        label: "طلبات التسجيل",
+        path: "/platform/dashboard/merchants/registration-requests",
+        status: "implemented",
+      },
       { label: "المتاجر", path: "/platform/dashboard/stores", status: "implemented" },
       // Marketplace M1: who is in the shared market, who is waiting, and the marks only the platform grants.
       { label: "السوق", path: "/platform/dashboard/market", status: "implemented" },
       // Marketplace M3: the market's front page, banners, collections, malls and category tree.
       { label: "محتوى السوق", path: "/platform/dashboard/market-content", status: "implemented" },
       { label: "دعم السوق", path: "/platform/dashboard/market-support", status: "implemented" },
-      { label: "الحملات وعروض الساعة", path: "/platform/dashboard/market-campaigns", status: "implemented" },
-      { label: "كوبونات المنصّة والنقاط", path: "/platform/dashboard/market-coupons", status: "implemented" },
+      {
+        label: "الحملات وعروض الساعة",
+        path: "/platform/dashboard/market-campaigns",
+        status: "implemented",
+      },
+      {
+        label: "كوبونات المنصّة والنقاط",
+        path: "/platform/dashboard/market-coupons",
+        status: "implemented",
+      },
       { label: "عجلة الجوائز", path: "/platform/dashboard/market-wheel", status: "implemented" },
       { label: "مراجعة الريلز", path: "/platform/dashboard/market-reels", status: "implemented" },
-      { label: "البحث بالصورة", path: "/platform/dashboard/market-image-index", status: "implemented" },
-      { label: "المدفوعات الإلكترونيّة", path: "/platform/dashboard/market-payments", status: "implemented" },
-      { label: "إضافة متجر", path: "/platform/dashboard/stores/add", status: { phase: "الدفعة B" } },
+      {
+        label: "البحث بالصورة",
+        path: "/platform/dashboard/market-image-index",
+        status: "implemented",
+      },
+      {
+        label: "المدفوعات الإلكترونيّة",
+        path: "/platform/dashboard/market-payments",
+        status: "implemented",
+      },
+      {
+        label: "إضافة متجر",
+        path: "/platform/dashboard/stores/add",
+        status: { phase: "الدفعة B" },
+      },
     ],
   },
   {
@@ -108,7 +142,11 @@ export const ownerNavGroups: NavGroup[] = [
     entries: [
       // Status sub-menus live as filter chips inside the orders page now (pass A).
       { label: "جميع الطلبات", path: "/platform/dashboard/orders", status: "implemented" },
-      { label: "بحاجة لإجراء", path: "/platform/dashboard/orders/action-needed", status: "implemented" },
+      {
+        label: "بحاجة لإجراء",
+        path: "/platform/dashboard/orders/action-needed",
+        status: "implemented",
+      },
       { label: "الإرجاع", path: "/platform/dashboard/orders/returns", status: "implemented" },
       { label: "التسليم", path: "/platform/dashboard/orders/delivery", status: { phase: "25أ" } },
       // 20B delivered MERCHANT analytics; platform-wide order reports move
@@ -123,12 +161,20 @@ export const ownerNavGroups: NavGroup[] = [
     entries: [
       { label: "الاشتراكات", path: "/platform/dashboard/subscriptions", status: "implemented" },
       { label: "الخطط", path: "/platform/dashboard/plans", status: "implemented" },
-      { label: "طلبات الترقية", path: "/platform/dashboard/upgrade-requests", status: "implemented" },
+      {
+        label: "طلبات الترقية",
+        path: "/platform/dashboard/upgrade-requests",
+        status: "implemented",
+      },
       { label: "الفواتير", path: "/platform/dashboard/invoices", status: { phase: "25أ" } },
       { label: "المدفوعات", path: "/platform/dashboard/payments", status: { phase: "25أ" } },
       { label: "العمولات", path: "/platform/dashboard/commissions", status: "implemented" },
       { label: "التسويات", path: "/platform/dashboard/settlements", status: "implemented" },
-      { label: "التقارير المالية", path: "/platform/dashboard/financial-reports", status: "implemented" },
+      {
+        label: "التقارير المالية",
+        path: "/platform/dashboard/financial-reports",
+        status: "implemented",
+      },
     ],
   },
   {
@@ -139,18 +185,30 @@ export const ownerNavGroups: NavGroup[] = [
       // The six site-builder entries collapsed into one honest placeholder (pass A);
       // 20B closed without it — the site builder rides the phase-21+ content work.
       { label: "الموقع التعريفي", path: "/platform/dashboard/site", status: { phase: "21+" } },
-      { label: "إعدادات المنصة", path: "/platform/dashboard/platform-settings", status: "implemented" },
+      {
+        label: "إعدادات المنصة",
+        path: "/platform/dashboard/platform-settings",
+        status: "implemented",
+      },
       // ق-249 (المرحلة 29): what the platform offers, whether it is on, and for whom.
       { label: "الخدمات والإتاحة", path: "/platform/dashboard/services", status: "implemented" },
       // The platform's modules and the domain events each one listens to (modules/registry.ts).
       { label: "الوحدات", path: "/platform/dashboard/modules", status: "implemented" },
       { label: "طاقم المنصة", path: "/platform/dashboard/platform-staff", status: "implemented" },
-      { label: "النطاقات والروابط", path: "/platform/dashboard/domains-links", status: { phase: "24" } },
+      {
+        label: "النطاقات والروابط",
+        path: "/platform/dashboard/domains-links",
+        status: { phase: "24" },
+      },
       { label: "التكاملات", path: "/platform/dashboard/integrations", status: { phase: "24" } },
       // Phase 20 (20A+20B) closed without a public developers API — it rides
       // the integrations batch.
       { label: "المطورون", path: "/platform/dashboard/developers", status: { phase: "24" } },
-      { label: "النظام والصيانة", path: "/platform/dashboard/system-maintenance", status: { phase: "24" } },
+      {
+        label: "النظام والصيانة",
+        path: "/platform/dashboard/system-maintenance",
+        status: { phase: "24" },
+      },
     ],
   },
   {
@@ -163,20 +221,44 @@ export const ownerNavGroups: NavGroup[] = [
     label: "حسابي ومعلومات التواصل",
     icon: UserRound,
     entries: [
-      { label: "الملف الشخصي", path: "/platform/dashboard/account/profile", status: { phase: "19" } },
+      {
+        label: "الملف الشخصي",
+        path: "/platform/dashboard/account/profile",
+        status: { phase: "19" },
+      },
       // «الأمان» now carries the email change beside the password change.
       { label: "الأمان", path: "/platform/dashboard/account/security", status: "implemented" },
-      { label: "معلومات التواصل", path: "/platform/dashboard/account/contact", status: "implemented" },
-      { label: "الجلسات والأجهزة", path: "/platform/dashboard/account/sessions-devices", status: "implemented" },
-      { label: "الإشعارات", path: "/platform/dashboard/account/notifications", status: { phase: "19" } },
+      {
+        label: "معلومات التواصل",
+        path: "/platform/dashboard/account/contact",
+        status: "implemented",
+      },
+      {
+        label: "الجلسات والأجهزة",
+        path: "/platform/dashboard/account/sessions-devices",
+        status: "implemented",
+      },
+      {
+        label: "الإشعارات",
+        path: "/platform/dashboard/account/notifications",
+        status: { phase: "19" },
+      },
       { label: "اللغة", path: "/platform/dashboard/account/language", status: { phase: "22" } },
-      { label: "تسجيل الخروج", path: "/platform/dashboard/account/sign-out", status: "implemented" },
+      {
+        label: "تسجيل الخروج",
+        path: "/platform/dashboard/account/sign-out",
+        status: "implemented",
+      },
     ],
   },
 ];
 
 export const merchantDashboardPath = "/merchant/dashboard";
-export const merchantPrimaryEntry: NavEntry = { label: "الرئيسية", path: merchantDashboardPath, status: "implemented" };
+export const merchantPrimaryEntry: NavEntry = {
+  label: "الرئيسية",
+  path: merchantDashboardPath,
+  status: "implemented",
+};
 
 /**
  * MERCHANT — ordered by how often a shop owner opens it, not by how the system
@@ -214,11 +296,24 @@ export const merchantNavGroups: NavGroup[] = [
     entries: [
       // His inbox, and therefore first: the only screen that answers «ما الذي
       // ينتظرني الآن؟». It used to be second.
-      { label: "بحاجة لإجراء", path: "/merchant/dashboard/orders/action-needed", status: "implemented" },
+      {
+        label: "بحاجة لإجراء",
+        path: "/merchant/dashboard/orders/action-needed",
+        status: "implemented",
+      },
       { label: "جميع الطلبات", path: "/merchant/dashboard/orders", status: "implemented" },
-      { label: "الإرجاع", path: "/merchant/dashboard/orders/returns", status: "implemented", capability: "cx.returns" },
+      {
+        label: "الإرجاع",
+        path: "/merchant/dashboard/orders/returns",
+        status: "implemented",
+        capability: "cx.returns",
+      },
       // Marketplace M7b: complaints shoppers open from a delivered market order.
-      { label: "تذاكر الدعم", path: "/merchant/dashboard/orders/support-tickets", status: "implemented" },
+      {
+        label: "تذاكر الدعم",
+        path: "/merchant/dashboard/orders/support-tickets",
+        status: "implemented",
+      },
     ],
   },
   {
@@ -228,18 +323,44 @@ export const merchantNavGroups: NavGroup[] = [
     entries: [
       { label: "جميع المنتجات", path: "/merchant/dashboard/products", status: "implemented" },
       { label: "إضافة منتج", path: "/merchant/dashboard/products/add", status: "implemented" },
-      { label: "التصنيفات", path: "/merchant/dashboard/products/categories", status: "implemented" },
+      {
+        label: "التصنيفات",
+        path: "/merchant/dashboard/products/categories",
+        status: "implemented",
+      },
       // Marketplace M2: market category mapping and each product's market details and add-ons.
       { label: "بيانات السوق", path: "/merchant/dashboard/products/market", status: "implemented" },
       // Marketplace M8a: put products forward for an hour of a market campaign.
-      { label: "عروض الساعة", path: "/merchant/dashboard/products/market-deals", status: "implemented" },
-      { label: "ريلز السوق", path: "/merchant/dashboard/products/market-reels", status: "implemented" },
+      {
+        label: "عروض الساعة",
+        path: "/merchant/dashboard/products/market-deals",
+        status: "implemented",
+      },
+      {
+        label: "ريلز السوق",
+        path: "/merchant/dashboard/products/market-reels",
+        status: "implemented",
+      },
       { label: "المخزون", path: "/merchant/dashboard/products/inventory", status: "implemented" },
       // Kept beside stock rather than filed under reports: it answers a stock
       // question, and it is the one thing none of the three rivals has.
-      { label: "متى ينفد مخزونك", path: "/merchant/dashboard/products/forecast", status: "implemented" },
-      { label: "المراجعات", path: "/merchant/dashboard/products/reviews", status: "implemented", capability: "cx.reviews" },
-      { label: "استيراد/تصدير CSV", path: "/merchant/dashboard/products/import-export", status: "implemented", capability: "data.csv" },
+      {
+        label: "متى ينفد مخزونك",
+        path: "/merchant/dashboard/products/forecast",
+        status: "implemented",
+      },
+      {
+        label: "المراجعات",
+        path: "/merchant/dashboard/products/reviews",
+        status: "implemented",
+        capability: "cx.reviews",
+      },
+      {
+        label: "استيراد/تصدير CSV",
+        path: "/merchant/dashboard/products/import-export",
+        status: "implemented",
+        capability: "data.csv",
+      },
     ],
   },
   {
@@ -249,7 +370,12 @@ export const merchantNavGroups: NavGroup[] = [
     entries: [
       { label: "جميع العملاء", path: "/merchant/dashboard/customers", status: "implemented" },
       { label: "إضافة عميل", path: "/merchant/dashboard/customers/add", status: "implemented" },
-      { label: "السلات المتروكة", path: "/merchant/dashboard/customers/abandoned-carts", status: "implemented", capability: "marketing.abandoned_carts" },
+      {
+        label: "السلات المتروكة",
+        path: "/merchant/dashboard/customers/abandoned-carts",
+        status: "implemented",
+        capability: "marketing.abandoned_carts",
+      },
     ],
   },
   {
@@ -259,10 +385,24 @@ export const merchantNavGroups: NavGroup[] = [
     entries: [
       // ONE reports home. There were two «التقارير» in two different groups, and
       // a merchant had to guess which of them held his numbers.
-      { label: "التقارير", path: "/merchant/dashboard/orders/reports", status: "implemented", capability: "data.analytics" },
+      {
+        label: "التقارير",
+        path: "/merchant/dashboard/orders/reports",
+        status: "implemented",
+        capability: "data.analytics",
+      },
       { label: "التسويات", path: "/merchant/dashboard/orders/settlements", status: "implemented" },
-      { label: "شهرك في Codiq", path: "/merchant/dashboard/marketing/monthly", status: "implemented", capability: "data.monthly_report" },
-      { label: "الاشتراك", path: "/merchant/dashboard/settings/subscription", status: "implemented" },
+      {
+        label: "شهرك في Codiq",
+        path: "/merchant/dashboard/marketing/monthly",
+        status: "implemented",
+        capability: "data.monthly_report",
+      },
+      {
+        label: "الاشتراك",
+        path: "/merchant/dashboard/settings/subscription",
+        status: "implemented",
+      },
     ],
   },
   {
@@ -270,10 +410,20 @@ export const merchantNavGroups: NavGroup[] = [
     label: "التسويق",
     icon: Megaphone,
     entries: [
-      { label: "الكوبونات", path: "/merchant/dashboard/marketing/coupons", status: "implemented", capability: "offers.coupons" },
+      {
+        label: "الكوبونات",
+        path: "/merchant/dashboard/marketing/coupons",
+        status: "implemented",
+        capability: "offers.coupons",
+      },
       // Named for what it actually is. As a second «التقارير» it competed with
       // the real one in المالية for the same word.
-      { label: "أداء الكوبونات", path: "/merchant/dashboard/marketing/reports", status: "implemented", capability: "data.analytics" },
+      {
+        label: "أداء الكوبونات",
+        path: "/merchant/dashboard/marketing/reports",
+        status: "implemented",
+        capability: "data.analytics",
+      },
     ],
   },
   {
@@ -285,8 +435,16 @@ export const merchantNavGroups: NavGroup[] = [
       // contact, policies, home sections, guest checkout — one screen, the
       // reference dashboard's «الإعدادات ← التخطيط». Everything a shopper sees
       // that differs from shop to shop is edited here and nowhere else.
-      { label: "واجهة المتجر", path: "/merchant/dashboard/settings/storefront", status: "implemented" },
-      { label: "إعدادات المتجر", path: "/merchant/dashboard/settings/store", status: "implemented" },
+      {
+        label: "واجهة المتجر",
+        path: "/merchant/dashboard/settings/storefront",
+        status: "implemented",
+      },
+      {
+        label: "إعدادات المتجر",
+        path: "/merchant/dashboard/settings/store",
+        status: "implemented",
+      },
       // Marketplace M1: the store in the shared market — listing request, place, hours, cover, reputation.
       { label: "السوق", path: "/merchant/dashboard/settings/market", status: "implemented" },
       // ق-249 (المرحلة 29): what works in this store right now, and why not when not.
@@ -296,15 +454,44 @@ export const merchantNavGroups: NavGroup[] = [
       // ق-209: real switches now — cash, wallet transfers, and the gateways
       // that wait for 25أ, named as such.
       { label: "الدفع", path: "/merchant/dashboard/settings/payments", status: "implemented" },
-      { label: "التوصيل", path: "/merchant/dashboard/settings/shipping", status: "implemented", capability: "delivery.rates" },
-      { label: "الإشعارات", path: "/merchant/dashboard/settings/notifications", status: "implemented" },
+      {
+        label: "التوصيل",
+        path: "/merchant/dashboard/settings/shipping",
+        status: "implemented",
+        capability: "delivery.rates",
+      },
+      {
+        label: "الإشعارات",
+        path: "/merchant/dashboard/settings/notifications",
+        status: "implemented",
+      },
       // ق-166: CD-5 shipped everything but this entry, so `loyaltyEnabled`
       // could never leave false and the shopper's redeem card was dead in
       // every store.
-      { label: "برنامج النقاط", path: "/merchant/dashboard/settings/loyalty", status: "implemented", capability: "offers.loyalty" },
-      { label: "التكاملات", path: "/merchant/dashboard/settings/integrations", status: "implemented", capability: "marketing.pixels" },
-      { label: "الكاشير", path: "/merchant/dashboard/settings/pos", status: "implemented", capability: "pos.devices" },
-      { label: "فريق المتجر", path: "/merchant/dashboard/stores/team", status: "implemented", capability: "team.staff" },
+      {
+        label: "برنامج النقاط",
+        path: "/merchant/dashboard/settings/loyalty",
+        status: "implemented",
+        capability: "offers.loyalty",
+      },
+      {
+        label: "التكاملات",
+        path: "/merchant/dashboard/settings/integrations",
+        status: "implemented",
+        capability: "marketing.pixels",
+      },
+      {
+        label: "الكاشير",
+        path: "/merchant/dashboard/settings/pos",
+        status: "implemented",
+        capability: "pos.devices",
+      },
+      {
+        label: "فريق المتجر",
+        path: "/merchant/dashboard/stores/team",
+        status: "implemented",
+        capability: "team.staff",
+      },
       { label: "سلة المحذوفات", path: "/merchant/dashboard/settings/trash", status: "implemented" },
     ],
   },
@@ -326,7 +513,11 @@ export const merchantNavGroups: NavGroup[] = [
     icon: CircleUserRound,
     entries: [
       { label: "الأمان", path: "/merchant/dashboard/account/security", status: "implemented" },
-      { label: "الجلسات والأجهزة", path: "/merchant/dashboard/account/sessions-devices", status: "implemented" },
+      {
+        label: "الجلسات والأجهزة",
+        path: "/merchant/dashboard/account/sessions-devices",
+        status: "implemented",
+      },
     ],
   },
 ];
@@ -344,23 +535,48 @@ export const merchantNavGroups: NavGroup[] = [
 export const merchantRoadmap: NavEntry[] = [
   // ق-246: the manual precursor of 25أ — handovers, the courier manifest and
   // the COD cash reconciliation. 25أ replaces the data source, not the screen.
-  { label: "التسليم", path: "/merchant/dashboard/orders/delivery", status: "implemented", capability: "delivery.handover" },
+  {
+    label: "التسليم",
+    path: "/merchant/dashboard/orders/delivery",
+    status: "implemented",
+    capability: "delivery.handover",
+  },
   { label: "العروض", path: "/merchant/dashboard/marketing/offers", status: { phase: "25ب" } },
   { label: "الحملات", path: "/merchant/dashboard/marketing/campaigns", status: { phase: "25ب" } },
-  { label: "التواصل", path: "/merchant/dashboard/marketing/communication", status: { phase: "25ب" } },
+  {
+    label: "التواصل",
+    path: "/merchant/dashboard/marketing/communication",
+    status: { phase: "25ب" },
+  },
   { label: "القالب", path: "/merchant/dashboard/storefront/theme", status: { phase: "21" } },
   { label: "الصفحات", path: "/merchant/dashboard/storefront/pages", status: { phase: "21" } },
-  { label: "محرر الصفحات", path: "/merchant/dashboard/storefront/page-editor", status: { phase: "21" } },
-  { label: "القوائم والتنقل", path: "/merchant/dashboard/storefront/navigation", status: { phase: "21" } },
+  {
+    label: "محرر الصفحات",
+    path: "/merchant/dashboard/storefront/page-editor",
+    status: { phase: "21" },
+  },
+  {
+    label: "القوائم والتنقل",
+    path: "/merchant/dashboard/storefront/navigation",
+    status: { phase: "21" },
+  },
   { label: "الوسائط", path: "/merchant/dashboard/storefront/media", status: { phase: "21+" } },
   { label: "SEO", path: "/merchant/dashboard/storefront/seo", status: { phase: "22" } },
-  { label: "النشر والإصدارات", path: "/merchant/dashboard/storefront/publishing-versions", status: { phase: "21+" } },
+  {
+    label: "النشر والإصدارات",
+    path: "/merchant/dashboard/storefront/publishing-versions",
+    status: { phase: "21+" },
+  },
   { label: "الملف الشخصي", path: "/merchant/dashboard/account/profile", status: { phase: "19" } },
   { label: "اللغة", path: "/merchant/dashboard/account/language", status: { phase: "22" } },
 ];
 
 /** The one sidebar entry that leads to everything above. */
-export const merchantRoadmapEntry: NavEntry = { label: "قريباً", path: "/merchant/dashboard/roadmap", status: "implemented" };
+export const merchantRoadmapEntry: NavEntry = {
+  label: "قريباً",
+  path: "/merchant/dashboard/roadmap",
+  status: "implemented",
+};
 
 /** «قريباً — المرحلة X» text for a scheduled entry; null when implemented. */
 export function comingSoonLabel(status: NavEntryStatus): string | null {
@@ -385,24 +601,109 @@ export type StaffNavEntry = {
 };
 
 export const staffNavEntries: StaffNavEntry[] = [
-  { id: "home", label: "الرئيسية", icon: CircleUserRound, segment: "", permission: null, status: "implemented" },
-  { id: "orders", label: "الطلبات", icon: ClipboardList, segment: "orders", permission: "orders.view", status: "implemented" },
-  { id: "till", label: "الكاشير", icon: Store, segment: "", permission: "pos.sell", status: "implemented", path: (storeSlug) => `/merchant/stores/${encodeURIComponent(storeSlug)}/till` },
-  { id: "products", label: "المنتجات", icon: PackageSearch, segment: "products", permission: "catalog.products.view", status: "implemented" },
-  { id: "inventory", label: "المخزون", icon: Boxes, segment: "inventory", permission: "inventory.update", status: "implemented" },
-  { id: "customers", label: "العملاء", icon: UsersRound, segment: "customers", permission: "customers.view", status: "implemented" },
+  {
+    id: "home",
+    label: "الرئيسية",
+    icon: CircleUserRound,
+    segment: "",
+    permission: null,
+    status: "implemented",
+  },
+  {
+    id: "orders",
+    label: "الطلبات",
+    icon: ClipboardList,
+    segment: "orders",
+    permission: "orders.view",
+    status: "implemented",
+  },
+  {
+    id: "till",
+    label: "الكاشير",
+    icon: Store,
+    segment: "",
+    permission: "pos.sell",
+    status: "implemented",
+    path: (storeSlug) => `/merchant/stores/${encodeURIComponent(storeSlug)}/till`,
+  },
+  {
+    id: "products",
+    label: "المنتجات",
+    icon: PackageSearch,
+    segment: "products",
+    permission: "catalog.products.view",
+    status: "implemented",
+  },
+  {
+    id: "inventory",
+    label: "المخزون",
+    icon: Boxes,
+    segment: "inventory",
+    permission: "inventory.update",
+    status: "implemented",
+  },
+  {
+    id: "customers",
+    label: "العملاء",
+    icon: UsersRound,
+    segment: "customers",
+    permission: "customers.view",
+    status: "implemented",
+  },
   // ق-178 (D-84): `store_manager` held catalog.trash.view and catalog.audit.view
   // from the day the codes existed, and had no entry behind either — the
   // merchant reached both, the manager he delegated to could not.
-  { id: "trash", label: "سلة المحذوفات", icon: Trash2, segment: "trash", permission: "catalog.trash.view", status: "implemented" },
-  { id: "activity", label: "سجل النشاط", icon: ScrollText, segment: "activity", permission: "catalog.audit.view", status: "implemented" },
-  { id: "team", label: "فريق المتجر", icon: UsersRound, segment: "team", permission: "team.manage", status: "implemented" },
-  { id: "settings", label: "الإشعارات والإعدادات", icon: Settings2, segment: "settings", permission: "settings.manage", status: "implemented" },
+  {
+    id: "trash",
+    label: "سلة المحذوفات",
+    icon: Trash2,
+    segment: "trash",
+    permission: "catalog.trash.view",
+    status: "implemented",
+  },
+  {
+    id: "activity",
+    label: "سجل النشاط",
+    icon: ScrollText,
+    segment: "activity",
+    permission: "catalog.audit.view",
+    status: "implemented",
+  },
+  {
+    id: "team",
+    label: "فريق المتجر",
+    icon: UsersRound,
+    segment: "team",
+    permission: "team.manage",
+    status: "implemented",
+  },
+  {
+    id: "settings",
+    label: "الإشعارات والإعدادات",
+    icon: Settings2,
+    segment: "settings",
+    permission: "settings.manage",
+    status: "implemented",
+  },
   // Audit 14-ب: the employee's own password and sessions. Every other shell had
   // «الأمان»; the staff shell did not, so the password the merchant typed could
   // never be replaced from inside the dashboard.
-  { id: "security", label: "الأمان", icon: ShieldCheck, segment: "security", permission: null, status: "implemented" },
-  { id: "sessions", label: "الجلسات والأجهزة", icon: MonitorSmartphone, segment: "sessions", permission: null, status: "implemented" },
+  {
+    id: "security",
+    label: "الأمان",
+    icon: ShieldCheck,
+    segment: "security",
+    permission: null,
+    status: "implemented",
+  },
+  {
+    id: "sessions",
+    label: "الجلسات والأجهزة",
+    icon: MonitorSmartphone,
+    segment: "sessions",
+    permission: null,
+    status: "implemented",
+  },
 ];
 
 export function staffDashboardBase(storeSlug: string): string {
@@ -411,12 +712,16 @@ export function staffDashboardBase(storeSlug: string): string {
 
 export function staffEntryPath(storeSlug: string, entry: StaffNavEntry): string {
   if (entry.path) return entry.path(storeSlug);
-  return entry.segment ? `${staffDashboardBase(storeSlug)}/${entry.segment}` : staffDashboardBase(storeSlug);
+  return entry.segment
+    ? `${staffDashboardBase(storeSlug)}/${entry.segment}`
+    : staffDashboardBase(storeSlug);
 }
 
 /** Presentation-only filter: the server already refuses unauthorized requests with 403. */
 export function visibleStaffEntries(permissions: readonly string[]): StaffNavEntry[] {
-  return staffNavEntries.filter((entry) => entry.permission === null || permissions.includes(entry.permission));
+  return staffNavEntries.filter(
+    (entry) => entry.permission === null || permissions.includes(entry.permission)
+  );
 }
 
 // المرحلة 19-ب: the platform-staff nav DATA lives in ./platform-staff-navigation,

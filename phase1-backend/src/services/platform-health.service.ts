@@ -94,10 +94,16 @@ export interface HealthCheck {
 export async function evaluateHealth(now = new Date()): Promise<HealthCheck[]> {
   const [deadLetters, stalled] = await Promise.all([
     prisma.notificationOutbox.count({
-      where: { status: "dead_letter", updatedAt: { gte: new Date(now.valueOf() - DEAD_LETTER_WINDOW_MS) } },
+      where: {
+        status: "dead_letter",
+        updatedAt: { gte: new Date(now.valueOf() - DEAD_LETTER_WINDOW_MS) },
+      },
     }),
     prisma.notificationOutbox.count({
-      where: { status: { in: ["pending", "retry_scheduled"] }, nextAttemptAt: { lt: new Date(now.valueOf() - STALLED_AFTER_MS) } },
+      where: {
+        status: { in: ["pending", "retry_scheduled"] },
+        nextAttemptAt: { lt: new Date(now.valueOf() - STALLED_AFTER_MS) },
+      },
     }),
   ]);
 
@@ -117,7 +123,10 @@ export async function evaluateHealth(now = new Date()): Promise<HealthCheck[]> {
 
 /** Every platform owner who can still sign in. */
 async function alertRecipients(): Promise<string[]> {
-  const owners = await prisma.platformOwner.findMany({ where: { isActive: true }, select: { email: true } });
+  const owners = await prisma.platformOwner.findMany({
+    where: { isActive: true },
+    select: { email: true },
+  });
   return owners.map((owner) => owner.email);
 }
 
@@ -128,7 +137,11 @@ async function alertRecipients(): Promise<string[]> {
  * prescription routes and made two of them look like unpaginated collections.
  * The guard was right to be naive and this name was wrong to be generic.
  */
-async function mailOwners(provider: NotificationProvider, subject: string, body: string): Promise<number> {
+async function mailOwners(
+  provider: NotificationProvider,
+  subject: string,
+  body: string
+): Promise<number> {
   const recipients = await alertRecipients();
   if (!recipients.length) {
     // Not an error: a platform with no active owner has nobody to wake. Said
@@ -138,9 +151,15 @@ async function mailOwners(provider: NotificationProvider, subject: string, body:
   }
   let delivered = 0;
   for (const to of recipients) {
-    const outcome = await provider.sendEmail({ to, subject, body, replyTo: supportReplyTo("account") });
+    const outcome = await provider.sendEmail({
+      to,
+      subject,
+      body,
+      replyTo: supportReplyTo("account"),
+    });
     if (outcome.ok) delivered += 1;
-    else logger.error("health.alert_undelivered", { job: "health-watch", outcome: outcome.outcome });
+    else
+      logger.error("health.alert_undelivered", { job: "health-watch", outcome: outcome.outcome });
   }
   return delivered;
 }
@@ -156,27 +175,48 @@ export interface HealthWatchResult {
  * One pass: evaluate, then reconcile the alert table against reality. Opening
  * and resolving both notify; an unchanged condition says nothing at all.
  */
-export async function runHealthWatch(provider: NotificationProvider | null, now = new Date()): Promise<HealthWatchResult> {
+export async function runHealthWatch(
+  provider: NotificationProvider | null,
+  now = new Date()
+): Promise<HealthWatchResult> {
   const result: HealthWatchResult = { opened: [], resolved: [], stillOpen: [], notified: 0 };
   const checks = await evaluateHealth(now);
-  const open = new Set((await prisma.platformHealthAlert.findMany({ select: { kind: true } })).map((row) => row.kind));
+  const open = new Set(
+    (await prisma.platformHealthAlert.findMany({ select: { kind: true } })).map((row) => row.kind)
+  );
 
   for (const check of checks) {
     if (check.failing && !open.has(check.kind)) {
       // The row is written FIRST. If the mail then fails, the alert is still
       // recorded and will not re-fire every five minutes against a provider
       // that is refusing — the undelivered line in the log is the trail.
-      await prisma.platformHealthAlert.create({ data: { kind: check.kind, openedAt: now, lastNotifiedAt: now, detail: check.detail } });
+      await prisma.platformHealthAlert.create({
+        data: { kind: check.kind, openedAt: now, lastNotifiedAt: now, detail: check.detail },
+      });
       result.opened.push(check.kind);
-      logger.error("health.alert_opened", { job: "health-watch", kind: check.kind, detail: check.detail });
-      if (provider) result.notified += await mailOwners(provider, `تنبيه من Codiq: ${ALERT_TITLES[check.kind]}`, `${check.detail}\n\nهذه رسالة آليّة من مراقب صحّة المنصّة. سيصلك إشعارٌ آخر حين تنتهي الحالة.`);
+      logger.error("health.alert_opened", {
+        job: "health-watch",
+        kind: check.kind,
+        detail: check.detail,
+      });
+      if (provider)
+        result.notified += await mailOwners(
+          provider,
+          `تنبيه من Codiq: ${ALERT_TITLES[check.kind]}`,
+          `${check.detail}\n\nهذه رسالة آليّة من مراقب صحّة المنصّة. سيصلك إشعارٌ آخر حين تنتهي الحالة.`
+        );
     } else if (check.failing) {
       result.stillOpen.push(check.kind);
     } else if (open.has(check.kind)) {
       await prisma.platformHealthAlert.delete({ where: { kind: check.kind } });
       result.resolved.push(check.kind);
       logger.info("health.alert_resolved", { job: "health-watch", kind: check.kind });
-      if (provider) result.notified += await mailOwners(provider, `انتهت: ${ALERT_TITLES[check.kind]}`, `الحالة التي نبّهناك إليها لم تعد قائمة. لا إجراء مطلوب.`);
+      if (provider)
+        result.notified += await mailOwners(
+          provider,
+          `انتهت: ${ALERT_TITLES[check.kind]}`,
+          `الحالة التي نبّهناك إليها لم تعد قائمة. لا إجراء مطلوب.`
+        );
     }
   }
 

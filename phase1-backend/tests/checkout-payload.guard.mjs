@@ -42,7 +42,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const source = readFileSync(fileURLToPath(new URL("../../client/src/lib/storefront-api.ts", import.meta.url)), "utf8");
+const source = readFileSync(
+  fileURLToPath(new URL("../../client/src/lib/storefront-api.ts", import.meta.url)),
+  "utf8"
+);
 
 /** Read a `{ … }` block by brace depth, starting at the `{` at `open`. */
 function block(text, open) {
@@ -61,12 +64,16 @@ function block(text, open) {
 // one line or many, however a formatter wraps it (review batch 1: it was read as one line).
 const lines = source.split(/\r?\n/);
 const first = lines.findIndex((line) => /^\s*checkout:\s*\(/.test(line));
-assert.ok(first >= 0, "the `checkout` member must exist in storefrontApi — if it was renamed, rename it here too");
+assert.ok(
+  first >= 0,
+  "the `checkout` member must exist in storefrontApi — if it was renamed, rename it here too"
+);
 const indent = lines[first].match(/^\s*/)[0].length;
 // The next member is the next KEY at this indentation — not a closing `) =>` that a
 // formatter puts at the same depth.
 const nextMember = lines.findIndex(
-  (line, index) => index > first && line.match(/^\s*/)[0].length <= indent && /^\s*[A-Za-z_$][\w$]*\s*:/.test(line),
+  (line, index) =>
+    index > first && line.match(/^\s*/)[0].length <= indent && /^\s*[A-Za-z_$][\w$]*\s*:/.test(line)
 );
 const member = lines.slice(first, nextMember < 0 ? undefined : nextMember).join("\n");
 
@@ -77,8 +84,14 @@ const declared = block(member, typeStart)
   .map((field) => field.trim().match(/^([A-Za-z_]\w*)\??\s*:/)?.[1])
   .filter(Boolean);
 
-assert.ok(declared.length >= 6, `expected the checkout parameter type to declare several fields, read ${declared.length}`);
-assert.ok(declared.includes("loyaltyPoints"), "the parameter type must still declare loyaltyPoints — it is the field this guard was born for");
+assert.ok(
+  declared.length >= 6,
+  `expected the checkout parameter type to declare several fields, read ${declared.length}`
+);
+assert.ok(
+  declared.includes("loyaltyPoints"),
+  "the parameter type must still declare loyaltyPoints — it is the field this guard was born for"
+);
 
 // ── what the call actually SENDS ─────────────────────────────────────────────
 const bodyStart = member.indexOf("{", member.indexOf("JSON.stringify("));
@@ -96,15 +109,21 @@ assert.deepEqual(
   [],
   `checkout declares ${missing.join(", ")} and never sends ${missing.length === 1 ? "it" : "them"}. ` +
     `A field in the parameter type that is absent from JSON.stringify is invisible to TypeScript and to every ` +
-    `server test that posts its own body — the customer sees the effect on screen and the order is written without it.`,
+    `server test that posts its own body — the customer sees the effect on screen and the order is written without it.`
 );
 
-console.log(JSON.stringify({
-  suite: "checkout-payload",
-  status: "passed",
-  summary: {
-    declared: declared.length,
-    fields: declared,
-    guarantee: "every field the checkout call accepts is present in the serialised body",
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "checkout-payload",
+      status: "passed",
+      summary: {
+        declared: declared.length,
+        fields: declared,
+        guarantee: "every field the checkout call accepts is present in the serialised body",
+      },
+    },
+    null,
+    2
+  )
+);

@@ -34,7 +34,11 @@ type Lot = { points: number; pointValueIqd: number };
  * halts at a lot the order can no longer afford instead of skipping to a cheaper
  * one, so his oldest points are never stranded behind a single expensive one.
  */
-function quote(lots: readonly Lot[], points: number, payableForGoodsIqd: number): { points: number; discountIqd: number } {
+function quote(
+  lots: readonly Lot[],
+  points: number,
+  payableForGoodsIqd: number
+): { points: number; discountIqd: number } {
   let payableLeft = Math.max(0, payableForGoodsIqd);
   let taken = 0;
   let discountIqd = 0;
@@ -50,24 +54,50 @@ function quote(lots: readonly Lot[], points: number, payableForGoodsIqd: number)
   return { points: taken, discountIqd };
 }
 
-export function LoyaltyRedeem({ slug, payableForGoodsIqd, onChange, onDiscount }: { slug: string; payableForGoodsIqd: number; onChange: (points: number) => void; onDiscount: (discountIqd: number) => void }) {
-  const [state, setState] = useState<{ balance: number; balanceValueIqd: number; lots: Lot[] } | null>(null);
+export function LoyaltyRedeem({
+  slug,
+  payableForGoodsIqd,
+  onChange,
+  onDiscount,
+}: {
+  slug: string;
+  payableForGoodsIqd: number;
+  onChange: (points: number) => void;
+  onDiscount: (discountIqd: number) => void;
+}) {
+  const [state, setState] = useState<{
+    balance: number;
+    balanceValueIqd: number;
+    lots: Lot[];
+  } | null>(null);
   const [points, setPoints] = useState(0);
 
   useEffect(() => {
     let alive = true;
-    void storefrontApi.loyalty(slug)
-      .then((data) => { if (!alive || !data.enabled || data.balance <= 0) return; setState({ balance: data.balance, balanceValueIqd: data.balanceValueIqd, lots: data.lots }); })
+    void storefrontApi
+      .loyalty(slug)
+      .then((data) => {
+        if (!alive || !data.enabled || data.balance <= 0) return;
+        setState({ balance: data.balance, balanceValueIqd: data.balanceValueIqd, lots: data.lots });
+      })
       // A points panel that fails to load must never block a checkout.
-      .catch(() => { /* stays hidden */ });
-    return () => { alive = false; };
+      .catch(() => {
+        /* stays hidden */
+      });
+    return () => {
+      alive = false;
+    };
   }, [slug]);
 
   // The cap moves as the cart and the coupon move, so the quote is recomputed
   // from the same inputs the server will see rather than remembered from the
   // moment he typed.
-  const applied = state ? quote(state.lots, points, payableForGoodsIqd) : { points: 0, discountIqd: 0 };
-  useEffect(() => { onDiscount(applied.discountIqd); }, [applied.discountIqd, onDiscount]);
+  const applied = state
+    ? quote(state.lots, points, payableForGoodsIqd)
+    : { points: 0, discountIqd: 0 };
+  useEffect(() => {
+    onDiscount(applied.discountIqd);
+  }, [applied.discountIqd, onDiscount]);
 
   if (!state) return null;
 
@@ -99,7 +129,11 @@ export function LoyaltyRedeem({ slug, payableForGoodsIqd, onChange, onDiscount }
           aria-label={`النقاط المصروفة، بحد أقصى ${state.balance}`}
         />
         <span>نقطة</span>
-        <button type="button" onClick={() => apply(state.balance)} className="rounded-xl px-2 py-1 text-[12px] font-bold text-[var(--storefront-accent)] hover:underline">
+        <button
+          type="button"
+          onClick={() => apply(state.balance)}
+          className="rounded-xl px-2 py-1 text-[12px] font-bold text-[var(--storefront-accent)] hover:underline"
+        >
           اصرفها كلها
         </button>
       </label>
@@ -107,7 +141,10 @@ export function LoyaltyRedeem({ slug, payableForGoodsIqd, onChange, onDiscount }
         <p className="mt-1.5 text-[13px] font-bold text-[var(--codiq-success)]">
           خصم {money.format(applied.discountIqd)} دينار على قيمة المنتجات
           {/* Said plainly, because it is the question every shopper asks next. */}
-          <span className="font-normal text-[var(--storefront-muted)]"> — أجور التوصيل تُدفع نقداً كالمعتاد</span>
+          <span className="font-normal text-[var(--storefront-muted)]">
+            {" "}
+            — أجور التوصيل تُدفع نقداً كالمعتاد
+          </span>
         </p>
       ) : null}
       {points > applied.points ? (

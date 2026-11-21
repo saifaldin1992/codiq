@@ -28,7 +28,7 @@ export function RoadmapPanel({ entries }: { entries: readonly NavEntry[] }) {
     else byPhase.set(phase, [entry]);
   }
   const phases = Array.from(byPhase.keys()).sort((a, b) =>
-    a.localeCompare(b, "ar", { numeric: true, sensitivity: "base" }),
+    a.localeCompare(b, "ar", { numeric: true, sensitivity: "base" })
   );
 
   return (
@@ -60,7 +60,9 @@ export function RoadmapPanel({ entries }: { entries: readonly NavEntry[] }) {
                     key={entry.path}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--codiq-border)] px-4 py-3"
                   >
-                    <span className="text-sm font-semibold text-[var(--codiq-text)]">{entry.label}</span>
+                    <span className="text-sm font-semibold text-[var(--codiq-text)]">
+                      {entry.label}
+                    </span>
                     <span className="text-xs font-medium text-[var(--codiq-text-muted)]">
                       {comingSoonLabel(entry.status) ?? ""}
                     </span>

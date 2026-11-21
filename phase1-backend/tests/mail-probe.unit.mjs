@@ -30,7 +30,10 @@ const source = readFileSync(scriptPath, "utf8");
 // ============================================================
 // The outbox answers «did the merchant get his email?». Seeding it with an
 // operator's probe corrupts the only table that question has.
-assert.ok(!/notification_outbox|notificationOutbox|prisma\./.test(source), "the probe must not touch the database at all — the outbox is the record of what the PLATFORM sent");
+assert.ok(
+  !/notification_outbox|notificationOutbox|prisma\./.test(source),
+  "the probe must not touch the database at all — the outbox is the record of what the PLATFORM sent"
+);
 summary.writesNothing = "no database access in the probe at all";
 
 // ============================================================
@@ -39,8 +42,15 @@ summary.writesNothing = "no database access in the probe at all";
 // Stronger than masking: `describeSettings` reports pass as "set"/"absent" and
 // never loads the value, so a later edit cannot accidentally interpolate it.
 const passReads = source.match(/CODIQ_SMTP_PASS/g) ?? [];
-assert.equal(passReads.length, 1, "CODIQ_SMTP_PASS may be referenced exactly once — to report presence, never to print a value");
-assert.ok(/CODIQ_SMTP_PASS \? "set" : "absent"/.test(source), "…and that one reference must collapse it to set/absent");
+assert.equal(
+  passReads.length,
+  1,
+  "CODIQ_SMTP_PASS may be referenced exactly once — to report presence, never to print a value"
+);
+assert.ok(
+  /CODIQ_SMTP_PASS \? "set" : "absent"/.test(source),
+  "…and that one reference must collapse it to set/absent"
+);
 assert.ok(!/settings\.pass/.test(source), "the resolved password field is never read by the probe");
 summary.noSecretInOutput = "the password is collapsed to set/absent and its value is never loaded";
 
@@ -50,7 +60,11 @@ summary.noSecretInOutput = "the password is collapsed to set/absent and its valu
 // The default must be safe to run against production: it proves the credential
 // without putting a test message in a real inbox.
 assert.ok(/verifyTransport\(\)/.test(source), "the default path verifies the transport");
-assert.ok(/const to = flag\("to"\)/.test(source) && source.indexOf("verifyTransport()") < source.indexOf('flag("to")'), "…and it verifies BEFORE it considers sending, so a bad credential is reported without an attempted delivery");
+assert.ok(
+  /const to = flag\("to"\)/.test(source) &&
+    source.indexOf("verifyTransport()") < source.indexOf('flag("to")'),
+  "…and it verifies BEFORE it considers sending, so a bad credential is reported without an attempted delivery"
+);
 summary.twoChecks = "verify by default; a real send only when --to names a recipient";
 
 // ============================================================
@@ -71,7 +85,11 @@ try {
   exitCode = error.status ?? 1;
   output = `${error.stdout ?? ""}${error.stderr ?? ""}`;
 }
-assert.equal(exitCode, 1, "an unconfigured channel is a FAILED probe — exiting 0 would be the exact lie this file exists to prevent");
+assert.equal(
+  exitCode,
+  1,
+  "an unconfigured channel is a FAILED probe — exiting 0 would be the exact lie this file exists to prevent"
+);
 assert.match(output, /not_configured/, "…and it names the reason");
 summary.honestWhenAbsent = "with no SMTP settings the probe exits 1 and says not_configured";
 
@@ -104,7 +122,14 @@ summary.importable = "importing the probe runs nothing";
 // carry the fix, through an INJECTED resolver — no DNS, no network, and the
 // assertion cannot pass by accident on a machine whose DNS happens to behave.
 const { SmtpEmailProvider } = await import("../src/notifications/notification-provider.ts");
-const settings = { host: "smtp.example.invalid", port: 465, secure: true, from: "CODIQ <x@example.invalid>", user: "x", pass: "y" };
+const settings = {
+  host: "smtp.example.invalid",
+  port: 465,
+  secure: true,
+  from: "CODIQ <x@example.invalid>",
+  user: "x",
+  pass: "y",
+};
 
 const asked = [];
 const fakeLookup = async (host, family) => {
@@ -113,9 +138,21 @@ const fakeLookup = async (host, family) => {
 };
 
 const ipv4 = await new SmtpEmailProvider(settings, fakeLookup).transport();
-assert.deepEqual(asked, [{ host: "smtp.example.invalid", family: 4 }], "it resolves the configured host, asking for IPv4");
-assert.equal(ipv4.options.host, "142.251.127.109", "the transport connects to a LITERAL address — nodemailer's own resolver short-circuits on net.isIP and cannot then pick an unreachable family at random");
-assert.equal(ipv4.options.tls?.servername, "smtp.example.invalid", "…and the hostname is restored for TLS, or the certificate is validated against a number and every connection fails to verify");
+assert.deepEqual(
+  asked,
+  [{ host: "smtp.example.invalid", family: 4 }],
+  "it resolves the configured host, asking for IPv4"
+);
+assert.equal(
+  ipv4.options.host,
+  "142.251.127.109",
+  "the transport connects to a LITERAL address — nodemailer's own resolver short-circuits on net.isIP and cannot then pick an unreachable family at random"
+);
+assert.equal(
+  ipv4.options.tls?.servername,
+  "smtp.example.invalid",
+  "…and the hostname is restored for TLS, or the certificate is validated against a number and every connection fails to verify"
+);
 assert.equal(ipv4.options.port, 465);
 assert.equal(ipv4.options.secure, true);
 assert.equal(ipv4.options.auth?.user, "x", "authentication survives the rewrite");
@@ -124,7 +161,11 @@ assert.equal(ipv4.options.auth?.user, "x", "authentication survives the rewrite"
 process.env.CODIQ_SMTP_FAMILY = "6";
 try {
   const ipv6 = await new SmtpEmailProvider(settings, fakeLookup).transport();
-  assert.equal(ipv6.options.host, "2a00:1450:4001:c21::6c", "CODIQ_SMTP_FAMILY=6 selects the other family");
+  assert.equal(
+    ipv6.options.host,
+    "2a00:1450:4001:c21::6c",
+    "CODIQ_SMTP_FAMILY=6 selects the other family"
+  );
   assert.equal(ipv6.options.tls?.servername, "smtp.example.invalid");
 } finally {
   delete process.env.CODIQ_SMTP_FAMILY;
@@ -132,9 +173,16 @@ try {
 
 // A DNS hiccup must not be the thing that makes password recovery impossible:
 // it falls back to the hostname, which is exactly today's behaviour.
-const failing = await new SmtpEmailProvider(settings, async () => { throw new Error("EAI_AGAIN"); }).transport();
-assert.equal(failing.options.host, "smtp.example.invalid", "a failed lookup falls back to the hostname rather than refusing to build a transport");
+const failing = await new SmtpEmailProvider(settings, async () => {
+  throw new Error("EAI_AGAIN");
+}).transport();
+assert.equal(
+  failing.options.host,
+  "smtp.example.invalid",
+  "a failed lookup falls back to the hostname rather than refusing to build a transport"
+);
 
-summary.addressSelection = "connects to a resolved literal (IPv4 by default), keeps tls.servername for certificate validation, and falls back to the hostname when resolution fails";
+summary.addressSelection =
+  "connects to a resolved literal (IPv4 by default), keeps tls.servername for certificate validation, and falls back to the hostname when resolution fails";
 
 console.log(JSON.stringify({ suite: "mail-probe", status: "passed", summary }, null, 2));

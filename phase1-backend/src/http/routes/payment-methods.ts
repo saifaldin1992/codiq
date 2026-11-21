@@ -11,15 +11,26 @@ import { updatePaymentMethodSchema } from "../schemas/payment-methods.schema.js"
 import { listPaymentMethods, updatePaymentMethod } from "../../services/payment-methods.service.js";
 
 export function registerPaymentMethodRoutes(app: ExpressApp) {
-  app.get("/merchant/stores/:storeSlug/payment-methods", asyncRoute(async (request, response) => {
-    const { store } = await requireStoreActor(request, "settings.manage");
-    response.status(200).json({ storeSlug: store.slug, ...(await listPaymentMethods(store.id)) });
-  }));
+  app.get(
+    "/merchant/stores/:storeSlug/payment-methods",
+    asyncRoute(async (request, response) => {
+      const { store } = await requireStoreActor(request, "settings.manage");
+      response.status(200).json({ storeSlug: store.slug, ...(await listPaymentMethods(store.id)) });
+    })
+  );
 
-  app.put("/merchant/stores/:storeSlug/payment-methods/:code", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const { store } = await requireStoreActor(request, "settings.manage");
-    const body = parseOrThrow(updatePaymentMethodSchema, request.body ?? {});
-    response.status(200).json({ storeSlug: store.slug, ...(await updatePaymentMethod(store.id, request.params.code, body)) });
-  }));
+  app.put(
+    "/merchant/stores/:storeSlug/payment-methods/:code",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const { store } = await requireStoreActor(request, "settings.manage");
+      const body = parseOrThrow(updatePaymentMethodSchema, request.body ?? {});
+      response
+        .status(200)
+        .json({
+          storeSlug: store.slug,
+          ...(await updatePaymentMethod(store.id, request.params.code, body)),
+        });
+    })
+  );
 }

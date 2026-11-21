@@ -62,7 +62,10 @@ export interface JobScheduler {
   tickNow: () => Promise<void>;
 }
 
-export function startJobScheduler(jobs: readonly ScheduledJob[], tickMs = JOB_TICK_MS): JobScheduler {
+export function startJobScheduler(
+  jobs: readonly ScheduledJob[],
+  tickMs = JOB_TICK_MS
+): JobScheduler {
   // `null` rather than 0: a job has never run, so its first tick is its turn.
   // Seeding with `Date.now()` instead would silently skip the first pass of
   // every job after each deploy — invisible, and exactly the kind of thing that
@@ -110,7 +113,9 @@ export function startJobScheduler(jobs: readonly ScheduledJob[], tickMs = JOB_TI
     }
   }
 
-  const timer = setInterval(() => { void tick(); }, tickMs);
+  const timer = setInterval(() => {
+    void tick();
+  }, tickMs);
   // The interval alone would leave every job idle for a full tick after a
   // deploy. A restart should not be a half-hour of nothing happening — and the
   // database is awake at boot anyway, so this burst is free.

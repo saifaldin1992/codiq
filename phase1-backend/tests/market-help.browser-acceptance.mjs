@@ -30,22 +30,44 @@ const { transitionOrderStatus } = await import("../src/services/order-lifecycle.
 const codes = [];
 const web = spawn("node", ["dist/index.js"], {
   cwd: process.cwd(),
-  env: { ...process.env, NODE_ENV: "production", PORT: String(port), DATABASE_URL: dbUrl, CODIQ_POSTGRES_URL: dbUrl, CODIQ_PUBLIC_BASE_URL: base, CODIQ_NOTIFICATIONS_WORKER: "off", CODIQ_OTP_PROVIDER: "insecure-log", CODIQ_ALLOW_OWNER_REGISTRATION: "true" },
+  env: {
+    ...process.env,
+    NODE_ENV: "production",
+    PORT: String(port),
+    DATABASE_URL: dbUrl,
+    CODIQ_POSTGRES_URL: dbUrl,
+    CODIQ_PUBLIC_BASE_URL: base,
+    CODIQ_NOTIFICATIONS_WORKER: "off",
+    CODIQ_OTP_PROVIDER: "insecure-log",
+    CODIQ_ALLOW_OWNER_REGISTRATION: "true",
+  },
   stdio: ["ignore", "pipe", "inherit"],
 });
 web.stdout.on("data", (chunk) => {
   for (const line of String(chunk).split("\n")) {
     if (!line.includes("otp.code_logged_not_sent")) continue;
-    try { codes.push(JSON.parse(line).ctx.code); } catch { /* not JSON */ }
+    try {
+      codes.push(JSON.parse(line).ctx.code);
+    } catch {
+      /* not JSON */
+    }
   }
 });
 async function nextCode() {
-  for (let attempt = 0; attempt < 50; attempt += 1) { if (codes.length) return codes.pop(); await new Promise((resolve) => setTimeout(resolve, 100)); }
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    if (codes.length) return codes.pop();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
   throw new Error("no code logged");
 }
 async function waitFor(url) {
   for (let attempt = 0; attempt < 150; attempt += 1) {
-    try { const response = await fetch(url); if (response.status < 500) return; } catch { /* not up yet */ }
+    try {
+      const response = await fetch(url);
+      if (response.status < 500) return;
+    } catch {
+      /* not up yet */
+    }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`Timed out waiting for ${url}`);
@@ -60,23 +82,60 @@ try {
   await prisma.marketAppFeedback.deleteMany({});
   const ownerEmail = `${runId}.owner@codiq.test`;
   const ownerPassword = "OwnerPass123!Strong";
-  const registerOwner = await fetch(`${base}/api/auth/platform/register`, { method: "POST", headers: { "content-type": "application/json", origin: base }, body: JSON.stringify({ email: ownerEmail, password: ownerPassword, displayName: "مالك" }) });
-  assert.ok([200, 201].includes(registerOwner.status), `owner registration ${registerOwner.status}`);
-  const registered = await registerMerchantDirect({ ownerName: "تاجر", businessName: "متجر", phone: `+96475${digits}2`.slice(0, 14), email: `${runId}@codiq.test`, password: "MarketHelpUi!2026" });
+  const registerOwner = await fetch(`${base}/api/auth/platform/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: base },
+    body: JSON.stringify({ email: ownerEmail, password: ownerPassword, displayName: "مالك" }),
+  });
+  assert.ok(
+    [200, 201].includes(registerOwner.status),
+    `owner registration ${registerOwner.status}`
+  );
+  const registered = await registerMerchantDirect({
+    ownerName: "تاجر",
+    businessName: "متجر",
+    phone: `+96475${digits}2`.slice(0, 14),
+    email: `${runId}@codiq.test`,
+    password: "MarketHelpUi!2026",
+  });
   assert.equal(registered.status, 201, JSON.stringify(registered.payload));
   const merchantId = registered.payload.account.id;
-  const store = await prisma.store.create({ data: { merchantId, name: `عطور ${runId}`, slug: `${runId}-a`, defaultSubdomain: `${runId}-a`, marketStatus: "listed", marketStatusAt: new Date(), marketListedAt: new Date() } });
+  const store = await prisma.store.create({
+    data: {
+      merchantId,
+      name: `عطور ${runId}`,
+      slug: `${runId}-a`,
+      defaultSubdomain: `${runId}-a`,
+      marketStatus: "listed",
+      marketStatusAt: new Date(),
+      marketListedAt: new Date(),
+    },
+  });
   storeIds.push(store.id);
-  await prisma.deliveryRate.create({ data: { storeId: store.id, governorate: "Baghdad", amountIqd: 3000, isEnabled: true } });
-  const perfume = await prisma.product.create({ data: { storeId: store.id, sku: `${runId}-1`, name: `عطر ${runId}`, priceIqd: 25000, stockQuantity: 10 } });
+  await prisma.deliveryRate.create({
+    data: { storeId: store.id, governorate: "Baghdad", amountIqd: 3000, isEnabled: true },
+  });
+  const perfume = await prisma.product.create({
+    data: {
+      storeId: store.id,
+      sku: `${runId}-1`,
+      name: `عطر ${runId}`,
+      priceIqd: 25000,
+      stockQuantity: 10,
+    },
+  });
 
-  browser = await chromium.launch(process.env.CODIQ_CHROMIUM_PATH ? { executablePath: process.env.CODIQ_CHROMIUM_PATH } : {});
+  browser = await chromium.launch(
+    process.env.CODIQ_CHROMIUM_PATH ? { executablePath: process.env.CODIQ_CHROMIUM_PATH } : {}
+  );
   const page = await (await browser.newContext({ ...devices["iPhone 13"] })).newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(String(error)));
 
   // ── owner: an answer, the hours ─────────────────────────────────────────────
-  const owner = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+  const owner = await (
+    await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  ).newPage();
   owner.on("pageerror", (error) => errors.push(`owner: ${error}`));
   await owner.goto(`${base}/platform/login`);
   await owner.locator('input[name="email"]').fill(ownerEmail);
@@ -92,7 +151,11 @@ try {
   await owner.getByTestId("market-support-notice").waitFor();
   await owner.getByTestId("market-support-hours").fill("يوميّاً من ٩ إلى ٩");
   await owner.getByTestId("market-support-contacts-save").click();
-  await owner.waitForFunction(() => /بيانات التواصل/.test(document.querySelector('[data-testid="market-support-notice"]')?.textContent ?? ""));
+  await owner.waitForFunction(() =>
+    /بيانات التواصل/.test(
+      document.querySelector('[data-testid="market-support-notice"]')?.textContent ?? ""
+    )
+  );
   summary.ownerHelp = true;
 
   // ── shopper: sign in ────────────────────────────────────────────────────────
@@ -101,20 +164,48 @@ try {
   await page.getByTestId("market-sign-in-send").click();
   await page.getByTestId("market-sign-in-code").fill(await nextCode());
   await page.getByTestId("market-account-name").waitFor();
-  const shopper = await prisma.shopper.findUniqueOrThrow({ where: { phoneNormalized: `+964${phone.slice(1)}` } });
-  const karrada = await prisma.district.findFirstOrThrow({ where: { governorateKey: "Baghdad", nameAr: "الكرادة" } });
-  const address = await prisma.shopperAddress.create({ data: { shopperId: shopper.id, label: "البيت", recipientName: "سارة", phoneNormalized: shopper.phoneNormalized, phoneVerifiedAt: new Date(), governorateKey: "Baghdad", districtId: karrada.id, addressLine: "شارع ٦٢", isDefault: true } });
+  const shopper = await prisma.shopper.findUniqueOrThrow({
+    where: { phoneNormalized: `+964${phone.slice(1)}` },
+  });
+  const karrada = await prisma.district.findFirstOrThrow({
+    where: { governorateKey: "Baghdad", nameAr: "الكرادة" },
+  });
+  const address = await prisma.shopperAddress.create({
+    data: {
+      shopperId: shopper.id,
+      label: "البيت",
+      recipientName: "سارة",
+      phoneNormalized: shopper.phoneNormalized,
+      phoneVerifiedAt: new Date(),
+      governorateKey: "Baghdad",
+      districtId: karrada.id,
+      addressLine: "شارع ٦٢",
+      isDefault: true,
+    },
+  });
 
   // ── favourites ──────────────────────────────────────────────────────────────
   await page.goto(`${base}/market/p/${perfume.id}`);
   await page.getByTestId(`market-favourite-${perfume.id}`).click();
-  await page.waitForFunction((id) => document.querySelector(`[data-testid="market-favourite-${id}"]`)?.getAttribute("aria-pressed") === "true", perfume.id);
+  await page.waitForFunction(
+    (id) =>
+      document
+        .querySelector(`[data-testid="market-favourite-${id}"]`)
+        ?.getAttribute("aria-pressed") === "true",
+    perfume.id
+  );
   await page.goto(`${base}/market/s/${store.slug}`);
   await page.getByTestId("market-store-follow").click();
-  await page.waitForFunction(() => /تتابعه/.test(document.querySelector('[data-testid="market-store-follow"]')?.textContent ?? ""));
+  await page.waitForFunction(() =>
+    /تتابعه/.test(document.querySelector('[data-testid="market-store-follow"]')?.textContent ?? "")
+  );
   await page.goto(`${base}/market/favourites`);
   await page.getByTestId(`market-product-card-${perfume.id}`).waitFor();
-  assert.equal(await page.getByTestId(`market-favourite-${perfume.id}`).getAttribute("aria-pressed"), "true", "the heart is filled in the list too");
+  assert.equal(
+    await page.getByTestId(`market-favourite-${perfume.id}`).getAttribute("aria-pressed"),
+    "true",
+    "the heart is filled in the list too"
+  );
   await page.getByTestId("market-favourites-tab-stores").click();
   await page.getByText(store.name).first().waitFor();
   await page.goto(`${base}/market`);
@@ -122,14 +213,33 @@ try {
   summary.favourites = true;
 
   // ── the bell ────────────────────────────────────────────────────────────────
-  const orderId = await page.evaluate(async ({ productId, slug, addressId, key }) => {
-    await fetch("/api/market/cart/items", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ productId, quantity: 1 }) });
-    const response = await fetch(`/api/market/checkout/${slug}`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": key }, body: JSON.stringify({ addressId }) });
-    return (await response.json()).order.id;
-  }, { productId: perfume.id, slug: store.slug, addressId: address.id, key: `${runId}-order-1-idempotency` });
+  const orderId = await page.evaluate(
+    async ({ productId, slug, addressId, key }) => {
+      await fetch("/api/market/cart/items", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ productId, quantity: 1 }),
+      });
+      const response = await fetch(`/api/market/checkout/${slug}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": key },
+        body: JSON.stringify({ addressId }),
+      });
+      return (await response.json()).order.id;
+    },
+    {
+      productId: perfume.id,
+      slug: store.slug,
+      addressId: address.id,
+      key: `${runId}-order-1-idempotency`,
+    }
+  );
   for (const toStatus of ["processing", "preparation"]) {
     const { version } = await prisma.storeOrder.findUniqueOrThrow({ where: { id: orderId } });
-    await transitionOrderStatus(store.id, { kind: "merchant", id: merchantId }, orderId, { toStatus, expectedVersion: version });
+    await transitionOrderStatus(store.id, { kind: "merchant", id: merchantId }, orderId, {
+      toStatus,
+      expectedVersion: version,
+    });
   }
   await page.goto(`${base}/market`);
   await page.getByTestId("market-bell-badge").waitFor();
@@ -140,7 +250,11 @@ try {
   await page.locator('[data-testid^="market-notification-"]').first().click();
   await page.waitForURL((url) => url.pathname === `/market/orders/${orderId}`);
   await page.getByTestId("market-bell-badge").waitFor();
-  assert.match(await page.getByTestId("market-bell-badge").innerText(), /١|1/, "opening one reads it");
+  assert.match(
+    await page.getByTestId("market-bell-badge").innerText(),
+    /١|1/,
+    "opening one reads it"
+  );
   await page.goto(`${base}/market/notifications`);
   await page.getByTestId("market-notifications-read-all").click();
   await page.waitForFunction(() => !document.querySelector('[data-testid="market-bell-badge"]'));
@@ -149,14 +263,22 @@ try {
   // ── help, contact, feedback ─────────────────────────────────────────────────
   await page.goto(`${base}/market/help`);
   await page.getByTestId("market-help-quick").waitFor();
-  assert.match(await page.getByTestId("market-help-contact").innerText(), /يوميّاً من ٩ إلى ٩/, "the hours the owner set");
+  assert.match(
+    await page.getByTestId("market-help-contact").innerText(),
+    /يوميّاً من ٩ إلى ٩/,
+    "the hours the owner set"
+  );
   await page.getByTestId("market-help-search").fill(`طلب ${runId}`);
   await page.getByTestId("market-help-search").press("Enter");
   await page.getByTestId("market-help-results").getByText(`متى يصل طلب ${runId}؟`).click();
   await page.getByText("خلال يومين في بغداد.").waitFor();
   await page.goto(`${base}/market/help/contact`);
   await page.getByTestId("market-contact-kind-suggestion").click();
-  assert.equal(await page.getByTestId("market-contact-phone").inputValue(), `${phone.slice(0, 4)} ${phone.slice(4, 7)} ${phone.slice(7)}`, "his number filled in");
+  assert.equal(
+    await page.getByTestId("market-contact-phone").inputValue(),
+    `${phone.slice(0, 4)} ${phone.slice(4, 7)} ${phone.slice(7)}`,
+    "his number filled in"
+  );
   await page.getByTestId("market-contact-name").fill("سارة");
   await page.getByTestId("market-contact-body").fill(`اقتراح ${runId}: أضيفوا فلتر اللون.`);
   await page.getByTestId("market-contact-submit").click();
@@ -170,10 +292,18 @@ try {
 
   // ── owner: the message, the rating ──────────────────────────────────────────
   await owner.getByTestId("market-support-tab-messages").click();
-  const message = await prisma.marketContactMessage.findFirstOrThrow({ where: { body: { contains: runId } } });
+  const message = await prisma.marketContactMessage.findFirstOrThrow({
+    where: { body: { contains: runId } },
+  });
   await owner.getByTestId(`market-support-handle-${message.id}`).click();
-  await owner.waitForFunction((id) => !document.querySelector(`[data-testid="market-support-message-${id}"]`), message.id);
-  assert.equal((await prisma.marketContactMessage.findUniqueOrThrow({ where: { id: message.id } })).status, "handled");
+  await owner.waitForFunction(
+    (id) => !document.querySelector(`[data-testid="market-support-message-${id}"]`),
+    message.id
+  );
+  assert.equal(
+    (await prisma.marketContactMessage.findUniqueOrThrow({ where: { id: message.id } })).status,
+    "handled"
+  );
   await owner.getByTestId("market-support-tab-feedback").click();
   await owner.getByTestId("market-support-feedback").getByText("تنوّع المتاجر والمنتجات").waitFor();
   summary.ownerQueue = true;
@@ -181,8 +311,15 @@ try {
   assert.deepEqual(errors, [], "no script errors");
   console.log(JSON.stringify({ suite: "market-help-browser", status: "passed", summary }, null, 2));
 } finally {
-  await prisma.store.updateMany({ where: { id: { in: storeIds } }, data: { marketStatus: "unlisted", marketStatusAt: new Date() } }).catch(() => undefined);
-  await prisma.storefrontRateLimit.deleteMany({ where: { scope: "market_contact_ip" } }).catch(() => undefined);
+  await prisma.store
+    .updateMany({
+      where: { id: { in: storeIds } },
+      data: { marketStatus: "unlisted", marketStatusAt: new Date() },
+    })
+    .catch(() => undefined);
+  await prisma.storefrontRateLimit
+    .deleteMany({ where: { scope: "market_contact_ip" } })
+    .catch(() => undefined);
   await browser?.close();
   await killTree(web);
   await prisma.$disconnect();

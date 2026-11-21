@@ -43,10 +43,14 @@ const EDGE_CLIENT_IP_HEADER: Record<string, string> = {
  * change under a running process, and re-reading `process.env` per request in a
  * hot path is how a deployment ends up half-behind-an-edge.
  */
-const trustedEdgeHeader = EDGE_CLIENT_IP_HEADER[(process.env.CODIQ_TRUSTED_EDGE ?? "").trim().toLowerCase()] ?? null;
+const trustedEdgeHeader =
+  EDGE_CLIENT_IP_HEADER[(process.env.CODIQ_TRUSTED_EDGE ?? "").trim().toLowerCase()] ?? null;
 
 /** Exported for the suite, which must be able to prove both states. */
-export function clientIpFrom(request: Request, edgeHeader: string | null = trustedEdgeHeader): string {
+export function clientIpFrom(
+  request: Request,
+  edgeHeader: string | null = trustedEdgeHeader
+): string {
   if (edgeHeader) {
     const claimed = request.header(edgeHeader);
     // A single address, never a list: `X-Forwarded-For`-style chains are exactly

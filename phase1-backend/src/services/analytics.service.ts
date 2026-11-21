@@ -28,9 +28,11 @@ export const NON_CONSUMING_STATUSES = ["cancelled", "rejected"] as const;
 
 function parseDate(value: unknown, field: string): Date | undefined {
   if (value === undefined || value === null || value === "") return undefined;
-  if (typeof value !== "string") throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
+  if (typeof value !== "string")
+    throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
+  if (Number.isNaN(parsed.valueOf()))
+    throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
   return parsed;
 }
 
@@ -63,7 +65,12 @@ export async function analyticsSummary(storeId: string, query: Record<string, un
       by: ["entryType"],
       where: { storeId, createdAt: range },
       _count: { _all: true },
-      _sum: { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true },
+      _sum: {
+        subtotalIqd: true,
+        deliveryFeeIqd: true,
+        loyaltyDiscountIqd: true,
+        commissionIqd: true,
+      },
     }),
     // Platform-carried orders only. POS sales are counted in their OWN block
     // below — mixing them here would inflate the storefront funnel with sales
@@ -93,10 +100,18 @@ export async function analyticsSummary(storeId: string, query: Record<string, un
     }),
   ]);
   // The totalsFromGroups signed pattern (finance.service.ts): completed adds, everything else subtracts.
-  const totals = { completedOrders: 0, reversedOrders: 0, subtotalIqd: 0, deliveryFeeIqd: 0, loyaltyDiscountIqd: 0, commissionIqd: 0 };
+  const totals = {
+    completedOrders: 0,
+    reversedOrders: 0,
+    subtotalIqd: 0,
+    deliveryFeeIqd: 0,
+    loyaltyDiscountIqd: 0,
+    commissionIqd: 0,
+  };
   for (const group of groups) {
     const sign = group.entryType === "order_completed" ? 1 : -1;
-    if (sign === 1) totals.completedOrders += group._count._all; else totals.reversedOrders += group._count._all;
+    if (sign === 1) totals.completedOrders += group._count._all;
+    else totals.reversedOrders += group._count._all;
     totals.subtotalIqd += sign * (group._sum.subtotalIqd ?? 0);
     totals.deliveryFeeIqd += sign * (group._sum.deliveryFeeIqd ?? 0);
     totals.loyaltyDiscountIqd += sign * (group._sum.loyaltyDiscountIqd ?? 0);
@@ -147,7 +162,9 @@ export async function salesSeries(storeId: string, query: Record<string, unknown
   const interval = parseInterval(query.interval);
   // `interval` is validated against the closed SERIES_INTERVALS allowlist above
   // and still travels as a bound parameter, never interpolated SQL.
-  const rows = await prisma.$queryRaw<Array<{ bucket: Date; orders_count: number; total_iqd: number }>>(Prisma.sql`
+  const rows = await prisma.$queryRaw<
+    Array<{ bucket: Date; orders_count: number; total_iqd: number }>
+  >(Prisma.sql`
     SELECT date_trunc(${interval}, created_at) AS bucket,
            COUNT(*)::int AS orders_count,
            COALESCE(SUM(total_iqd), 0)::int AS total_iqd
@@ -164,7 +181,11 @@ export async function salesSeries(storeId: string, query: Record<string, unknown
   return {
     period: { from, to },
     interval,
-    series: rows.map((row) => ({ bucketStart: row.bucket, ordersCount: row.orders_count, totalIqd: row.total_iqd })),
+    series: rows.map((row) => ({
+      bucketStart: row.bucket,
+      ordersCount: row.orders_count,
+      totalIqd: row.total_iqd,
+    })),
   };
 }
 
@@ -175,10 +196,25 @@ export async function salesSeries(storeId: string, query: Record<string, unknown
  */
 export async function topProducts(storeId: string, query: Record<string, unknown>) {
   const { from, to } = parseRange(query);
-  const by = query.by === undefined || query.by === "" || query.by === "revenue" ? "revenue" : query.by === "units" ? "units" : null;
+  const by =
+    query.by === undefined || query.by === "" || query.by === "revenue"
+      ? "revenue"
+      : query.by === "units"
+        ? "units"
+        : null;
   if (!by) throw new HttpError(422, "INVALID_TOP_PRODUCTS_SORT", "by must be revenue or units.");
   const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50);
-  const rows = await prisma.$queryRaw<Array<{ product_id: string | null; variant_id: string | null; product_name: string; variant_name: string | null; sku: string | null; units: number; revenue_iqd: number }>>(Prisma.sql`
+  const rows = await prisma.$queryRaw<
+    Array<{
+      product_id: string | null;
+      variant_id: string | null;
+      product_name: string;
+      variant_name: string | null;
+      sku: string | null;
+      units: number;
+      revenue_iqd: number;
+    }>
+  >(Prisma.sql`
     SELECT oi.product_id, oi.variant_id,
            MAX(oi.product_name) AS product_name,
            MAX(oi.variant_name) AS variant_name,
@@ -222,11 +258,19 @@ export async function statusFunnel(storeId: string, query: Record<string, unknow
     // ق-136: a POS sale is born completed and never travels the funnel, so
     // counting it here would inflate the terminal bar of a journey it never
     // took. The till's numbers live in the pos block of the summary.
-    where: { storeId, source: { not: "pos" }, ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}) },
+    where: {
+      storeId,
+      source: { not: "pos" },
+      ...(from || to
+        ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } }
+        : {}),
+    },
     _count: { _all: true },
   });
   const countByStatus = new Map(groups.map((group) => [group.status, group._count._all]));
-  return { funnel: ORDER_STATUSES.map((status) => ({ status, count: countByStatus.get(status) ?? 0 })) };
+  return {
+    funnel: ORDER_STATUSES.map((status) => ({ status, count: countByStatus.get(status) ?? 0 })),
+  };
 }
 
 /** Customer segments per the approved pass-A definitions (customer-directory.service.ts). */
@@ -237,7 +281,12 @@ export async function customersSummary(storeId: string) {
     prisma.customer.count({ where: { storeId, createdAt: { gte: thirtyDaysAgo } } }),
     prisma.customer.count({ where: { storeId, orders: { some: {} } } }),
   ]);
-  return { totalCustomers: total, newCustomers: recent, activeCustomers: active, prospectCustomers: total - active };
+  return {
+    totalCustomers: total,
+    newCustomers: recent,
+    activeCustomers: active,
+    prospectCustomers: total - active,
+  };
 }
 
 /**
@@ -261,7 +310,11 @@ export async function couponsUsage(storeId: string) {
       _count: { _all: true },
       _sum: { discountIqd: true, waivedDeliveryFeeIqd: true },
     }),
-    prisma.couponRedemption.groupBy({ by: ["couponId"], where: { storeId }, _count: { _all: true } }),
+    prisma.couponRedemption.groupBy({
+      by: ["couponId"],
+      where: { storeId },
+      _count: { _all: true },
+    }),
   ]);
   const consumingById = new Map(consuming.map((group) => [group.couponId, group]));
   const rawById = new Map(raw.map((group) => [group.couponId, group._count._all]));

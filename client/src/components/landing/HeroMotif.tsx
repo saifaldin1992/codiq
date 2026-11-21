@@ -23,7 +23,13 @@ const NODES = [
 
 export function HeroMotif({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 420 420" className={`cq-motif ${className}`} aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      viewBox="0 0 420 420"
+      className={`cq-motif ${className}`}
+      aria-hidden="true"
+      focusable="false"
+      xmlns="http://www.w3.org/2000/svg"
+    >
       <defs>
         <linearGradient id="cq-motif-pulse" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#5AA0FF" />
@@ -47,7 +53,15 @@ export function HeroMotif({ className = "" }: { className?: string }) {
 
       {/* Rings: the outer dashed one drifts, the rest hold the composition still. */}
       <g fill="none">
-        <circle cx="210" cy="210" r="178" stroke="#E4EBF6" strokeWidth="1" strokeDasharray="2 9" className="cq-motif-drift" />
+        <circle
+          cx="210"
+          cy="210"
+          r="178"
+          stroke="#E4EBF6"
+          strokeWidth="1"
+          strokeDasharray="2 9"
+          className="cq-motif-drift"
+        />
         <circle cx="210" cy="210" r="134" stroke="#DCE6F5" strokeWidth="1.5" />
         <circle cx="210" cy="210" r="88" stroke="#EAF0F9" strokeWidth="1" />
       </g>
@@ -71,8 +85,27 @@ export function HeroMotif({ className = "" }: { className?: string }) {
       {NODES.map(({ x, y, Icon, step }) => (
         <g key={step} transform={`translate(${x} ${y})`}>
           <g className={`cq-motif-node cq-motif-node--${step}`}>
-            <rect className="cq-motif-node__ring" x="-33" y="-33" width="66" height="66" rx="22" fill="none" stroke="var(--codiq-accent)" strokeWidth="1.5" />
-            <rect x="-26" y="-26" width="52" height="52" rx="17" fill="#FFFFFF" stroke="#E1E9F5" strokeWidth="1.25" />
+            <rect
+              className="cq-motif-node__ring"
+              x="-33"
+              y="-33"
+              width="66"
+              height="66"
+              rx="22"
+              fill="none"
+              stroke="var(--codiq-accent)"
+              strokeWidth="1.5"
+            />
+            <rect
+              x="-26"
+              y="-26"
+              width="52"
+              height="52"
+              rx="17"
+              fill="#FFFFFF"
+              stroke="#E1E9F5"
+              strokeWidth="1.25"
+            />
             <g transform="translate(-11 -11)">
               <Icon size={22} strokeWidth={1.7} color="var(--codiq-accent)" />
             </g>
@@ -84,7 +117,13 @@ export function HeroMotif({ className = "" }: { className?: string }) {
       <g className="cq-motif-core">
         <circle cx="210" cy="210" r="60" fill="#FFFFFF" stroke="#E4EBF6" strokeWidth="1.25" />
         <g transform="translate(210 210) scale(2.05) translate(-24 -24)">
-          <path d="M31.5 16.4a10.6 10.6 0 1 0 0 15.2" fill="none" stroke="url(#cq-motif-core)" strokeWidth="4.4" strokeLinecap="round" />
+          <path
+            d="M31.5 16.4a10.6 10.6 0 1 0 0 15.2"
+            fill="none"
+            stroke="url(#cq-motif-core)"
+            strokeWidth="4.4"
+            strokeLinecap="round"
+          />
           <circle cx="30.4" cy="24" r="3.15" fill="var(--codiq-accent)" className="cq-motif-coin" />
         </g>
       </g>

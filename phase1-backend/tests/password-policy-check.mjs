@@ -24,7 +24,9 @@
  */
 import assert from "node:assert/strict";
 
-const { assertPasswordAcceptable, PASSWORD_MIN_LENGTH } = await import("../src/auth/password-policy.ts");
+const { assertPasswordAcceptable, PASSWORD_MIN_LENGTH } = await import(
+  "../src/auth/password-policy.ts"
+);
 
 const refusalOf = (password) => {
   try {
@@ -48,36 +50,86 @@ assert.ok(accepts("shrt1abc"), "…and eight is accepted — the floor is at 8, 
 assert.ok(accepts("khamsatun"), "eight-plus lowercase letters, no digit, no symbol — accepted");
 assert.ok(accepts("29471638"), "digits only, no pattern — accepted");
 assert.ok(accepts("!!$$&&**##"), "symbols only — accepted");
-assert.ok(accepts("مرحبابكم في متجري"), "an Arabic passphrase — accepted, on an Arabic-first platform");
+assert.ok(
+  accepts("مرحبابكم في متجري"),
+  "an Arabic passphrase — accepted, on an Arabic-first platform"
+);
 
 // 3. The ones people actually pick. Every one of these clears eight characters,
 //    so a naive floor of eight would have let all of them through.
-for (const guessed of ["password", "12345678", "qwerty123", "iloveyou", "admin123", "welcome1", "trustno1"]) {
-  assert.ok(guessed.length >= PASSWORD_MIN_LENGTH, `«${guessed}» clears the floor, so only the list can refuse it`);
-  assert.equal(refusalOf(guessed), "COMMON_PASSWORD", `«${guessed}» is refused — it is the first thing tried`);
+for (const guessed of [
+  "password",
+  "12345678",
+  "qwerty123",
+  "iloveyou",
+  "admin123",
+  "welcome1",
+  "trustno1",
+]) {
+  assert.ok(
+    guessed.length >= PASSWORD_MIN_LENGTH,
+    `«${guessed}» clears the floor, so only the list can refuse it`
+  );
+  assert.equal(
+    refusalOf(guessed),
+    "COMMON_PASSWORD",
+    `«${guessed}» is refused — it is the first thing tried`
+  );
 }
 // Length is checked BEFORE the list, so a short common password is refused for
 // being short. Both are refusals; saying "too common" about something that is
 // also too short would tell the person the wrong thing to fix.
-assert.equal(refusalOf("letmein"), "WEAK_PASSWORD", "«letmein» is seven characters — the length is what he must fix first");
+assert.equal(
+  refusalOf("letmein"),
+  "WEAK_PASSWORD",
+  "«letmein» is seven characters — the length is what he must fix first"
+);
 // The ones no bought list carries, because they are about this platform and
 // this country.
-for (const local of ["codiq123", "baghdad123", "bismillah", "alrafidain", "cashondelivery", "kurdistan"]) {
-  assert.ok(local.length >= PASSWORD_MIN_LENGTH, `«${local}» clears the floor, so only the list can refuse it`);
-  assert.equal(refusalOf(local), "COMMON_PASSWORD", `«${local}» is refused — a generic list would miss it`);
+for (const local of [
+  "codiq123",
+  "baghdad123",
+  "bismillah",
+  "alrafidain",
+  "cashondelivery",
+  "kurdistan",
+]) {
+  assert.ok(
+    local.length >= PASSWORD_MIN_LENGTH,
+    `«${local}» clears the floor, so only the list can refuse it`
+  );
+  assert.equal(
+    refusalOf(local),
+    "COMMON_PASSWORD",
+    `«${local}» is refused — a generic list would miss it`
+  );
 }
 
 // 4. Stricter than what it replaced, in the cases that matter. Each of these is
 //    twelve or more characters and passed the OLD rule outright.
-for (const passedBefore of ["passwordpassword", "password1234", "123456789012", "abcabcabcabc", "aaaaaaaaaaaa"]) {
+for (const passedBefore of [
+  "passwordpassword",
+  "password1234",
+  "123456789012",
+  "abcabcabcabc",
+  "aaaaaaaaaaaa",
+]) {
   assert.ok(passedBefore.length >= 12, `«${passedBefore}» cleared the old twelve-character floor`);
-  assert.equal(refusalOf(passedBefore), "COMMON_PASSWORD", `…and is refused now — the policy got STRICTER here`);
+  assert.equal(
+    refusalOf(passedBefore),
+    "COMMON_PASSWORD",
+    `…and is refused now — the policy got STRICTER here`
+  );
 }
 
 // 5. The disguises. Undoing the substitutions is what stops the list being
 //    side-stepped by somebody who thinks he has been clever.
 for (const disguised of ["P@ssw0rd", "p4ssw0rd", "PASSWORD", "Adm1n123", "1l0v3y0u"]) {
-  assert.equal(refusalOf(disguised), "COMMON_PASSWORD", `«${disguised}» is the same password wearing a hat`);
+  assert.equal(
+    refusalOf(disguised),
+    "COMMON_PASSWORD",
+    `«${disguised}» is the same password wearing a hat`
+  );
 }
 
 // 6. …and none of that is achieved by refusing everything. A policy that says no
@@ -86,13 +138,17 @@ for (const real of [
   "burtuqal-jamil-2026",
   "MatjarAlNoor!47",
   "correcthorsebattery",
-  "s9Kd2mQ",              // seven — refused for LENGTH, not for being common
+  "s9Kd2mQ", // seven — refused for LENGTH, not for being common
   "zaytoun.wa.laymoon",
   "T4jir-Baghdad-88",
 ]) {
   const refusal = refusalOf(real);
   if (real === "s9Kd2mQ") {
-    assert.equal(refusal, "WEAK_PASSWORD", "seven characters is refused for its length, not called common");
+    assert.equal(
+      refusal,
+      "WEAK_PASSWORD",
+      "seven characters is refused for its length, not called common"
+    );
   } else {
     assert.equal(refusal, null, `«${real}» is a real password and must be accepted`);
   }
@@ -110,7 +166,10 @@ assert.ok(accepts("acegikmoq"), "…but skipping is not a run — this is a real
 const RECOVERY_SHAPE = /^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/;
 const sample = "K7M2P-QR4TV-9XZBN";
 assert.ok(RECOVERY_SHAPE.test(sample), "the shape the enrolment actually mints");
-assert.ok(accepts(sample.replace(/-/g, "")), "a recovery code is accepted — it is normalised before hashing");
+assert.ok(
+  accepts(sample.replace(/-/g, "")),
+  "a recovery code is accepted — it is normalised before hashing"
+);
 assert.ok(accepts(sample), "…and in its dashed form too");
 
 console.log(
@@ -127,15 +186,23 @@ console.log(
       },
     },
     null,
-    2,
-  ),
+    2
+  )
 );
 // ASVS 5.0 V6.2.4: the ten-thousand most common breached passwords are refused,
 // matched exactly — containing a common word is not, by itself, a refusal.
 for (const breached of ["baseball1", "qwertyuiop", "Football1", "superman1"]) {
-  assert.throws(() => assertPasswordAcceptable(breached), (error) => error.code === "COMMON_PASSWORD", `«${breached}» is in the breach list`);
+  assert.throws(
+    () => assertPasswordAcceptable(breached),
+    (error) => error.code === "COMMON_PASSWORD",
+    `«${breached}» is in the breach list`
+  );
 }
 for (const fine of ["baseball-season-in-erbil", "شجرة الرمان في بيت جدي"]) {
-  assert.equal(assertPasswordAcceptable(fine), fine, `«${fine}» contains common words but is not a common password`);
+  assert.equal(
+    assertPasswordAcceptable(fine),
+    fine,
+    `«${fine}» contains common words but is not a common password`
+  );
 }
 console.log("password:policy OK");

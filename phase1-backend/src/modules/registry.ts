@@ -50,7 +50,10 @@ export const EXTENSION_MODULES: readonly PlatformModule[] = [
 
 export const PLATFORM_MODULES: readonly PlatformModule[] = [...CORE_MODULES, ...EXTENSION_MODULES];
 
-export function registerModuleRoutes(app: Express, modules: readonly PlatformModule[] = PLATFORM_MODULES): void {
+export function registerModuleRoutes(
+  app: Express,
+  modules: readonly PlatformModule[] = PLATFORM_MODULES
+): void {
   const seen = new Set<string>();
   for (const module of modules) {
     if (seen.has(module.id)) throw new Error(`module registered twice: ${module.id}`);
@@ -65,7 +68,10 @@ const subscribedBuses = new WeakSet<DomainEventBus>();
  * times in the test suites; subscribing on each call would deliver every event
  * to every handler N times.
  */
-export function installModuleSubscriptions(bus: DomainEventBus = domainEvents, modules: readonly PlatformModule[] = PLATFORM_MODULES): void {
+export function installModuleSubscriptions(
+  bus: DomainEventBus = domainEvents,
+  modules: readonly PlatformModule[] = PLATFORM_MODULES
+): void {
   if (subscribedBuses.has(bus)) return;
   subscribedBuses.add(bus);
   for (const module of modules) module.subscribe?.(bus);

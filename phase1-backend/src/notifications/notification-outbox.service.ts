@@ -68,10 +68,18 @@ export interface StoreNotificationPolicy {
   storeSlug: string;
 }
 
-export async function storeNotificationPolicy(tx: OutboxWriter, storeId: string): Promise<StoreNotificationPolicy | null> {
+export async function storeNotificationPolicy(
+  tx: OutboxWriter,
+  storeId: string
+): Promise<StoreNotificationPolicy | null> {
   const store = await tx.store.findUnique({
     where: { id: storeId },
-    select: { name: true, slug: true, merchant: { select: { email: true } }, notificationSettings: { select: { isEnabled: true, configuration: true } } },
+    select: {
+      name: true,
+      slug: true,
+      merchant: { select: { email: true } },
+      notificationSettings: { select: { isEnabled: true, configuration: true } },
+    },
   });
   if (!store) return null;
   return {
@@ -84,59 +92,115 @@ export async function storeNotificationPolicy(tx: OutboxWriter, storeId: string)
   };
 }
 
-export async function enqueueOrderCreated(tx: OutboxWriter, input: {
-  storeId: string;
-  orderId: string;
-  orderNumber: string;
-  totalIqd: number;
-  customerName: string;
-  customerEmail: string | null;
-}) {
+export async function enqueueOrderCreated(
+  tx: OutboxWriter,
+  input: {
+    storeId: string;
+    orderId: string;
+    orderNumber: string;
+    totalIqd: number;
+    customerName: string;
+    customerEmail: string | null;
+  }
+) {
   const policy = await storeNotificationPolicy(tx, input.storeId);
   if (!policy || !policy.enabled) return;
-  const payload = { orderNumber: input.orderNumber, totalIqd: input.totalIqd, customerName: input.customerName, storeName: policy.storeName };
+  const payload = {
+    orderNumber: input.orderNumber,
+    totalIqd: input.totalIqd,
+    customerName: input.customerName,
+    storeName: policy.storeName,
+  };
   if (policy.preferences.orderCreated) {
-    await tx.notificationOutbox.create({ data: { storeId: input.storeId, eventType: "order.created", orderId: input.orderId, recipientKind: "merchant", channel: "email", recipient: policy.merchantEmail, payload } });
+    await tx.notificationOutbox.create({
+      data: {
+        storeId: input.storeId,
+        eventType: "order.created",
+        orderId: input.orderId,
+        recipientKind: "merchant",
+        channel: "email",
+        recipient: policy.merchantEmail,
+        payload,
+      },
+    });
     signalOutboxWork();
   }
   if (input.customerEmail) {
-    await tx.notificationOutbox.create({ data: { storeId: input.storeId, eventType: "order.created", orderId: input.orderId, recipientKind: "customer", channel: "email", recipient: input.customerEmail, payload } });
+    await tx.notificationOutbox.create({
+      data: {
+        storeId: input.storeId,
+        eventType: "order.created",
+        orderId: input.orderId,
+        recipientKind: "customer",
+        channel: "email",
+        recipient: input.customerEmail,
+        payload,
+      },
+    });
     signalOutboxWork();
   }
 }
 
-export async function enqueueOrderStatusChanged(tx: OutboxWriter, input: {
-  storeId: string;
-  orderId: string;
-  orderNumber: string;
-  fromStatus: string;
-  toStatus: string;
-  customerEmail: string | null;
-  /**
-   * ق-214 — WHO moved the order. A merchant does not need an email telling him
-   * what he himself just did, and sending one is not free: the operational
-   * channel has a per-recipient daily ceiling (19-د) that exists to protect a
-   * SHOPPER from a store, and the merchant's own copies were spending it. Seven
-   * statuses per order meant the ceiling was reached in about three days' work,
-   * after which the message that actually matters — «طلب جديد», the trigger for
-   * the COD confirmation call — was deferred to tomorrow.
-   *
-   * So the merchant copy is for the transitions he did NOT make: the shopper's
-   * self-cancellation, an expiry sweep, a platform actor. `undefined` keeps the
-   * old behaviour for callers that do not know the actor.
-   */
-  actorKind?: string | null;
-}) {
+export async function enqueueOrderStatusChanged(
+  tx: OutboxWriter,
+  input: {
+    storeId: string;
+    orderId: string;
+    orderNumber: string;
+    fromStatus: string;
+    toStatus: string;
+    customerEmail: string | null;
+    /**
+     * ق-214 — WHO moved the order. A merchant does not need an email telling him
+     * what he himself just did, and sending one is not free: the operational
+     * channel has a per-recipient daily ceiling (19-د) that exists to protect a
+     * SHOPPER from a store, and the merchant's own copies were spending it. Seven
+     * statuses per order meant the ceiling was reached in about three days' work,
+     * after which the message that actually matters — «طلب جديد», the trigger for
+     * the COD confirmation call — was deferred to tomorrow.
+     *
+     * So the merchant copy is for the transitions he did NOT make: the shopper's
+     * self-cancellation, an expiry sweep, a platform actor. `undefined` keeps the
+     * old behaviour for callers that do not know the actor.
+     */
+    actorKind?: string | null;
+  }
+) {
   const policy = await storeNotificationPolicy(tx, input.storeId);
   if (!policy || !policy.enabled) return;
-  const payload = { orderNumber: input.orderNumber, fromStatus: input.fromStatus, toStatus: input.toStatus, storeName: policy.storeName };
+  const payload = {
+    orderNumber: input.orderNumber,
+    fromStatus: input.fromStatus,
+    toStatus: input.toStatus,
+    storeName: policy.storeName,
+  };
   const movedByTheShop = input.actorKind === "merchant" || input.actorKind === "staff";
   if (policy.preferences.orderStatusChanged && !movedByTheShop) {
-    await tx.notificationOutbox.create({ data: { storeId: input.storeId, eventType: "order.status_changed", orderId: input.orderId, recipientKind: "merchant", channel: "email", recipient: policy.merchantEmail, payload } });
+    await tx.notificationOutbox.create({
+      data: {
+        storeId: input.storeId,
+        eventType: "order.status_changed",
+        orderId: input.orderId,
+        recipientKind: "merchant",
+        channel: "email",
+        recipient: policy.merchantEmail,
+        payload,
+      },
+    });
     signalOutboxWork();
   }
   if (input.customerEmail) {
-    await tx.notificationOutbox.create({ data: { storeId: input.storeId, eventType: "order.status_changed", orderId: input.orderId, recipientKind: "customer", channel: "email", recipient: input.customerEmail, payload } });
+    await tx.notificationOutbox.create({
+      data: {
+        storeId: input.storeId,
+        eventType: "order.status_changed",
+        orderId: input.orderId,
+        recipientKind: "customer",
+        channel: "email",
+        recipient: input.customerEmail,
+        payload,
+      },
+    });
     signalOutboxWork();
   }
 }
@@ -157,17 +221,23 @@ export async function enqueueOrderStatusChanged(tx: OutboxWriter, input: {
  * inside the caller's transaction; the P2002 swallow mirrors
  * enqueueLowStockIfCrossed as the race-proof second line.
  */
-export async function enqueueCourierDispatched(tx: OutboxWriter, input: {
-  storeId: string;
-  orderId: string;
-  orderNumber: string;
-  customerEmail: string | null;
-}) {
+export async function enqueueCourierDispatched(
+  tx: OutboxWriter,
+  input: {
+    storeId: string;
+    orderId: string;
+    orderNumber: string;
+    customerEmail: string | null;
+  }
+) {
   const policy = await storeNotificationPolicy(tx, input.storeId);
   if (!policy || !policy.enabled || !policy.courierDispatch.enabled) return;
   if (!input.customerEmail) return;
   const dedupeKey = `courier_dispatched:${input.orderId}`;
-  const existing = await tx.notificationOutbox.findFirst({ where: { storeId: input.storeId, dedupeKey }, select: { id: true } });
+  const existing = await tx.notificationOutbox.findFirst({
+    where: { storeId: input.storeId, dedupeKey },
+    select: { id: true },
+  });
   if (existing) return;
   try {
     await tx.notificationOutbox.create({
@@ -203,24 +273,30 @@ export async function enqueueCourierDispatched(tx: OutboxWriter, input: {
  * variant label (and the SKU is the variant SKU) while the outbox row keeps the
  * parent productId column for existing consumers.
  */
-export async function enqueueLowStockIfCrossed(tx: OutboxWriter, input: {
-  storeId: string;
-  productId: string;
-  variantId: string;
-  productName: string;
-  variantName?: string | null;
-  sku: string;
-  previousQuantity: number;
-  stockQuantity: number;
-  lowStockThreshold: number;
-}) {
+export async function enqueueLowStockIfCrossed(
+  tx: OutboxWriter,
+  input: {
+    storeId: string;
+    productId: string;
+    variantId: string;
+    productName: string;
+    variantName?: string | null;
+    sku: string;
+    previousQuantity: number;
+    stockQuantity: number;
+    lowStockThreshold: number;
+  }
+) {
   if (input.lowStockThreshold <= 0) return;
   const wasLow = input.previousQuantity <= input.lowStockThreshold;
   const isLow = input.stockQuantity <= input.lowStockThreshold;
   if (wasLow || !isLow) return;
   const policy = await storeNotificationPolicy(tx, input.storeId);
   if (!policy || !policy.enabled || !policy.preferences.lowStock) return;
-  const displayName = input.variantName && input.variantName !== input.productName ? `${input.productName} (${input.variantName})` : input.productName;
+  const displayName =
+    input.variantName && input.variantName !== input.productName
+      ? `${input.productName} (${input.variantName})`
+      : input.productName;
   /**
    * ق-234 — `skipDuplicates`, NOT a try/catch on P2002.
    *
@@ -243,16 +319,26 @@ export async function enqueueLowStockIfCrossed(tx: OutboxWriter, input: {
    * «already alerted» should have meant all along.
    */
   await tx.notificationOutbox.createMany({
-    data: [{
-      storeId: input.storeId,
-      eventType: "low_stock",
-      productId: input.productId,
-      recipientKind: "merchant",
-      channel: "email",
-      recipient: policy.merchantEmail,
-      dedupeKey: `low_stock:${input.variantId}:${input.stockQuantity}`,
-      payload: { productName: displayName, sku: input.sku, variantId: input.variantId, variantName: input.variantName ?? input.productName, stockQuantity: input.stockQuantity, lowStockThreshold: input.lowStockThreshold, storeName: policy.storeName },
-    }],
+    data: [
+      {
+        storeId: input.storeId,
+        eventType: "low_stock",
+        productId: input.productId,
+        recipientKind: "merchant",
+        channel: "email",
+        recipient: policy.merchantEmail,
+        dedupeKey: `low_stock:${input.variantId}:${input.stockQuantity}`,
+        payload: {
+          productName: displayName,
+          sku: input.sku,
+          variantId: input.variantId,
+          variantName: input.variantName ?? input.productName,
+          stockQuantity: input.stockQuantity,
+          lowStockThreshold: input.lowStockThreshold,
+          storeName: policy.storeName,
+        },
+      },
+    ],
     skipDuplicates: true,
   });
   signalOutboxWork();

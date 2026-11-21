@@ -7,8 +7,17 @@
  */
 import { prisma } from "../../db/prisma.js";
 
-export async function recomputeProductStats(storeIds?: readonly string[]): Promise<{ products: number }> {
-  const ids = storeIds ?? (await prisma.store.findMany({ where: { marketStatus: { in: ["listed", "pending"] } }, select: { id: true } })).map((row) => row.id);
+export async function recomputeProductStats(
+  storeIds?: readonly string[]
+): Promise<{ products: number }> {
+  const ids =
+    storeIds ??
+    (
+      await prisma.store.findMany({
+        where: { marketStatus: { in: ["listed", "pending"] } },
+        select: { id: true },
+      })
+    ).map((row) => row.id);
   let written = 0;
   for (let start = 0; start < ids.length; start += 100) {
     const batch = ids.slice(start, start + 100);

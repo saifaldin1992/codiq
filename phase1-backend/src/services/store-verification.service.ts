@@ -65,10 +65,16 @@ export interface StoreVerification {
 
 function verificationNote(raw: unknown): string | null {
   if (raw === undefined || raw === null || raw === "") return null;
-  if (typeof raw !== "string") throw new HttpError(400, "INVALID_VERIFICATION_NOTE", "The note must be text.");
+  if (typeof raw !== "string")
+    throw new HttpError(400, "INVALID_VERIFICATION_NOTE", "The note must be text.");
   const note = raw.trim();
   if (!note) return null;
-  if (note.length > 500) throw new HttpError(400, "INVALID_VERIFICATION_NOTE", "The note may not exceed 500 characters.");
+  if (note.length > 500)
+    throw new HttpError(
+      400,
+      "INVALID_VERIFICATION_NOTE",
+      "The note may not exceed 500 characters."
+    );
   return note;
 }
 
@@ -76,8 +82,13 @@ export async function storeVerification(storeSlug: string): Promise<StoreVerific
   const store = await prisma.store.findUnique({
     where: { slug: storeSlug },
     select: {
-      id: true, slug: true, name: true, isActive: true, createdAt: true,
-      verifiedAt: true, verificationNote: true,
+      id: true,
+      slug: true,
+      name: true,
+      isActive: true,
+      createdAt: true,
+      verifiedAt: true,
+      verificationNote: true,
       verifiedByOwner: { select: { id: true, displayName: true } },
     },
   });
@@ -133,16 +144,20 @@ export async function storeVerification(storeSlug: string): Promise<StoreVerific
 export async function setStoreVerification(
   storeSlug: string,
   ownerId: string,
-  input: { verified: unknown; note?: unknown },
+  input: { verified: unknown; note?: unknown }
 ): Promise<StoreVerification> {
-  if (typeof input.verified !== "boolean") throw new HttpError(400, "INVALID_VERIFICATION", "`verified` must be true or false.");
+  if (typeof input.verified !== "boolean")
+    throw new HttpError(400, "INVALID_VERIFICATION", "`verified` must be true or false.");
   const note = verificationNote(input.note);
   // The owner is looked up rather than trusted from the caller: the badge names
   // whoever the database says acted, and `recordAuditEvent` resolves the display
   // label the same way, so an attribution the route could have invented is one
   // nothing here will store.
   const [store, owner] = await Promise.all([
-    prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true, name: true, verifiedAt: true } }),
+    prisma.store.findUnique({
+      where: { slug: storeSlug },
+      select: { id: true, name: true, verifiedAt: true },
+    }),
     prisma.platformOwner.findUnique({ where: { id: ownerId }, select: { id: true } }),
   ]);
   if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The store was not found.");
@@ -180,8 +195,13 @@ export async function setStoreVerification(
 }
 
 /** What a storefront may say about itself — the badge and nothing behind it. */
-export async function publicStoreVerification(storeId: string): Promise<{ verifiedAt: Date } | null> {
-  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { verifiedAt: true } });
+export async function publicStoreVerification(
+  storeId: string
+): Promise<{ verifiedAt: Date } | null> {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { verifiedAt: true },
+  });
   // The note and the granting owner stay off the STOREFRONT: a shopper needs to
   // know the platform vouched for this shop, not who signed off or on what
   // evidence. (The merchant does see the note — see the header.)

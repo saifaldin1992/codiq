@@ -17,7 +17,13 @@
 import { Prisma, type Coupon } from "@prisma/client";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
 import type { AuditActor } from "./soft-delete/audit-log.service.js";
 import { LIVE } from "./soft-delete/constants.js";
 import { restore, softDelete } from "./soft-delete/soft-delete.service.js";
@@ -32,9 +38,15 @@ const CODE_PATTERN = new RegExp("^[\\p{L}\\p{N}_-]{2,40}$", "u");
 /** Uppercased trimmed form — the identity used by UNIQUE(store_id, code_normalized). */
 export function normalizeCouponCode(value: unknown): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
-  if (typeof value !== "string") throw new HttpError(400, "INVALID_COUPON_CODE", "couponCode must be a string.");
+  if (typeof value !== "string")
+    throw new HttpError(400, "INVALID_COUPON_CODE", "couponCode must be a string.");
   const normalized = value.trim().toUpperCase();
-  if (!CODE_PATTERN.test(normalized)) throw new HttpError(400, "INVALID_COUPON_CODE", "couponCode must be 2-40 letters, digits, '-' or '_'.");
+  if (!CODE_PATTERN.test(normalized))
+    throw new HttpError(
+      400,
+      "INVALID_COUPON_CODE",
+      "couponCode must be 2-40 letters, digits, '-' or '_'."
+    );
   return normalized;
 }
 
@@ -49,8 +61,12 @@ export type CouponRow = {
   maxUsesPerCustomer: number | null;
 };
 
-function assertCouponWindowAndActive(coupon: { isActive: boolean; startsAt: Date | null; endsAt: Date | null }, now: Date) {
-  if (!coupon.isActive) throw new HttpError(422, "COUPON_INVALID", "This coupon is not valid for this store.");
+function assertCouponWindowAndActive(
+  coupon: { isActive: boolean; startsAt: Date | null; endsAt: Date | null },
+  now: Date
+) {
+  if (!coupon.isActive)
+    throw new HttpError(422, "COUPON_INVALID", "This coupon is not valid for this store.");
   if ((coupon.startsAt && coupon.startsAt > now) || (coupon.endsAt && coupon.endsAt < now)) {
     throw new HttpError(422, "COUPON_EXPIRED", "This coupon is outside its validity window.");
   }
@@ -58,20 +74,41 @@ function assertCouponWindowAndActive(coupon: { isActive: boolean; startsAt: Date
 
 async function assertCouponUsageWithinLimits(
   tx: Prisma.TransactionClient | typeof prisma,
-  coupon: { id: string; storeId: string; maxUsesTotal: number | null; maxUsesPerCustomer: number | null },
-  customerId: string | undefined,
+  coupon: {
+    id: string;
+    storeId: string;
+    maxUsesTotal: number | null;
+    maxUsesPerCustomer: number | null;
+  },
+  customerId: string | undefined
 ) {
   // Owner policy: cancelled/rejected orders never shipped, so their redemptions
   // do not consume uses (rows stay append-only; counting is status-filtered).
   // Returned orders DID ship — those keep consuming.
-  const consumingOrder: Prisma.StoreOrderWhereInput = { status: { notIn: ["cancelled", "rejected"] } };
+  const consumingOrder: Prisma.StoreOrderWhereInput = {
+    status: { notIn: ["cancelled", "rejected"] },
+  };
   if (coupon.maxUsesTotal !== null) {
-    const total = await tx.couponRedemption.count({ where: { couponId: coupon.id, order: consumingOrder } });
-    if (total >= coupon.maxUsesTotal) throw new HttpError(422, "COUPON_EXHAUSTED", "This coupon has reached its total usage limit.");
+    const total = await tx.couponRedemption.count({
+      where: { couponId: coupon.id, order: consumingOrder },
+    });
+    if (total >= coupon.maxUsesTotal)
+      throw new HttpError(
+        422,
+        "COUPON_EXHAUSTED",
+        "This coupon has reached its total usage limit."
+      );
   }
   if (coupon.maxUsesPerCustomer !== null && customerId) {
-    const used = await tx.couponRedemption.count({ where: { storeId: coupon.storeId, couponId: coupon.id, customerId, order: consumingOrder } });
-    if (used >= coupon.maxUsesPerCustomer) throw new HttpError(422, "COUPON_CUSTOMER_LIMIT_REACHED", "This customer has reached the coupon usage limit.");
+    const used = await tx.couponRedemption.count({
+      where: { storeId: coupon.storeId, couponId: coupon.id, customerId, order: consumingOrder },
+    });
+    if (used >= coupon.maxUsesPerCustomer)
+      throw new HttpError(
+        422,
+        "COUPON_CUSTOMER_LIMIT_REACHED",
+        "This customer has reached the coupon usage limit."
+      );
   }
 }
 
@@ -89,8 +126,27 @@ async function assertCouponUsageWithinLimits(
  * no ORDER BY, and a perfectly valid coupon is refused with 422 on the payment
  * path — intermittently, which is the worst way to fail.
  */
-export async function lockCouponForCheckout(tx: Prisma.TransactionClient, storeId: string, customerId: string, codeNormalized: string): Promise<CouponRow> {
-  const rows = await tx.$queryRaw<Array<{ id: string; code: string; kind: string; percent_off: number | null; amount_off_iqd: number | null; min_subtotal_iqd: number; max_uses_total: number | null; max_uses_per_customer: number | null; starts_at: Date | null; ends_at: Date | null; is_active: boolean }>>(Prisma.sql`
+export async function lockCouponForCheckout(
+  tx: Prisma.TransactionClient,
+  storeId: string,
+  customerId: string,
+  codeNormalized: string
+): Promise<CouponRow> {
+  const rows = await tx.$queryRaw<
+    Array<{
+      id: string;
+      code: string;
+      kind: string;
+      percent_off: number | null;
+      amount_off_iqd: number | null;
+      min_subtotal_iqd: number;
+      max_uses_total: number | null;
+      max_uses_per_customer: number | null;
+      starts_at: Date | null;
+      ends_at: Date | null;
+      is_active: boolean;
+    }>
+  >(Prisma.sql`
     SELECT id, code, kind, percent_off, amount_off_iqd, min_subtotal_iqd, max_uses_total, max_uses_per_customer, starts_at, ends_at, is_active
     FROM coupons
     WHERE store_id = ${storeId}::uuid AND code_normalized = ${codeNormalized} AND deleted_at IS NULL
@@ -98,7 +154,10 @@ export async function lockCouponForCheckout(tx: Prisma.TransactionClient, storeI
   `);
   const row = rows[0];
   if (!row) throw new HttpError(422, "COUPON_INVALID", "This coupon is not valid for this store.");
-  assertCouponWindowAndActive({ isActive: row.is_active, startsAt: row.starts_at, endsAt: row.ends_at }, new Date());
+  assertCouponWindowAndActive(
+    { isActive: row.is_active, startsAt: row.starts_at, endsAt: row.ends_at },
+    new Date()
+  );
   const coupon: CouponRow = {
     id: row.id,
     kind: row.kind as CouponKind,
@@ -109,7 +168,16 @@ export async function lockCouponForCheckout(tx: Prisma.TransactionClient, storeI
     maxUsesTotal: row.max_uses_total,
     maxUsesPerCustomer: row.max_uses_per_customer,
   };
-  await assertCouponUsageWithinLimits(tx, { id: coupon.id, storeId, maxUsesTotal: coupon.maxUsesTotal, maxUsesPerCustomer: coupon.maxUsesPerCustomer }, customerId);
+  await assertCouponUsageWithinLimits(
+    tx,
+    {
+      id: coupon.id,
+      storeId,
+      maxUsesTotal: coupon.maxUsesTotal,
+      maxUsesPerCustomer: coupon.maxUsesPerCustomer,
+    },
+    customerId
+  );
   return coupon;
 }
 
@@ -119,10 +187,23 @@ export async function lockCouponForCheckout(tx: Prisma.TransactionClient, storeI
  * flag. free_shipping zeroes the delivery fee ONLY and never touches
  * discount_iqd (decision §8.3).
  */
-export function computeCouponDiscount(coupon: CouponRow, subtotalIqd: number): { discountIqd: number; freeShipping: boolean } {
-  if (subtotalIqd < coupon.minSubtotalIqd) throw new HttpError(422, "COUPON_MIN_SUBTOTAL_NOT_MET", "The cart subtotal is below this coupon's minimum.");
-  if (coupon.kind === "percent") return { discountIqd: Math.floor((subtotalIqd * (coupon.percentOff ?? 0)) / 100), freeShipping: false };
-  if (coupon.kind === "fixed") return { discountIqd: Math.min(coupon.amountOffIqd ?? 0, subtotalIqd), freeShipping: false };
+export function computeCouponDiscount(
+  coupon: CouponRow,
+  subtotalIqd: number
+): { discountIqd: number; freeShipping: boolean } {
+  if (subtotalIqd < coupon.minSubtotalIqd)
+    throw new HttpError(
+      422,
+      "COUPON_MIN_SUBTOTAL_NOT_MET",
+      "The cart subtotal is below this coupon's minimum."
+    );
+  if (coupon.kind === "percent")
+    return {
+      discountIqd: Math.floor((subtotalIqd * (coupon.percentOff ?? 0)) / 100),
+      freeShipping: false,
+    };
+  if (coupon.kind === "fixed")
+    return { discountIqd: Math.min(coupon.amountOffIqd ?? 0, subtotalIqd), freeShipping: false };
   return { discountIqd: 0, freeShipping: true };
 }
 
@@ -131,19 +212,34 @@ export function computeCouponDiscount(coupon: CouponRow, subtotalIqd: number): {
  * a positive preview can still lose the in-transaction re-validation, which
  * remains the sole authority.
  */
-export async function previewCoupon(storeId: string, customerId: string | undefined, rawCode: unknown, subtotalIqd: number) {
+export async function previewCoupon(
+  storeId: string,
+  customerId: string | undefined,
+  rawCode: unknown,
+  subtotalIqd: number
+) {
   const codeNormalized = normalizeCouponCode(rawCode);
   if (!codeNormalized) throw new HttpError(400, "INVALID_COUPON_CODE", "couponCode is required.");
   // PG-2: findUnique({ storeId_codeNormalized }) no longer exists — the full
   // unique constraint became the partial index coupons_store_code_live_key, and
   // the compiler forced this into a LIVE-filtered findFirst.
   const coupon = await prisma.coupon.findFirst({ where: { storeId, codeNormalized, ...LIVE } });
-  if (!coupon) throw new HttpError(422, "COUPON_INVALID", "This coupon is not valid for this store.");
+  if (!coupon)
+    throw new HttpError(422, "COUPON_INVALID", "This coupon is not valid for this store.");
   assertCouponWindowAndActive(coupon, new Date());
   await assertCouponUsageWithinLimits(prisma, coupon, customerId);
   const { discountIqd, freeShipping } = computeCouponDiscount(
-    { id: coupon.id, kind: coupon.kind as CouponKind, code: coupon.code, percentOff: coupon.percentOff, amountOffIqd: coupon.amountOffIqd, minSubtotalIqd: coupon.minSubtotalIqd, maxUsesTotal: coupon.maxUsesTotal, maxUsesPerCustomer: coupon.maxUsesPerCustomer },
-    subtotalIqd,
+    {
+      id: coupon.id,
+      kind: coupon.kind as CouponKind,
+      code: coupon.code,
+      percentOff: coupon.percentOff,
+      amountOffIqd: coupon.amountOffIqd,
+      minSubtotalIqd: coupon.minSubtotalIqd,
+      maxUsesTotal: coupon.maxUsesTotal,
+      maxUsesPerCustomer: coupon.maxUsesPerCustomer,
+    },
+    subtotalIqd
   );
   return { code: coupon.code, kind: coupon.kind as CouponKind, discountIqd, freeShipping };
 }
@@ -152,17 +248,26 @@ export async function previewCoupon(storeId: string, customerId: string | undefi
 
 function couponPayload(coupon: Coupon & { _count?: { redemptions: number } }) {
   return {
-    id: coupon.id, code: coupon.code, kind: coupon.kind as CouponKind,
-    percentOff: coupon.percentOff, amountOffIqd: coupon.amountOffIqd, minSubtotalIqd: coupon.minSubtotalIqd,
-    maxUsesTotal: coupon.maxUsesTotal, maxUsesPerCustomer: coupon.maxUsesPerCustomer,
-    startsAt: coupon.startsAt, endsAt: coupon.endsAt, isActive: coupon.isActive,
-    redemptionCount: coupon._count?.redemptions ?? 0, createdAt: coupon.createdAt,
+    id: coupon.id,
+    code: coupon.code,
+    kind: coupon.kind as CouponKind,
+    percentOff: coupon.percentOff,
+    amountOffIqd: coupon.amountOffIqd,
+    minSubtotalIqd: coupon.minSubtotalIqd,
+    maxUsesTotal: coupon.maxUsesTotal,
+    maxUsesPerCustomer: coupon.maxUsesPerCustomer,
+    startsAt: coupon.startsAt,
+    endsAt: coupon.endsAt,
+    isActive: coupon.isActive,
+    redemptionCount: coupon._count?.redemptions ?? 0,
+    createdAt: coupon.createdAt,
   };
 }
 
 function positiveInteger(value: unknown, field: string, max = 1_000_000_000) {
   const parsed = typeof value === "number" ? value : Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > max) throw new HttpError(422, "INVALID_INPUT", `${field} must be a positive integer.`);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > max)
+    throw new HttpError(422, "INVALID_INPUT", `${field} must be a positive integer.`);
   return parsed;
 }
 
@@ -173,27 +278,37 @@ function optionalPositiveInteger(value: unknown, field: string, max?: number) {
 
 function nonNegativeInteger(value: unknown, field: string) {
   const parsed = typeof value === "number" ? value : Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 1_000_000_000) throw new HttpError(422, "INVALID_INPUT", `${field} must be a non-negative integer up to 1,000,000,000.`);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 1_000_000_000)
+    throw new HttpError(
+      422,
+      "INVALID_INPUT",
+      `${field} must be a non-negative integer up to 1,000,000,000.`
+    );
   return parsed;
 }
 
 function optionalDate(value: unknown, field: string) {
   if (value === undefined || value === null || value === "") return null;
-  if (typeof value !== "string") throw new HttpError(422, "INVALID_INPUT", `${field} must be an ISO date.`);
+  if (typeof value !== "string")
+    throw new HttpError(422, "INVALID_INPUT", `${field} must be an ISO date.`);
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.valueOf())) throw new HttpError(422, "INVALID_INPUT", `${field} must be an ISO date.`);
+  if (Number.isNaN(parsed.valueOf()))
+    throw new HttpError(422, "INVALID_INPUT", `${field} must be an ISO date.`);
   return parsed;
 }
 
 function couponKind(value: unknown): CouponKind {
-  if (typeof value !== "string" || !COUPON_KINDS.includes(value as CouponKind)) throw new HttpError(422, "INVALID_INPUT", "kind must be percent, fixed, or free_shipping.");
+  if (typeof value !== "string" || !COUPON_KINDS.includes(value as CouponKind))
+    throw new HttpError(422, "INVALID_INPUT", "kind must be percent, fixed, or free_shipping.");
   return value as CouponKind;
 }
 
 /** Validates the kind-specific payload; returns the exclusive value columns. */
 function kindValues(kind: CouponKind, body: Record<string, unknown>) {
-  if (kind === "percent") return { percentOff: positiveInteger(body.percentOff, "percentOff", 100), amountOffIqd: null };
-  if (kind === "fixed") return { percentOff: null, amountOffIqd: positiveInteger(body.amountOffIqd, "amountOffIqd") };
+  if (kind === "percent")
+    return { percentOff: positiveInteger(body.percentOff, "percentOff", 100), amountOffIqd: null };
+  if (kind === "fixed")
+    return { percentOff: null, amountOffIqd: positiveInteger(body.amountOffIqd, "amountOffIqd") };
   return { percentOff: null, amountOffIqd: null };
 }
 
@@ -215,7 +330,9 @@ export async function listCoupons(storeId: string, rawLimit?: unknown, rawCursor
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(COUPONS_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(COUPONS_KIND, last.createdAt, last.id)
+  );
   return { coupons: page.map(couponPayload), nextCursor };
 }
 
@@ -230,7 +347,12 @@ export async function deleteCoupon(storeId: string, couponId: string, actor: Aud
   return softDelete("coupon", storeId, couponId, actor);
 }
 
-export async function restoreCoupon(storeId: string, couponId: string, actor: AuditActor, overrides: Record<string, unknown>) {
+export async function restoreCoupon(
+  storeId: string,
+  couponId: string,
+  actor: AuditActor,
+  overrides: Record<string, unknown>
+) {
   return restore("coupon", storeId, couponId, actor, { code: overrides.code });
 }
 
@@ -241,11 +363,20 @@ export async function createCoupon(storeId: string, body: Record<string, unknown
   const kind = couponKind(body.kind);
   const startsAt = optionalDate(body.startsAt, "startsAt");
   const endsAt = optionalDate(body.endsAt, "endsAt");
-  if (startsAt && endsAt && endsAt <= startsAt) throw new HttpError(422, "INVALID_INPUT", "endsAt must be after startsAt.");
+  if (startsAt && endsAt && endsAt <= startsAt)
+    throw new HttpError(422, "INVALID_INPUT", "endsAt must be after startsAt.");
   // PG-2: LIVE only — a code held by a trashed coupon is free to reuse, exactly
   // as the partial unique index coupons_store_code_live_key allows.
-  const existing = await prisma.coupon.findFirst({ where: { storeId, codeNormalized, ...LIVE }, select: { id: true } });
-  if (existing) throw new HttpError(409, "DUPLICATE_COUPON_CODE", "A coupon with this code already exists in this store.");
+  const existing = await prisma.coupon.findFirst({
+    where: { storeId, codeNormalized, ...LIVE },
+    select: { id: true },
+  });
+  if (existing)
+    throw new HttpError(
+      409,
+      "DUPLICATE_COUPON_CODE",
+      "A coupon with this code already exists in this store."
+    );
   const coupon = await prisma.coupon.create({
     data: {
       storeId,
@@ -253,7 +384,10 @@ export async function createCoupon(storeId: string, body: Record<string, unknown
       codeNormalized,
       kind,
       ...kindValues(kind, body),
-      minSubtotalIqd: body.minSubtotalIqd === undefined ? 0 : nonNegativeInteger(body.minSubtotalIqd, "minSubtotalIqd"),
+      minSubtotalIqd:
+        body.minSubtotalIqd === undefined
+          ? 0
+          : nonNegativeInteger(body.minSubtotalIqd, "minSubtotalIqd"),
       maxUsesTotal: optionalPositiveInteger(body.maxUsesTotal, "maxUsesTotal"),
       maxUsesPerCustomer: optionalPositiveInteger(body.maxUsesPerCustomer, "maxUsesPerCustomer"),
       startsAt,
@@ -264,16 +398,34 @@ export async function createCoupon(storeId: string, body: Record<string, unknown
   return couponPayload(coupon);
 }
 
-export async function updateCoupon(storeId: string, couponId: string, body: Record<string, unknown>) {
+export async function updateCoupon(
+  storeId: string,
+  couponId: string,
+  body: Record<string, unknown>
+) {
   const existing = await prisma.coupon.findFirst({ where: { id: couponId, storeId, ...LIVE } });
-  if (!existing) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested coupon was not found in this store.");
+  if (!existing)
+    throw new HttpError(
+      404,
+      "RESOURCE_NOT_FOUND",
+      "The requested coupon was not found in this store."
+    );
   const data: Prisma.CouponUncheckedUpdateInput = {};
   if (body.code !== undefined) {
-    if (typeof body.code !== "string") throw new HttpError(422, "INVALID_INPUT", "code must be a string.");
+    if (typeof body.code !== "string")
+      throw new HttpError(422, "INVALID_INPUT", "code must be a string.");
     const codeNormalized = normalizeCouponCode(body.code)!;
     if (codeNormalized !== existing.codeNormalized) {
-      const duplicate = await prisma.coupon.findFirst({ where: { storeId, codeNormalized, ...LIVE }, select: { id: true } });
-      if (duplicate) throw new HttpError(409, "DUPLICATE_COUPON_CODE", "A coupon with this code already exists in this store.");
+      const duplicate = await prisma.coupon.findFirst({
+        where: { storeId, codeNormalized, ...LIVE },
+        select: { id: true },
+      });
+      if (duplicate)
+        throw new HttpError(
+          409,
+          "DUPLICATE_COUPON_CODE",
+          "A coupon with this code already exists in this store."
+        );
     }
     data.code = body.code.trim();
     data.codeNormalized = codeNormalized;
@@ -286,18 +438,31 @@ export async function updateCoupon(storeId: string, couponId: string, body: Reco
   } else if (body.percentOff !== undefined || body.amountOffIqd !== undefined) {
     Object.assign(data, kindValues(existing.kind as CouponKind, body));
   }
-  if (body.minSubtotalIqd !== undefined) data.minSubtotalIqd = nonNegativeInteger(body.minSubtotalIqd, "minSubtotalIqd");
-  if (body.maxUsesTotal !== undefined) data.maxUsesTotal = optionalPositiveInteger(body.maxUsesTotal, "maxUsesTotal");
-  if (body.maxUsesPerCustomer !== undefined) data.maxUsesPerCustomer = optionalPositiveInteger(body.maxUsesPerCustomer, "maxUsesPerCustomer");
+  if (body.minSubtotalIqd !== undefined)
+    data.minSubtotalIqd = nonNegativeInteger(body.minSubtotalIqd, "minSubtotalIqd");
+  if (body.maxUsesTotal !== undefined)
+    data.maxUsesTotal = optionalPositiveInteger(body.maxUsesTotal, "maxUsesTotal");
+  if (body.maxUsesPerCustomer !== undefined)
+    data.maxUsesPerCustomer = optionalPositiveInteger(
+      body.maxUsesPerCustomer,
+      "maxUsesPerCustomer"
+    );
   if (body.startsAt !== undefined) data.startsAt = optionalDate(body.startsAt, "startsAt");
   if (body.endsAt !== undefined) data.endsAt = optionalDate(body.endsAt, "endsAt");
   if (body.isActive !== undefined) {
-    if (typeof body.isActive !== "boolean") throw new HttpError(422, "INVALID_INPUT", "isActive must be boolean.");
+    if (typeof body.isActive !== "boolean")
+      throw new HttpError(422, "INVALID_INPUT", "isActive must be boolean.");
     data.isActive = body.isActive;
   }
-  const nextStartsAt = body.startsAt !== undefined ? (data.startsAt as Date | null) : existing.startsAt;
+  const nextStartsAt =
+    body.startsAt !== undefined ? (data.startsAt as Date | null) : existing.startsAt;
   const nextEndsAt = body.endsAt !== undefined ? (data.endsAt as Date | null) : existing.endsAt;
-  if (nextStartsAt && nextEndsAt && nextEndsAt <= nextStartsAt) throw new HttpError(422, "INVALID_INPUT", "endsAt must be after startsAt.");
-  const coupon = await prisma.coupon.update({ where: { id: existing.id }, data, include: { _count: { select: { redemptions: true } } } });
+  if (nextStartsAt && nextEndsAt && nextEndsAt <= nextStartsAt)
+    throw new HttpError(422, "INVALID_INPUT", "endsAt must be after startsAt.");
+  const coupon = await prisma.coupon.update({
+    where: { id: existing.id },
+    data,
+    include: { _count: { select: { redemptions: true } } },
+  });
   return couponPayload(coupon);
 }

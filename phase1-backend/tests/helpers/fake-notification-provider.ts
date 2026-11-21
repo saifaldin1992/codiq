@@ -1,9 +1,20 @@
-import type { EmailMessage, NotificationProvider, ProviderResult, SmsMessage } from "../../src/notifications/notification-provider.js";
+import type {
+  EmailMessage,
+  NotificationProvider,
+  ProviderResult,
+  SmsMessage,
+} from "../../src/notifications/notification-provider.js";
 
 /** Deterministic in-memory provider for worker tests: records sends, fails on demand. */
 export class FakeNotificationProvider implements NotificationProvider {
   readonly name = "fake";
-  readonly sent: Array<{ channel: "email" | "sms"; to: string; subject?: string; body: string; replyTo?: string }> = [];
+  readonly sent: Array<{
+    channel: "email" | "sms";
+    to: string;
+    subject?: string;
+    body: string;
+    replyTo?: string;
+  }> = [];
   failNext = 0;
   failAlways = false;
   delayMs = 0;
@@ -20,7 +31,13 @@ export class FakeNotificationProvider implements NotificationProvider {
   async sendEmail(message: EmailMessage): Promise<ProviderResult> {
     const failure = await this.maybeFail();
     if (failure) return failure;
-    this.sent.push({ channel: "email", to: message.to, subject: message.subject, body: message.body, replyTo: message.replyTo });
+    this.sent.push({
+      channel: "email",
+      to: message.to,
+      subject: message.subject,
+      body: message.body,
+      replyTo: message.replyTo,
+    });
     return { ok: true, outcome: "fake_sent" };
   }
 

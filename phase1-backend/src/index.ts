@@ -4,7 +4,9 @@ import { prisma } from "./db/prisma.js";
 import { logger } from "./logging/logger.js";
 
 const server = createApp().listen(config.port, () => {
-  logger.info(`codiq phase 1 API listening on http://127.0.0.1:${config.port}`, { port: config.port });
+  logger.info(`codiq phase 1 API listening on http://127.0.0.1:${config.port}`, {
+    port: config.port,
+  });
 });
 
 async function shutdown() {

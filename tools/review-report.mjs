@@ -20,7 +20,7 @@ import { writeFileSync } from "node:fs";
 import { sameSyntax } from "./ast-same.mjs";
 
 const DETAIL_LIMIT = 400;
-const arg = name => {
+const arg = (name) => {
   const index = process.argv.indexOf(name);
   return index > 0 ? process.argv[index + 1] : undefined;
 };
@@ -42,7 +42,7 @@ const show = (rev, path) => {
   }
 };
 const KIND = { A: "أُضيف", M: "عُدّل", D: "حُذف", R: "أُعيدت تسميته" };
-const digits = n => n.toLocaleString("ar-IQ");
+const digits = (n) => n.toLocaleString("ar-IQ");
 
 const commits = git("rev-list", "--reverse", `${from}..${to}`).trim().split("\n").filter(Boolean);
 const lines = [`# ${title}`, ""];
@@ -56,7 +56,7 @@ for (const hash of commits) {
     "--date=short",
     hash
   ).split("\n");
-  const message = body.filter(line => line && !/^(Co-Authored-By|Claude-Session):/.test(line));
+  const message = body.filter((line) => line && !/^(Co-Authored-By|Claude-Session):/.test(line));
   const status = git("show", "--format=", "--name-status", "-M", hash)
     .trim()
     .split("\n")
@@ -70,17 +70,14 @@ for (const hash of commits) {
     return sum + (Number(a) || 0) + (Number(d) || 0);
   }, 0);
   const part = [`## ${hash.slice(0, 7)} — ${subject}`, "", `التاريخ: ${date}`, ""];
-  if (message.length) part.push(...message.map(line => `> ${line}`), "");
-  part.push(
-    "| الملفّ | التغيير | أُضيف | حُذف | الأسطر (قبل ← بعد) |",
-    "|---|---|---|---|---|"
-  );
+  if (message.length) part.push(...message.map((line) => `> ${line}`), "");
+  part.push("| الملفّ | التغيير | أُضيف | حُذف | الأسطر (قبل ← بعد) |", "|---|---|---|---|---|");
   const proofs = [];
   for (const row of status) {
     const [code, ...paths] = row.split("\t");
     const path = paths.at(-1);
     const stat = numstat.find(
-      entry => entry.endsWith(`\t${path}`) || entry.includes(`=> ${path.split("/").pop()}`)
+      (entry) => entry.endsWith(`\t${path}`) || entry.includes(`=> ${path.split("/").pop()}`)
     );
     const [added, removed] = stat ? stat.split("\t") : ["0", "0"];
     totals.files.add(path);
@@ -88,8 +85,8 @@ for (const hash of commits) {
     totals.removed += Number(removed) || 0;
     const hunks = git("show", "--format=", "-U0", "-M", hash, "--", ...paths)
       .split("\n")
-      .filter(line => line.startsWith("@@"))
-      .map(line => {
+      .filter((line) => line.startsWith("@@"))
+      .map((line) => {
         // "@@ -12,3 +14,5 @@" — split, no regular expression to backtrack on.
         const [, minus = "", plus = ""] = line.split(" ");
         if (!minus.startsWith("-") || !plus.startsWith("+")) return "";
@@ -122,7 +119,7 @@ for (const hash of commits) {
   }
   part.push("");
   if (proofs.length) {
-    const failed = proofs.filter(proof => !proof.same);
+    const failed = proofs.filter((proof) => !proof.same);
     part.push(
       "**إثبات أنّ المنطق لم يتغيّر:** شجرة الصياغة متطابقة قبل وبعد في " +
         `${digits(proofs.length - failed.length)} من ${digits(proofs.length)} ملفّاً.`
@@ -131,7 +128,7 @@ for (const hash of commits) {
       part.push(
         "",
         "ملفّات تختلف شجرتها (تُراجع واحداً واحداً):",
-        ...failed.map(proof => `- \`${proof.path}\``)
+        ...failed.map((proof) => `- \`${proof.path}\``)
       );
     part.push("");
   }

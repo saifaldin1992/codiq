@@ -10,8 +10,11 @@ import { requirePlatformActor } from "../../auth/platform-permissions.js";
 import { installedModules } from "./service.js";
 
 export function registerPlatformModulesRoutes(app: Express) {
-  app.get("/platform/modules", asyncRoute(async (request, response) => {
-    await requirePlatformActor(request, "services.manage");
-    response.status(200).json(installedModules());
-  }));
+  app.get(
+    "/platform/modules",
+    asyncRoute(async (request, response) => {
+      await requirePlatformActor(request, "services.manage");
+      response.status(200).json(installedModules());
+    })
+  );
 }

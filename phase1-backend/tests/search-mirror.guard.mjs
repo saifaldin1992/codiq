@@ -33,12 +33,21 @@ import assert from "node:assert/strict";
 import { Client } from "pg";
 
 const { assertSafeTestDatabaseUrl } = await import("./helpers/test-database-guard.ts");
-const databaseUrl = assertSafeTestDatabaseUrl(process.env.CODIQ_TEST_DATABASE_URL ?? process.env.DATABASE_URL);
-const { normalizeArabicV1, escapeLikeNeedleV1 } = await import("../../shared/search/arabic-normalize.ts");
+const databaseUrl = assertSafeTestDatabaseUrl(
+  process.env.CODIQ_TEST_DATABASE_URL ?? process.env.DATABASE_URL
+);
+const { normalizeArabicV1, escapeLikeNeedleV1 } = await import(
+  "../../shared/search/arabic-normalize.ts"
+);
 
 /** One character from its codepoint — the corpus must never carry a pasted invisible. */
 const at = (code) => String.fromCodePoint(code);
-const dump = (value) => (value === null ? "<null>" : [...value].map((character) => character.codePointAt(0).toString(16).padStart(4, "0")).join(" "));
+const dump = (value) =>
+  value === null
+    ? "<null>"
+    : [...value]
+        .map((character) => character.codePointAt(0).toString(16).padStart(4, "0"))
+        .join(" ");
 
 const TATWEEL = at(0x0640);
 const ZWNJ = at(0x200c);
@@ -176,7 +185,10 @@ let checked = 0;
 const differences = [];
 try {
   for (const [label, input] of CORPUS) {
-    const row = await sql.query("SELECT codiq_ar_normalize_v1($1) AS normalized, codiq_like_escape(codiq_ar_normalize_v1($1)) AS escaped", [input]);
+    const row = await sql.query(
+      "SELECT codiq_ar_normalize_v1($1) AS normalized, codiq_like_escape(codiq_ar_normalize_v1($1)) AS escaped",
+      [input]
+    );
     const fromSql = row.rows[0].normalized;
     const fromTs = normalizeArabicV1(input);
     checked += 1;
@@ -185,7 +197,7 @@ try {
         `  ${label}\n` +
           `    input   «${input}»  [${dump(input)}]\n` +
           `    sql     «${fromSql}»  [${dump(fromSql)}]\n` +
-          `    ts      «${fromTs}»  [${dump(fromTs)}]`,
+          `    ts      «${fromTs}»  [${dump(fromTs)}]`
       );
       continue;
     }
@@ -199,53 +211,133 @@ try {
         `  ${label} (LIKE escape)\n` +
           `    normalized «${fromTs}»\n` +
           `    sql        «${escapedSql}»  [${dump(escapedSql)}]\n` +
-          `    ts         «${escapedTs}»  [${dump(escapedTs)}]`,
+          `    ts         «${escapedTs}»  [${dump(escapedTs)}]`
       );
     }
   }
 
-  assert.deepEqual(differences, [], `codiq_ar_normalize_v1 and normalizeArabicV1 disagree:\n${differences.join("\n")}`);
-  assert.ok(checked >= 60, `the corpus checked only ${checked} strings — it must cover at least 60`);
+  assert.deepEqual(
+    differences,
+    [],
+    `codiq_ar_normalize_v1 and normalizeArabicV1 disagree:\n${differences.join("\n")}`
+  );
+  assert.ok(
+    checked >= 60,
+    `the corpus checked only ${checked} strings — it must cover at least 60`
+  );
 
   // ── The corpus must actually EXERCISE the rules, not merely be long. Two
   //    implementations that both return their input unchanged also never
   //    disagree, so the coverage below is asserted rather than assumed.
   const changed = CORPUS.filter(([, input]) => normalizeArabicV1(input) !== input).length;
-  assert.ok(changed >= 40, `only ${changed} corpus entries are actually changed by the normalizer — it is not exercising the fold`);
+  assert.ok(
+    changed >= 40,
+    `only ${changed} corpus entries are actually changed by the normalizer — it is not exercising the fold`
+  );
 
   const outputs = new Map(CORPUS.map(([label, input]) => [label, normalizeArabicV1(input)]));
   const same = (left, right, why) =>
-    assert.equal(outputs.get(left), outputs.get(right), `${why}: «${outputs.get(left)}» [${dump(outputs.get(left))}] vs «${outputs.get(right)}» [${dump(outputs.get(right))}]`);
+    assert.equal(
+      outputs.get(left),
+      outputs.get(right),
+      `${why}: «${outputs.get(left)}» [${dump(outputs.get(left))}] vs «${outputs.get(right)}» [${dump(outputs.get(right))}]`
+    );
 
-  same("gate: أحمد precomposed", "gate: احمد bare alef", "the أ/ا fold is gone — «احمد» would stop finding «أحمد»");
-  same("gate: أحمد decomposed (NFD)", "gate: احمد bare alef", "decomposed أ no longer converges — a second keyboard layout would find nothing");
-  same("gate: فاطمة teh marbuta", "gate: فاطمه heh", "the ة/ه fold is gone — «فاطمه» would stop finding «فاطمة»");
-  same("hamza: آمنة precomposed", "hamza: آمنة decomposed", "آ does not converge across composition forms");
-  same("hamza: مؤمن precomposed", "hamza: مؤمن decomposed", "ؤ does not converge across composition forms");
-  same("hamza: قائم precomposed", "hamza: قائم decomposed", "ئ does not converge across composition forms");
+  same(
+    "gate: أحمد precomposed",
+    "gate: احمد bare alef",
+    "the أ/ا fold is gone — «احمد» would stop finding «أحمد»"
+  );
+  same(
+    "gate: أحمد decomposed (NFD)",
+    "gate: احمد bare alef",
+    "decomposed أ no longer converges — a second keyboard layout would find nothing"
+  );
+  same(
+    "gate: فاطمة teh marbuta",
+    "gate: فاطمه heh",
+    "the ة/ه fold is gone — «فاطمه» would stop finding «فاطمة»"
+  );
+  same(
+    "hamza: آمنة precomposed",
+    "hamza: آمنة decomposed",
+    "آ does not converge across composition forms"
+  );
+  same(
+    "hamza: مؤمن precomposed",
+    "hamza: مؤمن decomposed",
+    "ؤ does not converge across composition forms"
+  );
+  same(
+    "hamza: قائم precomposed",
+    "hamza: قائم decomposed",
+    "ئ does not converge across composition forms"
+  );
   same("yeh: مصطفى alef maksura", "yeh: مصطفي plain yeh", "the ى/ي fold is gone");
   same("keheh: کتاب farsi kaf", "keheh: كتاب arabic kaf", "the ک/ك fold is gone");
-  same("digits: arabic-indic ٠-٩", "digits: eastern arabic-indic ۰-۹", "the two Arabic-Indic digit ranges do not agree");
+  same(
+    "digits: arabic-indic ٠-٩",
+    "digits: eastern arabic-indic ۰-۹",
+    "the two Arabic-Indic digit ranges do not agree"
+  );
   same("tatweel: أحـــمد", "gate: احمد bare alef", "tatweel is no longer deleted");
-  same("invisible: ZWNJ inside احمد", "gate: احمد bare alef", "ZWNJ is no longer deleted — a WhatsApp paste would find nothing");
-  same("invisible: RLM…LRM wrapper", "gate: احمد bare alef", "the bidi marks are no longer deleted");
-  same("invisible: ALM prefix", "gate: احمد bare alef", "the Arabic letter mark is no longer deleted");
+  same(
+    "invisible: ZWNJ inside احمد",
+    "gate: احمد bare alef",
+    "ZWNJ is no longer deleted — a WhatsApp paste would find nothing"
+  );
+  same(
+    "invisible: RLM…LRM wrapper",
+    "gate: احمد bare alef",
+    "the bidi marks are no longer deleted"
+  );
+  same(
+    "invisible: ALM prefix",
+    "gate: احمد bare alef",
+    "the Arabic letter mark is no longer deleted"
+  );
   same("harakat: مُحَمَّد", "harakat: مُحَمَّد", "self-check");
   assert.equal(outputs.get("harakat: مُحَمَّد"), "محمد", "the harakat are no longer deleted");
-  assert.equal(outputs.get("digits: order number ORD-٠٠١"), "ord-001", "the digit fold or the ASCII case fold is gone");
-  assert.equal(outputs.get("space: leading and trailing"), "فاطمه الزهراء", "the whitespace squeeze or the trim is gone");
-  assert.equal(outputs.get("space: empty string"), "", "the empty string must survive as the empty string");
+  assert.equal(
+    outputs.get("digits: order number ORD-٠٠١"),
+    "ord-001",
+    "the digit fold or the ASCII case fold is gone"
+  );
+  assert.equal(
+    outputs.get("space: leading and trailing"),
+    "فاطمه الزهراء",
+    "the whitespace squeeze or the trim is gone"
+  );
+  assert.equal(
+    outputs.get("space: empty string"),
+    "",
+    "the empty string must survive as the empty string"
+  );
 
   // Kurdish: the letters that must NOT fold. Asserted per letter, because a
   // careless «fold everything Persian» edit is exactly the regression that
   // would erase phase 22's distinctions before it starts (owner decision 10).
-  for (const [label, letter] of [["ڕ", "ڕ"], ["ڵ", "ڵ"], ["ۆ", "ۆ"], ["ێ", "ێ"], ["گ", "گ"], ["چ", "چ"], ["پ", "پ"], ["ژ", "ژ"]]) {
+  for (const [label, letter] of [
+    ["ڕ", "ڕ"],
+    ["ڵ", "ڵ"],
+    ["ۆ", "ۆ"],
+    ["ێ", "ێ"],
+    ["گ", "گ"],
+    ["چ", "چ"],
+    ["پ", "پ"],
+    ["ژ", "ژ"],
+  ]) {
     const entry = CORPUS.find(([name]) => name.startsWith(`kurdish: ${label}`));
     assert.ok(entry, `the corpus lost its ${label} case`);
-    assert.ok(normalizeArabicV1(entry[1]).includes(letter), `${label} (U+${letter.codePointAt(0).toString(16)}) is being folded — Kurdish distinctions phase 22 depends on would be destroyed`);
+    assert.ok(
+      normalizeArabicV1(entry[1]).includes(letter),
+      `${label} (U+${letter.codePointAt(0).toString(16)}) is being folded — Kurdish distinctions phase 22 depends on would be destroyed`
+    );
   }
 
-  const threshold = (await sql.query("SHOW pg_trgm.word_similarity_threshold")).rows[0]["pg_trgm.word_similarity_threshold"];
+  const threshold = (await sql.query("SHOW pg_trgm.word_similarity_threshold")).rows[0][
+    "pg_trgm.word_similarity_threshold"
+  ];
 
   console.log(
     JSON.stringify(
@@ -260,8 +352,8 @@ try {
         },
       },
       null,
-      2,
-    ),
+      2
+    )
   );
   console.log("search:mirror OK");
 } finally {

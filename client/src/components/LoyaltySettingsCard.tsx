@@ -31,13 +31,28 @@ const MAX_AWARD_IQD_PER_1000 = 1000;
 const numberFormat = new Intl.NumberFormat("ar-IQ");
 
 class ApiError extends Error {
-  constructor(public readonly status: number, public readonly code: string, message: string) { super(message); }
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string
+  ) {
+    super(message);
+  }
 }
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, { credentials: "same-origin", ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    ...init,
+    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+  });
   const body = await response.json().catch(() => null);
-  if (!response.ok) throw new ApiError(response.status, body?.error?.code ?? "REQUEST_FAILED", body?.error?.message ?? "تعذر تنفيذ الطلب.");
+  if (!response.ok)
+    throw new ApiError(
+      response.status,
+      body?.error?.code ?? "REQUEST_FAILED",
+      body?.error?.message ?? "تعذر تنفيذ الطلب."
+    );
   return body as T;
 }
 
@@ -65,13 +80,19 @@ export function LoyaltySettingsCard({ storeSlug }: { storeSlug?: string }) {
     }
   }, [base]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const earn = Number(earnDraft);
   const pointValue = Number(valueDraft);
   const bothValid =
-    Number.isInteger(earn) && earn >= 0 && earn <= EARN_MAX &&
-    Number.isInteger(pointValue) && pointValue >= POINT_VALUE_MIN && pointValue <= POINT_VALUE_MAX;
+    Number.isInteger(earn) &&
+    earn >= 0 &&
+    earn <= EARN_MAX &&
+    Number.isInteger(pointValue) &&
+    pointValue >= POINT_VALUE_MIN &&
+    pointValue <= POINT_VALUE_MAX;
   // What the merchant actually pays: what 1,000 dinars of sales award, valued
   // at redemption. This is the number the cap is about, so it is the number
   // shown — not the two inputs it is computed from.
@@ -89,7 +110,11 @@ export function LoyaltySettingsCard({ storeSlug }: { storeSlug?: string }) {
         body: JSON.stringify({ enabled, earnPer1000: earn, pointValueIqd: pointValue }),
       });
       setSettings(result.loyalty);
-      setNotice(result.loyalty.enabled ? "حُفظ. برنامج النقاط يعمل الآن في متجرك." : "حُفظ. برنامج النقاط متوقف.");
+      setNotice(
+        result.loyalty.enabled
+          ? "حُفظ. برنامج النقاط يعمل الآن في متجرك."
+          : "حُفظ. برنامج النقاط متوقف."
+      );
     } catch (error) {
       setFailure(error instanceof ApiError ? error.message : "تعذر حفظ الإعدادات.");
     } finally {
@@ -97,12 +122,21 @@ export function LoyaltySettingsCard({ storeSlug }: { storeSlug?: string }) {
     }
   }
 
-  if (!storeSlug) return <p className="text-sm text-[var(--codiq-text-muted)]">اختر متجرًا أولًا.</p>;
-  if (!settings && !failure) return <div className="flex items-center gap-2 text-sm text-[var(--codiq-text-muted)]"><LoaderCircle className="h-4 w-4 animate-spin" />جارٍ التحميل…</div>;
+  if (!storeSlug)
+    return <p className="text-sm text-[var(--codiq-text-muted)]">اختر متجرًا أولًا.</p>;
+  if (!settings && !failure)
+    return (
+      <div className="flex items-center gap-2 text-sm text-[var(--codiq-text-muted)]">
+        <LoaderCircle className="h-4 w-4 animate-spin" />
+        جارٍ التحميل…
+      </div>
+    );
 
-  const dirty = settings !== null && (
-    enabled !== settings.enabled || earn !== settings.earnPer1000 || pointValue !== settings.pointValueIqd
-  );
+  const dirty =
+    settings !== null &&
+    (enabled !== settings.enabled ||
+      earn !== settings.earnPer1000 ||
+      pointValue !== settings.pointValueIqd);
 
   return (
     <div className="space-y-5">
@@ -112,7 +146,8 @@ export function LoyaltySettingsCard({ storeSlug }: { storeSlug?: string }) {
           <h2 className="font-black text-[var(--codiq-text)]">برنامج النقاط</h2>
         </div>
         <p className="mt-2 text-sm leading-6 text-[var(--codiq-text-muted)]">
-          يكسب الزبون نقاطًا مع كل طلب يستلمه، ويخصمها من طلبٍ لاحق. النقاط تُحتسب على قيمة المنتجات دون أجرة التوصيل.
+          يكسب الزبون نقاطًا مع كل طلب يستلمه، ويخصمها من طلبٍ لاحق. النقاط تُحتسب على قيمة المنتجات
+          دون أجرة التوصيل.
         </p>
 
         <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-[var(--codiq-surface-sunken)] p-4">
@@ -126,35 +161,58 @@ export function LoyaltySettingsCard({ storeSlug }: { storeSlug?: string }) {
             type="checkbox"
             data-testid="loyalty-enabled"
             checked={enabled}
-            onChange={(event) => { setEnabled(event.target.checked); setNotice(null); }}
+            onChange={(event) => {
+              setEnabled(event.target.checked);
+              setNotice(null);
+            }}
             className="h-5 w-5 shrink-0 accent-[var(--codiq-accent)]"
           />
         </label>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <label htmlFor="loyalty-earn" className="text-sm font-bold text-[var(--codiq-text-secondary)]">نقاط عن كل ١٠٠٠ دينار</label>
+            <label
+              htmlFor="loyalty-earn"
+              className="text-sm font-bold text-[var(--codiq-text-secondary)]"
+            >
+              نقاط عن كل ١٠٠٠ دينار
+            </label>
             <input
               id="loyalty-earn"
               data-testid="loyalty-earn"
               inputMode="numeric"
               value={earnDraft}
-              onChange={(event) => { setEarnDraft(event.target.value.replace(/\D/g, "")); setNotice(null); }}
+              onChange={(event) => {
+                setEarnDraft(event.target.value.replace(/\D/g, ""));
+                setNotice(null);
+              }}
               className="h-11 w-full rounded-xl border border-[var(--codiq-border)] bg-[var(--codiq-surface)] px-3 text-sm text-[var(--codiq-text)] outline-none focus:border-[var(--codiq-accent)]"
             />
-            <p className="text-xs leading-5 text-[var(--codiq-text-muted)]">رقم صحيح بين ٠ و{numberFormat.format(EARN_MAX)}.</p>
+            <p className="text-xs leading-5 text-[var(--codiq-text-muted)]">
+              رقم صحيح بين ٠ و{numberFormat.format(EARN_MAX)}.
+            </p>
           </div>
           <div className="space-y-2">
-            <label htmlFor="loyalty-value" className="text-sm font-bold text-[var(--codiq-text-secondary)]">قيمة النقطة عند الاستبدال (دينار)</label>
+            <label
+              htmlFor="loyalty-value"
+              className="text-sm font-bold text-[var(--codiq-text-secondary)]"
+            >
+              قيمة النقطة عند الاستبدال (دينار)
+            </label>
             <input
               id="loyalty-value"
               data-testid="loyalty-value"
               inputMode="numeric"
               value={valueDraft}
-              onChange={(event) => { setValueDraft(event.target.value.replace(/\D/g, "")); setNotice(null); }}
+              onChange={(event) => {
+                setValueDraft(event.target.value.replace(/\D/g, ""));
+                setNotice(null);
+              }}
               className="h-11 w-full rounded-xl border border-[var(--codiq-border)] bg-[var(--codiq-surface)] px-3 text-sm text-[var(--codiq-text)] outline-none focus:border-[var(--codiq-accent)]"
             />
-            <p className="text-xs leading-5 text-[var(--codiq-text-muted)]">رقم صحيح بين {POINT_VALUE_MIN} و{numberFormat.format(POINT_VALUE_MAX)} دينار.</p>
+            <p className="text-xs leading-5 text-[var(--codiq-text-muted)]">
+              رقم صحيح بين {POINT_VALUE_MIN} و{numberFormat.format(POINT_VALUE_MAX)} دينار.
+            </p>
           </div>
         </div>
 
@@ -163,8 +221,11 @@ export function LoyaltySettingsCard({ storeSlug }: { storeSlug?: string }) {
             data-testid="loyalty-cost"
             className={`mt-4 rounded-2xl p-3.5 text-sm leading-6 ${overCap ? "bg-[var(--codiq-danger-soft)] text-[var(--codiq-danger)]" : "bg-[var(--codiq-surface-sunken)] text-[var(--codiq-text-secondary)]"}`}
           >
-            كل ١٠٠٠ دينار مبيعات تمنح الزبون ما قيمته <strong>{numberFormat.format(costPer1000)} دينار</strong> عند الاستبدال.
-            {overCap ? ` والحدّ الأعلى ${numberFormat.format(MAX_AWARD_IQD_PER_1000)} دينار — خفّض النقاط أو قيمة النقطة.` : ""}
+            كل ١٠٠٠ دينار مبيعات تمنح الزبون ما قيمته{" "}
+            <strong>{numberFormat.format(costPer1000)} دينار</strong> عند الاستبدال.
+            {overCap
+              ? ` والحدّ الأعلى ${numberFormat.format(MAX_AWARD_IQD_PER_1000)} دينار — خفّض النقاط أو قيمة النقطة.`
+              : ""}
           </p>
         ) : null}
 
@@ -172,11 +233,24 @@ export function LoyaltySettingsCard({ storeSlug }: { storeSlug?: string }) {
             bill is to cut the point value, and he needs to know that doing so
             does not reach back into what shoppers are already holding. */}
         <p className="mt-4 text-xs leading-6 text-[var(--codiq-text-muted)]">
-          تغيير المعدّل يسري على ما يُكسب من الآن فصاعدًا. أمّا النقاط التي يملكها زبائنك فتبقى بقيمتها يوم كُسبت — فخفض القيمة لا يمسّ ما هو محجوز عندهم.
+          تغيير المعدّل يسري على ما يُكسب من الآن فصاعدًا. أمّا النقاط التي يملكها زبائنك فتبقى
+          بقيمتها يوم كُسبت — فخفض القيمة لا يمسّ ما هو محجوز عندهم.
         </p>
 
-        {failure ? <p role="alert" className="mt-4 flex items-center gap-2 text-sm text-[var(--codiq-danger)]"><CircleAlert className="h-4 w-4 shrink-0" />{failure}</p> : null}
-        {notice ? <p role="status" className="mt-4 text-sm font-bold text-[var(--codiq-success)]">{notice}</p> : null}
+        {failure ? (
+          <p
+            role="alert"
+            className="mt-4 flex items-center gap-2 text-sm text-[var(--codiq-danger)]"
+          >
+            <CircleAlert className="h-4 w-4 shrink-0" />
+            {failure}
+          </p>
+        ) : null}
+        {notice ? (
+          <p role="status" className="mt-4 text-sm font-bold text-[var(--codiq-success)]">
+            {notice}
+          </p>
+        ) : null}
 
         <Button
           type="button"

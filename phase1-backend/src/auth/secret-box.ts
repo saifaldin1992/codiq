@@ -107,7 +107,11 @@ import { logger } from "../logging/logger.js";
  * worker opens at send time, under a root (`CODIQ_ENCRYPTION_KEY`) that is not
  * the session secret and need not live in the same place as the database.
  */
-export type SecretPurpose = "platform-owner-totp" | "platform-staff-totp" | "notification-api-key" | "password-reset-link";
+export type SecretPurpose =
+  | "platform-owner-totp"
+  | "platform-staff-totp"
+  | "notification-api-key"
+  | "password-reset-link";
 
 const FORMAT = "codiq1";
 const KEY_BYTES = 32;
@@ -132,7 +136,9 @@ const SALT = Buffer.from("codiq/phase19d/secret-box", "utf8");
 const DEVELOPMENT_ROOT = "codiq-development-only-encryption-root-not-a-secret";
 
 function derive(root: string, label: string, bytes = KEY_BYTES): Buffer {
-  return Buffer.from(crypto.hkdfSync("sha256", Buffer.from(root, "utf8"), SALT, Buffer.from(label, "utf8"), bytes));
+  return Buffer.from(
+    crypto.hkdfSync("sha256", Buffer.from(root, "utf8"), SALT, Buffer.from(label, "utf8"), bytes)
+  );
 }
 
 /** 4 bytes → 8 hex. Its own HKDF label, so the id reveals nothing about the keys. */
@@ -164,7 +170,9 @@ export function resolveSecretRoot(environment: NodeJS.ProcessEnv = process.env):
   const explicit = environment.CODIQ_ENCRYPTION_KEY?.trim();
   if (explicit) {
     if (explicit.length < 32) {
-      throw new Error("CODIQ_ENCRYPTION_KEY is too short: use at least 32 characters (e.g. `openssl rand -base64 48`).");
+      throw new Error(
+        "CODIQ_ENCRYPTION_KEY is too short: use at least 32 characters (e.g. `openssl rand -base64 48`)."
+      );
     }
     return { root: explicit, keyId: keyIdOf(explicit), development: false };
   }
@@ -174,11 +182,13 @@ export function resolveSecretRoot(environment: NodeJS.ProcessEnv = process.env):
   throw new Error(
     "Missing required environment variable: CODIQ_ENCRYPTION_KEY. " +
       "It encrypts the TOTP secrets and the notification provider key at rest (D-40); without it those columns cannot be read or written. " +
-      "Generate one with `openssl rand -base64 48`. Only NODE_ENV=development may run without it.",
+      "Generate one with `openssl rand -base64 48`. Only NODE_ENV=development may run without it."
   );
 }
 
-export function resolvePreviousSecretRoot(environment: NodeJS.ProcessEnv = process.env): SecretRoot | null {
+export function resolvePreviousSecretRoot(
+  environment: NodeJS.ProcessEnv = process.env
+): SecretRoot | null {
   const previous = environment.CODIQ_ENCRYPTION_KEY_PREVIOUS?.trim();
   if (!previous) return null;
   return { root: previous, keyId: keyIdOf(previous), development: false };
@@ -196,7 +206,7 @@ if (CURRENT.development) {
   logger.warn(
     "CODIQ_ENCRYPTION_KEY is unset; using the PUBLIC development key. " +
       "Secrets sealed now are readable by anyone with this repository. Never in a deployed environment.",
-    { component: "secret-box" },
+    { component: "secret-box" }
   );
 }
 
@@ -225,7 +235,13 @@ export function sealSecret(purpose: SecretPurpose, plaintext: string): string {
   const cipher = crypto.createCipheriv("aes-256-gcm", keyFor(CURRENT, purpose), iv);
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
-  return [FORMAT, CURRENT.keyId, iv.toString("base64url"), tag.toString("base64url"), ciphertext.toString("base64url")].join(".");
+  return [
+    FORMAT,
+    CURRENT.keyId,
+    iv.toString("base64url"),
+    tag.toString("base64url"),
+    ciphertext.toString("base64url"),
+  ].join(".");
 }
 
 /**
@@ -246,31 +262,48 @@ export function openSecret(purpose: SecretPurpose, stored: string): string {
   if (!isSealed(stored)) return stored;
 
   const parts = stored.split(".");
-  if (parts.length !== 5) throw new Error(`[secret-box] malformed envelope for ${purpose}: expected 5 parts, found ${parts.length}`);
-  const [, keyId, ivPart, tagPart, ciphertextPart] = parts as [string, string, string, string, string];
+  if (parts.length !== 5)
+    throw new Error(
+      `[secret-box] malformed envelope for ${purpose}: expected 5 parts, found ${parts.length}`
+    );
+  const [, keyId, ivPart, tagPart, ciphertextPart] = parts as [
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
 
-  const source = keyId === CURRENT.keyId ? CURRENT : PREVIOUS && keyId === PREVIOUS.keyId ? PREVIOUS : null;
+  const source =
+    keyId === CURRENT.keyId ? CURRENT : PREVIOUS && keyId === PREVIOUS.keyId ? PREVIOUS : null;
   if (!source) {
     throw new Error(
       `[secret-box] no key with id ${keyId} is declared, so this ${purpose} cannot be read. ` +
-        "During a rotation the retiring key belongs in CODIQ_ENCRYPTION_KEY_PREVIOUS.",
+        "During a rotation the retiring key belongs in CODIQ_ENCRYPTION_KEY_PREVIOUS."
     );
   }
 
   const iv = Buffer.from(ivPart, "base64url");
   const tag = Buffer.from(tagPart, "base64url");
   if (iv.length !== IV_BYTES || tag.length !== TAG_BYTES) {
-    throw new Error(`[secret-box] envelope for ${purpose} has a ${iv.length}-byte iv and a ${tag.length}-byte tag; expected ${IV_BYTES} and ${TAG_BYTES}`);
+    throw new Error(
+      `[secret-box] envelope for ${purpose} has a ${iv.length}-byte iv and a ${tag.length}-byte tag; expected ${IV_BYTES} and ${TAG_BYTES}`
+    );
   }
 
   const decipher = crypto.createDecipheriv("aes-256-gcm", keyFor(source, purpose), iv);
   decipher.setAuthTag(tag);
   try {
-    return Buffer.concat([decipher.update(Buffer.from(ciphertextPart, "base64url")), decipher.final()]).toString("utf8");
+    return Buffer.concat([
+      decipher.update(Buffer.from(ciphertextPart, "base64url")),
+      decipher.final(),
+    ]).toString("utf8");
   } catch {
     // `final()` throws when the tag does not verify: a tampered row, or a key
     // that is not the one that sealed it. Either way the value is not a secret.
-    throw new Error(`[secret-box] the authentication tag on a ${purpose} envelope did not verify — the row was altered, or the key is wrong.`);
+    throw new Error(
+      `[secret-box] the authentication tag on a ${purpose} envelope did not verify — the row was altered, or the key is wrong.`
+    );
   }
 }
 

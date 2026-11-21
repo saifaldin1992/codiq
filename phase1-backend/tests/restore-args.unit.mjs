@@ -41,28 +41,69 @@ const withSeparator = parseArguments(["--", "--key", "latest", "--to-file", "/tm
 assert.equal(withSeparator.key, "latest");
 assert.equal(withSeparator.toFile, "/tmp/x.dump");
 const withoutSeparator = parseArguments(["--key", "latest", "--to-file", "/tmp/x.dump"]);
-assert.deepEqual(withSeparator, withoutSeparator, "both forms must parse identically — the separator changes nothing");
+assert.deepEqual(
+  withSeparator,
+  withoutSeparator,
+  "both forms must parse identically — the separator changes nothing"
+);
 
 // A separator in the middle is equally meaningless and equally accepted.
-assert.deepEqual(parseArguments(["--key", "latest", "--", "--to-file", "/tmp/x.dump"]), withoutSeparator);
+assert.deepEqual(
+  parseArguments(["--key", "latest", "--", "--to-file", "/tmp/x.dump"]),
+  withoutSeparator
+);
 
 // 2. Strictness is KEPT where it protects the database.
-assert.throws(() => parseArguments(["--key", "latest", "--taget", "postgres://x/y"]), /unknown argument/, "a misspelled flag must still stop the run — ignoring it would restore somewhere else");
-assert.throws(() => parseArguments([]), /--key <objectKey\|latest> or --from-file/, "a restore with no source is refused");
-assert.throws(() => parseArguments(["--key", "latest", "--from-file", "/tmp/a"]), /exclusive/, "two sources are refused");
+assert.throws(
+  () => parseArguments(["--key", "latest", "--taget", "postgres://x/y"]),
+  /unknown argument/,
+  "a misspelled flag must still stop the run — ignoring it would restore somewhere else"
+);
+assert.throws(
+  () => parseArguments([]),
+  /--key <objectKey\|latest> or --from-file/,
+  "a restore with no source is refused"
+);
+assert.throws(
+  () => parseArguments(["--key", "latest", "--from-file", "/tmp/a"]),
+  /exclusive/,
+  "two sources are refused"
+);
 assert.throws(() => parseArguments(["--key"]), /needs a value/, "a flag with no value is refused");
-assert.throws(() => parseArguments(["--key", "--to-file"]), /needs a value/, "…and a following flag is not mistaken for a value");
+assert.throws(
+  () => parseArguments(["--key", "--to-file"]),
+  /needs a value/,
+  "…and a following flag is not mistaken for a value"
+);
 
 // 3. The destructive path still demands the database name out loud.
-const destructive = parseArguments(["--key", "latest", "--target", "postgres://u:p@h/db", "--confirm-overwrite", "db"]);
-assert.equal(destructive.confirmOverwrite, "db", "the confirmation is carried through to where the comparison happens");
+const destructive = parseArguments([
+  "--key",
+  "latest",
+  "--target",
+  "postgres://u:p@h/db",
+  "--confirm-overwrite",
+  "db",
+]);
+assert.equal(
+  destructive.confirmOverwrite,
+  "db",
+  "the confirmation is carried through to where the comparison happens"
+);
 
-console.log(JSON.stringify({
-  suite: "restore-args",
-  status: "passed",
-  summary: {
-    separatorAccepted: "`--` is ignored wherever it appears",
-    strictnessKept: "unknown flags, missing sources, double sources and valueless flags all still throw",
-    importIsSafe: "importing the module runs nothing",
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "restore-args",
+      status: "passed",
+      summary: {
+        separatorAccepted: "`--` is ignored wherever it appears",
+        strictnessKept:
+          "unknown flags, missing sources, double sources and valueless flags all still throw",
+        importIsSafe: "importing the module runs nothing",
+      },
+    },
+    null,
+    2
+  )
+);

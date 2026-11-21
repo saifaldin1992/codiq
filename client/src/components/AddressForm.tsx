@@ -16,14 +16,58 @@
 import { Input } from "@/components/ui/input";
 import { DeliveryArea, formatIqd } from "@/lib/storefront-api";
 
-export type AddressDraft = { recipientName: string; fullAddress: string; city: string; governorate: string; phoneContact: string };
-export const emptyAddress: AddressDraft = { recipientName: "", fullAddress: "", city: "", governorate: "", phoneContact: "" };
+export type AddressDraft = {
+  recipientName: string;
+  fullAddress: string;
+  city: string;
+  governorate: string;
+  phoneContact: string;
+};
+export const emptyAddress: AddressDraft = {
+  recipientName: "",
+  fullAddress: "",
+  city: "",
+  governorate: "",
+  phoneContact: "",
+};
 
-function AddressInput({ id, label, value, onChange, inputMode }: { id: string; label: string; value: string; onChange: (value: string) => void; inputMode?: "tel" | "text" }) {
-  return <div className="space-y-2"><label htmlFor={id} className="text-sm font-bold text-[var(--codiq-text-secondary)]">{label}</label><Input id={id} value={value} inputMode={inputMode} onChange={(event) => onChange(event.target.value)} required className="h-11 rounded-xl" /></div>;
+function AddressInput({
+  id,
+  label,
+  value,
+  onChange,
+  inputMode,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  inputMode?: "tel" | "text";
+}) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="text-sm font-bold text-[var(--codiq-text-secondary)]">
+        {label}
+      </label>
+      <Input
+        id={id}
+        value={value}
+        inputMode={inputMode}
+        onChange={(event) => onChange(event.target.value)}
+        required
+        className="h-11 rounded-xl"
+      />
+    </div>
+  );
 }
 
-export function AddressForm({ draft, onChange, areas, loadingAreas, idPrefix = "checkout" }: {
+export function AddressForm({
+  draft,
+  onChange,
+  areas,
+  loadingAreas,
+  idPrefix = "checkout",
+}: {
   draft: AddressDraft;
   onChange: (next: AddressDraft) => void;
   /** The store's priced governorates (ق-162) — the shopper chooses, never types. */
@@ -34,12 +78,40 @@ export function AddressForm({ draft, onChange, areas, loadingAreas, idPrefix = "
   const set = (patch: Partial<AddressDraft>) => onChange({ ...draft, ...patch });
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <AddressInput id={`${idPrefix}-recipient`} label="اسم المستلم" value={draft.recipientName} onChange={(value) => set({ recipientName: value })} />
-      <AddressInput id={`${idPrefix}-phone`} label="هاتف المستلم" inputMode="tel" value={draft.phoneContact} onChange={(value) => set({ phoneContact: value })} />
-      <div className="sm:col-span-2"><AddressInput id={`${idPrefix}-address`} label="العنوان التفصيلي" value={draft.fullAddress} onChange={(value) => set({ fullAddress: value })} /></div>
-      <AddressInput id={`${idPrefix}-city`} label="المدينة" value={draft.city} onChange={(value) => set({ city: value })} />
+      <AddressInput
+        id={`${idPrefix}-recipient`}
+        label="اسم المستلم"
+        value={draft.recipientName}
+        onChange={(value) => set({ recipientName: value })}
+      />
+      <AddressInput
+        id={`${idPrefix}-phone`}
+        label="هاتف المستلم"
+        inputMode="tel"
+        value={draft.phoneContact}
+        onChange={(value) => set({ phoneContact: value })}
+      />
+      <div className="sm:col-span-2">
+        <AddressInput
+          id={`${idPrefix}-address`}
+          label="العنوان التفصيلي"
+          value={draft.fullAddress}
+          onChange={(value) => set({ fullAddress: value })}
+        />
+      </div>
+      <AddressInput
+        id={`${idPrefix}-city`}
+        label="المدينة"
+        value={draft.city}
+        onChange={(value) => set({ city: value })}
+      />
       <div className="space-y-2">
-        <label htmlFor={`${idPrefix}-governorate`} className="text-sm font-bold text-[var(--codiq-text-secondary)]">المحافظة</label>
+        <label
+          htmlFor={`${idPrefix}-governorate`}
+          className="text-sm font-bold text-[var(--codiq-text-secondary)]"
+        >
+          المحافظة
+        </label>
         <select
           id={`${idPrefix}-governorate`}
           data-testid={`${idPrefix}-governorate`}
@@ -48,10 +120,24 @@ export function AddressForm({ draft, onChange, areas, loadingAreas, idPrefix = "
           onChange={(event) => set({ governorate: event.target.value })}
           className="h-11 w-full rounded-xl border border-[var(--codiq-border)] bg-[var(--codiq-surface)] px-3 text-sm text-[var(--codiq-text)] outline-none focus:border-[var(--codiq-accent)]"
         >
-          <option value="" disabled>{loadingAreas ? "جارٍ تحميل المحافظات…" : areas.length ? "اختر المحافظة" : "لا توجد محافظات متاحة"}</option>
-          {areas.map((area) => <option key={area.key} value={area.key}>{area.name} — {formatIqd.format(area.amountIqd)} د.ع</option>)}
+          <option value="" disabled>
+            {loadingAreas
+              ? "جارٍ تحميل المحافظات…"
+              : areas.length
+                ? "اختر المحافظة"
+                : "لا توجد محافظات متاحة"}
+          </option>
+          {areas.map((area) => (
+            <option key={area.key} value={area.key}>
+              {area.name} — {formatIqd.format(area.amountIqd)} د.ع
+            </option>
+          ))}
         </select>
-        {!loadingAreas && areas.length === 0 ? <p role="alert" className="text-xs leading-5 text-[var(--codiq-danger)]">هذا المتجر لم يفعّل التوصيل إلى أي محافظة بعد، فلا يمكن إتمام الطلب. تواصل مع المتجر.</p> : null}
+        {!loadingAreas && areas.length === 0 ? (
+          <p role="alert" className="text-xs leading-5 text-[var(--codiq-danger)]">
+            هذا المتجر لم يفعّل التوصيل إلى أي محافظة بعد، فلا يمكن إتمام الطلب. تواصل مع المتجر.
+          </p>
+        ) : null}
       </div>
     </div>
   );

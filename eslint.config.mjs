@@ -15,8 +15,14 @@ import globals from "globals";
 export default tseslint.config(
   {
     ignores: [
-      "dist/**", "node_modules/**", "**/node_modules/**", "docs/**", "deploy/cloudflare/.wrangler*/**",
-      "client/public/**", "phase1-backend/src/http/openapi.document.ts", "client/src/components/ui/**",
+      "dist/**",
+      "node_modules/**",
+      "**/node_modules/**",
+      "docs/**",
+      "deploy/cloudflare/.wrangler*/**",
+      "client/public/**",
+      "phase1-backend/src/http/openapi.document.ts",
+      "client/src/components/ui/**",
     ],
   },
   js.configs.recommended,
@@ -50,11 +56,17 @@ export default tseslint.config(
       "no-promise-executor-return": "off",
       // `let payload = null; try { payload = JSON.parse(text) } catch {}` — ratcheted, not a bug.
       "no-useless-assignment": "warn",
-      "@typescript-eslint/no-unused-expressions": ["error", { allowShortCircuit: true, allowTernary: true }],
-      "eqeqeq": ["error", "smart"],
+      "@typescript-eslint/no-unused-expressions": [
+        "error",
+        { allowShortCircuit: true, allowTernary: true },
+      ],
+      eqeqeq: ["error", "smart"],
       // ── debt, ratcheted as warnings ──────────────────────────────────────
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" }],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" },
+      ],
       "@typescript-eslint/no-require-imports": "error",
       "no-empty": ["warn", { allowEmptyCatch: true }],
       "prefer-const": "warn",
@@ -70,7 +82,13 @@ export default tseslint.config(
   },
   {
     // Tests and scripts spawn processes and read files by computed path by design.
-    files: ["phase1-backend/tests/**", "phase1-backend/scripts/**", "scripts/**", "tools/**", "**/*.mjs"],
+    files: [
+      "phase1-backend/tests/**",
+      "phase1-backend/scripts/**",
+      "scripts/**",
+      "tools/**",
+      "**/*.mjs",
+    ],
     rules: {
       "security/detect-child-process": "off",
       "security/detect-non-literal-fs-filename": "off",
@@ -78,5 +96,5 @@ export default tseslint.config(
       "preserve-caught-error": "off",
       "@typescript-eslint/no-explicit-any": "off",
     },
-  },
+  }
 );

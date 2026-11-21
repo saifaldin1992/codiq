@@ -77,7 +77,7 @@ export interface MerchantSuspensionResult {
 export async function setMerchantSuspension(
   merchantId: string,
   actor: PlatformActor,
-  input: { suspended: unknown; reason?: unknown },
+  input: { suspended: unknown; reason?: unknown }
 ): Promise<MerchantSuspensionResult> {
   if (typeof input.suspended !== "boolean") {
     throw new HttpError(422, "INVALID_INPUT", "suspended يجب أن يكون true أو false.");
@@ -88,10 +88,18 @@ export async function setMerchantSuspension(
   // answer «لماذا أُوقف هذا التاجر» months later, and «rejected» with no sentence
   // beside it is the answer nobody can act on.
   if (suspended && rawReason.length < SUSPENSION_REASON_MIN) {
-    throw new HttpError(422, "SUSPENSION_REASON_REQUIRED", "اكتب سبب الإيقاف — يُقرأ لاحقاً في سجلّ التدقيق وعند رفع الإيقاف.");
+    throw new HttpError(
+      422,
+      "SUSPENSION_REASON_REQUIRED",
+      "اكتب سبب الإيقاف — يُقرأ لاحقاً في سجلّ التدقيق وعند رفع الإيقاف."
+    );
   }
   if (rawReason.length > SUSPENSION_REASON_MAX) {
-    throw new HttpError(422, "INVALID_INPUT", `سبب الإيقاف يجب ألا يتجاوز ${SUSPENSION_REASON_MAX} حرفاً.`);
+    throw new HttpError(
+      422,
+      "INVALID_INPUT",
+      `سبب الإيقاف يجب ألا يتجاوز ${SUSPENSION_REASON_MAX} حرفاً.`
+    );
   }
   const reason = rawReason || null;
 
@@ -104,16 +112,29 @@ export async function setMerchantSuspension(
   // writes the same two columns. Two doors onto one decision is how the two
   // disagree.
   if (merchant.approvalStatus !== "approved") {
-    throw new HttpError(409, "REGISTRATION_NOT_DECIDED", "هذا التاجر لم يُعتمد بعد — قرار طلبه يُتّخذ من طابور التسجيل.");
+    throw new HttpError(
+      409,
+      "REGISTRATION_NOT_DECIDED",
+      "هذا التاجر لم يُعتمد بعد — قرار طلبه يُتّخذ من طابور التسجيل."
+    );
   }
   if (merchant.isActive === !suspended) {
-    return { merchantId, suspended, changed: false, storesAffected: 0, sessionsRevoked: { merchant: 0, staff: 0 } };
+    return {
+      merchantId,
+      suspended,
+      changed: false,
+      storesAffected: 0,
+      sessionsRevoked: { merchant: 0, staff: 0 },
+    };
   }
 
   const now = new Date();
   return prisma.$transaction(async (tx) => {
     await tx.merchant.update({ where: { id: merchantId }, data: { isActive: !suspended } });
-    const stores = await tx.store.updateMany({ where: { merchantId }, data: { isActive: !suspended } });
+    const stores = await tx.store.updateMany({
+      where: { merchantId },
+      data: { isActive: !suspended },
+    });
 
     let merchantSessions = 0;
     let staffSessions = 0;
@@ -122,10 +143,22 @@ export async function setMerchantSuspension(
       // every request, so this is belt AND braces — but a revoked session is what
       // makes the merchant's own browser show him the door immediately instead of
       // rendering a dashboard whose every card answers «تعذر التحميل».
-      merchantSessions = (await tx.merchantSession.updateMany({ where: { merchantId, revokedAt: null }, data: { revokedAt: now } })).count;
-      const storeIds = (await tx.store.findMany({ where: { merchantId }, select: { id: true } })).map((store) => store.id);
+      merchantSessions = (
+        await tx.merchantSession.updateMany({
+          where: { merchantId, revokedAt: null },
+          data: { revokedAt: now },
+        })
+      ).count;
+      const storeIds = (
+        await tx.store.findMany({ where: { merchantId }, select: { id: true } })
+      ).map((store) => store.id);
       if (storeIds.length) {
-        staffSessions = (await tx.staffSession.updateMany({ where: { storeId: { in: storeIds }, revokedAt: null }, data: { revokedAt: now } })).count;
+        staffSessions = (
+          await tx.staffSession.updateMany({
+            where: { storeId: { in: storeIds }, revokedAt: null },
+            data: { revokedAt: now },
+          })
+        ).count;
       }
     }
 

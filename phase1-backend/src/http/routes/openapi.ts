@@ -32,13 +32,16 @@ import { asyncRoute } from "../shared.js";
  * never be asked for it.
  */
 export function registerOpenApiRoutes(app: Express) {
-  app.get("/openapi.json", asyncRoute(async (_request, response) => {
-    const { openApiDocument } = await import("../openapi.document.js");
-    // Long-lived caching is wrong here even though the document only changes on
-    // deploy: an integrator debugging a shape must be able to re-fetch and get
-    // what this build actually serves, and a stale copy in a proxy is exactly
-    // the drift the whole phase exists to remove.
-    response.setHeader("cache-control", "no-cache");
-    response.status(200).json(openApiDocument);
-  }));
+  app.get(
+    "/openapi.json",
+    asyncRoute(async (_request, response) => {
+      const { openApiDocument } = await import("../openapi.document.js");
+      // Long-lived caching is wrong here even though the document only changes on
+      // deploy: an integrator debugging a shape must be able to re-fetch and get
+      // what this build actually serves, and a stale copy in a proxy is exactly
+      // the drift the whole phase exists to remove.
+      response.setHeader("cache-control", "no-cache");
+      response.status(200).json(openApiDocument);
+    })
+  );
 }

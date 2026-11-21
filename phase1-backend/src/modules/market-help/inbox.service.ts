@@ -13,9 +13,27 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
-import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../../services/list-page.js";
+import {
+  decodeListCursor,
+  encodeListCursor,
+  pageOf,
+  parseListLimit,
+} from "../../services/list-page.js";
 
-type Row = { item_id: string; source: "o" | "r" | "t"; ticket_id: string | null; ticket_number: number | null; at: Date; status: string; order_id: string; order_number: string; fulfilment: string; store_name: string; note: string | null; read: boolean };
+type Row = {
+  item_id: string;
+  source: "o" | "r" | "t";
+  ticket_id: string | null;
+  ticket_number: number | null;
+  at: Date;
+  status: string;
+  order_id: string;
+  order_number: string;
+  fulfilment: string;
+  store_name: string;
+  note: string | null;
+  read: boolean;
+};
 
 const KIND = "market-inbox";
 const KEY = /^([ort]):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
@@ -49,33 +67,87 @@ function readAllAtSql(shopperId: string) {
 }
 
 const ORDER_TEXT: Record<string, (row: Row) => { title: string; body: string }> = {
-  processing: (row) => ({ title: "قبل المتجر طلبك", body: `${row.store_name} قبل الطلب رقم ${row.order_number} وسيبدأ بتجهيزه.` }),
-  preparation: (row) => ({ title: "طلبك قيد التجهيز", body: `${row.store_name} يجهّز الطلب رقم ${row.order_number}.` }),
-  out_for_delivery: (row) => row.fulfilment === "pickup"
-    ? { title: "طلبك جاهز للاستلام", body: `الطلب رقم ${row.order_number} جاهز في ${row.store_name}. اعرض رمز الاستلام عند وصولك.` }
-    : { title: "طلبك في الطريق إليك", body: `الطلب رقم ${row.order_number} خرج للتوصيل. جهّز رمز الاستلام للمندوب.` },
-  completed: (row) => ({ title: "تمّ تسليم طلبك", body: `استلمت الطلب رقم ${row.order_number}. شاركنا تقييمك لـ${row.store_name}.` }),
-  cancelled: (row) => ({ title: "أُلغي طلبك", body: `ألغى ${row.store_name} الطلب رقم ${row.order_number}.` }),
-  rejected: (row) => ({ title: "اعتذر المتجر عن طلبك", body: `لم يتمكّن ${row.store_name} من تنفيذ الطلب رقم ${row.order_number}.` }),
-  returned: (row) => ({ title: "سُجّل إرجاع طلبك", body: `الطلب رقم ${row.order_number} سُجّل مُرجعاً لدى ${row.store_name}.` }),
+  processing: (row) => ({
+    title: "قبل المتجر طلبك",
+    body: `${row.store_name} قبل الطلب رقم ${row.order_number} وسيبدأ بتجهيزه.`,
+  }),
+  preparation: (row) => ({
+    title: "طلبك قيد التجهيز",
+    body: `${row.store_name} يجهّز الطلب رقم ${row.order_number}.`,
+  }),
+  out_for_delivery: (row) =>
+    row.fulfilment === "pickup"
+      ? {
+          title: "طلبك جاهز للاستلام",
+          body: `الطلب رقم ${row.order_number} جاهز في ${row.store_name}. اعرض رمز الاستلام عند وصولك.`,
+        }
+      : {
+          title: "طلبك في الطريق إليك",
+          body: `الطلب رقم ${row.order_number} خرج للتوصيل. جهّز رمز الاستلام للمندوب.`,
+        },
+  completed: (row) => ({
+    title: "تمّ تسليم طلبك",
+    body: `استلمت الطلب رقم ${row.order_number}. شاركنا تقييمك لـ${row.store_name}.`,
+  }),
+  cancelled: (row) => ({
+    title: "أُلغي طلبك",
+    body: `ألغى ${row.store_name} الطلب رقم ${row.order_number}.`,
+  }),
+  rejected: (row) => ({
+    title: "اعتذر المتجر عن طلبك",
+    body: `لم يتمكّن ${row.store_name} من تنفيذ الطلب رقم ${row.order_number}.`,
+  }),
+  returned: (row) => ({
+    title: "سُجّل إرجاع طلبك",
+    body: `الطلب رقم ${row.order_number} سُجّل مُرجعاً لدى ${row.store_name}.`,
+  }),
 };
 
 function present(row: Row) {
   if (row.source === "t") {
-    return { key: `t:${row.item_id}`, kind: "ticket", at: row.at, read: row.read, title: "ردّ جديد من الدعم", body: `التذكرة رقم ${row.ticket_number}: ${row.note ?? ""}`, orderId: row.order_id, link: `/tickets/${row.ticket_id}` };
+    return {
+      key: `t:${row.item_id}`,
+      kind: "ticket",
+      at: row.at,
+      read: row.read,
+      title: "ردّ جديد من الدعم",
+      body: `التذكرة رقم ${row.ticket_number}: ${row.note ?? ""}`,
+      orderId: row.order_id,
+      link: `/tickets/${row.ticket_id}`,
+    };
   }
-  const text = row.source === "r"
-    ? row.status === "approved"
-      ? { title: "وافق المتجر على الإرجاع", body: `${row.store_name} وافق على إرجاع الطلب رقم ${row.order_number}.${row.note ? ` ${row.note}` : ""}` }
-      : { title: "رفض المتجر طلب الإرجاع", body: `${row.store_name}: ${row.note ?? "لم يقبل طلب الإرجاع."}` }
-    : (ORDER_TEXT[row.status] ?? ((r: Row) => ({ title: "تحديث على طلبك", body: `الطلب رقم ${r.order_number}` })))(row);
-  return { key: `${row.source}:${row.item_id}`, kind: row.source === "r" ? "return" : "order", at: row.at, read: row.read, ...text, orderId: row.order_id, link: `/orders/${row.order_id}` };
+  const text =
+    row.source === "r"
+      ? row.status === "approved"
+        ? {
+            title: "وافق المتجر على الإرجاع",
+            body: `${row.store_name} وافق على إرجاع الطلب رقم ${row.order_number}.${row.note ? ` ${row.note}` : ""}`,
+          }
+        : {
+            title: "رفض المتجر طلب الإرجاع",
+            body: `${row.store_name}: ${row.note ?? "لم يقبل طلب الإرجاع."}`,
+          }
+      : (
+          ORDER_TEXT[row.status] ??
+          ((r: Row) => ({ title: "تحديث على طلبك", body: `الطلب رقم ${r.order_number}` }))
+        )(row);
+  return {
+    key: `${row.source}:${row.item_id}`,
+    kind: row.source === "r" ? "return" : "order",
+    at: row.at,
+    read: row.read,
+    ...text,
+    orderId: row.order_id,
+    link: `/orders/${row.order_id}`,
+  };
 }
 
 export async function inboxPage(shopperId: string, rawCursor: unknown, rawLimit: unknown) {
   const limit = parseListLimit(rawLimit, 50, 20);
   const cursor = decodeListCursor(KIND, rawCursor);
-  const after = cursor ? Prisma.sql`WHERE (i.at, i.item_id) < (${new Date(cursor.value)}::timestamptz, ${cursor.id}::uuid)` : Prisma.empty;
+  const after = cursor
+    ? Prisma.sql`WHERE (i.at, i.item_id) < (${new Date(cursor.value)}::timestamptz, ${cursor.id}::uuid)`
+    : Prisma.empty;
   const rows = await prisma.$queryRaw<Row[]>`
     SELECT i.*, (i.at <= ${readAllAtSql(shopperId)} OR rd.item_key IS NOT NULL) AS read
       FROM (${itemsSql(shopperId)}) i
@@ -83,7 +155,9 @@ export async function inboxPage(shopperId: string, rawCursor: unknown, rawLimit:
       ${after}
      ORDER BY i.at DESC, i.item_id DESC
      LIMIT ${limit + 1}`;
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(KIND, last.at, last.item_id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(KIND, last.at, last.item_id)
+  );
   return { items: page.map(present), nextCursor };
 }
 
@@ -100,7 +174,10 @@ export async function unreadCount(shopperId: string) {
 
 export async function markRead(shopperId: string, key: string) {
   if (!KEY.test(key)) throw new HttpError(422, "INVALID_INBOX_KEY", "إشعار غير معروف.");
-  await prisma.shopperInboxRead.createMany({ data: [{ shopperId, itemKey: key.toLowerCase() }], skipDuplicates: true });
+  await prisma.shopperInboxRead.createMany({
+    data: [{ shopperId, itemKey: key.toLowerCase() }],
+    skipDuplicates: true,
+  });
   return unreadCount(shopperId);
 }
 
@@ -108,7 +185,11 @@ export async function markRead(shopperId: string, key: string) {
 export async function markAllRead(shopperId: string) {
   const now = new Date();
   await prisma.$transaction([
-    prisma.shopperInboxState.upsert({ where: { shopperId }, create: { shopperId, readAllAt: now }, update: { readAllAt: now } }),
+    prisma.shopperInboxState.upsert({
+      where: { shopperId },
+      create: { shopperId, readAllAt: now },
+      update: { readAllAt: now },
+    }),
     prisma.shopperInboxRead.deleteMany({ where: { shopperId, readAt: { lte: now } } }),
   ]);
   return { unread: 0 };

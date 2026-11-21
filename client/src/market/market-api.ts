@@ -1,15 +1,27 @@
 /** The market's one fetch helper: same-origin, JSON, and the server's Arabic error message when it has one. */
 export class MarketApiError extends Error {
-  constructor(message: string, readonly status: number, readonly code: string | null) {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string | null
+  ) {
     super(message);
   }
 }
 
 export async function marketGet<T>(url: string, init?: { signal?: AbortSignal }): Promise<T> {
-  const response = await fetch(url, { credentials: "same-origin", signal: init?.signal, headers: { accept: "application/json" } });
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    signal: init?.signal,
+    headers: { accept: "application/json" },
+  });
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new MarketApiError(body?.error?.message ?? "تعذّر الاتصال بالخادم، حاول مرة أخرى", response.status, body?.error?.code ?? null);
+    throw new MarketApiError(
+      body?.error?.message ?? "تعذّر الاتصال بالخادم، حاول مرة أخرى",
+      response.status,
+      body?.error?.code ?? null
+    );
   }
   return body as T;
 }

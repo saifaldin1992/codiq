@@ -95,9 +95,12 @@ for (const [label, file, rendered] of [
     continue;
   }
   if (sameContent(committed, rendered)) continue;
-  failures.push(`${label} does not match what the routes produce.\n${describeDrift(committed, rendered)}\n      Fix: \`pnpm openapi:generate\`, then read the diff — it names every endpoint that changed.`);
+  failures.push(
+    `${label} does not match what the routes produce.\n${describeDrift(committed, rendered)}\n      Fix: \`pnpm openapi:generate\`, then read the diff — it names every endpoint that changed.`
+  );
 }
-summary.regenerated = "the committed document is byte-identical to one built from the live routing table";
+summary.regenerated =
+  "the committed document is byte-identical to one built from the live routing table";
 
 /**
  * Which endpoints moved, not «the files differ». A 900 KB diff is unreadable;
@@ -110,9 +113,18 @@ function describeDrift(committed, rendered) {
   if (committedPaths && renderedPaths) {
     const added = [...renderedPaths].filter((key) => !committedPaths.has(key)).sort();
     const removed = [...committedPaths].filter((key) => !renderedPaths.has(key)).sort();
-    if (added.length) lines.push(`      ${added.length} endpoint(s) the routes have and the document does not:\n${added.map((key) => `        + ${key}`).join("\n")}`);
-    if (removed.length) lines.push(`      ${removed.length} endpoint(s) the document has and the routes do not:\n${removed.map((key) => `        - ${key}`).join("\n")}`);
-    if (!added.length && !removed.length) lines.push("      The same endpoints, but their described shapes differ — a schema, a door, an error code or a parameter changed.");
+    if (added.length)
+      lines.push(
+        `      ${added.length} endpoint(s) the routes have and the document does not:\n${added.map((key) => `        + ${key}`).join("\n")}`
+      );
+    if (removed.length)
+      lines.push(
+        `      ${removed.length} endpoint(s) the document has and the routes do not:\n${removed.map((key) => `        - ${key}`).join("\n")}`
+      );
+    if (!added.length && !removed.length)
+      lines.push(
+        "      The same endpoints, but their described shapes differ — a schema, a door, an error code or a parameter changed."
+      );
   }
   return lines.join("\n");
 }
@@ -130,7 +142,8 @@ function pathKeysOf(text) {
     const parsed = JSON.parse(text.slice(start, text.lastIndexOf("}") + 1));
     const keys = new Set();
     for (const [route, item] of Object.entries(parsed.paths ?? {})) {
-      for (const method of Object.keys(item)) if (method !== "servers") keys.add(`${method.toUpperCase()} ${route}`);
+      for (const method of Object.keys(item))
+        if (method !== "servers") keys.add(`${method.toUpperCase()} ${route}`);
     }
     return keys;
   } catch {
@@ -150,7 +163,10 @@ for (const [route, item] of Object.entries(document.paths)) {
   }
 }
 
-assert.ok(operations.length > 200, `the platform has more than two hundred endpoints; the document describes ${operations.length}`);
+assert.ok(
+  operations.length > 200,
+  `the platform has more than two hundred endpoints; the document describes ${operations.length}`
+);
 summary.operations = operations.length;
 
 const operationIds = new Map();
@@ -163,33 +179,57 @@ const uncataloguedCodes = new Set();
 
 for (const { key, route, operation } of operations) {
   if (!route.startsWith("/")) failures.push(`${key}: a path template must start with «/»`);
-  if (/:/.test(route)) failures.push(`${key}: an Express «:param» leaked into the path template — OpenAPI uses «{param}»`);
-  if (operationIds.has(operation.operationId)) failures.push(`operationId «${operation.operationId}» is used by both ${operationIds.get(operation.operationId)} and ${key} — a generated client would collide`);
+  if (/:/.test(route))
+    failures.push(
+      `${key}: an Express «:param» leaked into the path template — OpenAPI uses «{param}»`
+    );
+  if (operationIds.has(operation.operationId))
+    failures.push(
+      `operationId «${operation.operationId}» is used by both ${operationIds.get(operation.operationId)} and ${key} — a generated client would collide`
+    );
   operationIds.set(operation.operationId, key);
 
   // Every operation must name a door, even if the door is «open».
-  if (!Array.isArray(operation["x-codiq-identity"]) || operation["x-codiq-identity"].length === 0) doorless.push(key);
+  if (!Array.isArray(operation["x-codiq-identity"]) || operation["x-codiq-identity"].length === 0)
+    doorless.push(key);
   // …and must say what happens when the request is refused.
   const statuses = Object.keys(operation.responses ?? {});
   if (!statuses.some((status) => Number(status) >= 400)) errorless.push(key);
-  if (!statuses.some((status) => Number(status) >= 200 && Number(status) < 400)) undocumented.push(`${key}: no success response`);
+  if (!statuses.some((status) => Number(status) >= 200 && Number(status) < 400))
+    undocumented.push(`${key}: no success response`);
 
   // Every path parameter in the template must be declared, or a generated
   // client cannot build the URL at all.
   const templated = [...route.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]);
-  const declared = new Set((operation.parameters ?? []).filter((parameter) => parameter.in === "path").map((parameter) => parameter.name));
-  for (const name of templated) if (!declared.has(name)) failures.push(`${key}: «{${name}}» is in the path template but is not a declared parameter`);
+  const declared = new Set(
+    (operation.parameters ?? [])
+      .filter((parameter) => parameter.in === "path")
+      .map((parameter) => parameter.name)
+  );
+  for (const name of templated)
+    if (!declared.has(name))
+      failures.push(`${key}: «{${name}}» is in the path template but is not a declared parameter`);
 
   for (const response of Object.values(operation.responses ?? {})) {
-    for (const code of response["x-codiq-error-codes"] ?? []) if (!declaredCodes.has(code)) uncataloguedCodes.add(`${key} → ${code}`);
+    for (const code of response["x-codiq-error-codes"] ?? [])
+      if (!declaredCodes.has(code)) uncataloguedCodes.add(`${key} → ${code}`);
   }
   collectRefs(operation, unresolvedRefs);
 }
 
-if (doorless.length) failures.push(`${doorless.length} operation(s) name no identity at all — the generator lost the guard, it did not find a public route:\n${doorless.map((key) => `        · ${key}`).join("\n")}`);
-if (errorless.length) failures.push(`${errorless.length} operation(s) document no failure. Every route on this platform can answer 400, 413 and 500 from the shared handler alone:\n${errorless.map((key) => `        · ${key}`).join("\n")}`);
+if (doorless.length)
+  failures.push(
+    `${doorless.length} operation(s) name no identity at all — the generator lost the guard, it did not find a public route:\n${doorless.map((key) => `        · ${key}`).join("\n")}`
+  );
+if (errorless.length)
+  failures.push(
+    `${errorless.length} operation(s) document no failure. Every route on this platform can answer 400, 413 and 500 from the shared handler alone:\n${errorless.map((key) => `        · ${key}`).join("\n")}`
+  );
 for (const line of undocumented) failures.push(line);
-if (uncataloguedCodes.size) failures.push(`error code(s) referenced by an operation but absent from x-codiq-error-catalogue — the enum on ErrorEnvelope.error.code would refuse a code the platform actually sends:\n${[...uncataloguedCodes].map((line) => `        · ${line}`).join("\n")}`);
+if (uncataloguedCodes.size)
+  failures.push(
+    `error code(s) referenced by an operation but absent from x-codiq-error-catalogue — the enum on ErrorEnvelope.error.code would refuse a code the platform actually sends:\n${[...uncataloguedCodes].map((line) => `        · ${line}`).join("\n")}`
+  );
 
 // Every `$ref` must resolve. A dangling one turns a described shape into
 // nothing, and no tool reports it until an integrator's generator crashes.
@@ -200,7 +240,8 @@ function collectRefs(node, into, seen = new Set()) {
     if (key === "$ref" && typeof value === "string") {
       const segments = value.replace(/^#\//, "").split("/");
       let target = document;
-      for (const segment of segments) target = target?.[segment.replace(/~1/g, "/").replace(/~0/g, "~")];
+      for (const segment of segments)
+        target = target?.[segment.replace(/~1/g, "/").replace(/~0/g, "~")];
       if (target === undefined) into.add(value);
       continue;
     }
@@ -215,21 +256,30 @@ summary.refs = "every $ref in the document resolves";
 // 3. The decisions this phase made must be IN the document, not only in a
 //    commit message. Each of these is a fact a client will act on.
 // ===========================================================================
-assert.equal(document.openapi, "3.1.0", "3.1 is chosen so zod's JSON Schema 2020-12 output drops in unconverted");
+assert.equal(
+  document.openapi,
+  "3.1.0",
+  "3.1 is chosen so zod's JSON Schema 2020-12 output drops in unconverted"
+);
 assert.deepEqual(
   document.servers.map((server) => server.url),
   ["/api/v1", "/api"],
-  "both mounts are declared, versioned first — the order clients read as «prefer this one»",
+  "both mounts are declared, versioned first — the order clients read as «prefer this one»"
 );
 
-const storefrontOperations = operations.filter(({ route }) => route === "/store" || route.startsWith("/store/"));
-assert.ok(storefrontOperations.length > 20, `the storefront is a large surface; found ${storefrontOperations.length} operations`);
+const storefrontOperations = operations.filter(
+  ({ route }) => route === "/store" || route.startsWith("/store/")
+);
+assert.ok(
+  storefrontOperations.length > 20,
+  `the storefront is a large surface; found ${storefrontOperations.length} operations`
+);
 for (const { route } of storefrontOperations) {
   const servers = document.paths[route].servers;
   assert.deepEqual(
     servers?.map((server) => server.url),
     ["/api"],
-    `${route} must be pinned to /api alone: the customer cookie is scoped to /api/store/{storeSlug}, so a versioned copy of this route hands the shopper a cookie his browser will not send back`,
+    `${route} must be pinned to /api alone: the customer cookie is scoped to /api/store/{storeSlug}, so a versioned copy of this route hands the shopper a cookie his browser will not send back`
   );
 }
 summary.storefrontPinned = `${storefrontOperations.length} storefront operations are pinned to /api — the exception is machine-readable, not prose`;
@@ -238,38 +288,65 @@ summary.storefrontPinned = `${storefrontOperations.length} storefront operations
 // by name, or «which door» has quietly become a guess.
 const kinds = new Set(operations.flatMap(({ operation }) => operation["x-codiq-identity"] ?? []));
 for (const kind of ["platform_owner", "platform_staff", "merchant", "staff", "customer"]) {
-  assert.ok(kinds.has(kind), `no operation is documented as requiring «${kind}» — the guard detection for that door has broken`);
+  assert.ok(
+    kinds.has(kind),
+    `no operation is documented as requiring «${kind}» — the guard detection for that door has broken`
+  );
 }
 summary.identities = [...kinds].sort().join(", ");
 
 // The error envelope is a contract phase 22 will translate BY CODE.
 const envelope = document.components.schemas.ErrorEnvelope;
-assert.deepEqual(envelope.properties.error.required, ["code", "message", "requestId"], "the envelope is { error: { code, message, requestId } } and has been since 24-أ");
-assert.ok(envelope.properties.error.properties.code.enum.length > 150, "the code enum is generated from the throw sites; a short one means the scan stopped finding them");
-assert.ok(envelope.properties.error.properties.code.enum.includes("VALIDATION_FAILED"), "the most common refusal on the platform must be in the enum");
+assert.deepEqual(
+  envelope.properties.error.required,
+  ["code", "message", "requestId"],
+  "the envelope is { error: { code, message, requestId } } and has been since 24-أ"
+);
+assert.ok(
+  envelope.properties.error.properties.code.enum.length > 150,
+  "the code enum is generated from the throw sites; a short one means the scan stopped finding them"
+);
+assert.ok(
+  envelope.properties.error.properties.code.enum.includes("VALIDATION_FAILED"),
+  "the most common refusal on the platform must be in the enum"
+);
 assert.ok(envelope.properties.error.properties.code.enum.includes("RATE_LIMITED"));
-assert.ok(envelope.properties.error.properties.code.enum.includes("STORE_BOUNDARY_DENIED"), "the tenancy wall's own refusal");
+assert.ok(
+  envelope.properties.error.properties.code.enum.includes("STORE_BOUNDARY_DENIED"),
+  "the tenancy wall's own refusal"
+);
 summary.errorCodes = envelope.properties.error.properties.code.enum.length;
 
 // 20-2's envelope is described ONCE and referenced, never repeated per route.
 const listOperations = operations.filter(({ operation }) => operation["x-codiq-list-envelope"]);
-assert.ok(listOperations.length > 20, `the platform has many paginated lists; found ${listOperations.length}`);
+assert.ok(
+  listOperations.length > 20,
+  `the platform has many paginated lists; found ${listOperations.length}`
+);
 for (const { key, operation } of listOperations) {
   const success = Object.entries(operation.responses).find(([status]) => Number(status) < 400)?.[1];
   const schema = success?.content?.["application/json"]?.schema;
   assert.ok(
     schema?.allOf?.some((part) => part.$ref === "#/components/schemas/ListEnvelope"),
-    `${key} is a list route but does not reference the shared ListEnvelope — 20-2's contract described twice is 20-2's contract undone`,
+    `${key} is a list route but does not reference the shared ListEnvelope — 20-2's contract described twice is 20-2's contract undone`
   );
 }
 summary.lists = `${listOperations.length} list operations reference the one ListEnvelope component`;
 
 // A body-validated route must carry the schema, not a shrug.
-const validated = operations.filter(({ operation }) => operation.requestBody?.content?.["application/json"]);
-assert.ok(validated.length > 60, `19-ج put zod on every write; only ${validated.length} operations carry a JSON request schema`);
+const validated = operations.filter(
+  ({ operation }) => operation.requestBody?.content?.["application/json"]
+);
+assert.ok(
+  validated.length > 60,
+  `19-ج put zod on every write; only ${validated.length} operations carry a JSON request schema`
+);
 for (const { key, operation } of validated) {
   const ref = operation.requestBody.content["application/json"].schema.$ref;
-  assert.ok(ref?.startsWith("#/components/schemas/"), `${key}: the request body must reference a generated schema component, not an inline shrug`);
+  assert.ok(
+    ref?.startsWith("#/components/schemas/"),
+    `${key}: the request body must reference a generated schema component, not an inline shrug`
+  );
 }
 summary.requestSchemas = `${validated.length} operations carry a zod-derived request body schema`;
 

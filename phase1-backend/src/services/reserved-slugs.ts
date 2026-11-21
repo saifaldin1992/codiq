@@ -108,6 +108,10 @@ export function isReservedStoreSlug(value: string): boolean {
  */
 export function assertStoreSlugNotReserved(value: string): void {
   if (isReservedStoreSlug(value)) {
-    throw new HttpError(422, "RESERVED_STORE_SLUG", "هذا الرابط محجوز للمنصة — اختر رابطاً آخر لمتجرك.");
+    throw new HttpError(
+      422,
+      "RESERVED_STORE_SLUG",
+      "هذا الرابط محجوز للمنصة — اختر رابطاً آخر لمتجرك."
+    );
   }
 }

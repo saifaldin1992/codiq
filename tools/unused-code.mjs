@@ -45,11 +45,11 @@ function* walk(dir) {
     if (name === "node_modules" || name.startsWith(".")) continue;
     const path = join(dir, name);
     if (statSync(path).isDirectory()) yield* walk(path);
-    else if (EXT.some(ext => name.endsWith(ext)) && !name.endsWith(".d.ts"))
+    else if (EXT.some((ext) => name.endsWith(ext)) && !name.endsWith(".d.ts"))
       yield relative(ROOT, path);
   }
 }
-const all = new Set(SOURCE_ROOTS.flatMap(root => [...walk(root)]));
+const all = new Set(SOURCE_ROOTS.flatMap((root) => [...walk(root)]));
 for (const config of ["vite.config.ts", "vitest.backend.config.ts", "eslint.config.mjs"])
   if (existsSync(config)) all.add(config);
 
@@ -62,10 +62,10 @@ function resolve(from, spec) {
   const stripped = base.replace(/\.(js|mjs|ts|tsx)$/, "");
   const candidates = [
     base,
-    ...EXT.map(ext => stripped + ext),
-    ...EXT.map(ext => join(base, `index${ext}`)),
+    ...EXT.map((ext) => stripped + ext),
+    ...EXT.map((ext) => join(base, `index${ext}`)),
   ];
-  return candidates.find(candidate => all.has(candidate)) ?? null;
+  return candidates.find((candidate) => all.has(candidate)) ?? null;
 }
 
 const exportsOf = new Map(); // file → Set(names)
@@ -77,7 +77,7 @@ const markUsed = (file, name) => {
   set.add(name);
   used.set(file, set);
 };
-const hasModifier = (node, kind) => node.modifiers?.some(m => m.kind === kind);
+const hasModifier = (node, kind) => node.modifiers?.some((m) => m.kind === kind);
 
 for (const file of all) {
   const text = readFileSync(file, "utf8");
@@ -100,7 +100,7 @@ for (const file of all) {
     out.add(target);
     for (const name of names) markUsed(target, name);
   };
-  const visit = node => {
+  const visit = (node) => {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       const clause = node.importClause;
       const names = [];
@@ -119,7 +119,7 @@ for (const file of all) {
         } else if (ts.isNamedExports(node.exportClause)) {
           link(
             node.moduleSpecifier.text,
-            node.exportClause.elements.map(el => (el.propertyName ?? el.name).text)
+            node.exportClause.elements.map((el) => (el.propertyName ?? el.name).text)
           );
           for (const el of node.exportClause.elements) exported.add(el.name.text);
         }
@@ -180,7 +180,7 @@ for (const match of runTexts.matchAll(/esbuild ([\w./-]+\.ts)/g))
   if (all.has(match[1])) entries.add(match[1]);
 
 const reached = new Set();
-const stack = [...entries].filter(file => all.has(file));
+const stack = [...entries].filter((file) => all.has(file));
 while (stack.length) {
   const file = stack.pop();
   if (reached.has(file)) continue;
@@ -188,7 +188,7 @@ while (stack.length) {
   for (const next of edges.get(file) ?? []) stack.push(next);
 }
 const unreachedFiles = [...all]
-  .filter(file => !reached.has(file) && !/\/tests\//.test(file))
+  .filter((file) => !reached.has(file) && !/\/tests\//.test(file))
   .sort();
 
 const unusedExports = [];
@@ -218,7 +218,7 @@ for (const dir of ["client/src", "client"]) {
 }
 const allDeps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
 const unusedDeps = Object.keys(allDeps)
-  .filter(dep => {
+  .filter((dep) => {
     if (bare.has(dep)) return false;
     if (dep.startsWith("@types/")) {
       const base = dep.slice(7).replace("__", "/");
@@ -257,7 +257,7 @@ if (mode === "--write") {
   if (
     baseline &&
     !process.argv.includes("--first") &&
-    Object.keys(counts).some(key => counts[key] > baseline.counts[key])
+    Object.keys(counts).some((key) => counts[key] > baseline.counts[key])
   ) {
     console.error(
       "refused: the counts went up — remove the new unused code, do not raise the baseline. " +
@@ -280,11 +280,11 @@ if (!baseline) {
   console.error("no baseline — run `node tools/unused-code.mjs --write --first` once");
   process.exit(2);
 }
-const fresh = (list, old) => list.filter(entry => !old.includes(entry));
+const fresh = (list, old) => list.filter((entry) => !old.includes(entry));
 const problems = [
-  ...fresh(unreachedFiles, baseline.unreachedFiles).map(file => `new unreachable file: ${file}`),
-  ...fresh(unusedExports, baseline.unusedExports).map(entry => `new unused export: ${entry}`),
-  ...fresh(unusedDeps, baseline.unusedDependencies).map(dep => `new unused dependency: ${dep}`),
+  ...fresh(unreachedFiles, baseline.unreachedFiles).map((file) => `new unreachable file: ${file}`),
+  ...fresh(unusedExports, baseline.unusedExports).map((entry) => `new unused export: ${entry}`),
+  ...fresh(unusedDeps, baseline.unusedDependencies).map((dep) => `new unused dependency: ${dep}`),
 ];
 if (problems.length) {
   console.error(

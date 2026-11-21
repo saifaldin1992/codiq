@@ -85,7 +85,8 @@ export function usePrefersReducedMotion(): boolean {
  * server message («رابط المتجر مستخدم بالفعل.») and must be shown as-is.
  */
 export function describeFetchFailure(error: unknown): string {
-  if (error instanceof TypeError) return "تعذّر الاتصال بالخادم. تحقق من اتصالك بالإنترنت ثم أعد المحاولة.";
+  if (error instanceof TypeError)
+    return "تعذّر الاتصال بالخادم. تحقق من اتصالك بالإنترنت ثم أعد المحاولة.";
   if (error instanceof Error && error.message.trim()) return error.message;
   return "خطأ غير متوقع.";
 }
@@ -112,7 +113,7 @@ function sharedRevealObserver(): IntersectionObserver | null {
       },
       // Threshold 0 keeps blocks taller than the viewport working; the bottom
       // margin delays the reveal until the block is genuinely in the reading area.
-      { threshold: 0, rootMargin: "0px 0px -80px 0px" },
+      { threshold: 0, rootMargin: "0px 0px -80px 0px" }
     );
   }
   return revealObserver;
@@ -169,7 +170,7 @@ function sharedViewportObserver(): IntersectionObserver | null {
       },
       // A screen of slack on each side: the animation is already running by the
       // time the block scrolls in, so nothing visibly starts from a cold frame.
-      { threshold: 0, rootMargin: "200px 0px" },
+      { threshold: 0, rootMargin: "200px 0px" }
     );
   }
   return viewportObserver;
@@ -231,7 +232,7 @@ export function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() =>
     typeof window !== "undefined" && typeof window.matchMedia === "function"
       ? window.matchMedia(query).matches
-      : false,
+      : false
   );
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;

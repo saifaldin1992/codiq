@@ -20,7 +20,15 @@ import { z } from "zod";
  * position because the whole point of this list is that the merchant decides what
  * his front page opens with and what comes next.
  */
-export const HOME_SECTION_KEYS = ["banners", "categories", "newest", "best_selling", "banners_mid", "top_rated", "reviews"] as const;
+export const HOME_SECTION_KEYS = [
+  "banners",
+  "categories",
+  "newest",
+  "best_selling",
+  "banners_mid",
+  "top_rated",
+  "reviews",
+] as const;
 export type HomeSectionKey = (typeof HOME_SECTION_KEYS)[number];
 
 /**
@@ -50,14 +58,18 @@ const handle = (pattern: RegExp, network: string) =>
     .string()
     .trim()
     .transform((value) => value.replace(/^@/, ""))
-    .refine((value) => value === "" || pattern.test(value), { message: `اكتب اسم المستخدم فقط على ${network} — بلا رابط.` })
+    .refine((value) => value === "" || pattern.test(value), {
+      message: `اكتب اسم المستخدم فقط على ${network} — بلا رابط.`,
+    })
     .nullish();
 
 const optionalEmail = z
   .string()
   .trim()
   .max(254)
-  .refine((value) => value === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), { message: "بريد الدعم غير صالح." })
+  .refine((value) => value === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+    message: "بريد الدعم غير صالح.",
+  })
   .nullish();
 
 export const homeSectionsSchema = z
@@ -66,10 +78,12 @@ export const homeSectionsSchema = z
       key: z.enum(HOME_SECTION_KEYS),
       enabled: z.boolean(),
       title: z.string().trim().min(1).max(60).nullish(),
-    }),
+    })
   )
   .max(HOME_SECTION_KEYS.length)
-  .refine((sections) => new Set(sections.map((section) => section.key)).size === sections.length, { message: "كل قسم يُذكر مرة واحدة." });
+  .refine((sections) => new Set(sections.map((section) => section.key)).size === sections.length, {
+    message: "كل قسم يُذكر مرة واحدة.",
+  });
 
 export type HomeSectionInput = z.infer<typeof homeSectionsSchema>[number];
 
@@ -93,19 +107,27 @@ export const customPagesSchema = z
         .string()
         .trim()
         .toLowerCase()
-        .regex(/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/, "رابط الصفحة: أحرف إنجليزية صغيرة وأرقام وشرطات فقط."),
+        .regex(
+          /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/,
+          "رابط الصفحة: أحرف إنجليزية صغيرة وأرقام وشرطات فقط."
+        ),
       title: z.string().trim().min(1).max(80),
       body: z.string().trim().min(1).max(20000),
-    }),
+    })
   )
   .max(MAX_CUSTOM_PAGES)
-  .refine((pages) => new Set(pages.map((page) => page.slug)).size === pages.length, { message: "لا يمكن تكرار رابط الصفحة." })
+  .refine((pages) => new Set(pages.map((page) => page.slug)).size === pages.length, {
+    message: "لا يمكن تكرار رابط الصفحة.",
+  })
   // `policies/:kind` and `pages/:slug` are two different routes, but a merchant
   // reading his own footer sees one list — so a page that shadows a policy's name
   // is a trap for him and not for the router.
-  .refine((pages) => pages.every((page) => !(POLICY_KINDS as readonly string[]).includes(page.slug)), {
-    message: "هذا الرابط محجوز لإحدى السياسات — اختر رابطاً آخر.",
-  });
+  .refine(
+    (pages) => pages.every((page) => !(POLICY_KINDS as readonly string[]).includes(page.slug)),
+    {
+      message: "هذا الرابط محجوز لإحدى السياسات — اختر رابطاً آخر.",
+    }
+  );
 
 export type CustomPageInput = z.infer<typeof customPagesSchema>[number];
 
@@ -114,15 +136,28 @@ export const productAttributesSchema = z
   .array(
     z.object({
       group: z.string().trim().min(1).max(60),
-      rows: z.array(z.object({ key: z.string().trim().min(1).max(60), value: z.string().trim().min(1).max(200) })).min(1).max(20),
-    }),
+      rows: z
+        .array(
+          z.object({
+            key: z.string().trim().min(1).max(60),
+            value: z.string().trim().min(1).max(200),
+          })
+        )
+        .min(1)
+        .max(20),
+    })
   )
   .max(10);
 
 export const updateStorefrontSettingsSchema = z
   .object({
     // Identity. The name has the same bounds `requiredStoreName` enforces on rename.
-    name: z.string().trim().min(2, "اسم المتجر قصير جداً.").max(80, "اسم المتجر طويل جداً.").optional(),
+    name: z
+      .string()
+      .trim()
+      .min(2, "اسم المتجر قصير جداً.")
+      .max(80, "اسم المتجر طويل جداً.")
+      .optional(),
     headline: text(120),
     subline: text(300),
     // The strip above the header.
@@ -152,7 +187,9 @@ export const updateStorefrontSettingsSchema = z
     // The front page.
     homeSections: homeSectionsSchema.optional(),
   })
-  .refine((value) => Object.values(value).some((entry) => entry !== undefined), { message: "لا يوجد تغيير لتطبيقه." });
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+    message: "لا يوجد تغيير لتطبيقه.",
+  });
 
 export type UpdateStorefrontSettingsInput = z.infer<typeof updateStorefrontSettingsSchema>;
 

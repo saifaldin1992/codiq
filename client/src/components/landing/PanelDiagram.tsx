@@ -20,8 +20,24 @@ const TILE = "#EDF3FD";
 /** The customer's view: catalogue tiles under a store header, COD marked. */
 export function StorefrontPanel({ active }: { active: boolean }) {
   return (
-    <svg viewBox="0 0 520 330" data-active={active ? "true" : "false"} className="cq-panel h-auto w-full" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="1" width="518" height="328" rx="22" fill="#FFFFFF" stroke="#E2EAF5" strokeWidth="1.5" />
+    <svg
+      viewBox="0 0 520 330"
+      data-active={active ? "true" : "false"}
+      className="cq-panel h-auto w-full"
+      aria-hidden="true"
+      focusable="false"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect
+        x="1"
+        y="1"
+        width="518"
+        height="328"
+        rx="22"
+        fill="#FFFFFF"
+        stroke="#E2EAF5"
+        strokeWidth="1.5"
+      />
       {/* Window chrome — dots on the right, the store's own address pill beside them. */}
       <path d="M1 45h518" stroke="#EEF2F8" strokeWidth="1.5" />
       {[496, 478, 460].map((cx) => (
@@ -53,7 +69,16 @@ export function StorefrontPanel({ active }: { active: boolean }) {
 
       {/* COD marker — the one thing the storefront is built around. */}
       <g className="cq-panel__badge">
-        <rect x="24" y="286" width="176" height="28" rx="14" fill="#FFFFFF" stroke="#D3E2F9" strokeWidth="1.5" />
+        <rect
+          x="24"
+          y="286"
+          width="176"
+          height="28"
+          rx="14"
+          fill="#FFFFFF"
+          stroke="#D3E2F9"
+          strokeWidth="1.5"
+        />
         <circle cx="182" cy="300" r="8" fill="none" stroke={BLUE} strokeWidth="1.6" />
         <circle cx="182" cy="300" r="3" fill={BLUE} />
         <rect x="48" y="296" width="118" height="8" rx="4" fill="#BED5F3" />
@@ -66,8 +91,24 @@ export function StorefrontPanel({ active }: { active: boolean }) {
 export function PermissionsPanel({ active }: { active: boolean }) {
   const rows = [true, true, false, true, false, true];
   return (
-    <svg viewBox="0 0 520 330" data-active={active ? "true" : "false"} className="cq-panel h-auto w-full" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="1" width="518" height="328" rx="22" fill="#FFFFFF" stroke="#E2EAF5" strokeWidth="1.5" />
+    <svg
+      viewBox="0 0 520 330"
+      data-active={active ? "true" : "false"}
+      className="cq-panel h-auto w-full"
+      aria-hidden="true"
+      focusable="false"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect
+        x="1"
+        y="1"
+        width="518"
+        height="328"
+        rx="22"
+        fill="#FFFFFF"
+        stroke="#E2EAF5"
+        strokeWidth="1.5"
+      />
       <rect x="24" y="24" width="130" height="12" rx="6" fill="#C9D8EE" />
       <rect x="382" y="20" width="60" height="20" rx="10" fill="#EAF2FF" />
       <rect x="450" y="20" width="46" height="20" rx="10" fill="#F4F7FB" />
@@ -76,12 +117,37 @@ export function PermissionsPanel({ active }: { active: boolean }) {
         const y = 58 + index * 44;
         return (
           <g key={index} className="cq-panel__row" style={delayStyle(index * 90)}>
-            <rect x="24" y={y} width="472" height="34" rx="12" fill="#FFFFFF" stroke={EDGE} strokeWidth="1.25" />
+            <rect
+              x="24"
+              y={y}
+              width="472"
+              height="34"
+              rx="12"
+              fill="#FFFFFF"
+              stroke={EDGE}
+              strokeWidth="1.25"
+            />
             <rect x="42" y={y + 13} width={124 - index * 9} height="8" rx="4" fill="#D5DFEE" />
             <rect x="248" y={y + 13} width={68} height="8" rx="4" fill="#E4EAF4" />
             <g className="cq-toggle" data-on={on ? "true" : "false"}>
-              <rect className="cq-toggle__track" x="422" y={y + 8} width="52" height="18" rx="9" fill="#E1E8F3" />
-              <circle className="cq-toggle__knob" cx="466" cy={y + 17} r="7" fill="#FFFFFF" stroke="#D6DFEC" strokeWidth="1" />
+              <rect
+                className="cq-toggle__track"
+                x="422"
+                y={y + 8}
+                width="52"
+                height="18"
+                rx="9"
+                fill="#E1E8F3"
+              />
+              <circle
+                className="cq-toggle__knob"
+                cx="466"
+                cy={y + 17}
+                r="7"
+                fill="#FFFFFF"
+                stroke="#D6DFEC"
+                strokeWidth="1"
+              />
             </g>
           </g>
         );

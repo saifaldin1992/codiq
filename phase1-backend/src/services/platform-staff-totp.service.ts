@@ -40,26 +40,45 @@ async function liveStaff(staffId: string) {
 }
 
 /** Step one: a secret and a QR. Nothing is enabled yet. */
-export async function beginPlatformStaffTotpEnrolment(staffId: string): Promise<{ secret: string; uri: string }> {
+export async function beginPlatformStaffTotpEnrolment(
+  staffId: string
+): Promise<{ secret: string; uri: string }> {
   const staff = await liveStaff(staffId);
   if (staff.totpEnabledAt) {
     // Replacing a working factor silently would swap it for an unproven one.
     // The road to a new phone runs through the owner's reset.
-    throw new HttpError(409, "TOTP_ALREADY_ENABLED", "العامل الثاني مفعّل بالفعل. اطلب من مالك المنصة إعادة تعيينه إن أردت ربط تطبيق آخر.");
+    throw new HttpError(
+      409,
+      "TOTP_ALREADY_ENABLED",
+      "العامل الثاني مفعّل بالفعل. اطلب من مالك المنصة إعادة تعيينه إن أردت ربط تطبيق آخر."
+    );
   }
   const secret = generateTotpSecret();
-  await prisma.platformStaff.update({ where: { id: staffId }, data: { totpSecret: sealSecret(PURPOSE, secret), totpLastStep: null } });
+  await prisma.platformStaff.update({
+    where: { id: staffId },
+    data: { totpSecret: sealSecret(PURPOSE, secret), totpLastStep: null },
+  });
   return { secret, uri: totpEnrolmentUri(secret, staff.email) };
 }
 
 /** Step two: prove the app works, and only then switch the factor on. */
-export async function confirmPlatformStaffTotpEnrolment(staffId: string, code: unknown, now = new Date()): Promise<{ totpEnrolled: true }> {
+export async function confirmPlatformStaffTotpEnrolment(
+  staffId: string,
+  code: unknown,
+  now = new Date()
+): Promise<{ totpEnrolled: true }> {
   const staff = await liveStaff(staffId);
   if (!staff.totpSecret) throw new HttpError(409, "TOTP_NOT_STARTED", "ابدأ الربط أولاً.");
-  if (staff.totpEnabledAt) throw new HttpError(409, "TOTP_ALREADY_ENABLED", "العامل الثاني مفعّل بالفعل.");
+  if (staff.totpEnabledAt)
+    throw new HttpError(409, "TOTP_ALREADY_ENABLED", "العامل الثاني مفعّل بالفعل.");
 
   const check = verifyTotp(openSecret(PURPOSE, staff.totpSecret), code, { now });
-  if (!check.ok) throw new HttpError(422, "INVALID_TOTP_CODE", "الرمز غير صحيح. تأكد أن وقت هاتفك مضبوط تلقائياً.");
+  if (!check.ok)
+    throw new HttpError(
+      422,
+      "INVALID_TOTP_CODE",
+      "الرمز غير صحيح. تأكد أن وقت هاتفك مضبوط تلقائياً."
+    );
 
   await prisma.platformStaff.update({
     where: { id: staffId },
@@ -73,7 +92,11 @@ export async function confirmPlatformStaffTotpEnrolment(staffId: string, code: u
  * advancing `totpLastStep` — a factor that can be replayed only delays an
  * attacker. No recovery-code branch, by design (see the header).
  */
-export async function verifyPlatformStaffSecondFactor(staffId: string, code: unknown, now = new Date()): Promise<boolean> {
+export async function verifyPlatformStaffSecondFactor(
+  staffId: string,
+  code: unknown,
+  now = new Date()
+): Promise<boolean> {
   const staff = await prisma.platformStaff.findFirst({
     where: { id: staffId, deletedAt: null },
     select: { totpSecret: true, totpEnabledAt: true, totpLastStep: true },
@@ -85,6 +108,9 @@ export async function verifyPlatformStaffSecondFactor(staffId: string, code: unk
     lastUsedStep: staff.totpLastStep === null ? null : Number(staff.totpLastStep),
   });
   if (!check.ok) return false;
-  await prisma.platformStaff.update({ where: { id: staffId }, data: { totpLastStep: BigInt(check.step!) } });
+  await prisma.platformStaff.update({
+    where: { id: staffId },
+    data: { totpLastStep: BigInt(check.step!) },
+  });
   return true;
 }

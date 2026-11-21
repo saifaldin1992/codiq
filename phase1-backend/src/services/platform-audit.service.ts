@@ -14,7 +14,13 @@
 import type { Prisma } from "@prisma/client";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
 import type { PlatformActor } from "../auth/platform-permissions.js";
 
 /** Mirrors the migration's CHECK lists — a typo here is a compile error, not a 23514. */
@@ -105,17 +111,29 @@ export interface RecordPlatformAuditEventInput {
  * Resolves the human-readable snapshot for a platform actor, mirroring
  * `actorLabelFor` in the store log. Both kinds have exactly one row to read.
  */
-export async function platformActorLabelFor(client: Prisma.TransactionClient | typeof prisma, actor: PlatformActor): Promise<string> {
+export async function platformActorLabelFor(
+  client: Prisma.TransactionClient | typeof prisma,
+  actor: PlatformActor
+): Promise<string> {
   if (actor.kind === "platform_owner") {
-    const owner = await client.platformOwner.findUnique({ where: { id: actor.id }, select: { displayName: true, email: true } });
+    const owner = await client.platformOwner.findUnique({
+      where: { id: actor.id },
+      select: { displayName: true, email: true },
+    });
     return owner?.displayName || owner?.email || "إدارة المنصة";
   }
-  const staff = await client.platformStaff.findUnique({ where: { id: actor.id }, select: { displayName: true, email: true } });
+  const staff = await client.platformStaff.findUnique({
+    where: { id: actor.id },
+    select: { displayName: true, email: true },
+  });
   return staff?.displayName || staff?.email || "طاقم المنصة";
 }
 
 /** Writes the event inside the caller's transaction and returns its id. */
-export async function recordPlatformAuditEvent(tx: Prisma.TransactionClient, input: RecordPlatformAuditEventInput): Promise<string> {
+export async function recordPlatformAuditEvent(
+  tx: Prisma.TransactionClient,
+  input: RecordPlatformAuditEventInput
+): Promise<string> {
   const event = await tx.platformAuditEvent.create({
     data: {
       entityType: input.entityType,
@@ -164,7 +182,10 @@ export async function listPlatformAuditEvents(rawLimit: unknown, rawCursor: unkn
   // there is no tenant to scope it to — this list IS the platform's own log.
   const cursor = await readListCursor(PLATFORM_AUDIT_KIND, rawCursor, {
     legacy: async (id) => {
-      const row = await prisma.platformAuditEvent.findFirst({ where: { id }, select: { createdAt: true } });
+      const row = await prisma.platformAuditEvent.findFirst({
+        where: { id },
+        select: { createdAt: true },
+      });
       return row ? { value: row.createdAt } : null;
     },
   });
@@ -177,7 +198,9 @@ export async function listPlatformAuditEvents(rawLimit: unknown, rawCursor: unkn
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(PLATFORM_AUDIT_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(PLATFORM_AUDIT_KIND, last.createdAt, last.id)
+  );
   const events: PlatformAuditEventView[] = page.map((row) => ({
     id: row.id,
     entityType: row.entityType,

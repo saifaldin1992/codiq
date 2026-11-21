@@ -29,7 +29,13 @@
  */
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
 import { enqueueLowStockIfCrossed } from "../notifications/notification-outbox.service.js";
 
 export const RETURN_INSPECTION_NOTE_MAX = 500;
@@ -52,21 +58,37 @@ const INSPECTED_RETURNS_KIND = "merchant.inventory.returns.inspected";
  * `(inspectedAt, id)`; every row here has `inspectedAt`, so the ordering column
  * is never null on this slice.
  */
-export async function listInspectedReturns(storeId: string, rawLimit?: unknown, rawCursor?: unknown) {
+export async function listInspectedReturns(
+  storeId: string,
+  rawLimit?: unknown,
+  rawCursor?: unknown
+) {
   const limit = parseListLimit(rawLimit);
   const cursor = await readListCursor(INSPECTED_RETURNS_KIND, rawCursor);
   const rows = await prisma.inventoryReservation.findMany({
-    where: { storeId, returnDisposition: { in: ["restocked", "written_off", "split"] }, ...keysetWhere("inspectedAt", "desc", cursor) },
+    where: {
+      storeId,
+      returnDisposition: { in: ["restocked", "written_off", "split"] },
+      ...keysetWhere("inspectedAt", "desc", cursor),
+    },
     orderBy: [{ inspectedAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     select: {
-      id: true, quantity: true, restockedQuantity: true, writtenOffQuantity: true, returnDisposition: true,
-      inspectedAt: true, inspectedByKind: true, inspectionNote: true,
+      id: true,
+      quantity: true,
+      restockedQuantity: true,
+      writtenOffQuantity: true,
+      returnDisposition: true,
+      inspectedAt: true,
+      inspectedByKind: true,
+      inspectionNote: true,
       variant: { select: { sku: true, name: true, product: { select: { name: true } } } },
       order: { select: { id: true, orderNumber: true } },
     },
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(INSPECTED_RETURNS_KIND, last.inspectedAt ?? new Date(0), last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(INSPECTED_RETURNS_KIND, last.inspectedAt ?? new Date(0), last.id)
+  );
   return {
     returns: page.map((row) => ({
       id: row.id,
@@ -87,11 +109,19 @@ export async function listInspectedReturns(storeId: string, rawLimit?: unknown, 
   };
 }
 
-export async function listPendingReturnInspections(storeId: string, rawLimit?: unknown, rawCursor?: unknown) {
+export async function listPendingReturnInspections(
+  storeId: string,
+  rawLimit?: unknown,
+  rawCursor?: unknown
+) {
   const limit = parseListLimit(rawLimit);
   const cursor = await readListCursor(RETURN_INSPECTIONS_KIND, rawCursor);
   const rows = await prisma.inventoryReservation.findMany({
-    where: { storeId, returnDisposition: "pending_inspection", ...keysetWhere("returnedAt", "desc", cursor) },
+    where: {
+      storeId,
+      returnDisposition: "pending_inspection",
+      ...keysetWhere("returnedAt", "desc", cursor),
+    },
     orderBy: [{ returnedAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     select: {
@@ -99,11 +129,15 @@ export async function listPendingReturnInspections(storeId: string, rawLimit?: u
       quantity: true,
       status: true,
       returnedAt: true,
-      variant: { select: { sku: true, name: true, deletedAt: true, product: { select: { name: true } } } },
+      variant: {
+        select: { sku: true, name: true, deletedAt: true, product: { select: { name: true } } },
+      },
       order: { select: { id: true, orderNumber: true } },
     },
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(RETURN_INSPECTIONS_KIND, last.returnedAt ?? new Date(0), last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(RETURN_INSPECTIONS_KIND, last.returnedAt ?? new Date(0), last.id)
+  );
   const returns = page.map((row) => ({
     id: row.id,
     quantity: row.quantity,
@@ -125,12 +159,16 @@ export async function resolveReturnInspection(
   storeId: string,
   actor: { kind: "merchant" | "staff"; id: string },
   reservationId: string,
-  body: { restockQty: number; writeOffQty: number; note?: string },
+  body: { restockQty: number; writeOffQty: number; note?: string }
 ) {
   const { restockQty, writeOffQty } = body;
   const note = typeof body.note === "string" && body.note.trim() ? body.note.trim() : null;
   if (note && note.length > RETURN_INSPECTION_NOTE_MAX) {
-    throw new HttpError(422, "INVALID_INPUT", `ملاحظة الفحص يجب ألا تتجاوز ${RETURN_INSPECTION_NOTE_MAX} حرف.`);
+    throw new HttpError(
+      422,
+      "INVALID_INPUT",
+      `ملاحظة الفحص يجب ألا تتجاوز ${RETURN_INSPECTION_NOTE_MAX} حرف.`
+    );
   }
 
   return prisma.$transaction(async (tx) => {
@@ -139,17 +177,43 @@ export async function resolveReturnInspection(
     const reservation = await tx.inventoryReservation.findFirst({
       where: { id: reservationId, storeId },
       select: {
-        id: true, quantity: true, status: true, returnDisposition: true,
-        productId: true, variantId: true,
-        variant: { select: { deletedAt: true, stockQuantity: true, lowStockThreshold: true, name: true, sku: true, product: { select: { name: true } } } },
+        id: true,
+        quantity: true,
+        status: true,
+        returnDisposition: true,
+        productId: true,
+        variantId: true,
+        variant: {
+          select: {
+            deletedAt: true,
+            stockQuantity: true,
+            lowStockThreshold: true,
+            name: true,
+            sku: true,
+            product: { select: { name: true } },
+          },
+        },
       },
     });
-    if (!reservation) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested return was not found in this store.");
+    if (!reservation)
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested return was not found in this store."
+      );
     if (reservation.returnDisposition !== "pending_inspection") {
-      throw new HttpError(409, "RETURN_ALREADY_INSPECTED", "هذا المرتجع فُحص سابقاً — القرار الأول يبقى.");
+      throw new HttpError(
+        409,
+        "RETURN_ALREADY_INSPECTED",
+        "هذا المرتجع فُحص سابقاً — القرار الأول يبقى."
+      );
     }
     if (restockQty + writeOffQty !== reservation.quantity) {
-      throw new HttpError(422, "INVALID_INSPECTION_SPLIT", `مجموع السليم والتالف يجب أن يساوي كمية المرتجع (${reservation.quantity}).`);
+      throw new HttpError(
+        422,
+        "INVALID_INSPECTION_SPLIT",
+        `مجموع السليم والتالف يجب أن يساوي كمية المرتجع (${reservation.quantity}).`
+      );
     }
     if (reservation.status !== "active" && reservation.status !== "consumed") {
       throw new HttpError(409, "RESERVATION_NOT_INSPECTABLE", "حالة هذا الحجز لا تقبل الفحص.");
@@ -159,7 +223,8 @@ export async function resolveReturnInspection(
     // disposition. A concurrent resolve blocks on the row lock, re-evaluates
     // the WHERE, matches nothing → 409. Every stock write below shares this
     // transaction's fate — flip and stock move as one.
-    const disposition = writeOffQty === 0 ? "restocked" : restockQty === 0 ? "written_off" : "split";
+    const disposition =
+      writeOffQty === 0 ? "restocked" : restockQty === 0 ? "written_off" : "split";
     const flipped = await tx.inventoryReservation.updateMany({
       where: { id: reservation.id, storeId, returnDisposition: "pending_inspection" },
       data: {
@@ -172,7 +237,12 @@ export async function resolveReturnInspection(
         inspectionNote: note,
       },
     });
-    if (flipped.count !== 1) throw new HttpError(409, "RETURN_ALREADY_INSPECTED", "هذا المرتجع فُحص سابقاً — القرار الأول يبقى.");
+    if (flipped.count !== 1)
+      throw new HttpError(
+        409,
+        "RETURN_ALREADY_INSPECTED",
+        "هذا المرتجع فُحص سابقاً — القرار الأول يبقى."
+      );
 
     if (reservation.status === "consumed") {
       // Stock already left at completion. Only a restock touches it — and only
@@ -181,15 +251,30 @@ export async function resolveReturnInspection(
       // deletedAt writer).
       if (restockQty > 0) {
         if (reservation.variant?.deletedAt) {
-          throw new HttpError(409, "VARIANT_TRASHED", "الصنف في سلة المحذوفات — استرجعه أولاً ثم أرجِع مخزونه.");
+          throw new HttpError(
+            409,
+            "VARIANT_TRASHED",
+            "الصنف في سلة المحذوفات — استرجعه أولاً ثم أرجِع مخزونه."
+          );
         }
         const incremented = await tx.productVariant.updateMany({
           where: { id: reservation.variantId, storeId, deletedAt: null },
           data: { stockQuantity: { increment: restockQty } },
         });
-        if (incremented.count !== 1) throw new HttpError(409, "VARIANT_TRASHED", "الصنف في سلة المحذوفات — استرجعه أولاً ثم أرجِع مخزونه.");
+        if (incremented.count !== 1)
+          throw new HttpError(
+            409,
+            "VARIANT_TRASHED",
+            "الصنف في سلة المحذوفات — استرجعه أولاً ثم أرجِع مخزونه."
+          );
         await tx.inventoryMovement.create({
-          data: { storeId, productId: reservation.productId, variantId: reservation.variantId, delta: restockQty, reason: "storefront_returned_restored" },
+          data: {
+            storeId,
+            productId: reservation.productId,
+            variantId: reservation.variantId,
+            delta: restockQty,
+            reason: "storefront_returned_restored",
+          },
         });
         // Upward move: enqueueLowStockIfCrossed is deliberately NOT called —
         // it exists for downward crossings only.
@@ -206,9 +291,20 @@ export async function resolveReturnInspection(
           where: { id: reservation.variantId, storeId, stockQuantity: { gte: writeOffQty } },
           data: { stockQuantity: { decrement: writeOffQty } },
         });
-        if (decremented.count !== 1) throw new HttpError(422, "INSUFFICIENT_AVAILABLE_STOCK", "المخزون الحالي أقل من الكمية المشطوبة — حدّث الشاشة وأعد المحاولة.");
+        if (decremented.count !== 1)
+          throw new HttpError(
+            422,
+            "INSUFFICIENT_AVAILABLE_STOCK",
+            "المخزون الحالي أقل من الكمية المشطوبة — حدّث الشاشة وأعد المحاولة."
+          );
         await tx.inventoryMovement.create({
-          data: { storeId, productId: reservation.productId, variantId: reservation.variantId, delta: -writeOffQty, reason: "storefront_returned_written_off" },
+          data: {
+            storeId,
+            productId: reservation.productId,
+            variantId: reservation.variantId,
+            delta: -writeOffQty,
+            reason: "storefront_returned_written_off",
+          },
         });
         if (before) {
           // The loudest stock loss the merchant has must alert exactly like a

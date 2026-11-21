@@ -31,7 +31,9 @@ async function loadBrand(): Promise<PlatformBrand> {
       return cached;
     })
     .catch(() => DEFAULT_BRAND)
-    .finally(() => { inFlight = null; });
+    .finally(() => {
+      inFlight = null;
+    });
   return inFlight;
 }
 
@@ -45,8 +47,12 @@ export function usePlatformBrand(): PlatformBrand {
   const [brand, setBrand] = useState<PlatformBrand>(cached ?? DEFAULT_BRAND);
   useEffect(() => {
     let alive = true;
-    void loadBrand().then((next) => { if (alive) setBrand(next); });
-    return () => { alive = false; };
+    void loadBrand().then((next) => {
+      if (alive) setBrand(next);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
   return brand;
 }

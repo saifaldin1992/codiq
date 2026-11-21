@@ -54,7 +54,7 @@ const formulaMatch = pricing.match(/const totalIqd\s*=\s*([^;]+);/);
 assert.ok(
   formulaMatch,
   `${PRICING} no longer contains a \`const totalIqd = …;\` line. This guard reads the order total's own formula to know which money terms exist; ` +
-    `with the formula gone it would pass while guarding nothing. Point it at the new pricing expression.`,
+    `with the formula gone it would pass while guarding nothing. Point it at the new pricing expression.`
 );
 const formula = formulaMatch[1].replace(/\s+/g, " ").trim();
 
@@ -89,7 +89,7 @@ assert.deepEqual(
   `the order total is computed from a term this guard does not know: ${unknown.join(", ")}.\n` +
     `  formula: total = ${formula}\n` +
     `  A new term in the price must reach the merchant's order screen, the print sheet and the CSV, ` +
-    `or the numbers he reconciles cash against stop adding up. Add it to TERMS above once it does.`,
+    `or the numbers he reconciles cash against stop adding up. Add it to TERMS above once it does.`
 );
 
 /**
@@ -112,7 +112,10 @@ const SURFACES = [
     reader: "التاجر وهو يطابق ما يدين به المندوب",
     scope: (source) => {
       const start = source.indexOf("function orderPayload(");
-      assert.ok(start >= 0, "order-lifecycle.service.ts no longer declares `function orderPayload(` — this guard cannot find the payload it must check.");
+      assert.ok(
+        start >= 0,
+        "order-lifecycle.service.ts no longer declares `function orderPayload(` — this guard cannot find the payload it must check."
+      );
       return source.slice(start, source.indexOf("\n}", start));
     },
     needle: (column) => `${column}:`,
@@ -141,7 +144,12 @@ for (const surface of SURFACES) {
   const scoped = surface.scope(read(surface.file));
   for (const term of TERMS) {
     if (!scoped.includes(surface.needle(term.column))) {
-      missing.push({ surface: surface.what, file: surface.file, column: term.column, reader: surface.reader });
+      missing.push({
+        surface: surface.what,
+        file: surface.file,
+        column: term.column,
+        reader: surface.reader,
+      });
     }
   }
 }
@@ -150,8 +158,13 @@ assert.deepEqual(
   missing,
   [],
   `a term of the order total never reaches a surface that shows the total:\n` +
-    missing.map((row) => `  · ${row.column} is absent from ${row.file} (${row.surface}) — يقرؤها ${row.reader}`).join("\n") +
-    `\n  The screen then shows a sum whose parts do not add up to it, and nothing on it explains the difference.`,
+    missing
+      .map(
+        (row) =>
+          `  · ${row.column} is absent from ${row.file} (${row.surface}) — يقرؤها ${row.reader}`
+      )
+      .join("\n") +
+    `\n  The screen then shows a sum whose parts do not add up to it, and nothing on it explains the difference.`
 );
 
 // 2. The client must actually RENDER the loyalty line, not merely receive it.
@@ -185,17 +198,24 @@ assert.deepEqual(
   [],
   `a term of the total reaches the browser and is never drawn:\n` +
     unrendered.map((row) => `  · ${row.column} in ${row.file} (${row.what})`).join("\n") +
-    `\n  A number the client receives and does not display is not visible to the merchant, and the total still fails to add up on his screen.`,
+    `\n  A number the client receives and does not display is not visible to the merchant, and the total still fails to add up on his screen.`
 );
 
-console.log(JSON.stringify({
-  suite: "order-money",
-  status: "passed",
-  summary: {
-    formula: `total = ${formula}`,
-    terms: TERMS.map((term) => term.column),
-    surfaces: SURFACES.length,
-    renderers: RENDERERS.length,
-    guarantee: "every term of the order total reaches every surface that displays the total, and is rendered there",
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "order-money",
+      status: "passed",
+      summary: {
+        formula: `total = ${formula}`,
+        terms: TERMS.map((term) => term.column),
+        surfaces: SURFACES.length,
+        renderers: RENDERERS.length,
+        guarantee:
+          "every term of the order total reaches every surface that displays the total, and is rendered there",
+      },
+    },
+    null,
+    2
+  )
+);

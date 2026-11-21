@@ -45,12 +45,12 @@ function* walk(dir) {
 
 // Literals keep their content (a table of different strings is not a copy); only the quote
 // style and the spacing are made uniform, so a re-indented or re-quoted copy is still found.
-const normalise = line =>
+const normalise = (line) =>
   line
     .replace(/^\s*\/\/.*$/, "")
     .replace(/'((?:\\.|[^'\\])*)'/g, '"$1"')
     .replace(/\s+/g, "");
-const meaningful = line =>
+const meaningful = (line) =>
   line.length > 3 &&
   !/^(import|export\{|\}|\)|\]|\/\*|\*)/.test(line) &&
   !/^[{}()[\];,]+$/.test(line);
@@ -82,7 +82,7 @@ for (const root of ROOTS) {
         .update(
           kept
             .slice(i, i + WINDOW)
-            .map(row => row.norm)
+            .map((row) => row.norm)
             .join("\n")
         )
         .digest("hex");
@@ -132,20 +132,20 @@ const counts = {
 const mode = process.argv[2];
 if (mode === "--report") {
   // For each of the biggest blocks, where its twins are.
-  const twinsOf = block => {
+  const twinsOf = (block) => {
     const kept = files.get(block.file);
-    const firstIndex = kept.findIndex(row => row.line === block.from);
+    const firstIndex = kept.findIndex((row) => row.line === block.from);
     const hash = createHash("sha1")
       .update(
         kept
           .slice(firstIndex, firstIndex + WINDOW)
-          .map(row => row.norm)
+          .map((row) => row.norm)
           .join("\n")
       )
       .digest("hex");
     return (windows.get(hash) ?? [])
-      .filter(w => w.file !== block.file || files.get(w.file)[w.at].line !== block.from)
-      .map(w => `${w.file}:${files.get(w.file)[w.at].line}`);
+      .filter((w) => w.file !== block.file || files.get(w.file)[w.at].line !== block.from)
+      .map((w) => `${w.file}:${files.get(w.file)[w.at].line}`);
   };
   console.log(
     JSON.stringify(
@@ -154,7 +154,7 @@ if (mode === "--report") {
         totalLines,
         biggest: blocks
           .slice(0, 40)
-          .map(block => ({ ...block, alsoAt: twinsOf(block).slice(0, 4) })),
+          .map((block) => ({ ...block, alsoAt: twinsOf(block).slice(0, 4) })),
       },
       null,
       2

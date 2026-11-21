@@ -83,7 +83,14 @@
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
-import type { PlatformSearchTarget, SearchEngine, SearchHit, SearchPage, SearchRequest, SearchTarget } from "./search.types.js";
+import type {
+  PlatformSearchTarget,
+  SearchEngine,
+  SearchHit,
+  SearchPage,
+  SearchRequest,
+  SearchTarget,
+} from "./search.types.js";
 
 const EMPTY_PAGE: SearchPage = { hits: [], hasMore: false };
 
@@ -135,7 +142,11 @@ export const TABLE_OF: Record<SearchTarget, string> = {
 };
 
 /** The only columns a human types a name into — and therefore the only ones typo tolerance belongs on. */
-const FUZZY_TARGETS: ReadonlySet<SearchTarget> = new Set<SearchTarget>(["products.name", "customers.fullName", "orders.customerName"]);
+const FUZZY_TARGETS: ReadonlySet<SearchTarget> = new Set<SearchTarget>([
+  "products.name",
+  "customers.fullName",
+  "orders.customerName",
+]);
 
 interface HitRow {
   id: string;
@@ -175,7 +186,12 @@ function matchPredicate(target: SearchTarget, needle: Needle): Prisma.Sql {
  * `products` is a PG-2 watched table, so `deleted_at IS NULL` is written into
  * the template itself — where the static leak guard reads it.
  */
-function productsStatement(target: SearchTarget, storeId: string, needle: Needle, limit: number): Prisma.Sql {
+function productsStatement(
+  target: SearchTarget,
+  storeId: string,
+  needle: Needle,
+  limit: number
+): Prisma.Sql {
   const column = Prisma.raw(COLUMN[target]);
   return Prisma.sql`
     SELECT id::text AS id,
@@ -190,7 +206,12 @@ function productsStatement(target: SearchTarget, storeId: string, needle: Needle
   `;
 }
 
-function customersStatement(target: SearchTarget, storeId: string, needle: Needle, limit: number): Prisma.Sql {
+function customersStatement(
+  target: SearchTarget,
+  storeId: string,
+  needle: Needle,
+  limit: number
+): Prisma.Sql {
   const column = Prisma.raw(COLUMN[target]);
   return Prisma.sql`
     SELECT id::text AS id,
@@ -204,7 +225,12 @@ function customersStatement(target: SearchTarget, storeId: string, needle: Needl
   `;
 }
 
-function ordersStatement(target: SearchTarget, storeId: string | null, needle: Needle, limit: number): Prisma.Sql {
+function ordersStatement(
+  target: SearchTarget,
+  storeId: string | null,
+  needle: Needle,
+  limit: number
+): Prisma.Sql {
   const column = Prisma.raw(COLUMN[target]);
   // The platform-owner variant is cross-tenant BY DESIGN and reaches this
   // builder only through `searchPlatformOrders`, which has no storeId to
@@ -223,20 +249,33 @@ function ordersStatement(target: SearchTarget, storeId: string | null, needle: N
   `;
 }
 
-function statementFor(target: SearchTarget, storeId: string | null, needle: Needle, limit: number): Prisma.Sql {
+function statementFor(
+  target: SearchTarget,
+  storeId: string | null,
+  needle: Needle,
+  limit: number
+): Prisma.Sql {
   if (target.startsWith("products.")) {
-    if (storeId === null) throw new Error("searchEngine: product search is store-scoped; there is no cross-tenant variant.");
+    if (storeId === null)
+      throw new Error(
+        "searchEngine: product search is store-scoped; there is no cross-tenant variant."
+      );
     return productsStatement(target, storeId, needle, limit);
   }
   if (target.startsWith("customers.")) {
-    if (storeId === null) throw new Error("searchEngine: customer search is store-scoped; there is no cross-tenant variant.");
+    if (storeId === null)
+      throw new Error(
+        "searchEngine: customer search is store-scoped; there is no cross-tenant variant."
+      );
     return customersStatement(target, storeId, needle, limit);
   }
   return ordersStatement(target, storeId, needle, limit);
 }
 
 function toPage(rows: HitRow[], limit: number): SearchPage {
-  const hits: SearchHit[] = rows.slice(0, limit).map((row) => ({ id: row.id, exact: row.exact === true, rank: Number(row.rank) }));
+  const hits: SearchHit[] = rows
+    .slice(0, limit)
+    .map((row) => ({ id: row.id, exact: row.exact === true, rank: Number(row.rank) }));
   return { hits, hasMore: rows.length > limit };
 }
 
@@ -255,14 +294,20 @@ export const postgresTrigramEngine: SearchEngine = {
 
   async search(target: SearchTarget, request: SearchRequest): Promise<SearchPage> {
     const limit = assertLimit(request.limit);
-    if (!request.storeId) throw new Error("searchEngine: storeId is mandatory on every store-scoped search.");
+    if (!request.storeId)
+      throw new Error("searchEngine: storeId is mandatory on every store-scoped search.");
     const needle = await normalizeNeedle(request.needle);
     if (!needle) return EMPTY_PAGE;
-    const rows = await prisma.$queryRaw<HitRow[]>(statementFor(target, request.storeId, needle, limit));
+    const rows = await prisma.$queryRaw<HitRow[]>(
+      statementFor(target, request.storeId, needle, limit)
+    );
     return toPage(rows, limit);
   },
 
-  async searchPlatformOrders(target: PlatformSearchTarget, request: Omit<SearchRequest, "storeId">): Promise<SearchPage> {
+  async searchPlatformOrders(
+    target: PlatformSearchTarget,
+    request: Omit<SearchRequest, "storeId">
+  ): Promise<SearchPage> {
     const limit = assertLimit(request.limit);
     const needle = await normalizeNeedle(request.needle);
     if (!needle) return EMPTY_PAGE;
@@ -330,11 +375,20 @@ export const postgresTrigramEngine: SearchEngine = {
  * Not part of `SearchEngine`: an engine that is not pg_trgm has no EXPLAIN to
  * give, and the interface is the swap boundary.
  */
-export async function explainSearch(target: SearchTarget, request: SearchRequest & { storeId: string | null }): Promise<unknown> {
+export async function explainSearch(
+  target: SearchTarget,
+  request: SearchRequest & { storeId: string | null }
+): Promise<unknown> {
   const needle = await normalizeNeedle(request.needle);
-  if (!needle) throw new Error(`explainSearch: «${request.needle}» normalizes to the empty string — there is no query to plan.`);
+  if (!needle)
+    throw new Error(
+      `explainSearch: «${request.needle}» normalizes to the empty string — there is no query to plan.`
+    );
   const statement = statementFor(target, request.storeId, needle, assertLimit(request.limit));
-  const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(`EXPLAIN (FORMAT JSON) ${statement.text}`, ...statement.values);
+  const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+    `EXPLAIN (FORMAT JSON) ${statement.text}`,
+    ...statement.values
+  );
   return rows[0]?.["QUERY PLAN"];
 }
 
@@ -349,7 +403,13 @@ export async function explainSearch(target: SearchTarget, request: SearchRequest
  * fuzzy `<%` only on the name and only for a single word, and the
  * description matched by substring. The caller aliases products as `p`.
  */
-export type MarketProductMatch = { where: Prisma.Sql; exact: Prisma.Sql; rank: Prisma.Sql; normalized: string; like: string };
+export type MarketProductMatch = {
+  where: Prisma.Sql;
+  exact: Prisma.Sql;
+  rank: Prisma.Sql;
+  normalized: string;
+  like: string;
+};
 
 export async function marketProductMatch(raw: string): Promise<MarketProductMatch | null> {
   const needle = await normalizeNeedle(raw);
@@ -357,7 +417,9 @@ export async function marketProductMatch(raw: string): Promise<MarketProductMatc
   // Every word must match somewhere — «ايفون ١٥ ازرق» finds «ايفون 15 برو ازرق»
   // although the words are not adjacent. Each word: in the name (with typo
   // tolerance from three letters up), or in the description by substring.
-  const words = Array.from(new Set(needle.normalized.split(" ").filter((word) => word.length > 0))).slice(0, 6);
+  const words = Array.from(
+    new Set(needle.normalized.split(" ").filter((word) => word.length > 0))
+  ).slice(0, 6);
   const wordMatches = words.map((word) => {
     const like = Prisma.sql`codiq_like_escape(${word})`;
     const fuzzy = word.length >= 3 ? Prisma.sql` OR ${word} <% p.search_name` : Prisma.empty;

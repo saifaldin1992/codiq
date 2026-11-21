@@ -31,7 +31,12 @@ export function purgeAtFor(deletedAt: Date): Date {
   return new Date(deletedAt.valueOf() + TRASH_RETENTION_MS);
 }
 
-export const TRASH_ENTITY_TYPES = ["product", "product_category", "coupon", "staff_membership"] as const;
+export const TRASH_ENTITY_TYPES = [
+  "product",
+  "product_category",
+  "coupon",
+  "staff_membership",
+] as const;
 export type TrashEntityType = (typeof TRASH_ENTITY_TYPES)[number];
 
 /**
@@ -47,15 +52,29 @@ export type TrashEntityType = (typeof TRASH_ENTITY_TYPES)[number];
  * already in use, and so must this union. The database is the authority; this is
  * what stops a typo reaching it.
  */
-export const AUDIT_ENTITY_TYPES = [...TRASH_ENTITY_TYPES, "product_variant", "store_verification", "product_review", "return_request", "customer"] as const;
+export const AUDIT_ENTITY_TYPES = [
+  ...TRASH_ENTITY_TYPES,
+  "product_variant",
+  "store_verification",
+  "product_review",
+  "return_request",
+  "customer",
+] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 
 export const AUDIT_ACTIONS = [
-  "soft_deleted", "restored", "purged", "purge_blocked",
-  "verification.granted", "verification.revoked",
-  "review.hidden", "review.unhidden",
-  "return.approved", "return.rejected",
+  "soft_deleted",
+  "restored",
+  "purged",
+  "purge_blocked",
+  "verification.granted",
+  "verification.revoked",
+  "review.hidden",
+  "review.unhidden",
+  "return.approved",
+  "return.rejected",
   // ق-179: blocking a shopper is policy, and policy is logged.
-  "customer.blocked", "customer.unblocked",
+  "customer.blocked",
+  "customer.unblocked",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

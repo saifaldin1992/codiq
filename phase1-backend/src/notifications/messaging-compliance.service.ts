@@ -43,7 +43,9 @@ let classificationCache: Map<string, NotificationKind> | null = null;
 
 export async function notificationKind(eventType: string): Promise<NotificationKind> {
   if (!classificationCache) {
-    const rows = await prisma.notificationEventKind.findMany({ select: { eventType: true, kind: true } });
+    const rows = await prisma.notificationEventKind.findMany({
+      select: { eventType: true, kind: true },
+    });
     classificationCache = new Map(rows.map((row) => [row.eventType, row.kind as NotificationKind]));
   }
   const kind = classificationCache.get(eventType);
@@ -64,7 +66,10 @@ export function resetNotificationKindCache(): void {
  * valid for as long as the secret does. It carries no session and grants
  * nothing except the right to stop this store's marketing to this address.
  */
-const UNSUBSCRIBE_KEYS = buildKeys(config.sessionJwtSecret, config.sessionJwtSecretPrevious).unsubscribe;
+const UNSUBSCRIBE_KEYS = buildKeys(
+  config.sessionJwtSecret,
+  config.sessionJwtSecretPrevious
+).unsubscribe;
 
 /**
  * D-62: signed with a key DERIVED for unsubscribing, no longer the raw session
@@ -82,12 +87,18 @@ function signUnsubscribe(storeId: string, emailNormalized: string, key: Buffer):
 
 export function unsubscribeToken(storeId: string, email: string): string {
   const emailNormalized = normalizeEmail(email);
-  const claim = Buffer.from(JSON.stringify({ s: storeId, e: emailNormalized }), "utf8").toString("base64url");
+  const claim = Buffer.from(JSON.stringify({ s: storeId, e: emailNormalized }), "utf8").toString(
+    "base64url"
+  );
   return `${claim}${TOKEN_SEPARATOR}${signUnsubscribe(storeId, emailNormalized, UNSUBSCRIBE_KEYS.signing)}`;
 }
 
-export function verifyUnsubscribeToken(token: unknown): { storeId: string; emailNormalized: string } {
-  const invalid = () => new HttpError(400, "INVALID_UNSUBSCRIBE_TOKEN", "رابط إلغاء الاشتراك غير صالح أو منتهٍ.");
+export function verifyUnsubscribeToken(token: unknown): {
+  storeId: string;
+  emailNormalized: string;
+} {
+  const invalid = () =>
+    new HttpError(400, "INVALID_UNSUBSCRIBE_TOKEN", "رابط إلغاء الاشتراك غير صالح أو منتهٍ.");
   if (typeof token !== "string" || !token.includes(TOKEN_SEPARATOR)) throw invalid();
   const [claim, signature] = token.split(TOKEN_SEPARATOR);
   if (!claim || !signature) throw invalid();
@@ -136,7 +147,11 @@ export async function isUnsubscribed(storeId: string, email: string): Promise<bo
   return row !== null;
 }
 
-export async function recordUnsubscribe(storeId: string, email: string, source: "link" | "complaint" | "owner"): Promise<void> {
+export async function recordUnsubscribe(
+  storeId: string,
+  email: string,
+  source: "link" | "complaint" | "owner"
+): Promise<void> {
   const emailNormalized = normalizeEmail(email);
   // Idempotent: pressing the link twice is the same intent, not an error.
   await prisma.notificationUnsubscribe.upsert({
@@ -195,9 +210,14 @@ export async function marketingSentToday(storeId: string, now: Date): Promise<nu
 
 export async function marketingDailyCap(storeId: string): Promise<number> {
   // ق-251: the one function — the platform's ceiling and the merchant's restraint sit above the store's column.
-  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { merchantId: true },
+  });
   if (!store) return DEFAULT_MARKETING_DAILY_CAP;
-  return Number((await resolveSetting("marketing.daily_cap", { merchantId: store.merchantId, storeId })).value);
+  return Number(
+    (await resolveSetting("marketing.daily_cap", { merchantId: store.merchantId, storeId })).value
+  );
 }
 
 /**
@@ -223,7 +243,12 @@ export const MARKETING_RECIPIENT_DAILY_CAP = 3;
 
 export async function marketingSentTodayToRecipient(recipient: string, now: Date): Promise<number> {
   return prisma.notificationOutbox.count({
-    where: { recipient, status: "sent", sentAt: { gte: startOfDayUtc(now), lt: nextDayUtc(now) }, eventKind: { kind: "marketing" } },
+    where: {
+      recipient,
+      status: "sent",
+      sentAt: { gte: startOfDayUtc(now), lt: nextDayUtc(now) },
+      eventKind: { kind: "marketing" },
+    },
   });
 }
 
@@ -268,7 +293,9 @@ export async function marketingSentTodayToRecipient(recipient: string, now: Date
 export const DEFAULT_OPERATIONAL_DAILY_CAP = 5000;
 export const DEFAULT_OPERATIONAL_RECIPIENT_DAILY_CAP = 20;
 
-export async function operationalCaps(storeId: string): Promise<{ store: number; recipient: number }> {
+export async function operationalCaps(
+  storeId: string
+): Promise<{ store: number; recipient: number }> {
   const settings = await prisma.notificationSettings.findUnique({
     where: { storeId },
     select: { operationalDailyCap: true, operationalRecipientDailyCap: true },
@@ -285,11 +312,25 @@ export async function operationalCaps(storeId: string): Promise<{ store: number;
  * not count, because the cap limits what lands in inboxes rather than what the
  * queue attempted.
  */
-export async function operationalSentToday(storeId: string, recipient: string, now: Date): Promise<{ store: number; recipient: number }> {
+export async function operationalSentToday(
+  storeId: string,
+  recipient: string,
+  now: Date
+): Promise<{ store: number; recipient: number }> {
   const window = { gte: startOfDayUtc(now), lt: nextDayUtc(now) };
   const [store, toRecipient] = await Promise.all([
-    prisma.notificationOutbox.count({ where: { storeId, status: "sent", sentAt: window, eventKind: { kind: "operational" } } }),
-    prisma.notificationOutbox.count({ where: { storeId, recipient, status: "sent", sentAt: window, eventKind: { kind: "operational" } } }),
+    prisma.notificationOutbox.count({
+      where: { storeId, status: "sent", sentAt: window, eventKind: { kind: "operational" } },
+    }),
+    prisma.notificationOutbox.count({
+      where: {
+        storeId,
+        recipient,
+        status: "sent",
+        sentAt: window,
+        eventKind: { kind: "operational" },
+      },
+    }),
   ]);
   return { store, recipient: toRecipient };
 }

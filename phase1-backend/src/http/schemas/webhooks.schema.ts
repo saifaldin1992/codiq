@@ -5,10 +5,15 @@
  */
 import { z } from "zod";
 
-export const resendEventSchema = z.object({
-  type: z.string(),
-  data: z.object({
-    to: z.union([z.array(z.string()), z.string()]).optional(),
-    subject: z.string().optional(),
-  }).passthrough().optional(),
-}).passthrough();
+export const resendEventSchema = z
+  .object({
+    type: z.string(),
+    data: z
+      .object({
+        to: z.union([z.array(z.string()), z.string()]).optional(),
+        subject: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();

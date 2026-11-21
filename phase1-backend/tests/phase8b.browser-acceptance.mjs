@@ -17,13 +17,22 @@ const { prisma } = await import("../src/db/prisma.ts");
 const { createTypedSession } = await import("../src/auth/identity.ts");
 const web = spawn("node", ["dist/index.js"], {
   cwd: process.cwd(),
-  env: { ...process.env, NODE_ENV: "production", PORT: String(port), DATABASE_URL: dbUrl, SESSION_JWT_SECRET: "phase8b-browser-seed-secret-not-for-production" },
+  env: {
+    ...process.env,
+    NODE_ENV: "production",
+    PORT: String(port),
+    DATABASE_URL: dbUrl,
+    SESSION_JWT_SECRET: "phase8b-browser-seed-secret-not-for-production",
+  },
   stdio: "ignore",
 });
 
 async function waitFor(url) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
-    try { const response = await fetch(url); if (response.status < 500) return; } catch {}
+    try {
+      const response = await fetch(url);
+      if (response.status < 500) return;
+    } catch {}
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
   throw new Error(`Timed out waiting for ${url}`);
@@ -46,10 +55,16 @@ async function browserLogin(page, kind, { email, password, storeSlug }) {
   // accepts a phone too — so the two kinds no longer share a label. (The owner's
   // ORDER FILTER further down still says «معرّف المتجر» and is a different
   // control entirely; it is deliberately untouched.)
-  await page.getByLabel(kind === "merchant" ? "البريد الإلكتروني أو رقم الهاتف" : "البريد الإلكتروني").fill(email);
+  await page
+    .getByLabel(kind === "merchant" ? "البريد الإلكتروني أو رقم الهاتف" : "البريد الإلكتروني")
+    .fill(email);
   await page.getByLabel("كلمة المرور", { exact: true }).fill(password);
   await page.getByRole("button", { name: "تسجيل الدخول" }).click();
-  await page.waitForURL(kind === "merchant" ? new RegExp(`/merchant/stores/${storeSlug}/dashboard`) : /\/platform\/dashboard/);
+  await page.waitForURL(
+    kind === "merchant"
+      ? new RegExp(`/merchant/stores/${storeSlug}/dashboard`)
+      : /\/platform\/dashboard/
+  );
 }
 
 try {
@@ -62,7 +77,9 @@ try {
   // ceiling and the owner login answered 429 instead of 200: four passes, six
   // failures. Nothing about phase 8B was wrong — it was reading another suite's
   // meter. Every other truncating suite already clears it.
-  await prisma.$executeRawUnsafe("TRUNCATE TABLE storefront_rate_limits, order_status_events, order_items, store_orders, inventory_movements, product_images, products, product_categories, customer_sessions, customers, merchant_sessions, stores, merchants, platform_owner_sessions, platform_owners CASCADE");
+  await prisma.$executeRawUnsafe(
+    "TRUNCATE TABLE storefront_rate_limits, order_status_events, order_items, store_orders, inventory_movements, product_images, products, product_categories, customer_sessions, customers, merchant_sessions, stores, merchants, platform_owner_sessions, platform_owners CASCADE"
+  );
 
   const ownerEmail = `${runId}.owner@codiq.test`;
   const merchantAEmail = `${runId}.merchant-a@codiq.test`;
@@ -70,9 +87,21 @@ try {
   const ownerPassword = "Phase8BOwnerPass123!";
   let merchantPassword = "Phase8BMerchantPass123!";
 
-  const ownerRegister = await json("/api/auth/platform/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: ownerEmail, password: ownerPassword, displayName: "مالك قبول 8B" }) });
+  const ownerRegister = await json("/api/auth/platform/register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      email: ownerEmail,
+      password: ownerPassword,
+      displayName: "مالك قبول 8B",
+    }),
+  });
   assert.equal(ownerRegister.response.status, 201);
-  const ownerLogin = await json("/api/auth/platform/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: ownerEmail, password: ownerPassword }) });
+  const ownerLogin = await json("/api/auth/platform/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: ownerEmail, password: ownerPassword }),
+  });
   assert.equal(ownerLogin.response.status, 200);
   const ownerCookie = sessionCookie(ownerLogin.response);
 
@@ -83,7 +112,18 @@ try {
   async function provisionMerchant(email, businessName, storeName) {
     provisionedMerchants += 1;
     const phone = `+964710066350${provisionedMerchants}`;
-    const created = await json("/api/platform/merchants/manual", { method: "POST", headers: { "content-type": "application/json", cookie: ownerCookie }, body: JSON.stringify({ ownerName: "صاحب المتجر", phone, email, temporaryPassword: merchantPassword, businessName, firstStoreName: storeName }) });
+    const created = await json("/api/platform/merchants/manual", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: ownerCookie },
+      body: JSON.stringify({
+        ownerName: "صاحب المتجر",
+        phone,
+        email,
+        temporaryPassword: merchantPassword,
+        businessName,
+        firstStoreName: storeName,
+      }),
+    });
     assert.equal(created.response.status, 201);
     return created.body;
   }
@@ -95,14 +135,58 @@ try {
   // merchant A ever signs in; B exists to be a foreign store, and a row that is
   // never logged into needs no password of its own.
   merchantPassword = await ownProvisionedPassword(base, merchantAEmail, merchantPassword);
-  const storeA = merchantA.store; const storeB = merchantB.store;
-  const customerA = await prisma.customer.create({ data: { storeId: storeA.id, email: `${runId}.customer-a@codiq.test`, passwordHash: "not-used", fullName: "عميل متجر A" } });
-  const productA = await prisma.product.create({ data: { storeId: storeA.id, sku: "SNAPSHOT-001", name: "منتج لقطة الطلب", priceIqd: 1000, stockQuantity: 8, lowStockThreshold: 2 } });
+  const storeA = merchantA.store;
+  const storeB = merchantB.store;
+  const customerA = await prisma.customer.create({
+    data: {
+      storeId: storeA.id,
+      email: `${runId}.customer-a@codiq.test`,
+      passwordHash: "not-used",
+      fullName: "عميل متجر A",
+    },
+  });
+  const productA = await prisma.product.create({
+    data: {
+      storeId: storeA.id,
+      sku: "SNAPSHOT-001",
+      name: "منتج لقطة الطلب",
+      priceIqd: 1000,
+      stockQuantity: 8,
+      lowStockThreshold: 2,
+    },
+  });
 
   const seeded = {};
   async function createA(suffix, status, withItem = false) {
-    const order = await prisma.storeOrder.create({ data: { storeId: storeA.id, customerId: customerA.id, orderNumber: `UI-A-${suffix}`, status, customerName: customerA.fullName, customerEmail: customerA.email, recipientPhone: "07700000001", shippingGovernorate: "بغداد", shippingAddressLine1: "حي الاختبار", subtotalIqd: withItem ? 1000 : 500, totalIqd: withItem ? 1000 : 500, items: withItem ? { create: { productId: productA.id, sku: productA.sku, productName: productA.name, quantity: 1, unitPriceIqd: 1000, lineTotalIqd: 1000 } } : undefined } });
-    seeded[suffix] = order; return order;
+    const order = await prisma.storeOrder.create({
+      data: {
+        storeId: storeA.id,
+        customerId: customerA.id,
+        orderNumber: `UI-A-${suffix}`,
+        status,
+        customerName: customerA.fullName,
+        customerEmail: customerA.email,
+        recipientPhone: "07700000001",
+        shippingGovernorate: "بغداد",
+        shippingAddressLine1: "حي الاختبار",
+        subtotalIqd: withItem ? 1000 : 500,
+        totalIqd: withItem ? 1000 : 500,
+        items: withItem
+          ? {
+              create: {
+                productId: productA.id,
+                sku: productA.sku,
+                productName: productA.name,
+                quantity: 1,
+                unitPriceIqd: 1000,
+                lineTotalIqd: 1000,
+              },
+            }
+          : undefined,
+      },
+    });
+    seeded[suffix] = order;
+    return order;
   }
   const newOrder = await createA("NEW", "new", true);
   const processingOrder = await createA("PROCESSING", "processing");
@@ -113,16 +197,38 @@ try {
   const rejectedOrder = await createA("REJECTED", "rejected");
   const returnedOrder = await createA("RETURNED", "returned");
   const concurrentOrder = await createA("CONCURRENT", "new");
-  for (let index = 0; index < 27; index += 1) await createA(`PAGE-${String(index).padStart(2, "0")}`, "new");
-  const orderB = await prisma.storeOrder.create({ data: { storeId: storeB.id, orderNumber: "UI-B-FOREIGN", status: "new", customerName: "عميل متجر B", subtotalIqd: 700, totalIqd: 700 } });
-  await prisma.product.update({ where: { id: productA.id }, data: { name: "اسم المنتج بعد التعديل", priceIqd: 9999 } });
-  const stockBefore = await prisma.product.findUniqueOrThrow({ where: { id: productA.id }, select: { stockQuantity: true } });
-  const movementsBefore = await prisma.inventoryMovement.count({ where: { productId: productA.id } });
+  for (let index = 0; index < 27; index += 1)
+    await createA(`PAGE-${String(index).padStart(2, "0")}`, "new");
+  const orderB = await prisma.storeOrder.create({
+    data: {
+      storeId: storeB.id,
+      orderNumber: "UI-B-FOREIGN",
+      status: "new",
+      customerName: "عميل متجر B",
+      subtotalIqd: 700,
+      totalIqd: 700,
+    },
+  });
+  await prisma.product.update({
+    where: { id: productA.id },
+    data: { name: "اسم المنتج بعد التعديل", priceIqd: 9999 },
+  });
+  const stockBefore = await prisma.product.findUniqueOrThrow({
+    where: { id: productA.id },
+    select: { stockQuantity: true },
+  });
+  const movementsBefore = await prisma.inventoryMovement.count({
+    where: { productId: productA.id },
+  });
 
   const browser = await chromium.launch({ headless: true });
   const merchantContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const merchantPage = await merchantContext.newPage();
-  await browserLogin(merchantPage, "merchant", { email: merchantAEmail, password: merchantPassword, storeSlug: storeA.slug });
+  await browserLogin(merchantPage, "merchant", {
+    email: merchantAEmail,
+    password: merchantPassword,
+    storeSlug: storeA.slug,
+  });
 
   // M-01, M-03, M-05: store-scoped list, searching, and cursor pagination.
   await merchantPage.goto(`${base}/merchant/stores/${storeA.slug}/dashboard/orders`);
@@ -136,8 +242,21 @@ try {
   await merchantPage.getByText("UI-A-NEW").waitFor();
 
   // M-02 and M-04: each status view and date-filter empty state.
-  const merchantStatusPaths = [["action-needed", "UI-A-PAGE-26"], ["new", "UI-A-PAGE-26"], ["processing", "UI-A-PROCESSING"], ["preparation", "UI-A-PREPARATION"], ["out-for-delivery", "UI-A-DELIVERY"], ["completed", "UI-A-COMPLETED"], ["cancelled", "UI-A-CANCELLED"], ["rejected", "UI-A-REJECTED"], ["returned", "UI-A-RETURNED"]];
-  for (const [path, expectedOrder] of merchantStatusPaths) { await merchantPage.goto(`${base}/merchant/stores/${storeA.slug}/dashboard/orders/${path}`); await merchantPage.getByText(expectedOrder).waitFor(); }
+  const merchantStatusPaths = [
+    ["action-needed", "UI-A-PAGE-26"],
+    ["new", "UI-A-PAGE-26"],
+    ["processing", "UI-A-PROCESSING"],
+    ["preparation", "UI-A-PREPARATION"],
+    ["out-for-delivery", "UI-A-DELIVERY"],
+    ["completed", "UI-A-COMPLETED"],
+    ["cancelled", "UI-A-CANCELLED"],
+    ["rejected", "UI-A-REJECTED"],
+    ["returned", "UI-A-RETURNED"],
+  ];
+  for (const [path, expectedOrder] of merchantStatusPaths) {
+    await merchantPage.goto(`${base}/merchant/stores/${storeA.slug}/dashboard/orders/${path}`);
+    await merchantPage.getByText(expectedOrder).waitFor();
+  }
   await merchantPage.goto(`${base}/merchant/stores/${storeA.slug}/dashboard/orders`);
   await merchantPage.getByLabel("من تاريخ").fill("2100-01-01");
   await merchantPage.getByRole("button", { name: "تطبيق" }).click();
@@ -164,7 +283,18 @@ try {
   assert.equal(await merchantPage.getByRole("button", { name: "نقل إلى «جديدة»" }).count(), 0);
   await merchantPage.getByRole("button", { name: "نقل إلى «قيد المعالجة»" }).click();
   await merchantPage.getByRole("button", { name: "نقل إلى «قيد التجهيز»" }).waitFor();
-  const invalidNew = await merchantPage.evaluate(async ({ slug, orderId }) => { const response = await fetch(`/api/merchant/stores/${slug}/orders/${orderId}/status`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ toStatus: "new", expectedVersion: 2 }) }); return response.status; }, { slug: storeA.slug, orderId: newOrder.id });
+  const invalidNew = await merchantPage.evaluate(
+    async ({ slug, orderId }) => {
+      const response = await fetch(`/api/merchant/stores/${slug}/orders/${orderId}/status`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ toStatus: "new", expectedVersion: 2 }),
+      });
+      return response.status;
+    },
+    { slug: storeA.slug, orderId: newOrder.id }
+  );
   assert.equal(invalidNew, 422);
   await merchantPage.getByRole("button", { name: "نقل إلى «قيد التجهيز»" }).click();
   await merchantPage.getByRole("button", { name: "نقل إلى «قيد التوصيل»" }).waitFor();
@@ -173,33 +303,62 @@ try {
   await merchantPage.getByRole("button", { name: "نقل إلى «مكتملة»" }).click();
   // See phase20a: «مرتجعة» is already offered at out_for_delivery, so it is a
   // false signal. Completion is what removes the «مكتملة» button.
-  await merchantPage.getByRole("button", { name: "نقل إلى «مكتملة»" }).waitFor({ state: "detached" });
+  await merchantPage
+    .getByRole("button", { name: "نقل إلى «مكتملة»" })
+    .waitFor({ state: "detached" });
   await merchantPage.getByRole("button", { name: "نقل إلى «مرتجعة»" }).click();
   await merchantPage.getByText("هذه حالة نهائية؛ لا توجد انتقالات إضافية.").waitFor();
-  await merchantPage.goto(`${base}/merchant/stores/${storeA.slug}/dashboard/orders/${deliveryOrder.id}`);
+  await merchantPage.goto(
+    `${base}/merchant/stores/${storeA.slug}/dashboard/orders/${deliveryOrder.id}`
+  );
   assert.equal(await merchantPage.getByRole("button", { name: "نقل إلى «ملغاة»" }).count(), 0);
-  const forbiddenDeliveryCancel = await merchantPage.evaluate(async ({ slug, orderId }) => { const response = await fetch(`/api/merchant/stores/${slug}/orders/${orderId}/status`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ toStatus: "cancelled", expectedVersion: 1 }) }); return response.status; }, { slug: storeA.slug, orderId: deliveryOrder.id });
+  const forbiddenDeliveryCancel = await merchantPage.evaluate(
+    async ({ slug, orderId }) => {
+      const response = await fetch(`/api/merchant/stores/${slug}/orders/${orderId}/status`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ toStatus: "cancelled", expectedVersion: 1 }),
+      });
+      return response.status;
+    },
+    { slug: storeA.slug, orderId: deliveryOrder.id }
+  );
   assert.equal(forbiddenDeliveryCancel, 422);
-  await merchantPage.goto(`${base}/merchant/stores/${storeA.slug}/dashboard/orders/${cancelledOrder.id}`);
+  await merchantPage.goto(
+    `${base}/merchant/stores/${storeA.slug}/dashboard/orders/${cancelledOrder.id}`
+  );
   await merchantPage.getByText("هذه حالة نهائية؛ لا توجد انتقالات إضافية.").waitFor();
 
   const stalePage = await merchantPage.context().newPage();
   await stalePage.setViewportSize({ width: 1280, height: 800 });
-  await stalePage.goto(`${base}/merchant/stores/${storeA.slug}/dashboard/orders/${concurrentOrder.id}`);
+  await stalePage.goto(
+    `${base}/merchant/stores/${storeA.slug}/dashboard/orders/${concurrentOrder.id}`
+  );
   await stalePage.getByRole("button", { name: "نقل إلى «قيد المعالجة»" }).waitFor();
-  await merchantPage.goto(`${base}/merchant/stores/${storeA.slug}/dashboard/orders/${concurrentOrder.id}`);
+  await merchantPage.goto(
+    `${base}/merchant/stores/${storeA.slug}/dashboard/orders/${concurrentOrder.id}`
+  );
   await merchantPage.getByRole("button", { name: "نقل إلى «قيد المعالجة»" }).click();
   await merchantPage.getByRole("button", { name: "نقل إلى «قيد التجهيز»" }).waitFor();
   await stalePage.getByRole("button", { name: "نقل إلى «قيد المعالجة»" }).click();
   await stalePage.getByText("تم تحديث الطلب في جلسة أو نافذة أخرى.").waitFor();
   await stalePage.close();
-  const stockAfter = await prisma.product.findUniqueOrThrow({ where: { id: productA.id }, select: { stockQuantity: true } });
-  const movementsAfter = await prisma.inventoryMovement.count({ where: { productId: productA.id } });
-  assert.equal(stockAfter.stockQuantity, stockBefore.stockQuantity); assert.equal(movementsAfter, movementsBefore);
+  const stockAfter = await prisma.product.findUniqueOrThrow({
+    where: { id: productA.id },
+    select: { stockQuantity: true },
+  });
+  const movementsAfter = await prisma.inventoryMovement.count({
+    where: { productId: productA.id },
+  });
+  assert.equal(stockAfter.stockQuantity, stockBefore.stockQuantity);
+  assert.equal(movementsAfter, movementsBefore);
 
   // M-22: Customer identity remains outside all operational order views.
   const customerToken = await createTypedSession("customer", customerA.id);
-  const customerOrders = await fetch(`${base}/api/merchant/stores/${storeA.slug}/orders`, { headers: { authorization: `Bearer ${customerToken}` } });
+  const customerOrders = await fetch(`${base}/api/merchant/stores/${storeA.slug}/orders`, {
+    headers: { authorization: `Bearer ${customerToken}` },
+  });
   assert.equal(customerOrders.status, 403);
 
   // O-01 to O-07: global read-only owner view, filters, detail/history, and unknown order state.
@@ -207,9 +366,20 @@ try {
   const ownerPage = await ownerContext.newPage();
   await browserLogin(ownerPage, "platform", { email: ownerEmail, password: ownerPassword });
   await ownerPage.goto(`${base}/platform/dashboard/orders`);
-  await ownerPage.getByText("UI-A-PAGE-26").waitFor(); await ownerPage.getByText("UI-B-FOREIGN").waitFor();
-  const ownerStatusPaths = [["processing", "UI-A-PROCESSING"], ["fulfillment", "UI-A-PREPARATION"], ["out-for-delivery", "UI-A-DELIVERY"], ["completed", "UI-A-COMPLETED"], ["cancelled", "UI-A-CANCELLED"], ["returned", "UI-A-RETURNED"]];
-  for (const [path, expectedOrder] of ownerStatusPaths) { await ownerPage.goto(`${base}/platform/dashboard/orders/${path}`); await ownerPage.getByText(expectedOrder).waitFor(); }
+  await ownerPage.getByText("UI-A-PAGE-26").waitFor();
+  await ownerPage.getByText("UI-B-FOREIGN").waitFor();
+  const ownerStatusPaths = [
+    ["processing", "UI-A-PROCESSING"],
+    ["fulfillment", "UI-A-PREPARATION"],
+    ["out-for-delivery", "UI-A-DELIVERY"],
+    ["completed", "UI-A-COMPLETED"],
+    ["cancelled", "UI-A-CANCELLED"],
+    ["returned", "UI-A-RETURNED"],
+  ];
+  for (const [path, expectedOrder] of ownerStatusPaths) {
+    await ownerPage.goto(`${base}/platform/dashboard/orders/${path}`);
+    await ownerPage.getByText(expectedOrder).waitFor();
+  }
   await ownerPage.goto(`${base}/platform/dashboard/orders`);
   await ownerPage.getByLabel("معرّف المتجر").fill(storeB.slug);
   await ownerPage.getByRole("button", { name: "تطبيق" }).click();
@@ -218,7 +388,12 @@ try {
   await ownerPage.getByRole("button", { name: "مسح" }).click();
   await ownerPage.getByText("UI-A-PAGE-26").waitFor();
   await ownerPage.getByLabel("معرّف التاجر").fill(merchantA.merchant.id);
-  const merchantFilterResponse = ownerPage.waitForResponse((response) => response.url().includes("/api/platform/orders?") && new URL(response.url()).searchParams.get("merchantId") === merchantA.merchant.id && response.request().method() === "GET");
+  const merchantFilterResponse = ownerPage.waitForResponse(
+    (response) =>
+      response.url().includes("/api/platform/orders?") &&
+      new URL(response.url()).searchParams.get("merchantId") === merchantA.merchant.id &&
+      response.request().method() === "GET"
+  );
   await ownerPage.getByRole("button", { name: "تطبيق" }).click();
   assert.equal((await merchantFilterResponse).status(), 200);
   await ownerPage.getByText("UI-A-PAGE-26").waitFor();
@@ -229,7 +404,10 @@ try {
   // Wait for the FILTER RESPONSE before clicking, exactly as the merchantId
   // filter above already does. Waiting only for the text lets the click race the
   // re-render that the same filter triggers, and the row detaches mid-click.
-  const orderNumberFilterResponse = ownerPage.waitForResponse((response) => response.url().includes("/api/platform/orders?") && response.request().method() === "GET");
+  const orderNumberFilterResponse = ownerPage.waitForResponse(
+    (response) =>
+      response.url().includes("/api/platform/orders?") && response.request().method() === "GET"
+  );
   await ownerPage.getByRole("button", { name: "تطبيق" }).click();
   assert.equal((await orderNumberFilterResponse).status(), 200);
   await ownerPage.getByText("UI-A-NEW").waitFor();
@@ -246,26 +424,55 @@ try {
   await merchantPage.goto(`${base}/merchant/stores/${storeA.slug}/dashboard/orders/processing`);
   await merchantPage.getByLabel("فتح القائمة").click();
   await merchantPage.getByLabel("تنقل لوحة التاجر").last().waitFor();
-  const activeProcessingNav = merchantPage.locator('button[aria-current="page"]', { hasText: "قيد المعالجة" });
-  assert.ok(await activeProcessingNav.count() >= 1);
+  const activeProcessingNav = merchantPage.locator('button[aria-current="page"]', {
+    hasText: "قيد المعالجة",
+  });
+  assert.ok((await activeProcessingNav.count()) >= 1);
   await merchantPage.getByRole("button", { name: "تطبيق" }).focus();
-  assert.equal(await merchantPage.getByRole("button", { name: "تطبيق" }).evaluate((element) => document.activeElement === element), true);
+  assert.equal(
+    await merchantPage
+      .getByRole("button", { name: "تطبيق" })
+      .evaluate((element) => document.activeElement === element),
+    true
+  );
   await ownerPage.setViewportSize({ width: 390, height: 844 });
   await ownerPage.goto(`${base}/platform/dashboard/orders`);
   await ownerPage.getByLabel("فتح القائمة").click();
   await ownerPage.getByLabel("التنقل الرئيسي").last().waitFor();
   const artifactsDir = process.env.CODIQ_TEST_ARTIFACTS_DIR ?? "/home/ubuntu";
   fs.mkdirSync(artifactsDir, { recursive: true });
-  await merchantPage.screenshot({ path: `${artifactsDir}/phase8b-merchant-orders.png`, fullPage: true });
+  await merchantPage.screenshot({
+    path: `${artifactsDir}/phase8b-merchant-orders.png`,
+    fullPage: true,
+  });
   await ownerPage.screenshot({ path: `${artifactsDir}/phase8b-owner-orders.png`, fullPage: true });
   await browser.close();
 
-  console.log(JSON.stringify({
-    scenarios: { merchant: "M-01–M-22", owner: "O-01–O-07", usability: "U-01–U-04" },
-    orders: { storeA: storeA.slug, storeB: storeB.slug, completedToReturned: newOrder.id, concurrency: concurrentOrder.id },
-    browserScreenshots: [`${artifactsDir}/phase8b-merchant-orders.png`, `${artifactsDir}/phase8b-owner-orders.png`],
-    stockInvariant: { before: stockBefore.stockQuantity, after: stockAfter.stockQuantity, movementsBefore, movementsAfter },
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        scenarios: { merchant: "M-01–M-22", owner: "O-01–O-07", usability: "U-01–U-04" },
+        orders: {
+          storeA: storeA.slug,
+          storeB: storeB.slug,
+          completedToReturned: newOrder.id,
+          concurrency: concurrentOrder.id,
+        },
+        browserScreenshots: [
+          `${artifactsDir}/phase8b-merchant-orders.png`,
+          `${artifactsDir}/phase8b-owner-orders.png`,
+        ],
+        stockInvariant: {
+          before: stockBefore.stockQuantity,
+          after: stockAfter.stockQuantity,
+          movementsBefore,
+          movementsAfter,
+        },
+      },
+      null,
+      2
+    )
+  );
 } finally {
   web.kill("SIGTERM");
   await prisma.$disconnect();

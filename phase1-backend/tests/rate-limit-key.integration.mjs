@@ -64,15 +64,32 @@ async function request(path, { method = "GET", body, headers = {} } = {}) {
   });
   const text = await response.text();
   let payload = null;
-  try { payload = text ? JSON.parse(text) : null; } catch { payload = text; }
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = text;
+  }
   return { status: response.status, payload };
 }
 
 const summary = {};
 try {
-  const merchant = await registerMerchantDirect({ ownerName: "صاحب المتجر", businessName: "متجر الحدود", phone: `+96478${suffix}`, email: `${testId}.m@codiq.test`, password: "RateLimitMerchant!2026" });
+  const merchant = await registerMerchantDirect({
+    ownerName: "صاحب المتجر",
+    businessName: "متجر الحدود",
+    phone: `+96478${suffix}`,
+    email: `${testId}.m@codiq.test`,
+    password: "RateLimitMerchant!2026",
+  });
   assert.equal(merchant.status, 201, JSON.stringify(merchant.payload));
-  const store = await prisma.store.create({ data: { merchantId: merchant.payload.account.id, name: "متجر الحدود", slug: `${testId}-s`, defaultSubdomain: `${testId}-s` } });
+  const store = await prisma.store.create({
+    data: {
+      merchantId: merchant.payload.account.id,
+      name: "متجر الحدود",
+      slug: `${testId}-s`,
+      defaultSubdomain: `${testId}-s`,
+    },
+  });
 
   // ── 1. the staff door: rotating the slug must NOT mint a fresh budget ─────
   //
@@ -88,16 +105,38 @@ try {
       method: "POST",
       body: { email: `victim@codiq.test`, password: `guess-${attempt}` },
     });
-    if (answer.status === 429) { staffStatus = 429; break; }
+    if (answer.status === 429) {
+      staffStatus = 429;
+      break;
+    }
   }
-  assert.equal(staffStatus, 429, `ق-194: rotating the slug must not mint a new bucket — ${staffAttempts} guesses passed unlimited, which is unbounded password guessing against every staff account on the platform`);
-  assert.ok(staffAttempts > 30, "…and the budget really is the documented 30, not something tighter that would lock out a shop");
+  assert.equal(
+    staffStatus,
+    429,
+    `ق-194: rotating the slug must not mint a new bucket — ${staffAttempts} guesses passed unlimited, which is unbounded password guessing against every staff account on the platform`
+  );
+  assert.ok(
+    staffAttempts > 30,
+    "…and the budget really is the documented 30, not something tighter that would lock out a shop"
+  );
   summary.staffDoorHoldsAcrossSlugs = { attemptsUntil429: staffAttempts };
 
   // ── 2. the anonymous cart: rotating the guest cookie must not either ──────
   await prisma.$executeRawUnsafe("TRUNCATE TABLE storefront_rate_limits");
-  const product = await prisma.product.create({ data: { storeId: store.id, sku: "RLK-1", name: "منتج الحدّ", priceIqd: 1000, stockQuantity: 500, isActive: true } });
-  const variant = await prisma.productVariant.findFirstOrThrow({ where: { productId: product.id }, select: { id: true } });
+  const product = await prisma.product.create({
+    data: {
+      storeId: store.id,
+      sku: "RLK-1",
+      name: "منتج الحدّ",
+      priceIqd: 1000,
+      stockQuantity: 500,
+      isActive: true,
+    },
+  });
+  const variant = await prisma.productVariant.findFirstOrThrow({
+    where: { productId: product.id },
+    select: { id: true },
+  });
 
   let cartStatus = null;
   let cartAttempts = 0;
@@ -109,9 +148,16 @@ try {
       headers: { cookie: `codiq_cart_${store.slug}=rotate-${attempt}` },
       body: { productId: product.id, variantId: variant.id, quantity: 1 },
     });
-    if (answer.status === 429) { cartStatus = 429; break; }
+    if (answer.status === 429) {
+      cartStatus = 429;
+      break;
+    }
   }
-  assert.equal(cartStatus, 429, `ق-194: rotating the guest cookie must not mint a new bucket — ${cartAttempts} anonymous writes passed, each one a permanent shopping_carts row in the shared database`);
+  assert.equal(
+    cartStatus,
+    429,
+    `ق-194: rotating the guest cookie must not mint a new bucket — ${cartAttempts} anonymous writes passed, each one a permanent shopping_carts row in the shared database`
+  );
   summary.cartHoldsAcrossCookies = { attemptsUntil429: cartAttempts };
 
   // ── 3. …and an ordinary shopper is NOT the one who pays for it ───────────
@@ -130,10 +176,16 @@ try {
       headers: { cookie: `codiq_cart_${store.slug}=one-honest-shopper` },
       body: { productId: product.id, variantId: variant.id, quantity: 1 },
     });
-    if (answer.status === 429) { honestStatus = 429; break; }
+    if (answer.status === 429) {
+      honestStatus = 429;
+      break;
+    }
   }
   assert.equal(honestStatus, 429);
-  assert.ok(honestAttempts <= 61, `ق-194: one shopper still gets his own ordinary ceiling (${honestAttempts}), which is what keeps the address ceiling from being the thing anyone meets`);
+  assert.ok(
+    honestAttempts <= 61,
+    `ق-194: one shopper still gets his own ordinary ceiling (${honestAttempts}), which is what keeps the address ceiling from being the thing anyone meets`
+  );
   summary.honestShopperKeepsHisOwnCeiling = { attemptsUntil429: honestAttempts };
 
   // ── 4. ق-196: the ROUTES must use the ceiling, not merely have one available ──
@@ -149,8 +201,14 @@ try {
   // prove the same sentence and cost a minute of CI for it.
   const { readFileSync } = await import("node:fs");
   const routeSources = {
-    "routes/storefront.ts": readFileSync(new URL("../src/http/routes/storefront.ts", import.meta.url), "utf8"),
-    "routes/marketing.ts": readFileSync(new URL("../src/http/routes/marketing.ts", import.meta.url), "utf8"),
+    "routes/storefront.ts": readFileSync(
+      new URL("../src/http/routes/storefront.ts", import.meta.url),
+      "utf8"
+    ),
+    "routes/marketing.ts": readFileSync(
+      new URL("../src/http/routes/marketing.ts", import.meta.url),
+      "utf8"
+    ),
   };
   // Every scope whose caller-supplied key was the defect. `customer_register`
   // and `customer_login` are absent on purpose: both are already keyed on the
@@ -161,18 +219,20 @@ try {
     { file: "routes/marketing.ts", scope: "coupon_preview" },
   ];
   const unguarded = mustCarryCeiling.filter(({ file, scope }) =>
-    new RegExp(`limitStorefrontWrite\\(request, "${scope}"`).test(routeSources[file]),
+    new RegExp(`limitStorefrontWrite\\(request, "${scope}"`).test(routeSources[file])
   );
   assert.deepEqual(
     unguarded,
     [],
     `ق-196: ${unguarded.map((row) => `${row.file} → ${row.scope}`).join(", ")} fell back to the plain limiter, whose key the caller chooses. ` +
-      `Registration allows eight accounts per address per ten minutes and each gets its own fresh per-caller budget, so without the address ceiling one address mints them without bound.`,
+      `Registration allows eight accounts per address per ten minutes and each gets its own fresh per-caller budget, so without the address ceiling one address mints them without bound.`
   );
   for (const { file, scope } of mustCarryCeiling) {
     assert.ok(
-      new RegExp(`limitStorefrontWriteWithAddressCeiling\\(request, "${scope}"`).test(routeSources[file]),
-      `ق-196: ${file} → ${scope} must consume the address ceiling`,
+      new RegExp(`limitStorefrontWriteWithAddressCeiling\\(request, "${scope}"`).test(
+        routeSources[file]
+      ),
+      `ق-196: ${file} → ${scope} must consume the address ceiling`
     );
   }
   summary.routesCarryTheAddressCeiling = mustCarryCeiling.map((row) => row.scope);

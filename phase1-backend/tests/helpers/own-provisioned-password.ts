@@ -23,7 +23,7 @@ export async function ownProvisionedPassword(
   base: string,
   identifier: string,
   temporaryPassword: string,
-  suffix = "-Owned1",
+  suffix = "-Owned1"
 ): Promise<string> {
   const newPassword = `${temporaryPassword}${suffix}`;
   const login = await fetch(`${base}/api/auth/merchant/login`, {
@@ -33,15 +33,23 @@ export async function ownProvisionedPassword(
   });
   const session = await login.json().catch(() => null);
   if (login.status !== 200) {
-    throw new Error(`ق-218 helper: merchant login failed (${login.status}): ${JSON.stringify(session)}`);
+    throw new Error(
+      `ق-218 helper: merchant login failed (${login.status}): ${JSON.stringify(session)}`
+    );
   }
   const changed = await fetch(`${base}/api/auth/password`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin: base, authorization: `Bearer ${session.accessToken}` },
+    headers: {
+      "content-type": "application/json",
+      origin: base,
+      authorization: `Bearer ${session.accessToken}`,
+    },
     body: JSON.stringify({ currentPassword: temporaryPassword, newPassword }),
   });
   if (changed.status !== 200) {
-    throw new Error(`ق-218 helper: password change failed (${changed.status}): ${JSON.stringify(await changed.json().catch(() => null))}`);
+    throw new Error(
+      `ق-218 helper: password change failed (${changed.status}): ${JSON.stringify(await changed.json().catch(() => null))}`
+    );
   }
   return newPassword;
 }

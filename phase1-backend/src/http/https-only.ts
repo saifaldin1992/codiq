@@ -28,7 +28,10 @@ const PROBES = new Set(["/health", "/ready", "/api/health", "/api/ready"]);
 
 export function httpsEnforcementEnabled(environment: NodeJS.ProcessEnv = process.env): boolean {
   if (environment.CODIQ_ENFORCE_HTTPS?.trim() === "false") return false;
-  return environment.NODE_ENV === "production" && (environment.CODIQ_PUBLIC_BASE_URL ?? "").startsWith("https://");
+  return (
+    environment.NODE_ENV === "production" &&
+    (environment.CODIQ_PUBLIC_BASE_URL ?? "").startsWith("https://")
+  );
 }
 
 export function httpsOnly(environment: NodeJS.ProcessEnv = process.env): RequestHandler {
@@ -46,6 +49,11 @@ export function httpsOnly(environment: NodeJS.ProcessEnv = process.env): Request
       response.redirect(301, `https://${request.hostname}${request.originalUrl}`);
       return;
     }
-    response.status(426).setHeader("upgrade", "TLS/1.2, HTTP/1.1").json({ error: { code: "HTTPS_REQUIRED", message: "This service is only available over HTTPS." } });
+    response
+      .status(426)
+      .setHeader("upgrade", "TLS/1.2, HTTP/1.1")
+      .json({
+        error: { code: "HTTPS_REQUIRED", message: "This service is only available over HTTPS." },
+      });
   };
 }

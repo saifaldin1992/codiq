@@ -20,7 +20,12 @@ export const loyaltySettingsSchema = z
   .object({
     enabled: z.boolean().optional(),
     earnPer1000: z.number().int().min(0).max(LOYALTY_EARN_PER_1000_MAX).optional(),
-    pointValueIqd: z.number().int().min(LOYALTY_POINT_VALUE_MIN).max(LOYALTY_POINT_VALUE_MAX).optional(),
+    pointValueIqd: z
+      .number()
+      .int()
+      .min(LOYALTY_POINT_VALUE_MIN)
+      .max(LOYALTY_POINT_VALUE_MAX)
+      .optional(),
   })
   // An empty body is a request that asks for nothing; answering 200 would tell
   // the merchant something was saved when nothing was.

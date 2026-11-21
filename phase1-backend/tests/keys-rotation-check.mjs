@@ -37,18 +37,34 @@ const keys = buildKeys(ROOT, null);
 const rotating = buildKeys(ROOT, PREVIOUS);
 
 // 1 & 2. The split is real.
-assert.notDeepEqual(keys.session.signing, keys.unsubscribe.signing, "D-62: the two purposes get different keys");
-assert.notDeepEqual(keys.session.signing, Buffer.from(ROOT, "utf8"), "D-62: the session key is not the raw secret");
-assert.notDeepEqual(keys.unsubscribe.signing, Buffer.from(ROOT, "utf8"), "D-62: nor is the unsubscribe key");
+assert.notDeepEqual(
+  keys.session.signing,
+  keys.unsubscribe.signing,
+  "D-62: the two purposes get different keys"
+);
+assert.notDeepEqual(
+  keys.session.signing,
+  Buffer.from(ROOT, "utf8"),
+  "D-62: the session key is not the raw secret"
+);
+assert.notDeepEqual(
+  keys.unsubscribe.signing,
+  Buffer.from(ROOT, "utf8"),
+  "D-62: nor is the unsubscribe key"
+);
 assert.equal(keys.session.signing.length, 32, "D-62: 32 bytes, matching HMAC-SHA256");
 
 // The order matters: the key being retired must never be preferred over the
 // current one, and the legacy raw secret must be last of all.
-assert.deepEqual(rotating.session.verifying[0], rotating.session.signing, "D-62: the current key is tried first");
+assert.deepEqual(
+  rotating.session.verifying[0],
+  rotating.session.signing,
+  "D-62: the current key is tried first"
+);
 assert.deepEqual(
   rotating.session.verifying[rotating.session.verifying.length - 1],
   Buffer.from(ROOT, "utf8"),
-  "D-62: the raw secret is tried LAST — it is the one being retired",
+  "D-62: the raw secret is tried LAST — it is the one being retired"
 );
 
 // 3. Deploying this signs nobody out: a token signed the OLD way still verifies.
@@ -64,7 +80,10 @@ const legacyAccepted = keys.session.verifying.some((key) => {
     return false;
   }
 });
-assert.ok(legacyAccepted, "D-62: a token signed before this change still verifies — the deploy signs nobody out");
+assert.ok(
+  legacyAccepted,
+  "D-62: a token signed before this change still verifies — the deploy signs nobody out"
+);
 
 // 4. An unsubscribe link already in somebody's inbox still works.
 const sign = (key, payload) => crypto.createHmac("sha256", key).update(payload).digest("base64url");
@@ -72,14 +91,18 @@ const payload = "pg3-unsubscribe:store-1:someone@example.test";
 const legacyLink = sign(Buffer.from(ROOT, "utf8"), payload);
 assert.ok(
   keys.unsubscribe.verifying.some((key) => sign(key, payload) === legacyLink),
-  "D-62: an unsubscribe link signed the old way still verifies — a broken one is a person who cannot stop marketing",
+  "D-62: an unsubscribe link signed the old way still verifies — a broken one is a person who cannot stop marketing"
 );
 
 // 5. Rotation, in both directions.
-const previousToken = jwt.sign({ identityKind: "merchant", subjectId: "x", sessionId: "y" }, buildKeys(PREVIOUS, null).session.signing, {
-  algorithm: "HS256",
-  expiresIn: 3600,
-});
+const previousToken = jwt.sign(
+  { identityKind: "merchant", subjectId: "x", sessionId: "y" },
+  buildKeys(PREVIOUS, null).session.signing,
+  {
+    algorithm: "HS256",
+    expiresIn: 3600,
+  }
+);
 const verifiesUnder = (bundle, token) =>
   bundle.session.verifying.some((key) => {
     try {
@@ -89,32 +112,51 @@ const verifiesUnder = (bundle, token) =>
       return false;
     }
   });
-assert.ok(verifiesUnder(rotating, previousToken), "D-62: while the old secret is declared, its tokens still work — rotation is not an outage");
+assert.ok(
+  verifiesUnder(rotating, previousToken),
+  "D-62: while the old secret is declared, its tokens still work — rotation is not an outage"
+);
 assert.ok(
   !verifiesUnder(keys, previousToken),
-  "D-62: and once it is withdrawn they stop — a key that can never be retired is not a rotation",
+  "D-62: and once it is withdrawn they stop — a key that can never be retired is not a rotation"
 );
 
 // 6. Nothing above passes for a trivial reason.
-const foreign = jwt.sign({ identityKind: "merchant", subjectId: "x", sessionId: "y" }, UNRELATED, { algorithm: "HS256", expiresIn: 3600 });
-assert.ok(!verifiesUnder(rotating, foreign), "D-62: an unrelated secret is refused by every key in the window");
-assert.ok(
-  !keys.unsubscribe.verifying.some((key) => sign(key, payload) === sign(Buffer.from(UNRELATED, "utf8"), payload)),
-  "D-62: …and so is an unrelated unsubscribe signature",
-);
-
-// 7. Two processes derive the same keys from the same input.
-assert.deepEqual(buildKeys(ROOT, null).session.signing, keys.session.signing, "D-62: deterministic — the worker and the API must agree without coordinating");
-
-// A session key must not be usable as an unsubscribe key, in the direction that
-// would actually matter: a leaked unsubscribe key must not forge a session.
-const forged = jwt.sign({ identityKind: "platform_owner", subjectId: "x", sessionId: "y" }, keys.unsubscribe.signing, {
+const foreign = jwt.sign({ identityKind: "merchant", subjectId: "x", sessionId: "y" }, UNRELATED, {
   algorithm: "HS256",
   expiresIn: 3600,
 });
 assert.ok(
+  !verifiesUnder(rotating, foreign),
+  "D-62: an unrelated secret is refused by every key in the window"
+);
+assert.ok(
+  !keys.unsubscribe.verifying.some(
+    (key) => sign(key, payload) === sign(Buffer.from(UNRELATED, "utf8"), payload)
+  ),
+  "D-62: …and so is an unrelated unsubscribe signature"
+);
+
+// 7. Two processes derive the same keys from the same input.
+assert.deepEqual(
+  buildKeys(ROOT, null).session.signing,
+  keys.session.signing,
+  "D-62: deterministic — the worker and the API must agree without coordinating"
+);
+
+// A session key must not be usable as an unsubscribe key, in the direction that
+// would actually matter: a leaked unsubscribe key must not forge a session.
+const forged = jwt.sign(
+  { identityKind: "platform_owner", subjectId: "x", sessionId: "y" },
+  keys.unsubscribe.signing,
+  {
+    algorithm: "HS256",
+    expiresIn: 3600,
+  }
+);
+assert.ok(
   !verifiesUnder(keys, forged),
-  "D-62: the unsubscribe key cannot mint a session — which is the whole point of splitting them",
+  "D-62: the unsubscribe key cannot mint a session — which is the whole point of splitting them"
 );
 
 // ===========================================================================
@@ -148,16 +190,35 @@ const sealed = secretBox.sealSecret("platform-owner-totp", OWNER_SECRET);
 // one rather than guessed at from the ciphertext's shape.
 const parts = sealed.split(".");
 assert.equal(parts.length, 5, "D-40: the envelope is version.kid.iv.tag.ciphertext");
-assert.equal(parts[0], "codiq1", "D-40: the format version leads, so a v2 can be read alongside v1");
-assert.match(parts[1], /^[0-9a-f]{8}$/, "D-40: a key id, so a rotation reads each row under the RIGHT key instead of trying keys until one works");
+assert.equal(
+  parts[0],
+  "codiq1",
+  "D-40: the format version leads, so a v2 can be read alongside v1"
+);
+assert.match(
+  parts[1],
+  /^[0-9a-f]{8}$/,
+  "D-40: a key id, so a rotation reads each row under the RIGHT key instead of trying keys until one works"
+);
 assert.equal(Buffer.from(parts[2], "base64url").length, 12, "D-40: a 12-byte GCM nonce");
 assert.equal(Buffer.from(parts[3], "base64url").length, 16, "D-40: a 16-byte authentication tag");
-assert.ok(!sealed.includes(OWNER_SECRET), "D-40: the plaintext is not in the envelope — the whole point");
-assert.equal(secretBox.openSecret("platform-owner-totp", sealed), OWNER_SECRET, "D-40: it round-trips");
+assert.ok(
+  !sealed.includes(OWNER_SECRET),
+  "D-40: the plaintext is not in the envelope — the whole point"
+);
+assert.equal(
+  secretBox.openSecret("platform-owner-totp", sealed),
+  OWNER_SECRET,
+  "D-40: it round-trips"
+);
 
 // A nonce is NEVER reused under one key. Reuse is the single mistake that breaks
 // GCM outright, so two seals of the same value must not produce the same bytes.
-assert.notEqual(secretBox.sealSecret("platform-owner-totp", OWNER_SECRET), sealed, "D-40: a fresh iv per seal — a repeated nonce breaks GCM");
+assert.notEqual(
+  secretBox.sealSecret("platform-owner-totp", OWNER_SECRET),
+  sealed,
+  "D-40: a fresh iv per seal — a repeated nonce breaks GCM"
+);
 
 // Purpose separation, in the direction that would actually matter: a ciphertext
 // lifted out of a staff row and written into the owner's must not enrol that
@@ -166,32 +227,53 @@ const staffSealed = secretBox.sealSecret("platform-staff-totp", OWNER_SECRET);
 assert.throws(
   () => secretBox.openSecret("platform-owner-totp", staffSealed),
   /authentication tag/,
-  "D-40: each column has its own derived key, so a ciphertext moved between them fails to open",
+  "D-40: each column has its own derived key, so a ciphertext moved between them fails to open"
 );
 
 // AEAD is not decoration: a tampered row is an ERROR, never a value.
-const tampered = [...parts.slice(0, 4), Buffer.from("not the ciphertext that was sealed").toString("base64url")].join(".");
-assert.throws(() => secretBox.openSecret("platform-owner-totp", tampered), /authentication tag/, "D-40: a flipped bit fails loudly instead of decrypting to something");
+const tampered = [
+  ...parts.slice(0, 4),
+  Buffer.from("not the ciphertext that was sealed").toString("base64url"),
+].join(".");
+assert.throws(
+  () => secretBox.openSecret("platform-owner-totp", tampered),
+  /authentication tag/,
+  "D-40: a flipped bit fails loudly instead of decrypting to something"
+);
 
 // THE ACCEPTANCE CONDITION FOR THE WHOLE CHANGE: an owner enrolled BEFORE this
 // phase has a bare base32 secret in that column, and his phone must keep working
 // the moment this deploys — before the backfill has touched a single row. Same
 // shape as the legacy verification path above, and it empties itself the same
 // way: every write re-seals.
-assert.equal(secretBox.openSecret("platform-owner-totp", OWNER_SECRET), OWNER_SECRET, "D-40: a secret written before 19-د still reads — the deploy locks nobody out");
+assert.equal(
+  secretBox.openSecret("platform-owner-totp", OWNER_SECRET),
+  OWNER_SECRET,
+  "D-40: a secret written before 19-د still reads — the deploy locks nobody out"
+);
 assert.ok(secretBox.needsSealing(OWNER_SECRET), "D-40: …and is reported as still needing sealing");
 assert.ok(!secretBox.needsSealing(sealed), "D-40: an envelope does not");
 
 // Rotation. The retiring key DECRYPTS and never seals; withdrawing it stops the
 // old rows from opening, which is what makes it a rotation rather than a key
 // that can never be retired.
-assert.equal(secretBox.resolvePreviousSecretRoot({}), null, "D-40: no previous key is the normal state");
-const withPrevious = secretBox.resolvePreviousSecretRoot({ CODIQ_ENCRYPTION_KEY_PREVIOUS: ENCRYPTION_ROOT });
-assert.equal(withPrevious.keyId, secretBox.secretBoxStatus().keyId, "D-40: the same root yields the same key id — that is what the kid on a row resolves against");
+assert.equal(
+  secretBox.resolvePreviousSecretRoot({}),
+  null,
+  "D-40: no previous key is the normal state"
+);
+const withPrevious = secretBox.resolvePreviousSecretRoot({
+  CODIQ_ENCRYPTION_KEY_PREVIOUS: ENCRYPTION_ROOT,
+});
+assert.equal(
+  withPrevious.keyId,
+  secretBox.secretBoxStatus().keyId,
+  "D-40: the same root yields the same key id — that is what the kid on a row resolves against"
+);
 assert.notEqual(
   secretBox.resolveSecretRoot({ CODIQ_ENCRYPTION_KEY: ENCRYPTION_ROOT_NEXT }).keyId,
   secretBox.secretBoxStatus().keyId,
-  "D-40: a different root is a different key id, so rows sealed under each are told apart rather than guessed at",
+  "D-40: a different root is a different key id, so rows sealed under each are told apart rather than guessed at"
 );
 
 // FAIL LOUDLY, FAIL CLOSED. Inverted exactly like `cookieSecureFromEnv`: only
@@ -201,19 +283,31 @@ for (const unnamed of ["production", "staging", "demo", "qa", "test", undefined]
   assert.throws(
     () => secretBox.resolveSecretRoot({ NODE_ENV: unnamed }),
     /CODIQ_ENCRYPTION_KEY/,
-    `D-40: «${unnamed ?? "unset"}» is not development, so a missing key must stop the boot`,
+    `D-40: «${unnamed ?? "unset"}» is not development, so a missing key must stop the boot`
   );
 }
-assert.equal(secretBox.resolveSecretRoot({ NODE_ENV: "development" }).development, true, "D-40: local development is the one exception, and it says so");
-assert.equal(secretBox.resolveSecretRoot({ CODIQ_ENCRYPTION_KEY: ENCRYPTION_ROOT }).development, false, "…and a real key is never the development fallback");
-assert.throws(() => secretBox.resolveSecretRoot({ CODIQ_ENCRYPTION_KEY: "too-short" }), /at least 32/, "D-40: a key short enough to guess is refused rather than accepted quietly");
+assert.equal(
+  secretBox.resolveSecretRoot({ NODE_ENV: "development" }).development,
+  true,
+  "D-40: local development is the one exception, and it says so"
+);
+assert.equal(
+  secretBox.resolveSecretRoot({ CODIQ_ENCRYPTION_KEY: ENCRYPTION_ROOT }).development,
+  false,
+  "…and a real key is never the development fallback"
+);
+assert.throws(
+  () => secretBox.resolveSecretRoot({ CODIQ_ENCRYPTION_KEY: "too-short" }),
+  /at least 32/,
+  "D-40: a key short enough to guess is refused rather than accepted quietly"
+);
 
 // The two roots are independent: rotating the session secret must not touch a
 // single stored secret. This is the assertion the argument above rests on.
 assert.notEqual(
   secretBox.resolveSecretRoot({ CODIQ_ENCRYPTION_KEY: ROOT }).keyId,
   secretBox.resolveSecretRoot({ CODIQ_ENCRYPTION_KEY: ENCRYPTION_ROOT }).keyId,
-  "D-40: the encryption root has its own lifecycle — rotating SESSION_JWT_SECRET must never make a stored secret unreadable",
+  "D-40: the encryption root has its own lifecycle — rotating SESSION_JWT_SECRET must never make a stored secret unreadable"
 );
 
 console.log(
@@ -239,7 +333,7 @@ console.log(
       },
     },
     null,
-    2,
-  ),
+    2
+  )
 );
 console.log("keys:rotation OK");

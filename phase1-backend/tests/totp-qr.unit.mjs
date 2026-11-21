@@ -34,7 +34,9 @@ import { generateTotpSecret, totpEnrolmentUri } from "../src/auth/totp.ts";
 /** Exactly what client/src/components/OwnerAccountPanels.tsx passes. */
 const CARD_OPTIONS = { errorCorrectionLevel: "M", margin: 2, width: 232 };
 
-const CARD = fileURLToPath(new URL("../../client/src/components/OwnerAccountPanels.tsx", import.meta.url));
+const CARD = fileURLToPath(
+  new URL("../../client/src/components/OwnerAccountPanels.tsx", import.meta.url)
+);
 
 const accounts = [
   "codiqos.iq@gmail.com",
@@ -48,7 +50,10 @@ for (const account of accounts) {
   const uri = totpEnrolmentUri(generateTotpSecret(), account);
   assert.match(uri, /^otpauth:\/\/totp\//, "the server still mints an otpauth URI");
   const png = await toDataURL(uri, CARD_OPTIONS);
-  assert.ok(png.startsWith("data:image/png;base64,"), `a PNG data URI for a ${account.length}-char account`);
+  assert.ok(
+    png.startsWith("data:image/png;base64,"),
+    `a PNG data URI for a ${account.length}-char account`
+  );
   assert.ok(png.length > 1000, "a real image, not an empty canvas");
   sizes.push({ account: account.length, uri: uri.length, png: png.length });
 }
@@ -56,15 +61,21 @@ for (const account of accounts) {
 const source = readFileSync(CARD, "utf8");
 assert.ok(
   /toDataURL\(\s*material\.uri\b/.test(source),
-  "the card must encode the SERVER's uri — re-deriving one here would let the image and the key below it describe different accounts",
+  "the card must encode the SERVER's uri — re-deriving one here would let the image and the key below it describe different accounts"
 );
 assert.ok(
   source.includes('await import("qrcode")'),
-  "the encoder must stay dynamically imported, so it costs nothing until enrolment begins",
+  "the encoder must stay dynamically imported, so it costs nothing until enrolment begins"
 );
 assert.ok(
   /data-testid="owner-totp-secret"/.test(source) && /owner-totp-copy-uri/.test(source),
-  "the key and the link must stay on screen beside the QR — they are the fallback when a camera will not read it",
+  "the key and the link must stay on screen beside the QR — they are the fallback when a camera will not read it"
 );
 
-console.log(JSON.stringify({ suite: "totp-qr", status: "passed", summary: { encoded: sizes, options: CARD_OPTIONS } }, null, 2));
+console.log(
+  JSON.stringify(
+    { suite: "totp-qr", status: "passed", summary: { encoded: sizes, options: CARD_OPTIONS } },
+    null,
+    2
+  )
+);

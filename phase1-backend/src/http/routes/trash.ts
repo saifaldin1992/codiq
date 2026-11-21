@@ -30,8 +30,16 @@
 import type { Express } from "express";
 import { requireStoreActor } from "../../auth/staff-permissions.js";
 import { listAuditEvents } from "../../services/soft-delete/audit-log.service.js";
-import { DELETE_PREVIEW_PERMISSION, deletePreview } from "../../services/soft-delete/delete-preview.service.js";
-import { assertMayTouchTrashEntity, assertTrashEntityType, listTrash, restore } from "../../services/soft-delete/soft-delete.service.js";
+import {
+  DELETE_PREVIEW_PERMISSION,
+  deletePreview,
+} from "../../services/soft-delete/delete-preview.service.js";
+import {
+  assertMayTouchTrashEntity,
+  assertTrashEntityType,
+  listTrash,
+  restore,
+} from "../../services/soft-delete/soft-delete.service.js";
 import { restoreTrashSchema } from "../schemas/trash.schema.js";
 import { parseOrThrow } from "../validate.js";
 import { asyncRoute, requireTrustedWriteOrigin } from "../shared.js";
@@ -43,30 +51,72 @@ export function registerTrashRoutes(app: Express) {
   // This is that endpoint, and it rides the permission that governs each
   // entity's own DELETE, not `catalog.trash.view`: whoever may delete the row
   // must be able to read the consequences first.
-  app.get("/merchant/stores/:storeSlug/trash/preview/:entityType/:id", asyncRoute(async (request, response) => {
-    const entityType = assertTrashEntityType(request.params.entityType);
-    const { store, permissions } = await requireStoreActor(request, DELETE_PREVIEW_PERMISSION[entityType]);
-    response.status(200).json({ preview: await deletePreview(entityType, store.id, request.params.id, permissions) });
-  }));
-  app.get("/merchant/stores/:storeSlug/trash", asyncRoute(async (request, response) => {
-    const { store, permissions } = await requireStoreActor(request, "catalog.trash.view");
-    response.status(200).json({
-      storeSlug: store.slug,
-      ...(await listTrash(store.id, permissions, request.query.entityType, request.query.limit, request.query.cursor)),
-    });
-  }));
-  app.post("/merchant/stores/:storeSlug/trash/:entityType/:id/restore", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const { store, actor, permissions } = await requireStoreActor(request, "catalog.trash.restore");
-    const entityType = assertTrashEntityType(request.params.entityType);
-    assertMayTouchTrashEntity(entityType, permissions);
-    // 19-ج: the overrides that resolve a 409 in the same call. The entityType
-    // above keeps its own 404 — see the schema header for why it is not modelled.
-    const overrides = parseOrThrow(restoreTrashSchema, request.body ?? {});
-    response.status(200).json({ restored: await restore(entityType, store.id, request.params.id, actor, overrides) });
-  }));
-  app.get("/merchant/stores/:storeSlug/audit-events", asyncRoute(async (request, response) => {
-    const { store } = await requireStoreActor(request, "catalog.audit.view");
-    response.status(200).json({ storeSlug: store.slug, ...(await listAuditEvents(store.id, request.query.limit, request.query.cursor, request.query.entityType)) });
-  }));
+  app.get(
+    "/merchant/stores/:storeSlug/trash/preview/:entityType/:id",
+    asyncRoute(async (request, response) => {
+      const entityType = assertTrashEntityType(request.params.entityType);
+      const { store, permissions } = await requireStoreActor(
+        request,
+        DELETE_PREVIEW_PERMISSION[entityType]
+      );
+      response
+        .status(200)
+        .json({
+          preview: await deletePreview(entityType, store.id, request.params.id, permissions),
+        });
+    })
+  );
+  app.get(
+    "/merchant/stores/:storeSlug/trash",
+    asyncRoute(async (request, response) => {
+      const { store, permissions } = await requireStoreActor(request, "catalog.trash.view");
+      response.status(200).json({
+        storeSlug: store.slug,
+        ...(await listTrash(
+          store.id,
+          permissions,
+          request.query.entityType,
+          request.query.limit,
+          request.query.cursor
+        )),
+      });
+    })
+  );
+  app.post(
+    "/merchant/stores/:storeSlug/trash/:entityType/:id/restore",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const { store, actor, permissions } = await requireStoreActor(
+        request,
+        "catalog.trash.restore"
+      );
+      const entityType = assertTrashEntityType(request.params.entityType);
+      assertMayTouchTrashEntity(entityType, permissions);
+      // 19-ج: the overrides that resolve a 409 in the same call. The entityType
+      // above keeps its own 404 — see the schema header for why it is not modelled.
+      const overrides = parseOrThrow(restoreTrashSchema, request.body ?? {});
+      response
+        .status(200)
+        .json({
+          restored: await restore(entityType, store.id, request.params.id, actor, overrides),
+        });
+    })
+  );
+  app.get(
+    "/merchant/stores/:storeSlug/audit-events",
+    asyncRoute(async (request, response) => {
+      const { store } = await requireStoreActor(request, "catalog.audit.view");
+      response
+        .status(200)
+        .json({
+          storeSlug: store.slug,
+          ...(await listAuditEvents(
+            store.id,
+            request.query.limit,
+            request.query.cursor,
+            request.query.entityType
+          )),
+        });
+    })
+  );
 }

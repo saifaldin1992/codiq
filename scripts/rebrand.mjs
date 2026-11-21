@@ -27,7 +27,9 @@ const domain = arg("--domain");
 const dryRun = args.includes("--dry-run");
 
 if (!name && !domain) {
-  console.error('usage: node scripts/rebrand.mjs --name "Brand" [--domain example.com] [--dry-run]');
+  console.error(
+    'usage: node scripts/rebrand.mjs --name "Brand" [--domain example.com] [--dry-run]'
+  );
   process.exit(2);
 }
 if (name && !/^[\p{L}\p{N} .&'-]{2,40}$/u.test(name)) {
@@ -62,13 +64,16 @@ for (const file of TARGETS.flatMap(walk)) {
   const before = readFileSync(file, "utf8");
   let count = 0;
   let after = before;
-  if (name) after = after.replace(BRAND, () => (count += 1, name));
-  if (domain) after = after.replace(DOMAIN, () => (count += 1, domain));
+  if (name) after = after.replace(BRAND, () => ((count += 1), name));
+  if (domain) after = after.replace(DOMAIN, () => ((count += 1), domain));
   if (after === before) continue;
   filesChanged += 1;
   replacements += count;
   console.log(`${dryRun ? "would change" : "changed"} ${path.relative(root, file)} (${count})`);
   if (!dryRun) writeFileSync(file, after);
 }
-console.log(JSON.stringify({ name: name ?? null, domain: domain ?? null, dryRun, filesChanged, replacements }));
-if (!dryRun && filesChanged) console.log("Next: pnpm openapi:generate && pnpm check && pnpm brand:guard");
+console.log(
+  JSON.stringify({ name: name ?? null, domain: domain ?? null, dryRun, filesChanged, replacements })
+);
+if (!dryRun && filesChanged)
+  console.log("Next: pnpm openapi:generate && pnpm check && pnpm brand:guard");

@@ -78,8 +78,18 @@ async function readError(response: Response): Promise<string> {
   return body?.error?.message ?? `فشل الطلب (${response.status})`;
 }
 
-export function AccountSecurityPanel({ view, onPasswordChanged }: { view: "password" | "sessions"; onPasswordChanged?: () => void }) {
-  return view === "password" ? <ChangePasswordCard onChanged={onPasswordChanged} /> : <SessionsCard />;
+export function AccountSecurityPanel({
+  view,
+  onPasswordChanged,
+}: {
+  view: "password" | "sessions";
+  onPasswordChanged?: () => void;
+}) {
+  return view === "password" ? (
+    <ChangePasswordCard onChanged={onPasswordChanged} />
+  ) : (
+    <SessionsCard />
+  );
 }
 
 function ChangePasswordCard({ onChanged }: { onChanged?: () => void } = {}) {
@@ -95,7 +105,11 @@ function ChangePasswordCard({ onChanged }: { onChanged?: () => void } = {}) {
   // The button is disabled on what the CLIENT can be sure of. It is never the
   // authority — the server checks everything again — but letting somebody press
   // a button that cannot succeed wastes his time and teaches him the form lies.
-  const ready = currentPassword.length > 0 && assessment.accepted && !mismatch && confirmPassword === newPassword;
+  const ready =
+    currentPassword.length > 0 &&
+    assessment.accepted &&
+    !mismatch &&
+    confirmPassword === newPassword;
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -132,18 +146,23 @@ function ChangePasswordCard({ onChanged }: { onChanged?: () => void } = {}) {
       </p>
       <h2 className="mb-1 text-xl font-bold text-[var(--codiq-text)]">تغيير كلمة المرور</h2>
       <p className="mb-6 text-sm leading-7 text-[var(--codiq-text-muted)]">
-        عند التغيير تُنهى <strong>كل الجلسات الأخرى</strong> — أي جهاز آخر داخل على حسابك يخرج فوراً. جلستك الحالية تبقى، فلن تُخرَج من الجهاز الذي بين يديك.
+        عند التغيير تُنهى <strong>كل الجلسات الأخرى</strong> — أي جهاز آخر داخل على حسابك يخرج
+        فوراً. جلستك الحالية تبقى، فلن تُخرَج من الجهاز الذي بين يديك.
       </p>
       {/* ق-218: a merchant whose first password was typed by whoever created his
           account lands here from the login itself. The rest of the dashboard is
           refused until this form is submitted, so the reason has to be on it. */}
       <p className="mb-6 rounded-2xl bg-[var(--codiq-warning-soft)] px-4 py-3 text-sm leading-7 text-[var(--codiq-text-secondary)]">
-        إذا أنشأ حسابَك أحدٌ من فريق المنصة، فكلمة المرور الحالية <strong>يعرفها هو</strong>. غيّرها الآن لتصير لك وحدك — بقية اللوحة تُفتح فور تغييرها.
+        إذا أنشأ حسابَك أحدٌ من فريق المنصة، فكلمة المرور الحالية <strong>يعرفها هو</strong>. غيّرها
+        الآن لتصير لك وحدك — بقية اللوحة تُفتح فور تغييرها.
       </p>
 
       <form onSubmit={submit} className="space-y-5" noValidate>
         <div className="space-y-1.5">
-          <label htmlFor="current-password" className="text-sm font-semibold text-[var(--codiq-text-secondary)]">
+          <label
+            htmlFor="current-password"
+            className="text-sm font-semibold text-[var(--codiq-text-secondary)]"
+          >
             كلمة المرور الحالية
           </label>
           <PasswordInput
@@ -157,7 +176,10 @@ function ChangePasswordCard({ onChanged }: { onChanged?: () => void } = {}) {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="new-password" className="text-sm font-semibold text-[var(--codiq-text-secondary)]">
+          <label
+            htmlFor="new-password"
+            className="text-sm font-semibold text-[var(--codiq-text-secondary)]"
+          >
             كلمة المرور الجديدة
           </label>
           <PasswordInput
@@ -173,7 +195,10 @@ function ChangePasswordCard({ onChanged }: { onChanged?: () => void } = {}) {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="confirm-password" className="text-sm font-semibold text-[var(--codiq-text-secondary)]">
+          <label
+            htmlFor="confirm-password"
+            className="text-sm font-semibold text-[var(--codiq-text-secondary)]"
+          >
             تأكيد كلمة المرور الجديدة
           </label>
           <PasswordInput
@@ -185,7 +210,10 @@ function ChangePasswordCard({ onChanged }: { onChanged?: () => void } = {}) {
             required
           />
           {mismatch && (
-            <p className="text-xs font-medium text-[var(--codiq-danger)]" data-testid="password-mismatch">
+            <p
+              className="text-xs font-medium text-[var(--codiq-danger)]"
+              data-testid="password-mismatch"
+            >
               الكلمتان غير متطابقتين.
             </p>
           )}
@@ -208,11 +236,17 @@ function ChangePasswordCard({ onChanged }: { onChanged?: () => void } = {}) {
             {/* The count is stated because it is EVIDENCE. «تم التغيير» is a
                 promise; «وأُنهيت 3 جلسات أخرى» is a fact he can check against
                 the list on the next screen. */}
-            تم تغيير كلمة المرور.{done > 0 ? ` وأُنهيت ${endedSessionsPhrase(done)}.` : " لم تكن هناك جلسات أخرى."}
+            تم تغيير كلمة المرور.
+            {done > 0 ? ` وأُنهيت ${endedSessionsPhrase(done)}.` : " لم تكن هناك جلسات أخرى."}
           </p>
         )}
 
-        <Button type="submit" disabled={busy || !ready} data-testid="password-change-submit" className="w-full rounded-xl py-6 text-base font-bold sm:w-auto sm:px-10">
+        <Button
+          type="submit"
+          disabled={busy || !ready}
+          data-testid="password-change-submit"
+          className="w-full rounded-xl py-6 text-base font-bold sm:w-auto sm:px-10"
+        >
           {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : "تغيير كلمة المرور"}
         </Button>
       </form>
@@ -263,9 +297,12 @@ function SessionsCard() {
       <p className="mb-2 flex items-center gap-2 text-xs font-bold tracking-wide text-[var(--codiq-accent)]">
         <MonitorSmartphone className="h-4 w-4" /> الجلسات والأجهزة
       </p>
-      <h2 className="mb-1 text-xl font-bold text-[var(--codiq-text)]">ما الذي يدخل إلى حسابك الآن</h2>
+      <h2 className="mb-1 text-xl font-bold text-[var(--codiq-text)]">
+        ما الذي يدخل إلى حسابك الآن
+      </h2>
       <p className="mb-6 text-sm leading-7 text-[var(--codiq-text-muted)]">
-        هذه القائمة تجيب على سؤال واحد: <strong>هل هنا شيء ليس أنت؟</strong> جلستك الحالية موسومة، كي لا تُنهيها بالخطأ.
+        هذه القائمة تجيب على سؤال واحد: <strong>هل هنا شيء ليس أنت؟</strong> جلستك الحالية موسومة،
+        كي لا تُنهيها بالخطأ.
       </p>
 
       {failure && (
@@ -286,7 +323,9 @@ function SessionsCard() {
               >
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm font-bold text-[var(--codiq-text)]">
-                    <span className="truncate" dir="ltr">{deviceLabel(session.device)}</span>
+                    <span className="truncate" dir="ltr">
+                      {deviceLabel(session.device)}
+                    </span>
                     {session.current && (
                       <span className="shrink-0 rounded-full bg-[var(--codiq-accent-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--codiq-accent-on-soft)]">
                         هذه الجلسة
@@ -294,7 +333,8 @@ function SessionsCard() {
                     )}
                   </p>
                   <p className="mt-1 text-xs text-[var(--codiq-text-muted)]">
-                    آخر نشاط: {formatWhen(session.lastSeenAt)} · بدأت: {formatWhen(session.createdAt)}
+                    آخر نشاط: {formatWhen(session.lastSeenAt)} · بدأت:{" "}
+                    {formatWhen(session.createdAt)}
                   </p>
                 </div>
                 {!session.current && (
@@ -303,12 +343,19 @@ function SessionsCard() {
                     disabled={busy !== null}
                     onClick={() =>
                       act(session.id, () =>
-                        fetch(`/api/auth/sessions/${session.id}`, { method: "DELETE", credentials: "same-origin" }),
+                        fetch(`/api/auth/sessions/${session.id}`, {
+                          method: "DELETE",
+                          credentials: "same-origin",
+                        })
                       )
                     }
                     className="shrink-0 rounded-xl"
                   >
-                    {busy === session.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : "إنهاء"}
+                    {busy === session.id ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "إنهاء"
+                    )}
                   </Button>
                 )}
               </li>
@@ -322,7 +369,10 @@ function SessionsCard() {
               data-testid="revoke-others"
               onClick={() =>
                 act("others", () =>
-                  fetch("/api/auth/sessions/revoke-others", { method: "POST", credentials: "same-origin" }),
+                  fetch("/api/auth/sessions/revoke-others", {
+                    method: "POST",
+                    credentials: "same-origin",
+                  })
                 )
               }
               className="mt-6 gap-2 rounded-xl"

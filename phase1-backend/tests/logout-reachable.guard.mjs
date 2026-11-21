@@ -79,15 +79,28 @@ assert.deepEqual(
   [],
   `هوية بلا مخرج:\n` +
     missing
-      .map((m) => `  ${m.who} — ${m.file}\n      ${m.calls ? "المسار يُنادى" : "لا نداء على /auth/logout"}, ${m.clickable ? "وله زر" : "ولا زر يُشغّله"}`)
+      .map(
+        (m) =>
+          `  ${m.who} — ${m.file}\n      ${m.calls ? "المسار يُنادى" : "لا نداء على /auth/logout"}, ${m.clickable ? "وله زر" : "ولا زر يُشغّله"}`
+      )
       .join("\n") +
     `\n\nPOST /auth/logout is identity-generic and has always worked. If a shell has no button, the defect is the ` +
     `missing button — not the endpoint. And do not point the merchant at the sessions screen: it hides the revoke ` +
-    `control for the current session on purpose.`,
+    `control for the current session on purpose.`
 );
 
-console.log(JSON.stringify({
-  suite: "logout-reachable",
-  status: "passed",
-  summary: { identities: checked.length, checked, guarantee: "every identity shell calls a logout endpoint from a control a person can reach" },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "logout-reachable",
+      status: "passed",
+      summary: {
+        identities: checked.length,
+        checked,
+        guarantee: "every identity shell calls a logout endpoint from a control a person can reach",
+      },
+    },
+    null,
+    2
+  )
+);

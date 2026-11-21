@@ -72,21 +72,55 @@ export interface StoreBannerView {
 }
 
 /** The path the browser fetches. Bytes are streamed by the route, never signed URLs — the same shape product images use. */
-const bannerUrl = (storeSlug: string, id: string) => `/api/store/${encodeURIComponent(storeSlug)}/banners/${id}/image`;
+const bannerUrl = (storeSlug: string, id: string) =>
+  `/api/store/${encodeURIComponent(storeSlug)}/banners/${id}/image`;
 
 /** A placement the storefront cannot draw is read as the hero one rather than dropped: the slide exists and the merchant paid for it. */
 function placementOf(value: string): BannerPlacement {
-  return (BANNER_PLACEMENTS as readonly string[]).includes(value) ? (value as BannerPlacement) : DEFAULT_PLACEMENT;
+  return (BANNER_PLACEMENTS as readonly string[]).includes(value)
+    ? (value as BannerPlacement)
+    : DEFAULT_PLACEMENT;
 }
 
-function view(storeSlug: string, row: { id: string; linkUrl: string | null; altText: string | null; isActive: boolean; sortOrder: number; byteSize: number; placement: string }): StoreBannerView {
-  return { id: row.id, url: bannerUrl(storeSlug, row.id), linkUrl: row.linkUrl, altText: row.altText, isActive: row.isActive, sortOrder: row.sortOrder, byteSize: row.byteSize, placement: placementOf(row.placement) };
+function view(
+  storeSlug: string,
+  row: {
+    id: string;
+    linkUrl: string | null;
+    altText: string | null;
+    isActive: boolean;
+    sortOrder: number;
+    byteSize: number;
+    placement: string;
+  }
+): StoreBannerView {
+  return {
+    id: row.id,
+    url: bannerUrl(storeSlug, row.id),
+    linkUrl: row.linkUrl,
+    altText: row.altText,
+    isActive: row.isActive,
+    sortOrder: row.sortOrder,
+    byteSize: row.byteSize,
+    placement: placementOf(row.placement),
+  };
 }
 
-const BANNER_SELECT = { id: true, linkUrl: true, altText: true, isActive: true, sortOrder: true, byteSize: true, placement: true } as const;
+const BANNER_SELECT = {
+  id: true,
+  linkUrl: true,
+  altText: true,
+  isActive: true,
+  sortOrder: true,
+  byteSize: true,
+  placement: true,
+} as const;
 
 /** The merchant's own list: hidden slides included, because he is the one who hid them. */
-export async function listStoreBanners(storeId: string, storeSlug: string): Promise<{ storeSlug: string; banners: StoreBannerView[] }> {
+export async function listStoreBanners(
+  storeId: string,
+  storeSlug: string
+): Promise<{ storeSlug: string; banners: StoreBannerView[] }> {
   const rows = await prisma.storeBanner.findMany({
     where: { storeId },
     // Placement first: the screen draws the two sliders as two lists, and the
@@ -98,7 +132,10 @@ export async function listStoreBanners(storeId: string, storeSlug: string): Prom
 }
 
 /** The shopper's list: live slides only, in order. */
-export async function publicStoreBanners(storeId: string, storeSlug: string): Promise<StoreBannerView[]> {
+export async function publicStoreBanners(
+  storeId: string,
+  storeSlug: string
+): Promise<StoreBannerView[]> {
   const rows = await prisma.storeBanner.findMany({
     where: { storeId, isActive: true },
     orderBy: [{ placement: "asc" }, { sortOrder: "asc" }, { id: "asc" }],
@@ -114,7 +151,11 @@ function assertLink(linkUrl: string | null | undefined): string | null {
   if (linkUrl === undefined || linkUrl === null || linkUrl === "") return null;
   const trimmed = String(linkUrl).trim();
   if (!HTTP_URL.test(trimmed)) {
-    throw new HttpError(422, "INVALID_BANNER_LINK", "رابط الشريحة يجب أن يبدأ بـ http:// أو https://");
+    throw new HttpError(
+      422,
+      "INVALID_BANNER_LINK",
+      "رابط الشريحة يجب أن يبدأ بـ http:// أو https://"
+    );
   }
   return trimmed;
 }
@@ -124,29 +165,54 @@ export async function addStoreBanner(
   storeSlug: string,
   merchantId: string,
   file: Express.Multer.File | undefined,
-  input: { linkUrl?: unknown; altText?: unknown; placement?: unknown },
+  input: { linkUrl?: unknown; altText?: unknown; placement?: unknown }
 ): Promise<StoreBannerView> {
   if (!file) throw new HttpError(422, "INVALID_BANNER_IMAGE", "صورة الشريحة مطلوبة.");
-  const placement = typeof input.placement === "string" ? placementOf(input.placement) : DEFAULT_PLACEMENT;
+  const placement =
+    typeof input.placement === "string" ? placementOf(input.placement) : DEFAULT_PLACEMENT;
   // The ceiling is PER PLACEMENT (ق-210): the two sliders are two decisions, and
   // a full hero slider must not stop the merchant from putting one promo strip in
   // the middle of his page.
   const existing = await prisma.storeBanner.count({ where: { storeId, placement } });
   if (existing >= MAX_STORE_BANNERS) {
-    throw new HttpError(422, "BANNER_LIMIT_REACHED", `لا يمكن تجاوز ${MAX_STORE_BANNERS} شريحة في هذا الموضع من الصفحة الرئيسية. احذف واحدة أو أخفِها.`);
+    throw new HttpError(
+      422,
+      "BANNER_LIMIT_REACHED",
+      `لا يمكن تجاوز ${MAX_STORE_BANNERS} شريحة في هذا الموضع من الصفحة الرئيسية. احذف واحدة أو أخفِها.`
+    );
   }
   const linkUrl = assertLink(input.linkUrl as string | null | undefined);
-  const altText = typeof input.altText === "string" && input.altText.trim() ? input.altText.trim().slice(0, 200) : null;
+  const altText =
+    typeof input.altText === "string" && input.altText.trim()
+      ? input.altText.trim().slice(0, 200)
+      : null;
 
   // Charged BEFORE the bytes are stored, exactly as product images are: a plan
   // that is already full must refuse before anything reaches the bucket.
-  await assertWithinPlanLimit(prisma, merchantId, "max_image_storage_mb", Math.max(1, Math.ceil(file.size / (1024 * 1024))), "لرفع صورة الصفحة الرئيسية");
+  await assertWithinPlanLimit(
+    prisma,
+    merchantId,
+    "max_image_storage_mb",
+    Math.max(1, Math.ceil(file.size / (1024 * 1024))),
+    "لرفع صورة الصفحة الرئيسية"
+  );
 
   const stored = await putStoreBanner(storeId, file);
   try {
-    const last = await prisma.storeBanner.findFirst({ where: { storeId, placement }, orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
+    const last = await prisma.storeBanner.findFirst({
+      where: { storeId, placement },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
     const created = await prisma.storeBanner.create({
-      data: { storeId, ...stored, linkUrl, altText, placement, sortOrder: (last?.sortOrder ?? -1) + 1 },
+      data: {
+        storeId,
+        ...stored,
+        linkUrl,
+        altText,
+        placement,
+        sortOrder: (last?.sortOrder ?? -1) + 1,
+      },
       select: BANNER_SELECT,
     });
     return view(storeSlug, created);
@@ -163,31 +229,53 @@ export async function updateStoreBanner(
   storeId: string,
   storeSlug: string,
   bannerId: string,
-  input: { linkUrl?: unknown; altText?: unknown; isActive?: unknown; sortOrder?: unknown; placement?: unknown },
+  input: {
+    linkUrl?: unknown;
+    altText?: unknown;
+    isActive?: unknown;
+    sortOrder?: unknown;
+    placement?: unknown;
+  }
 ): Promise<StoreBannerView> {
   const data: Prisma.StoreBannerUpdateInput = {};
   if (input.linkUrl !== undefined) data.linkUrl = assertLink(input.linkUrl as string | null);
   // Moving a slide between the two sliders is an edit like any other — it keeps
   // its bytes, its link and its alt text, which a delete-and-re-upload would not.
   if (input.placement !== undefined) data.placement = placementOf(String(input.placement));
-  if (input.altText !== undefined) data.altText = typeof input.altText === "string" && input.altText.trim() ? input.altText.trim().slice(0, 200) : null;
+  if (input.altText !== undefined)
+    data.altText =
+      typeof input.altText === "string" && input.altText.trim()
+        ? input.altText.trim().slice(0, 200)
+        : null;
   if (input.isActive !== undefined) data.isActive = Boolean(input.isActive);
   if (input.sortOrder !== undefined) {
     const order = Number(input.sortOrder);
-    if (!Number.isInteger(order) || order < 0 || order > 999) throw new HttpError(422, "INVALID_BANNER_ORDER", "ترتيب الشريحة يجب أن يكون رقماً صحيحاً موجباً.");
+    if (!Number.isInteger(order) || order < 0 || order > 999)
+      throw new HttpError(
+        422,
+        "INVALID_BANNER_ORDER",
+        "ترتيب الشريحة يجب أن يكون رقماً صحيحاً موجباً."
+      );
     data.sortOrder = order;
   }
-  if (Object.keys(data).length === 0) throw new HttpError(422, "NOTHING_TO_UPDATE", "لا يوجد تغيير لتطبيقه.");
+  if (Object.keys(data).length === 0)
+    throw new HttpError(422, "NOTHING_TO_UPDATE", "لا يوجد تغيير لتطبيقه.");
 
   // Scoped to the store, so a banner id from another tenant is simply not found.
   const updated = await prisma.storeBanner.updateMany({ where: { id: bannerId, storeId }, data });
   if (updated.count !== 1) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الشريحة غير موجودة.");
-  const row = await prisma.storeBanner.findFirstOrThrow({ where: { id: bannerId, storeId }, select: BANNER_SELECT });
+  const row = await prisma.storeBanner.findFirstOrThrow({
+    where: { id: bannerId, storeId },
+    select: BANNER_SELECT,
+  });
   return view(storeSlug, row);
 }
 
 export async function deleteStoreBanner(storeId: string, bannerId: string): Promise<void> {
-  const row = await prisma.storeBanner.findFirst({ where: { id: bannerId, storeId }, select: { id: true, objectKey: true } });
+  const row = await prisma.storeBanner.findFirst({
+    where: { id: bannerId, storeId },
+    select: { id: true, objectKey: true },
+  });
   if (!row) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الشريحة غير موجودة.");
   // The row first: if the object delete fails, the merchant's plan keeps paying
   // for orphaned bytes, but the SCREEN is correct — and the reverse (an object
@@ -198,7 +286,10 @@ export async function deleteStoreBanner(storeId: string, bannerId: string): Prom
 
 /** The bytes, for the public image route. Scoped to the store like every other read here. */
 export async function storeBannerObject(storeId: string, bannerId: string) {
-  const row = await prisma.storeBanner.findFirst({ where: { id: bannerId, storeId, isActive: true }, select: { objectKey: true, contentType: true } });
+  const row = await prisma.storeBanner.findFirst({
+    where: { id: bannerId, storeId, isActive: true },
+    select: { objectKey: true, contentType: true },
+  });
   if (!row) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الشريحة غير موجودة.");
   return row;
 }

@@ -58,7 +58,7 @@ const DELETE_PATTERN = new RegExp(
     through(0x200b, 0x200f), // ZWSP, ZWNJ, ZWJ, LRM, RLM
     through(0x2066, 0x2069), // bidi isolates
   ].join("")}]`,
-  "g",
+  "g"
 );
 
 /**
@@ -75,23 +75,48 @@ const DELETE_PATTERN = new RegExp(
  * an Arabic keyboard actually produces are folded — ک ی ە (owner decision 10).
  */
 const FOLD_FROM_CODES = [
-  0x0622, 0x0623, 0x0625, 0x0671, 0x0672, 0x0673, 0x0675, // آ أ إ ٱ ٲ ٳ ٵ  → ا   (gate: «احمد» ⇄ «أحمد»)
+  0x0622,
+  0x0623,
+  0x0625,
+  0x0671,
+  0x0672,
+  0x0673,
+  0x0675, // آ أ إ ٱ ٲ ٳ ٵ  → ا   (gate: «احمد» ⇄ «أحمد»)
   0x0624, //                                                 ؤ            → و
-  0x0626, 0x0649, 0x06cc, 0x06d0, 0x06cd, //                 ئ ى ی ې ۍ    → ي   («مصطفى» ⇄ «مصطفي»)
-  0x0629, 0x06d5, //                                         ة ە          → ه   (gate: «فاطمه» ⇄ «فاطمة»)
+  0x0626,
+  0x0649,
+  0x06cc,
+  0x06d0,
+  0x06cd, //                 ئ ى ی ې ۍ    → ي   («مصطفى» ⇄ «مصطفي»)
+  0x0629,
+  0x06d5, //                                         ة ە          → ه   (gate: «فاطمه» ⇄ «فاطمة»)
   0x06a9, //                                                 ک            → ك
-  0x0660, 0x0661, 0x0662, 0x0663, 0x0664, 0x0665, 0x0666, 0x0667, 0x0668, 0x0669, // ٠–٩ → 0–9
-  0x06f0, 0x06f1, 0x06f2, 0x06f3, 0x06f4, 0x06f5, 0x06f6, 0x06f7, 0x06f8, 0x06f9, // ۰–۹ → 0–9
+  0x0660,
+  0x0661,
+  0x0662,
+  0x0663,
+  0x0664,
+  0x0665,
+  0x0666,
+  0x0667,
+  0x0668,
+  0x0669, // ٠–٩ → 0–9
+  0x06f0,
+  0x06f1,
+  0x06f2,
+  0x06f3,
+  0x06f4,
+  0x06f5,
+  0x06f6,
+  0x06f7,
+  0x06f8,
+  0x06f9, // ۰–۹ → 0–9
 ];
 
 const FOLD_TO_CODES = [
-  0x0627, 0x0627, 0x0627, 0x0627, 0x0627, 0x0627, 0x0627,
-  0x0648,
-  0x064a, 0x064a, 0x064a, 0x064a, 0x064a,
-  0x0647, 0x0647,
-  0x0643,
-  0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037, 0x0038, 0x0039,
-  0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037, 0x0038, 0x0039,
+  0x0627, 0x0627, 0x0627, 0x0627, 0x0627, 0x0627, 0x0627, 0x0648, 0x064a, 0x064a, 0x064a, 0x064a,
+  0x064a, 0x0647, 0x0647, 0x0643, 0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037,
+  0x0038, 0x0039, 0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037, 0x0038, 0x0039,
 ];
 
 /**
@@ -126,16 +151,20 @@ const WHITESPACE_PATTERN = new RegExp(
     at(0x205f),
     at(0x3000), // ideographic space
   ].join("")}]+`,
-  "g",
+  "g"
 );
 
 if (FOLD_FROM_CODES.length !== FOLD_TO_CODES.length) {
-  throw new Error(`arabic-normalize: FOLD_FROM_CODES (${FOLD_FROM_CODES.length}) and FOLD_TO_CODES (${FOLD_TO_CODES.length}) must be the same length.`);
+  throw new Error(
+    `arabic-normalize: FOLD_FROM_CODES (${FOLD_FROM_CODES.length}) and FOLD_TO_CODES (${FOLD_TO_CODES.length}) must be the same length.`
+  );
 }
 
 const FOLD = new Map<string, string>();
-for (let index = 0; index < FOLD_FROM_CODES.length; index += 1) FOLD.set(at(FOLD_FROM_CODES[index]!), at(FOLD_TO_CODES[index]!));
-for (let index = 0; index < UPPER_ASCII.length; index += 1) FOLD.set(UPPER_ASCII[index]!, LOWER_ASCII[index]!);
+for (let index = 0; index < FOLD_FROM_CODES.length; index += 1)
+  FOLD.set(at(FOLD_FROM_CODES[index]!), at(FOLD_TO_CODES[index]!));
+for (let index = 0; index < UPPER_ASCII.length; index += 1)
+  FOLD.set(UPPER_ASCII[index]!, LOWER_ASCII[index]!);
 
 /**
  * The mirror of `codiq_ar_normalize_v1`. The SQL function is STRICT, so a NULL

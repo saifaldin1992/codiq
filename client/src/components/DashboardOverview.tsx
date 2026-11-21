@@ -10,7 +10,16 @@
  * so it alone keeps the overflow marker.
  */
 import { useEffect, useState } from "react";
-import { AlertTriangle, Boxes, CheckCircle2, ClipboardList, LoaderCircle, Store, UserCheck, UsersRound } from "lucide-react";
+import {
+  AlertTriangle,
+  Boxes,
+  CheckCircle2,
+  ClipboardList,
+  LoaderCircle,
+  Store,
+  UserCheck,
+  UsersRound,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 type CountResult = { count: number; overflow: boolean };
@@ -36,19 +45,37 @@ function utcMonthStart(): string {
 
 async function countOrders(basePath: string, params: Record<string, string>): Promise<CountResult> {
   const query = new URLSearchParams({ limit: "100", ...params });
-  const page = await api<{ orders: unknown[]; nextCursor: string | null }>(`${basePath}?${query.toString()}`);
+  const page = await api<{ orders: unknown[]; nextCursor: string | null }>(
+    `${basePath}?${query.toString()}`
+  );
   return { count: page.orders.length, overflow: page.nextCursor !== null };
 }
 
-function StatCard({ label, hint, icon: Icon, fetcher }: { label: string; hint: string; icon: LucideIcon; fetcher: () => Promise<CountResult> }) {
+function StatCard({
+  label,
+  hint,
+  icon: Icon,
+  fetcher,
+}: {
+  label: string;
+  hint: string;
+  icon: LucideIcon;
+  fetcher: () => Promise<CountResult>;
+}) {
   const [state, setState] = useState<CardState>({ kind: "loading" });
   useEffect(() => {
     let cancelled = false;
     setState({ kind: "loading" });
     fetcher()
-      .then((value) => { if (!cancelled) setState({ kind: "ready", value }); })
-      .catch(() => { if (!cancelled) setState({ kind: "error" }); });
-    return () => { cancelled = true; };
+      .then((value) => {
+        if (!cancelled) setState({ kind: "ready", value });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ kind: "error" });
+      });
+    return () => {
+      cancelled = true;
+    };
     // The fetcher identity is stable per mount; cards refresh on remount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -57,15 +84,25 @@ function StatCard({ label, hint, icon: Icon, fetcher }: { label: string; hint: s
     <div className="rounded-[22px] border border-[var(--codiq-border)] bg-[var(--codiq-surface)] p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold text-[#60708A]">{label}</p>
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#F0F5FF] text-[var(--codiq-accent)]"><Icon className="h-4.5 w-4.5" strokeWidth={1.9} /></div>
+        <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#F0F5FF] text-[var(--codiq-accent)]">
+          <Icon className="h-4.5 w-4.5" strokeWidth={1.9} />
+        </div>
       </div>
       <div className="mt-3">
-        {state.kind === "loading" ? <LoaderCircle className="h-6 w-6 animate-spin text-[#9AA8BB]" /> : null}
-        {state.kind === "error" ? <p className="flex items-center gap-1.5 text-sm font-semibold text-[#B44B40]"><AlertTriangle className="h-4 w-4" /> تعذر التحميل</p> : null}
+        {state.kind === "loading" ? (
+          <LoaderCircle className="h-6 w-6 animate-spin text-[#9AA8BB]" />
+        ) : null}
+        {state.kind === "error" ? (
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-[#B44B40]">
+            <AlertTriangle className="h-4 w-4" /> تعذر التحميل
+          </p>
+        ) : null}
         {state.kind === "ready" ? (
           <p className="text-2xl font-bold tracking-[-0.02em] text-[#15233E]">
             {arabicNumber.format(state.value.count)}
-            {state.value.overflow ? <span className="text-base font-bold text-[#8994A8]">+</span> : null}
+            {state.value.overflow ? (
+              <span className="text-base font-bold text-[#8994A8]">+</span>
+            ) : null}
           </p>
         ) : null}
       </div>
@@ -77,25 +114,39 @@ function StatCard({ label, hint, icon: Icon, fetcher }: { label: string; hint: s
 type FunnelResponse = { funnel: { status: string; count: number }[] };
 
 function funnelCount(funnel: FunnelResponse["funnel"], ...statuses: string[]): number {
-  return funnel.filter((row) => statuses.includes(row.status)).reduce((sum, row) => sum + row.count, 0);
+  return funnel
+    .filter((row) => statuses.includes(row.status))
+    .reduce((sum, row) => sum + row.count, 0);
 }
 
 export function MerchantOverview({ storeSlug }: { storeSlug?: string }) {
   if (!storeSlug) {
-    return <div className="max-w-[640px] rounded-2xl border border-[#D6E5F7] bg-[var(--codiq-canvas)] px-4 py-3 text-sm leading-6 text-[#35577F]" dir="rtl">اختر متجراً عبر مبدّل المتاجر لعرض نبض المتجر اليومي.</div>;
+    return (
+      <div
+        className="max-w-[640px] rounded-2xl border border-[#D6E5F7] bg-[var(--codiq-canvas)] px-4 py-3 text-sm leading-6 text-[#35577F]"
+        dir="rtl"
+      >
+        اختر متجراً عبر مبدّل المتاجر لعرض نبض المتجر اليومي.
+      </div>
+    );
   }
   // Phase 20B-2: exact aggregates from the analytics endpoints (orders.view).
   const analyticsBase = `/api/merchant/stores/${encodeURIComponent(storeSlug)}/marketing/analytics`;
   return (
     <div className="max-w-[1030px] space-y-4" dir="rtl">
-      <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-[var(--codiq-accent)]"><ClipboardList className="h-4 w-4" /> نبض متجرك اليوم — بطاقات مستقلة تتحمل الخطأ كلٌّ على حدة</p>
+      <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-[var(--codiq-accent)]">
+        <ClipboardList className="h-4 w-4" /> نبض متجرك اليوم — بطاقات مستقلة تتحمل الخطأ كلٌّ على
+        حدة
+      </p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="طلبات اليوم"
           hint="كل طلبات المتجر منذ بداية اليوم (UTC) — عدّ دقيق."
           icon={ClipboardList}
           fetcher={async () => {
-            const result = await api<{ summary: { ordersCount: number } }>(`${analyticsBase}/summary?from=${encodeURIComponent(utcTodayStart())}`);
+            const result = await api<{ summary: { ordersCount: number } }>(
+              `${analyticsBase}/summary?from=${encodeURIComponent(utcTodayStart())}`
+            );
             return { count: result.summary.ordersCount, overflow: false };
           }}
         />
@@ -113,7 +164,9 @@ export function MerchantOverview({ storeSlug }: { storeSlug?: string }) {
           hint="الطلبات المكتملة منذ بداية الشهر (UTC) — عدّ دقيق."
           icon={CheckCircle2}
           fetcher={async () => {
-            const result = await api<FunnelResponse>(`${analyticsBase}/status-funnel?from=${encodeURIComponent(utcMonthStart())}`);
+            const result = await api<FunnelResponse>(
+              `${analyticsBase}/status-funnel?from=${encodeURIComponent(utcMonthStart())}`
+            );
             return { count: funnelCount(result.funnel, "completed"), overflow: false };
           }}
         />
@@ -123,12 +176,17 @@ export function MerchantOverview({ storeSlug }: { storeSlug?: string }) {
           icon={Boxes}
           fetcher={async () => {
             const query = new URLSearchParams({ limit: "100", lowStock: "true" });
-            const page = await api<{ products: unknown[]; nextCursor: string | null }>(`/api/merchant/stores/${encodeURIComponent(storeSlug)}/catalog/products?${query.toString()}`);
+            const page = await api<{ products: unknown[]; nextCursor: string | null }>(
+              `/api/merchant/stores/${encodeURIComponent(storeSlug)}/catalog/products?${query.toString()}`
+            );
             return { count: page.products.length, overflow: page.nextCursor !== null };
           }}
         />
       </div>
-      <p className="text-[11px] leading-5 text-[#8994A8]"><UsersRound className="ml-1 inline h-3.5 w-3.5" /> أعداد الطلبات دقيقة من تجميعات تحليلات 20B؛ بطاقة المخزون المنخفض وحدها ما تزال من قائمة الكتالوج (حتى ١٠٠ سجل بالصفحة).</p>
+      <p className="text-[11px] leading-5 text-[#8994A8]">
+        <UsersRound className="ml-1 inline h-3.5 w-3.5" /> أعداد الطلبات دقيقة من تجميعات تحليلات
+        20B؛ بطاقة المخزون المنخفض وحدها ما تزال من قائمة الكتالوج (حتى ١٠٠ سجل بالصفحة).
+      </p>
     </div>
   );
 }

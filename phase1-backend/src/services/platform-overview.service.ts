@@ -47,7 +47,10 @@ function windowFor(days: number, now: Date) {
 /** Orders that consumed nothing are not sales, here as everywhere else. */
 const NON_CONSUMING = ["cancelled", "rejected"];
 
-export async function platformOverview(rawDays: unknown, now = new Date()): Promise<PlatformOverview> {
+export async function platformOverview(
+  rawDays: unknown,
+  now = new Date()
+): Promise<PlatformOverview> {
   const days = Math.min(Math.max(Number(rawDays) || 30, 1), 365);
   const { from, to, previousFrom, previousTo } = windowFor(days, now);
   const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -69,15 +72,25 @@ export async function platformOverview(rawDays: unknown, now = new Date()): Prom
     prisma.merchant.count({ where: { isActive: true, approvalStatus: "approved" } }),
     prisma.store.count(),
     prisma.store.count({ where: { isActive: true } }),
-    prisma.storeOrder.count({ where: { createdAt: { gte: todayStart }, status: { notIn: NON_CONSUMING } } }),
+    prisma.storeOrder.count({
+      where: { createdAt: { gte: todayStart }, status: { notIn: NON_CONSUMING } },
+    }),
     signedLedgerTotals({ gte: from, lte: to }),
     signedLedgerTotals({ gte: previousFrom, lt: previousTo }),
   ]);
 
   return {
     awaiting: [
-      { key: "registration_requests", count: pendingRegistrations, href: "/platform/dashboard/merchants/registration-requests" },
-      { key: "upgrade_requests", count: pendingUpgrades, href: "/platform/dashboard/upgrade-requests" },
+      {
+        key: "registration_requests",
+        count: pendingRegistrations,
+        href: "/platform/dashboard/merchants/registration-requests",
+      },
+      {
+        key: "upgrade_requests",
+        count: pendingUpgrades,
+        href: "/platform/dashboard/upgrade-requests",
+      },
     ],
     scale: { merchants, activeMerchants, stores, activeStores },
     commerce: {
@@ -104,7 +117,10 @@ async function signedLedgerTotals(createdAt: { gte: Date; lte?: Date; lt?: Date 
   // The one-type-adds rule, as two filters: completions add, every other type subtracts.
   const [added, subtracted] = await Promise.all([
     prisma.ledgerEntry.aggregate({ where: { createdAt, entryType: "order_completed" }, _sum: sum }),
-    prisma.ledgerEntry.aggregate({ where: { createdAt, entryType: { not: "order_completed" } }, _sum: sum }),
+    prisma.ledgerEntry.aggregate({
+      where: { createdAt, entryType: { not: "order_completed" } },
+      _sum: sum,
+    }),
   ]);
   return {
     subtotalIqd: (added._sum.subtotalIqd ?? 0) - (subtracted._sum.subtotalIqd ?? 0),

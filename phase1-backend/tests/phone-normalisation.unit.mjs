@@ -28,8 +28,16 @@ const summary = {};
 // 1. The form's own placeholder must work.
 // ============================================================
 // `07XXXXXXXXX` is literally what CustomerAuthPage.tsx asks for.
-assert.equal(normalizePhone("07701234567"), "+9647701234567", "the shape the signup field asks for must be accepted");
-assert.equal(normalizePhone("0770 123 4567"), "+9647701234567", "…spaces and all, because people type spaces");
+assert.equal(
+  normalizePhone("07701234567"),
+  "+9647701234567",
+  "the shape the signup field asks for must be accepted"
+);
+assert.equal(
+  normalizePhone("0770 123 4567"),
+  "+9647701234567",
+  "…spaces and all, because people type spaces"
+);
 assert.equal(normalizePhone("0770-123-4567"), "+9647701234567", "…and dashes");
 summary.localForm = "07XXXXXXXXX and its punctuated variants normalise to +964…";
 
@@ -41,8 +49,16 @@ summary.localForm = "07XXXXXXXXX and its punctuated variants normalise to +964�
 // customer sign-in still finds the row registration created.
 assert.equal(normalizePhone("+9647701234567"), "+9647701234567", "E.164 is unchanged");
 assert.equal(normalizePhone("009647701234567"), "+9647701234567", "the 00 prefix still becomes +");
-assert.equal(normalizePhone("+14155552671"), "+14155552671", "a non-Iraqi E.164 number passes through untouched");
-assert.equal(normalizePhone(" +964 770 123 4567 "), "+9647701234567", "surrounding space and separators still stripped");
+assert.equal(
+  normalizePhone("+14155552671"),
+  "+14155552671",
+  "a non-Iraqi E.164 number passes through untouched"
+);
+assert.equal(
+  normalizePhone(" +964 770 123 4567 "),
+  "+9647701234567",
+  "surrounding space and separators still stripped"
+);
 summary.backwardCompatible = "every previously-accepted input yields the same value it did before";
 
 // ============================================================
@@ -52,7 +68,11 @@ summary.backwardCompatible = "every previously-accepted input yields the same va
 // a shopper would register successfully and then be unable to sign in, with
 // «wrong password» as the only clue.
 for (const typed of ["07701234567", "+9647701234567", "0770 123 4567", "009647701234567"]) {
-  assert.equal(normalizePhone(typed), "+9647701234567", `every way of writing one number must reach one row: ${typed}`);
+  assert.equal(
+    normalizePhone(typed),
+    "+9647701234567",
+    `every way of writing one number must reach one row: ${typed}`
+  );
 }
 summary.oneNumberOneRow = "four ways of writing the same number all resolve to one stored value";
 
@@ -60,15 +80,26 @@ summary.oneNumberOneRow = "four ways of writing the same number all resolve to o
 // 4. Nonsense is still refused — and now in Arabic.
 // ============================================================
 for (const bad of ["", "abc", "123", "07", "0770123", null, undefined, 7701234567]) {
-  assert.throws(() => normalizePhone(bad), (error) => {
-    assert.equal(error.status, 400);
-    assert.equal(error.code, "INVALID_PHONE");
-    assert.ok(!/[A-Za-z]/.test(error.message.replace(/[0-9X+\s.]/g, "")), `the refusal must be Arabic — ق-96: ${error.message}`);
-    assert.ok(error.message.includes("07XXXXXXXXX"), "…and must show the shape it wants, since the person is looking at a rejected field");
-    return true;
-  }, `refused: ${JSON.stringify(bad)}`);
+  assert.throws(
+    () => normalizePhone(bad),
+    (error) => {
+      assert.equal(error.status, 400);
+      assert.equal(error.code, "INVALID_PHONE");
+      assert.ok(
+        !/[A-Za-z]/.test(error.message.replace(/[0-9X+\s.]/g, "")),
+        `the refusal must be Arabic — ق-96: ${error.message}`
+      );
+      assert.ok(
+        error.message.includes("07XXXXXXXXX"),
+        "…and must show the shape it wants, since the person is looking at a rejected field"
+      );
+      return true;
+    },
+    `refused: ${JSON.stringify(bad)}`
+  );
 }
-summary.stillStrict = "empty, short, lettered and non-string values are refused, in Arabic, naming the accepted shapes";
+summary.stillStrict =
+  "empty, short, lettered and non-string values are refused, in Arabic, naming the accepted shapes";
 
 // ============================================================
 // 5. The merchant's rule stays STRICTER, on purpose.
@@ -77,8 +108,16 @@ summary.stillStrict = "empty, short, lettered and non-string values are refused,
 // it refuses landlines and foreign numbers, and that is deliberate. Widening the
 // customer helper must not have widened it too.
 assert.equal(normalizeIraqiMobile("07701234567"), "+9647701234567");
-assert.throws(() => normalizeIraqiMobile("+14155552671"), /INVALID_MERCHANT_PHONE|موبايل/, "a foreign number is not a COD channel for an Iraqi courier");
-assert.throws(() => normalizeIraqiMobile("+96412345678"), /INVALID_MERCHANT_PHONE|موبايل/, "a landline is refused on purpose");
+assert.throws(
+  () => normalizeIraqiMobile("+14155552671"),
+  /INVALID_MERCHANT_PHONE|موبايل/,
+  "a foreign number is not a COD channel for an Iraqi courier"
+);
+assert.throws(
+  () => normalizeIraqiMobile("+96412345678"),
+  /INVALID_MERCHANT_PHONE|موبايل/,
+  "a landline is refused on purpose"
+);
 summary.merchantStaysStrict = "the merchant identity rule is untouched: Iraqi mobiles only";
 
 // ============================================================
@@ -86,7 +125,11 @@ summary.merchantStaysStrict = "the merchant identity rule is untouched: Iraqi mo
 // ============================================================
 // ق-06 applied to a function: written once, used, never copied a third time.
 assert.equal(toE164("07701234567"), "+9647701234567");
-assert.equal(toE164("nonsense"), null, "the core NEVER throws — its callers decide what a failure means");
+assert.equal(
+  toE164("nonsense"),
+  null,
+  "the core NEVER throws — its callers decide what a failure means"
+);
 summary.oneCore = "normalizePhone and normalizeIraqiMobile both sit on toE164";
 
 console.log(JSON.stringify({ suite: "phone-normalisation", status: "passed", summary }, null, 2));

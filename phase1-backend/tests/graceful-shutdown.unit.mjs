@@ -31,9 +31,12 @@ import assert from "node:assert/strict";
 import http from "node:http";
 
 process.env.SESSION_JWT_SECRET ??= "graceful-shutdown-unit-secret-not-for-production";
-process.env.DATABASE_URL ??= "postgresql://guard:guard@shutdown-unit-never-connects.invalid:5432/guard";
+process.env.DATABASE_URL ??=
+  "postgresql://guard:guard@shutdown-unit-never-connects.invalid:5432/guard";
 
-const { installGracefulShutdown, shutdownGraceMsFromEnv, DEFAULT_SHUTDOWN_GRACE_MS } = await import("../../server/graceful-shutdown.ts");
+const { installGracefulShutdown, shutdownGraceMsFromEnv, DEFAULT_SHUTDOWN_GRACE_MS } = await import(
+  "../../server/graceful-shutdown.ts"
+);
 
 const summary = {};
 const openSockets = new Set();
@@ -56,8 +59,12 @@ function get(port, path = "/") {
     const request = http.request({ host: "127.0.0.1", port, path, agent: false }, (response) => {
       let body = "";
       response.setEncoding("utf8");
-      response.on("data", (chunk) => { body += chunk; });
-      response.on("end", () => resolve({ status: response.statusCode, body, complete: response.complete }));
+      response.on("data", (chunk) => {
+        body += chunk;
+      });
+      response.on("end", () =>
+        resolve({ status: response.statusCode, body, complete: response.complete })
+      );
     });
     request.on("error", reject);
     request.end();
@@ -74,7 +81,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 {
   const order = [];
   let requestStarted;
-  const started = new Promise((resolve) => { requestStarted = resolve; });
+  const started = new Promise((resolve) => {
+    requestStarted = resolve;
+  });
 
   const { server, port } = await listen(async (_request, response) => {
     requestStarted();
@@ -91,31 +100,63 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   let stopped = 0;
   const exits = [];
-  const installed = installGracefulShutdown(server, () => { stopped += 1; order.push("worker-stopped"); }, {
-    graceMs: 5000,
-    exit: (code) => { order.push("exit"); exits.push(code); },
-  });
+  const installed = installGracefulShutdown(
+    server,
+    () => {
+      stopped += 1;
+      order.push("worker-stopped");
+    },
+    {
+      graceMs: 5000,
+      exit: (code) => {
+        order.push("exit");
+        exits.push(code);
+      },
+    }
+  );
 
   const inFlight = get(port);
   await started;
   process.emit("SIGTERM");
 
   const response = await inFlight;
-  assert.equal(response.status, 200, "the request that was in flight when SIGTERM arrived still answers 200");
-  assert.equal(response.body, "first-half|second-half", "…and its body arrives WHOLE — this is the defect: process.exit cut it here");
-  assert.equal(response.complete, true, "…with the connection closed normally rather than destroyed mid-message");
+  assert.equal(
+    response.status,
+    200,
+    "the request that was in flight when SIGTERM arrived still answers 200"
+  );
+  assert.equal(
+    response.body,
+    "first-half|second-half",
+    "…and its body arrives WHOLE — this is the defect: process.exit cut it here"
+  );
+  assert.equal(
+    response.complete,
+    true,
+    "…with the connection closed normally rather than destroyed mid-message"
+  );
 
   // A connection opened AFTER the signal must be refused: that is the only proof
   // that `close()` ran rather than the drain merely having been slow.
-  await assert.rejects(get(port), (error) => ["ECONNREFUSED", "ECONNRESET"].includes(error.code), "no new connection is accepted once shutdown has begun");
+  await assert.rejects(
+    get(port),
+    (error) => ["ECONNREFUSED", "ECONNRESET"].includes(error.code),
+    "no new connection is accepted once shutdown has begun"
+  );
 
   await sleep(50);
   assert.deepEqual(exits, [0], "the process exits once, cleanly");
   assert.equal(stopped, 1, "the outbox worker is told to stop exactly once");
-  assert.deepEqual(order, ["worker-stopped", "response-written", "exit"], "ORDER IS THE POINT: the worker is signalled first, the last byte of the response is written, and only THEN does the process end");
+  assert.deepEqual(
+    order,
+    ["worker-stopped", "response-written", "exit"],
+    "ORDER IS THE POINT: the worker is signalled first, the last byte of the response is written, and only THEN does the process end"
+  );
   installed.dispose();
-  summary.drains = "an in-flight response is delivered whole, and exit(0) happens after it — not before";
-  summary.refusesNew = "a connection opened after the signal is refused, so server.close() demonstrably ran";
+  summary.drains =
+    "an in-flight response is delivered whole, and exit(0) happens after it — not before";
+  summary.refusesNew =
+    "a connection opened after the signal is refused, so server.close() demonstrably ran";
 }
 
 // ============================================================
@@ -125,21 +166,35 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // log line, nothing flushed. The clean path cannot fire here — `close()` never
 // calls back while a request is open — so an exit at all proves the deadline.
 {
-  const { server, port } = await listen(() => { /* never responds — the slow handler */ });
+  const { server, port } = await listen(() => {
+    /* never responds — the slow handler */
+  });
   const exits = [];
-  const installed = installGracefulShutdown(server, () => {}, { graceMs: 120, exit: (code) => exits.push(code) });
+  const installed = installGracefulShutdown(server, () => {}, {
+    graceMs: 120,
+    exit: (code) => exits.push(code),
+  });
 
   const hanging = get(port).catch(() => "aborted");
   await sleep(40);
   process.emit("SIGTERM");
-  assert.deepEqual(exits, [], "before the deadline the process is still waiting for the handler, as it should be");
+  assert.deepEqual(
+    exits,
+    [],
+    "before the deadline the process is still waiting for the handler, as it should be"
+  );
 
   await sleep(300);
-  assert.deepEqual(exits, [0], "at the deadline the process ends ITSELF, so the shutdown.forced line exists to find");
+  assert.deepEqual(
+    exits,
+    [0],
+    "at the deadline the process ends ITSELF, so the shutdown.forced line exists to find"
+  );
   installed.dispose();
   for (const socket of openSockets) socket.destroy();
   await hanging;
-  summary.deadline = "a handler that never responds is cut off at CODIQ_SHUTDOWN_GRACE_MS, by us rather than by SIGKILL";
+  summary.deadline =
+    "a handler that never responds is cut off at CODIQ_SHUTDOWN_GRACE_MS, by us rather than by SIGKILL";
 }
 
 // ============================================================
@@ -152,7 +207,13 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const { server, port } = await listen((_request, response) => response.end("ok"));
   let stopped = 0;
   const exits = [];
-  const installed = installGracefulShutdown(server, () => { stopped += 1; }, { graceMs: 5000, exit: (code) => exits.push(code) });
+  const installed = installGracefulShutdown(
+    server,
+    () => {
+      stopped += 1;
+    },
+    { graceMs: 5000, exit: (code) => exits.push(code) }
+  );
 
   assert.equal((await get(port)).body, "ok", "the server answers normally before any signal");
   process.emit("SIGTERM");
@@ -175,10 +236,22 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // than becoming NaN, which would make `setTimeout` fire immediately and turn the
 // whole mechanism off silently.
 assert.equal(shutdownGraceMsFromEnv({}), DEFAULT_SHUTDOWN_GRACE_MS, "unset means the default");
-assert.equal(shutdownGraceMsFromEnv({ CODIQ_SHUTDOWN_GRACE_MS: "25000" }), 25_000, "a real value is honoured");
-assert.equal(shutdownGraceMsFromEnv({ CODIQ_SHUTDOWN_GRACE_MS: "250" }), 1000, "…but never below a second");
+assert.equal(
+  shutdownGraceMsFromEnv({ CODIQ_SHUTDOWN_GRACE_MS: "25000" }),
+  25_000,
+  "a real value is honoured"
+);
+assert.equal(
+  shutdownGraceMsFromEnv({ CODIQ_SHUTDOWN_GRACE_MS: "250" }),
+  1000,
+  "…but never below a second"
+);
 for (const nonsense of ["", "  ", "abc", "0", "-5", "NaN"]) {
-  assert.equal(shutdownGraceMsFromEnv({ CODIQ_SHUTDOWN_GRACE_MS: nonsense }), DEFAULT_SHUTDOWN_GRACE_MS, `«${nonsense}» is not a duration — it must fall back, not become NaN`);
+  assert.equal(
+    shutdownGraceMsFromEnv({ CODIQ_SHUTDOWN_GRACE_MS: nonsense }),
+    DEFAULT_SHUTDOWN_GRACE_MS,
+    `«${nonsense}» is not a duration — it must fall back, not become NaN`
+  );
 }
 summary.graceWindow = `default ${DEFAULT_SHUTDOWN_GRACE_MS}ms, floor 1000ms, and any unparseable value falls back instead of disabling the wait`;
 

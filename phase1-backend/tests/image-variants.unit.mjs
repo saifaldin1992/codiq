@@ -32,8 +32,14 @@
 import assert from "node:assert/strict";
 import sharp from "sharp";
 
-const { renderProductImageVariants, variantObjectKey, isVariantName, IMAGE_VARIANTS, DEFAULT_SERVED_VARIANT, PRODUCT_IMAGE_VARIANT_SET } =
-  await import("../src/services/image-variants.service.ts");
+const {
+  renderProductImageVariants,
+  variantObjectKey,
+  isVariantName,
+  IMAGE_VARIANTS,
+  DEFAULT_SERVED_VARIANT,
+  PRODUCT_IMAGE_VARIANT_SET,
+} = await import("../src/services/image-variants.service.ts");
 
 const summary = {};
 
@@ -41,7 +47,9 @@ const summary = {};
 async function photo(width, height) {
   const pixels = Buffer.alloc(width * height * 3);
   for (let i = 0; i < pixels.length; i += 1) pixels[i] = (i * 2654435761) % 256;
-  return sharp(pixels, { raw: { width, height, channels: 3 } }).jpeg({ quality: 92 }).toBuffer();
+  return sharp(pixels, { raw: { width, height, channels: 3 } })
+    .jpeg({ quality: 92 })
+    .toBuffer();
 }
 
 // ============================================================
@@ -50,18 +58,37 @@ async function photo(width, height) {
 const source = await photo(3000, 2000);
 const rendered = await renderProductImageVariants(source);
 
-assert.equal(rendered.variants.length, 3, "thumb, card and full — all three or the contract is broken");
+assert.equal(
+  rendered.variants.length,
+  3,
+  "thumb, card and full — all three or the contract is broken"
+);
 const byName = Object.fromEntries(rendered.variants.map((variant) => [variant.variant, variant]));
 for (const name of ["thumb", "card", "full"]) {
   assert.ok(byName[name], "the " + name + " variant must exist");
-  assert.equal(byName[name].contentType, "image/webp", name + " must be webp — that is the ~30% the format buys");
+  assert.equal(
+    byName[name].contentType,
+    "image/webp",
+    name + " must be webp — that is the ~30% the format buys"
+  );
   const meta = await sharp(byName[name].body).metadata();
-  assert.equal(meta.width, IMAGE_VARIANTS[name].width, name + " must be exactly " + IMAGE_VARIANTS[name].width + "px wide");
+  assert.equal(
+    meta.width,
+    IMAGE_VARIANTS[name].width,
+    name + " must be exactly " + IMAGE_VARIANTS[name].width + "px wide"
+  );
   assert.equal(meta.format, "webp", name + " must decode as webp, not merely claim to be");
 }
 assert.ok(byName.thumb.byteSize < byName.card.byteSize, "thumb must be smaller than card");
 assert.ok(byName.card.byteSize < byName.full.byteSize, "card must be smaller than full");
-summary.threeSizes = "thumb " + byName.thumb.byteSize + "B < card " + byName.card.byteSize + "B < full " + byName.full.byteSize + "B";
+summary.threeSizes =
+  "thumb " +
+  byName.thumb.byteSize +
+  "B < card " +
+  byName.card.byteSize +
+  "B < full " +
+  byName.full.byteSize +
+  "B";
 
 // ============================================================
 // 2. THE SET COSTS A FRACTION OF THE SOURCE — THE WHOLE CLAIM.
@@ -70,11 +97,24 @@ summary.threeSizes = "thumb " + byName.thumb.byteSize + "B < card " + byName.car
 // the encoder) but that the change never quietly stops paying: a regression that
 // wrote the original back would land at ~1.0 and fail here loudly.
 const ratio = rendered.totalBytes / source.byteLength;
-assert.ok(ratio < 0.5, "all three variants together must cost well under the single original (was " + ratio.toFixed(3) + ")");
+assert.ok(
+  ratio < 0.5,
+  "all three variants together must cost well under the single original (was " +
+    ratio.toFixed(3) +
+    ")"
+);
 // And the byte that actually matters: the card is what twenty-four grid cells ask for.
 const cardRatio = byName.card.byteSize / source.byteLength;
-assert.ok(cardRatio < 0.2, "the card alone must be a small fraction of the source (was " + cardRatio.toFixed(3) + ")");
-summary.shrink = "set " + (ratio * 100).toFixed(1) + "% of source · card alone " + (cardRatio * 100).toFixed(1) + "%";
+assert.ok(
+  cardRatio < 0.2,
+  "the card alone must be a small fraction of the source (was " + cardRatio.toFixed(3) + ")"
+);
+summary.shrink =
+  "set " +
+  (ratio * 100).toFixed(1) +
+  "% of source · card alone " +
+  (cardRatio * 100).toFixed(1) +
+  "%";
 
 // ============================================================
 // 3. EXIF ORIENTATION IS APPLIED, NOT CARRIED.
@@ -82,24 +122,46 @@ summary.shrink = "set " + (ratio * 100).toFixed(1) + "% of source · card alone 
 // Orientation 6 means «rotate 90° clockwise to display». A 400x800 file with
 // that flag is a 800x400 PICTURE. Without `.rotate()` the output is 400 wide and
 // every portrait photo in the shop is on its side.
-const turnedSource = await sharp(await photo(400, 800)).withMetadata({ orientation: 6 }).toBuffer();
+const turnedSource = await sharp(await photo(400, 800))
+  .withMetadata({ orientation: 6 })
+  .toBuffer();
 const turned = await renderProductImageVariants(turnedSource);
-const turnedFull = await sharp(turned.variants.find((variant) => variant.variant === "full").body).metadata();
-assert.ok(turnedFull.width > turnedFull.height, "an orientation-6 source must come out landscape — the flag is applied, not passed through");
-assert.equal(turned.width, turnedFull.width, "the stored width must equal the rendered width, not the on-disk one");
-assert.equal(turned.height, turnedFull.height, "same for height — the grid reserves its box from these numbers");
+const turnedFull = await sharp(
+  turned.variants.find((variant) => variant.variant === "full").body
+).metadata();
+assert.ok(
+  turnedFull.width > turnedFull.height,
+  "an orientation-6 source must come out landscape — the flag is applied, not passed through"
+);
+assert.equal(
+  turned.width,
+  turnedFull.width,
+  "the stored width must equal the rendered width, not the on-disk one"
+);
+assert.equal(
+  turned.height,
+  turnedFull.height,
+  "same for height — the grid reserves its box from these numbers"
+);
 summary.exifRotation = "400x800 + orientation:6 → " + turned.width + "x" + turned.height;
 
 // ============================================================
 // 4. METADATA — INCLUDING GPS — DOES NOT SURVIVE.
 // ============================================================
 const located = await sharp(await photo(900, 600))
-  .withExif({ IFD0: { Copyright: "codiq-test" }, GPS: { GPSLatitudeRef: "N", GPSLongitudeRef: "E" } })
+  .withExif({
+    IFD0: { Copyright: "codiq-test" },
+    GPS: { GPSLatitudeRef: "N", GPSLongitudeRef: "E" },
+  })
   .toBuffer();
 const scrubbed = await renderProductImageVariants(located);
 for (const variant of scrubbed.variants) {
   const meta = await sharp(variant.body).metadata();
-  assert.equal(meta.exif, undefined, variant.variant + " must carry no EXIF block — a public object must not publish a location");
+  assert.equal(
+    meta.exif,
+    undefined,
+    variant.variant + " must carry no EXIF block — a public object must not publish a location"
+  );
 }
 summary.metadataStripped = "EXIF and GPS absent from all three";
 
@@ -109,7 +171,10 @@ summary.metadataStripped = "EXIF and GPS absent from all three";
 const small = await renderProductImageVariants(await photo(150, 150));
 for (const variant of small.variants) {
   const meta = await sharp(variant.body).metadata();
-  assert.ok(meta.width <= 150, variant.variant + " must not upscale a 150px source (got " + meta.width + ")");
+  assert.ok(
+    meta.width <= 150,
+    variant.variant + " must not upscale a 150px source (got " + meta.width + ")"
+  );
 }
 assert.equal(small.width, 150, "the recorded width is the real one, not the variant's ceiling");
 summary.neverEnlarges = "150px source stays 150px in all three slots";
@@ -118,10 +183,18 @@ summary.neverEnlarges = "150px source stays 150px in all three slots";
 // 6. THE KEYS DERIVE FROM ONE UUID.
 // ============================================================
 const key = "products/store-1/product-1/abc-123.webp";
-assert.equal(variantObjectKey(key, "full"), key, "full IS the stored key — no suffix, so one row still names one canonical object");
+assert.equal(
+  variantObjectKey(key, "full"),
+  key,
+  "full IS the stored key — no suffix, so one row still names one canonical object"
+);
 assert.equal(variantObjectKey(key, "card"), "products/store-1/product-1/abc-123-card.webp");
 assert.equal(variantObjectKey(key, "thumb"), "products/store-1/product-1/abc-123-thumb.webp");
-assert.equal(variantObjectKey("no-extension", "card"), "no-extension-card", "a key with no dot must still derive rather than corrupt");
+assert.equal(
+  variantObjectKey("no-extension", "card"),
+  "no-extension-card",
+  "a key with no dot must still derive rather than corrupt"
+);
 summary.derivedKeys = "one uuid, three objects, zero extra columns";
 
 // ============================================================
@@ -130,11 +203,23 @@ summary.derivedKeys = "one uuid, three objects, zero extra columns";
 // `?v=` comes from the open internet. Anything not in the set must fall back to
 // the default rather than compose a key that 404s — or worse, escape the prefix.
 for (const bad of ["original", "../../secret", "", null, undefined, 1, "FULL", "card "]) {
-  assert.equal(isVariantName(bad), false, "«" + String(bad) + "» must not be accepted as a variant name");
+  assert.equal(
+    isVariantName(bad),
+    false,
+    "«" + String(bad) + "» must not be accepted as a variant name"
+  );
 }
 for (const good of ["thumb", "card", "full"]) assert.equal(isVariantName(good), true);
-assert.equal(DEFAULT_SERVED_VARIANT, "card", "absent «?v=» must serve the CARD — a forgetful client should fail toward the small picture");
-assert.equal(PRODUCT_IMAGE_VARIANT_SET, 1, "the set number rows carry; bump it only when the SET changes");
+assert.equal(
+  DEFAULT_SERVED_VARIANT,
+  "card",
+  "absent «?v=» must serve the CARD — a forgetful client should fail toward the small picture"
+);
+assert.equal(
+  PRODUCT_IMAGE_VARIANT_SET,
+  1,
+  "the set number rows carry; bump it only when the SET changes"
+);
 summary.paramValidation = "8 rejected, 3 accepted, default is card";
 
 // ============================================================
@@ -147,7 +232,7 @@ const truncated = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.a
 await assert.rejects(
   () => renderProductImageVariants(truncated),
   (error) => error.status === 422 && error.code === "INVALID_PRODUCT_IMAGE",
-  "a broken image must be a 422 the merchant can read, never a 500",
+  "a broken image must be a 422 the merchant can read, never a 500"
 );
 summary.refusesNonImage = "422 INVALID_PRODUCT_IMAGE, not a crash";
 
@@ -168,14 +253,18 @@ summary.refusesNonImage = "422 INVALID_PRODUCT_IMAGE, not a crash";
 // خطأ» and lost his photo; the shape of the fix is that he now reads why.
 const headerValidPixelsBroken = Buffer.from(
   "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d" +
-  "49444154789c6360000002000154a24f5d0000000049454e44ae426082",
-  "hex",
+    "49444154789c6360000002000154a24f5d0000000049454e44ae426082",
+  "hex"
 );
-assert.equal((await sharp(headerValidPixelsBroken).metadata()).format, "png", "the header alone must still read as a PNG — that is the whole trap");
+assert.equal(
+  (await sharp(headerValidPixelsBroken).metadata()).format,
+  "png",
+  "the header alone must still read as a PNG — that is the whole trap"
+);
 await assert.rejects(
   () => renderProductImageVariants(headerValidPixelsBroken),
   (error) => error.status === 422 && error.code === "INVALID_PRODUCT_IMAGE",
-  "a file whose header is valid and whose pixels are not must be 422, never 500",
+  "a file whose header is valid and whose pixels are not must be 422, never 500"
 );
 summary.brokenPixelsAfterValidHeader = "decode failure during encoding is 422, not INTERNAL_ERROR";
 

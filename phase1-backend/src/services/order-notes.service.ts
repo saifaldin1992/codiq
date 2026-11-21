@@ -20,7 +20,13 @@
 import { Prisma } from "@prisma/client";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
 
 export const ORDER_NOTE_MAX_LENGTH = 2000;
 export const ORDER_TAGS_MAX_COUNT = 8;
@@ -29,13 +35,31 @@ export const ORDER_TAG_MAX_LENGTH = 24;
 async function scopedOrderId(storeId: string, orderId: string) {
   // findFirst on the (id, storeId) pair: a foreign order is indistinguishable
   // from a missing one.
-  const order = await prisma.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true } });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+  const order = await prisma.storeOrder.findFirst({
+    where: { id: orderId, storeId },
+    select: { id: true },
+  });
+  if (!order)
+    throw new HttpError(
+      404,
+      "RESOURCE_NOT_FOUND",
+      "The requested order was not found in this store."
+    );
   return order.id;
 }
 
-function notePayload(note: { id: string; authorKind: string; authorId: string; body: string; createdAt: Date }, authorName: string | null = null) {
-  return { id: note.id, authorKind: note.authorKind, authorId: note.authorId, authorName, body: note.body, createdAt: note.createdAt };
+function notePayload(
+  note: { id: string; authorKind: string; authorId: string; body: string; createdAt: Date },
+  authorName: string | null = null
+) {
+  return {
+    id: note.id,
+    authorKind: note.authorKind,
+    authorId: note.authorId,
+    authorName,
+    body: note.body,
+    createdAt: note.createdAt,
+  };
 }
 
 /**
@@ -45,12 +69,28 @@ function notePayload(note: { id: string; authorKind: string; authorId: string; b
  * `authorName`; a deleted author simply falls back to null and the UI keeps
  * showing the generic role label.
  */
-async function withAuthorNames(notes: Array<{ id: string; authorKind: string; authorId: string; body: string; createdAt: Date }>) {
-  const merchantIds = Array.from(new Set(notes.filter((note) => note.authorKind === "merchant").map((note) => note.authorId)));
-  const staffIds = Array.from(new Set(notes.filter((note) => note.authorKind === "staff").map((note) => note.authorId)));
+async function withAuthorNames(
+  notes: Array<{ id: string; authorKind: string; authorId: string; body: string; createdAt: Date }>
+) {
+  const merchantIds = Array.from(
+    new Set(notes.filter((note) => note.authorKind === "merchant").map((note) => note.authorId))
+  );
+  const staffIds = Array.from(
+    new Set(notes.filter((note) => note.authorKind === "staff").map((note) => note.authorId))
+  );
   const [merchants, staff] = await Promise.all([
-    merchantIds.length ? prisma.merchant.findMany({ where: { id: { in: merchantIds } }, select: { id: true, businessName: true } }) : Promise.resolve([]),
-    staffIds.length ? prisma.staff.findMany({ where: { id: { in: staffIds } }, select: { id: true, displayName: true } }) : Promise.resolve([]),
+    merchantIds.length
+      ? prisma.merchant.findMany({
+          where: { id: { in: merchantIds } },
+          select: { id: true, businessName: true },
+        })
+      : Promise.resolve([]),
+    staffIds.length
+      ? prisma.staff.findMany({
+          where: { id: { in: staffIds } },
+          select: { id: true, displayName: true },
+        })
+      : Promise.resolve([]),
   ]);
   const names = new Map<string, string>();
   for (const merchant of merchants) names.set(merchant.id, merchant.businessName);
@@ -66,7 +106,12 @@ const ORDER_NOTES_KIND = "merchant.order.notes";
  * returned all of them. A long-running dispute is exactly the order that
  * accumulates them, and exactly the one a packer opens.
  */
-export async function listOrderNotes(storeId: string, orderId: string, rawLimit?: unknown, rawCursor?: unknown) {
+export async function listOrderNotes(
+  storeId: string,
+  orderId: string,
+  rawLimit?: unknown,
+  rawCursor?: unknown
+) {
   await scopedOrderId(storeId, orderId);
   const limit = parseListLimit(rawLimit);
   const cursor = await readListCursor(ORDER_NOTES_KIND, rawCursor);
@@ -76,15 +121,27 @@ export async function listOrderNotes(storeId: string, orderId: string, rawLimit?
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: limit + 1,
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(ORDER_NOTES_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(ORDER_NOTES_KIND, last.createdAt, last.id)
+  );
   return { notes: await withAuthorNames(page), nextCursor };
 }
 
-export async function createOrderNote(storeId: string, author: { kind: "merchant" | "staff"; id: string }, orderId: string, body: Record<string, unknown>) {
+export async function createOrderNote(
+  storeId: string,
+  author: { kind: "merchant" | "staff"; id: string },
+  orderId: string,
+  body: Record<string, unknown>
+) {
   await scopedOrderId(storeId, orderId);
   const text = typeof body.body === "string" ? body.body.trim() : "";
   if (!text) throw new HttpError(422, "INVALID_ORDER_NOTE", "نص الملاحظة مطلوب.");
-  if (text.length > ORDER_NOTE_MAX_LENGTH) throw new HttpError(422, "INVALID_ORDER_NOTE", `الملاحظة الداخلية يجب ألا تتجاوز ${ORDER_NOTE_MAX_LENGTH} حرفاً.`);
+  if (text.length > ORDER_NOTE_MAX_LENGTH)
+    throw new HttpError(
+      422,
+      "INVALID_ORDER_NOTE",
+      `الملاحظة الداخلية يجب ألا تتجاوز ${ORDER_NOTE_MAX_LENGTH} حرفاً.`
+    );
   const note = await prisma.orderNote.create({
     data: { storeId, orderId, authorKind: author.kind, authorId: author.id, body: text },
     select: { id: true, authorKind: true, authorId: true, body: true, createdAt: true },
@@ -99,20 +156,32 @@ export async function createOrderNote(storeId: string, author: { kind: "merchant
  */
 export function normalizeOrderTags(value: unknown): string[] {
   if (value === undefined || value === null) return [];
-  if (!Array.isArray(value)) throw new HttpError(422, "INVALID_ORDER_TAGS", "الوسوم يجب أن تكون قائمة نصية.");
+  if (!Array.isArray(value))
+    throw new HttpError(422, "INVALID_ORDER_TAGS", "الوسوم يجب أن تكون قائمة نصية.");
   const normalized: string[] = [];
   const seen = new Set<string>();
   for (const entry of value) {
-    if (typeof entry !== "string") throw new HttpError(422, "INVALID_ORDER_TAGS", "كل وسم يجب أن يكون نصاً.");
+    if (typeof entry !== "string")
+      throw new HttpError(422, "INVALID_ORDER_TAGS", "كل وسم يجب أن يكون نصاً.");
     const tag = entry.trim().replace(/\s+/g, " ");
     if (!tag) continue;
-    if (tag.length > ORDER_TAG_MAX_LENGTH) throw new HttpError(422, "INVALID_ORDER_TAGS", `طول الوسم يجب ألا يتجاوز ${ORDER_TAG_MAX_LENGTH} حرفاً.`);
+    if (tag.length > ORDER_TAG_MAX_LENGTH)
+      throw new HttpError(
+        422,
+        "INVALID_ORDER_TAGS",
+        `طول الوسم يجب ألا يتجاوز ${ORDER_TAG_MAX_LENGTH} حرفاً.`
+      );
     const key = normalizeTagKey(tag);
     if (seen.has(key)) continue;
     seen.add(key);
     normalized.push(tag);
   }
-  if (normalized.length > ORDER_TAGS_MAX_COUNT) throw new HttpError(422, "INVALID_ORDER_TAGS", `الحد الأقصى ${ORDER_TAGS_MAX_COUNT} وسوم لكل طلب.`);
+  if (normalized.length > ORDER_TAGS_MAX_COUNT)
+    throw new HttpError(
+      422,
+      "INVALID_ORDER_TAGS",
+      `الحد الأقصى ${ORDER_TAGS_MAX_COUNT} وسوم لكل طلب.`
+    );
   return normalized;
 }
 
@@ -123,7 +192,11 @@ export function normalizeTagKey(tag: string) {
 
 export async function listOrderTags(storeId: string, orderId: string) {
   await scopedOrderId(storeId, orderId);
-  const tags = await prisma.orderTag.findMany({ where: { storeId, orderId }, select: { tag: true }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
+  const tags = await prisma.orderTag.findMany({
+    where: { storeId, orderId },
+    select: { tag: true },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+  });
   return { orderId, tags: tags.map((row) => row.tag) };
 }
 
@@ -148,7 +221,11 @@ export async function listOrderTags(storeId: string, orderId: string) {
  * it — no column is written, `version` is untouched, and the order state
  * machine is not involved.
  */
-export async function replaceOrderTags(storeId: string, orderId: string, body: Record<string, unknown>) {
+export async function replaceOrderTags(
+  storeId: string,
+  orderId: string,
+  body: Record<string, unknown>
+) {
   await scopedOrderId(storeId, orderId);
   const tags = normalizeOrderTags(body.tags);
   await prisma.$transaction(async (tx) => {
@@ -158,10 +235,23 @@ export async function replaceOrderTags(storeId: string, orderId: string, body: R
       WHERE id = ${orderId}::uuid AND store_id = ${storeId}::uuid
       FOR UPDATE
     `);
-    if (!locked[0]) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+    if (!locked[0])
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested order was not found in this store."
+      );
     await tx.orderTag.deleteMany({ where: { storeId, orderId } });
     if (tags.length) {
-      await tx.orderTag.createMany({ data: tags.map((tag, position) => ({ storeId, orderId, tag, tagNormalized: normalizeTagKey(tag), position })) });
+      await tx.orderTag.createMany({
+        data: tags.map((tag, position) => ({
+          storeId,
+          orderId,
+          tag,
+          tagNormalized: normalizeTagKey(tag),
+          position,
+        })),
+      });
     }
   });
   return { orderId, tags };

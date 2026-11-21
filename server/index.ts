@@ -1,5 +1,11 @@
 import { readFile } from "node:fs/promises";
-import { applySeoToShell, robotsTxt, sitemapXml, storeSitemapXml, storefrontSeoFor } from "../phase1-backend/src/services/storefront-seo.service.js";
+import {
+  applySeoToShell,
+  robotsTxt,
+  sitemapXml,
+  storeSitemapXml,
+  storefrontSeoFor,
+} from "../phase1-backend/src/services/storefront-seo.service.js";
 import { spawn } from "child_process";
 import compression from "compression";
 import express from "express";
@@ -14,7 +20,10 @@ import { correlationMiddleware } from "../phase1-backend/src/http/correlation.js
 import { securityHeaders } from "../phase1-backend/src/http/security-headers.js";
 import { logger } from "../phase1-backend/src/logging/logger.js";
 import { initSentry } from "../phase1-backend/src/observability/sentry.js";
-import { OUTBOX_SIGNAL_MESSAGE, setOutboxSignalSink } from "../phase1-backend/src/jobs/outbox-signal.js";
+import {
+  OUTBOX_SIGNAL_MESSAGE,
+  setOutboxSignalSink,
+} from "../phase1-backend/src/jobs/outbox-signal.js";
 import { installGracefulShutdown } from "./graceful-shutdown.js";
 import { flushVisits } from "../phase1-backend/src/services/store-traffic.service.js";
 import { domainEvents } from "../phase1-backend/src/events/domain-events.js";
@@ -55,11 +64,16 @@ function startOutboxWorkerProcess(): () => void {
     // It matters that the sender is this process: it has just committed a
     // transaction, so the database is awake at that instant anyway. The signal
     // buys the shopper his confirmation in about a second and costs nothing.
-    child = spawn(process.execPath, [workerPath], { stdio: ["inherit", "inherit", "inherit", "ipc"], env: process.env });
+    child = spawn(process.execPath, [workerPath], {
+      stdio: ["inherit", "inherit", "inherit", "ipc"],
+      env: process.env,
+    });
     // Registered on every spawn, because a respawned worker is a NEW channel —
     // a sink still holding the dead child would silently signal nobody, and the
     // symptom (notifications merely slow) is one nobody would trace back here.
-    setOutboxSignalSink(() => { child?.send?.(OUTBOX_SIGNAL_MESSAGE); });
+    setOutboxSignalSink(() => {
+      child?.send?.(OUTBOX_SIGNAL_MESSAGE);
+    });
     child.on("exit", (code) => {
       // Between the crash and the respawn there is no one to tell. Clearing the
       // sink makes `signalOutboxWork()` a no-op for those seconds rather than a
@@ -69,16 +83,28 @@ function startOutboxWorkerProcess(): () => void {
       if (Date.now() - startedAt > 5 * 60 * 1000) restarts = 0;
       const delayMs = Math.min(60_000, 1000 * 2 ** Math.min(restarts, 6));
       restarts += 1;
-      logger.warn("outbox worker exited; restarting", { job: "outbox-worker", exitCode: code, delayMs, restart: restarts });
+      logger.warn("outbox worker exited; restarting", {
+        job: "outbox-worker",
+        exitCode: code,
+        delayMs,
+        restart: restarts,
+      });
       setTimeout(spawnWorker, delayMs).unref();
     });
   };
   spawnWorker();
-  const stopChild = () => { shuttingDown = true; setOutboxSignalSink(null); try { child?.kill("SIGTERM"); } catch { /* already gone */ } };
+  const stopChild = () => {
+    shuttingDown = true;
+    setOutboxSignalSink(null);
+    try {
+      child?.kill("SIGTERM");
+    } catch {
+      /* already gone */
+    }
+  };
   process.on("exit", stopChild);
   return stopChild;
 }
-
 
 async function startServer() {
   // ق-235: FIRST, before any route exists. Sentry's handlers wrap what is
@@ -86,7 +112,8 @@ async function startServer() {
   // assembled is exactly the class of fault nobody is watching for. Returns
   // false and does nothing at all when SENTRY_DSN is unset, so local runs, CI
   // and every test are byte-for-byte unchanged.
-  if (initSentry()) logger.info("sentry.enabled", { environment: process.env.NODE_ENV ?? "unknown" });
+  if (initSentry())
+    logger.info("sentry.enabled", { environment: process.env.NODE_ENV ?? "unknown" });
   const app = express();
   const server = createServer(app);
   // 19-د (D-34): Railway terminates TLS at a single proxy hop, so `req.secure`
@@ -160,7 +187,11 @@ async function startServer() {
   const stopOutboxWorker = startOutboxWorkerProcess();
   // Drain in-flight work before exit: buffered visit counts, and extension
   // handlers already running for events that committed.
-  installGracefulShutdown(server, stopOutboxWorker, { beforeExit: async () => { await Promise.allSettled([flushVisits(), domainEvents.drain()]); } });
+  installGracefulShutdown(server, stopOutboxWorker, {
+    beforeExit: async () => {
+      await Promise.allSettled([flushVisits(), domainEvents.drain()]);
+    },
+  });
 
   // Serve static files from dist/public in production
   const staticPath =
@@ -178,11 +209,16 @@ async function startServer() {
   // `max-age=0` on everything, so the shell's ~15 files each cost a conditional
   // round trip Baghdad→Railway→Baghdad on every navigation, with no CDN in front
   // and on metered mobile data.
-  app.use(express.static(staticPath, {
-    setHeaders(res, filePath) {
-      res.setHeader("cache-control", /[\\/]assets[\\/]/.test(filePath) ? "public, max-age=31536000, immutable" : "no-cache");
-    },
-  }));
+  app.use(
+    express.static(staticPath, {
+      setHeaders(res, filePath) {
+        res.setHeader(
+          "cache-control",
+          /[\\/]assets[\\/]/.test(filePath) ? "public, max-age=31536000, immutable" : "no-cache"
+        );
+      },
+    })
+  );
 
   // P27-16 (ق-104) — a crawler asking for these must get a FILE, not the app.
   // Serving the SPA shell at /robots.txt told every crawler the file was a web
@@ -192,11 +228,17 @@ async function startServer() {
     res.type("text/plain").send(robotsTxt(originOf(req)));
   });
   app.get("/sitemap.xml", (req, res, next) => {
-    sitemapXml(originOf(req)).then((xml) => res.type("application/xml").send(xml)).catch(next);
+    sitemapXml(originOf(req))
+      .then((xml) => res.type("application/xml").send(xml))
+      .catch(next);
   });
   app.get("/store/:slug/sitemap.xml", (req, res, next) => {
     storeSitemapXml(req.params.slug, originOf(req))
-      .then((xml) => (xml ? res.type("application/xml").send(xml) : res.status(404).type("text/plain").send("Not found")))
+      .then((xml) =>
+        xml
+          ? res.type("application/xml").send(xml)
+          : res.status(404).type("text/plain").send("Not found")
+      )
       .catch(next);
   });
 
@@ -222,7 +264,10 @@ async function startServer() {
   // the files that legitimately live there (security.txt, ACME challenges).
   const DOT_SEGMENT = /(^|\/)\.(?!well-known(\/|$))/;
   app.get("*", (req, res, next) => {
-    if (DOT_SEGMENT.test(req.path) || FILE_SHAPED.test(req.path)) { res.status(404).type("text/plain").send("Not found"); return; }
+    if (DOT_SEGMENT.test(req.path) || FILE_SHAPED.test(req.path)) {
+      res.status(404).type("text/plain").send("Not found");
+      return;
+    }
     // The shell reaches most visitors through THIS branch, not through
     // express.static (an app route like /platform/login is not a file), and
     // `sendFile` stamps its own `max-age=0` unless told not to — so the
@@ -230,22 +275,35 @@ async function startServer() {
     res.setHeader("cache-control", "no-cache");
     storefrontSeoFor(req.path, originOf(req))
       .then((seo) => {
-        if (!seo) { res.sendFile(shellPath, { cacheControl: false }); return; }
+        if (!seo) {
+          res.sendFile(shellPath, { cacheControl: false });
+          return;
+        }
         // Read per request rather than cached at boot: the shell changes on
         // deploy, and a stale copy in memory would outlive it.
-        return readFile(shellPath, "utf8").then((html) => { res.type("html").send(applySeoToShell(html, seo)); });
+        return readFile(shellPath, "utf8").then((html) => {
+          res.type("html").send(applySeoToShell(html, seo));
+        });
       })
       // A metadata failure must never cost the visitor his page.
-      .catch(() => { res.sendFile(shellPath, { cacheControl: false }); });
+      .catch(() => {
+        res.sendFile(shellPath, { cacheControl: false });
+      });
   });
 
   const port = Number(process.env.PORT ?? 3000);
 
   server.once("error", (error: NodeJS.ErrnoException) => {
     if (error.code === "EADDRINUSE") {
-      logger.error(`Server failed to start: port ${port} is already in use.`, { port, code: error.code });
+      logger.error(`Server failed to start: port ${port} is already in use.`, {
+        port,
+        code: error.code,
+      });
     } else {
-      logger.error(`Server failed to start on port ${port}: ${error.message}`, { port, err: error });
+      logger.error(`Server failed to start on port ${port}: ${error.message}`, {
+        port,
+        err: error,
+      });
     }
     process.exit(1);
   });
@@ -254,7 +312,10 @@ async function startServer() {
     // The MESSAGE text is unchanged on purpose: `phase10.composite-server
     // .runtime.mjs` waits for this exact sentence on stdout, and `JSON
     // .stringify` leaves it intact inside the line.
-    logger.info(`Server running on http://localhost:${port}/`, { port, env: process.env.NODE_ENV ?? "unknown" });
+    logger.info(`Server running on http://localhost:${port}/`, {
+      port,
+      env: process.env.NODE_ENV ?? "unknown",
+    });
   });
 }
 

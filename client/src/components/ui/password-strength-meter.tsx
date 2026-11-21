@@ -1,7 +1,11 @@
 import * as React from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { assessPassword, type PasswordAssessment, type StrengthLevel } from "@/lib/password-strength";
+import {
+  assessPassword,
+  type PasswordAssessment,
+  type StrengthLevel,
+} from "@/lib/password-strength";
 
 /**
  * The strength bar under a password field (owner request, 2026-08-31).
@@ -97,13 +101,15 @@ export function PasswordStrengthMeter({
               key={index}
               className={cn(
                 "h-full flex-1 rounded-full transition-colors duration-200",
-                index < filled ? style.fill : "bg-[var(--codiq-border)]",
+                index < filled ? style.fill : "bg-[var(--codiq-border)]"
               )}
             />
           ))}
         </div>
         {!assessment.empty && (
-          <span className={cn("shrink-0 text-xs font-semibold tabular-nums", style.text)}>{assessment.label}</span>
+          <span className={cn("shrink-0 text-xs font-semibold tabular-nums", style.text)}>
+            {assessment.label}
+          </span>
         )}
       </div>
 
@@ -114,12 +120,17 @@ export function PasswordStrengthMeter({
           test querying `getByRole("status")` in strict mode. Announcing is the
           goal; claiming a landmark is not. */}
       <p className="sr-only" aria-live="polite" data-testid="password-strength-announcement">
-        {assessment.empty ? "" : `قوة كلمة المرور: ${assessment.label}.${assessment.reason ? ` ${assessment.reason}` : ""}`}
+        {assessment.empty
+          ? ""
+          : `قوة كلمة المرور: ${assessment.label}.${assessment.reason ? ` ${assessment.reason}` : ""}`}
       </p>
 
       {/* The reason, when the server would refuse it — said once, in place. */}
       {assessment.reason && (
-        <p className="text-xs font-medium text-[var(--codiq-danger)]" data-testid="password-strength-reason">
+        <p
+          className="text-xs font-medium text-[var(--codiq-danger)]"
+          data-testid="password-strength-reason"
+        >
           {assessment.reason}
         </p>
       )}
@@ -135,7 +146,7 @@ export function PasswordStrengthMeter({
                   ? "text-[var(--codiq-success)]"
                   : check.required
                     ? "text-[var(--codiq-text-secondary)]"
-                    : "text-[var(--codiq-text-muted)]",
+                    : "text-[var(--codiq-text-muted)]"
               )}
             >
               {check.met ? (
@@ -147,7 +158,9 @@ export function PasswordStrengthMeter({
                 {check.label}
                 {/* Says plainly which two are rules and which two are advice, so
                     nobody thinks he must satisfy all four. */}
-                {!check.required && <span className="text-[var(--codiq-text-muted)]"> — اختياري</span>}
+                {!check.required && (
+                  <span className="text-[var(--codiq-text-muted)]"> — اختياري</span>
+                )}
               </span>
             </li>
           ))}
@@ -155,7 +168,8 @@ export function PasswordStrengthMeter({
       )}
 
       <p className="text-xs text-[var(--codiq-text-muted)]">
-        نصيحة: عبارة قصيرة تتذكرها أنت وحدك — مثل «شجرة الرمان في بيت جدي» — أقوى من كلمة قصيرة معقّدة، وأسهل في التذكّر.
+        نصيحة: عبارة قصيرة تتذكرها أنت وحدك — مثل «شجرة الرمان في بيت جدي» — أقوى من كلمة قصيرة
+        معقّدة، وأسهل في التذكّر.
       </p>
     </div>
   );

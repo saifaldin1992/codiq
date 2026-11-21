@@ -16,12 +16,23 @@ import { CircleAlert, LoaderCircle, Wallet } from "lucide-react";
 type Wallet = {
   period: { from: string | null; to: string };
   lastSettlement: { id: string; periodTo: string; netPayoutIqd: number; createdAt: string } | null;
-  pending: { completedOrders: number; reversedOrders: number; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number; commissionIqd: number; netPayoutIqd: number };
+  pending: {
+    completedOrders: number;
+    reversedOrders: number;
+    subtotalIqd: number;
+    deliveryFeeIqd: number;
+    loyaltyDiscountIqd: number;
+    commissionIqd: number;
+    netPayoutIqd: number;
+  };
   lifetime: { settledCount: number; settledNetIqd: number };
 };
 
 const money = new Intl.NumberFormat("ar-IQ");
-const day = (value: string) => new Intl.DateTimeFormat("ar-IQ", { year: "numeric", month: "long", day: "numeric" }).format(new Date(value));
+const day = (value: string) =>
+  new Intl.DateTimeFormat("ar-IQ", { year: "numeric", month: "long", day: "numeric" }).format(
+    new Date(value)
+  );
 
 export function MerchantWalletCard() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -31,19 +42,36 @@ export function MerchantWalletCard() {
     let alive = true;
     void (async () => {
       try {
-        const response = await fetch("/api/merchant/finance/wallet", { credentials: "same-origin" });
+        const response = await fetch("/api/merchant/finance/wallet", {
+          credentials: "same-origin",
+        });
         const body = await response.json().catch(() => null);
         if (!response.ok) throw new Error(body?.error?.message ?? "تعذر تحميل المحفظة.");
-        if (alive) { setWallet(body.wallet); setFailure(null); }
+        if (alive) {
+          setWallet(body.wallet);
+          setFailure(null);
+        }
       } catch (error) {
         if (alive) setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  if (failure) return <p className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold text-[var(--codiq-danger)]"><CircleAlert className="h-4 w-4" /> {failure}</p>;
-  if (!wallet) return <p className="text-sm text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ تحميل محفظتك…</p>;
+  if (failure)
+    return (
+      <p className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold text-[var(--codiq-danger)]">
+        <CircleAlert className="h-4 w-4" /> {failure}
+      </p>
+    );
+  if (!wallet)
+    return (
+      <p className="text-sm text-[var(--codiq-text-muted)]">
+        <LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ تحميل محفظتك…
+      </p>
+    );
 
   const { pending, lastSettlement, lifetime } = wallet;
   // A negative balance is possible and must read as itself: returns recorded
@@ -53,15 +81,21 @@ export function MerchantWalletCard() {
 
   return (
     <section className="rounded-3xl bg-gradient-to-l from-[var(--codiq-accent-strong)] to-[var(--codiq-accent)] px-5 py-5 text-white shadow-sm sm:px-6 sm:py-6">
-      <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-white/80"><Wallet className="h-4 w-4" /> محفظتي</p>
-      <p className="mt-2 text-3xl font-black tabular-nums sm:text-4xl">{money.format(owed)} <span className="text-lg font-bold">د.ع</span></p>
+      <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-white/80">
+        <Wallet className="h-4 w-4" /> محفظتي
+      </p>
+      <p className="mt-2 text-3xl font-black tabular-nums sm:text-4xl">
+        {money.format(owed)} <span className="text-lg font-bold">د.ع</span>
+      </p>
       <p className="mt-1 text-[13px] font-semibold text-white/85">
         {owed < 0
           ? "رصيد سالب: إرجاعات بعد آخر تسوية ستُخصم من التسوية القادمة."
           : "مستحقاتك غير المسوّاة حتى الآن — هذا ما ستتضمنه تسويتك القادمة."}
       </p>
       <p className="mt-0.5 text-xs text-white/70">
-        {wallet.period.from ? `عن الفترة منذ ${day(wallet.period.from)} حتى اليوم` : "منذ بداية نشاطك على المنصة — لم تُسجَّل لك تسوية بعد"}
+        {wallet.period.from
+          ? `عن الفترة منذ ${day(wallet.period.from)} حتى اليوم`
+          : "منذ بداية نشاطك على المنصة — لم تُسجَّل لك تسوية بعد"}
       </p>
 
       <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
@@ -72,7 +106,9 @@ export function MerchantWalletCard() {
           // programme must not read a line that is always zero — but when it
           // does exist the parts have to add up to the headline, or the card is
           // arithmetic the merchant cannot follow.
-          ...(pending.loyaltyDiscountIqd ? [{ label: "خصم النقاط", value: `− ${money.format(pending.loyaltyDiscountIqd)} د.ع` }] : []),
+          ...(pending.loyaltyDiscountIqd
+            ? [{ label: "خصم النقاط", value: `− ${money.format(pending.loyaltyDiscountIqd)} د.ع` }]
+            : []),
           { label: "عمولة المنصة", value: `− ${money.format(pending.commissionIqd)} د.ع` },
         ].map((part) => (
           <div key={part.label} className="rounded-2xl bg-white/10 px-3.5 py-2.5">
@@ -83,9 +119,33 @@ export function MerchantWalletCard() {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1.5 border-t border-white/15 pt-3 text-xs text-white/80">
-        <span>طلبات مكتملة في الفترة: <b className="font-bold tabular-nums">{money.format(pending.completedOrders)}</b>{pending.reversedOrders > 0 ? <> · مُرجَعة: <b className="font-bold tabular-nums">{money.format(pending.reversedOrders)}</b></> : null}</span>
-        {lastSettlement ? <span>آخر تسوية: <b className="font-bold tabular-nums">{money.format(lastSettlement.netPayoutIqd)} د.ع</b> بتاريخ {day(lastSettlement.createdAt)}</span> : null}
-        {lifetime.settledCount > 0 ? <span>إجمالي ما استُلم: <b className="font-bold tabular-nums">{money.format(lifetime.settledNetIqd)} د.ع</b> عبر {money.format(lifetime.settledCount)} تسوية</span> : null}
+        <span>
+          طلبات مكتملة في الفترة:{" "}
+          <b className="font-bold tabular-nums">{money.format(pending.completedOrders)}</b>
+          {pending.reversedOrders > 0 ? (
+            <>
+              {" "}
+              · مُرجَعة:{" "}
+              <b className="font-bold tabular-nums">{money.format(pending.reversedOrders)}</b>
+            </>
+          ) : null}
+        </span>
+        {lastSettlement ? (
+          <span>
+            آخر تسوية:{" "}
+            <b className="font-bold tabular-nums">
+              {money.format(lastSettlement.netPayoutIqd)} د.ع
+            </b>{" "}
+            بتاريخ {day(lastSettlement.createdAt)}
+          </span>
+        ) : null}
+        {lifetime.settledCount > 0 ? (
+          <span>
+            إجمالي ما استُلم:{" "}
+            <b className="font-bold tabular-nums">{money.format(lifetime.settledNetIqd)} د.ع</b> عبر{" "}
+            {money.format(lifetime.settledCount)} تسوية
+          </span>
+        ) : null}
       </div>
     </section>
   );

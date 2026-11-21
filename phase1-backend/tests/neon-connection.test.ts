@@ -29,8 +29,17 @@ describe("Neon PostgreSQL production secrets", () => {
     const client = new PrismaClient({ datasources: { db: { url } } });
     const email = `persistence-probe-${crypto.randomUUID()}@codiq.invalid`;
     try {
-      const created = await client.platformOwner.create({ data: { email, passwordHash: "probe-not-a-login-password", displayName: "CODIQ Persistence Probe" } });
-      const found = await client.platformOwner.findUnique({ where: { id: created.id }, select: { email: true } });
+      const created = await client.platformOwner.create({
+        data: {
+          email,
+          passwordHash: "probe-not-a-login-password",
+          displayName: "CODIQ Persistence Probe",
+        },
+      });
+      const found = await client.platformOwner.findUnique({
+        where: { id: created.id },
+        select: { email: true },
+      });
       expect(found?.email).toBe(email);
       await client.platformOwner.delete({ where: { id: created.id } });
       expect(await client.platformOwner.findUnique({ where: { id: created.id } })).toBeNull();

@@ -82,7 +82,7 @@ assert.deepEqual(
     "sale, for instance — it probably should not be a ledger entry at all: the",
     "ledger is what the platform owes and collects, and the merchant already holds",
     "that money. Put it in the sales report, not in the wallet.",
-  ].join("\n"),
+  ].join("\n")
 );
 
 // Every reader must still exist and still use the one-type-adds rule. If someone
@@ -98,7 +98,9 @@ const readers = [
 ];
 const RULE_SHAPES = [
   (source) => source.includes('entryType === "order_completed" ? 1 : -1'),
-  (source) => source.includes('entryType: "order_completed" }') && source.includes('entryType: { not: "order_completed" } }'),
+  (source) =>
+    source.includes('entryType: "order_completed" }') &&
+    source.includes('entryType: { not: "order_completed" } }'),
 ];
 for (const reader of readers) {
   const source = readFileSync(path.join(root, reader), "utf8")
@@ -107,7 +109,7 @@ for (const reader of readers) {
     .join("\n");
   assert.ok(
     RULE_SHAPES.some((matches) => matches(source)),
-    `${reader} no longer uses the one-type-adds sign rule. This guard describes code that has changed — re-derive it rather than deleting it.`,
+    `${reader} no longer uses the one-type-adds sign rule. This guard describes code that has changed — re-derive it rather than deleting it.`
   );
 }
 
@@ -122,7 +124,7 @@ console.log(
       },
     },
     null,
-    2,
-  ),
+    2
+  )
 );
 console.log("ledger:sign OK");

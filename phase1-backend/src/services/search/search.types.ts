@@ -75,7 +75,10 @@ export interface SearchEngine {
   readonly name: string;
   search(target: SearchTarget, request: SearchRequest): Promise<SearchPage>;
   /** Platform-owner order search: no storeId, deliberately and visibly separate. */
-  searchPlatformOrders(target: PlatformSearchTarget, request: Omit<SearchRequest, "storeId">): Promise<SearchPage>;
+  searchPlatformOrders(
+    target: PlatformSearchTarget,
+    request: Omit<SearchRequest, "storeId">
+  ): Promise<SearchPage>;
   /** The effective `pg_trgm.word_similarity_threshold` on this connection — reported by `/ready`. */
   threshold(): Promise<string>;
 }

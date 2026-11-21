@@ -29,64 +29,145 @@ try {
   // ── once: many createApp() calls, one subscription per bus ───────────────
   const bus = new DomainEventBus();
   let subscribeCalls = 0;
-  const probe = { id: "probe", domain: "operations", title: "probe", register() {}, subscribe() { subscribeCalls += 1; } };
+  const probe = {
+    id: "probe",
+    domain: "operations",
+    title: "probe",
+    register() {},
+    subscribe() {
+      subscribeCalls += 1;
+    },
+  };
   installModuleSubscriptions(bus, [probe]);
   installModuleSubscriptions(bus, [probe]);
   assert.equal(subscribeCalls, 1, "a bus is subscribed once, however many times the app is built");
-  createApp(); createApp();
+  createApp();
+  createApp();
   summary.subscribedOnce = true;
 
   // ── fixtures ─────────────────────────────────────────────────────────────
-  const merchant = await registerMerchantDirect({ ownerName: "أحداث", businessName: "متجر الأحداث", phone: `+96476${suffix}`, email: `${testId}@codiq.test`, password: "EventsMerchant!2026" });
+  const merchant = await registerMerchantDirect({
+    ownerName: "أحداث",
+    businessName: "متجر الأحداث",
+    phone: `+96476${suffix}`,
+    email: `${testId}@codiq.test`,
+    password: "EventsMerchant!2026",
+  });
   assert.equal(merchant.status, 201, JSON.stringify(merchant.payload));
   const merchantId = merchant.payload.account.id;
-  const store = await prisma.store.create({ data: { merchantId, name: "متجر الأحداث", slug: `${testId}-s`, defaultSubdomain: `${testId}-s` } });
-  const order = await prisma.storeOrder.create({ data: { storeId: store.id, orderNumber: `${testId}-1`, status: "new", source: "storefront", customerName: "زبون", paymentMethodCode: "cod", subtotalIqd: 1000, deliveryFeeIqd: 0, totalIqd: 1000 } });
+  const store = await prisma.store.create({
+    data: {
+      merchantId,
+      name: "متجر الأحداث",
+      slug: `${testId}-s`,
+      defaultSubdomain: `${testId}-s`,
+    },
+  });
+  const order = await prisma.storeOrder.create({
+    data: {
+      storeId: store.id,
+      orderNumber: `${testId}-1`,
+      status: "new",
+      source: "storefront",
+      customerName: "زبون",
+      paymentMethodCode: "cod",
+      subtotalIqd: 1000,
+      deliveryFeeIqd: 0,
+      totalIqd: 1000,
+    },
+  });
 
   const seen = [];
   const observedStatus = [];
   domainEvents.on("order.status_changed", "test-recorder", async (payload) => {
     if (payload.storeId !== store.id) return;
     seen.push(payload);
-    observedStatus.push((await prisma.storeOrder.findUniqueOrThrow({ where: { id: payload.orderId }, select: { status: true } })).status);
+    observedStatus.push(
+      (
+        await prisma.storeOrder.findUniqueOrThrow({
+          where: { id: payload.orderId },
+          select: { status: true },
+        })
+      ).status
+    );
   });
-  domainEvents.on("order.status_changed", "test-thrower", () => { throw new Error("a broken extension"); });
+  domainEvents.on("order.status_changed", "test-thrower", () => {
+    throw new Error("a broken extension");
+  });
 
   // ── after commit, isolated ──────────────────────────────────────────────
   const actor = { kind: "merchant", id: merchantId };
-  const moved = await transitionOrderStatus(store.id, actor, order.id, { toStatus: "processing", expectedVersion: 1 });
+  const moved = await transitionOrderStatus(store.id, actor, order.id, {
+    toStatus: "processing",
+    expectedVersion: 1,
+  });
   assert.equal(moved.status, "processing", "a throwing handler did not fail the request");
   await domainEvents.drain();
   assert.equal(seen.length, 1);
-  assert.deepEqual({ from: seen[0].from, to: seen[0].to, orderNumber: seen[0].orderNumber, actorKind: seen[0].actorKind }, { from: "new", to: "processing", orderNumber: `${testId}-1`, actorKind: "merchant" });
+  assert.deepEqual(
+    {
+      from: seen[0].from,
+      to: seen[0].to,
+      orderNumber: seen[0].orderNumber,
+      actorKind: seen[0].actorKind,
+    },
+    { from: "new", to: "processing", orderNumber: `${testId}-1`, actorKind: "merchant" }
+  );
   assert.equal(observedStatus[0], "processing", "the handler saw the COMMITTED state");
   summary.afterCommit = true;
   summary.isolatedFromThrowingHandler = true;
 
   // ── a refused write emits nothing ────────────────────────────────────────
-  await assert.rejects(transitionOrderStatus(store.id, actor, order.id, { toStatus: "completed", expectedVersion: 1 }), (error) => error.code === "ORDER_VERSION_CONFLICT");
-  await assert.rejects(transitionOrderStatus(store.id, actor, order.id, { toStatus: "new", expectedVersion: 2 }), (error) => error.code === "INVALID_ORDER_TRANSITION");
+  await assert.rejects(
+    transitionOrderStatus(store.id, actor, order.id, { toStatus: "completed", expectedVersion: 1 }),
+    (error) => error.code === "ORDER_VERSION_CONFLICT"
+  );
+  await assert.rejects(
+    transitionOrderStatus(store.id, actor, order.id, { toStatus: "new", expectedVersion: 2 }),
+    (error) => error.code === "INVALID_ORDER_TRANSITION"
+  );
   await domainEvents.drain();
   assert.equal(seen.length, 1, "refused transitions emit nothing");
   summary.refusedWritesSilent = true;
 
   // ── merchant.registered from the public signup path ─────────────────────
   const registered = [];
-  domainEvents.on("merchant.registered", "test-recorder", (payload) => { registered.push(payload); });
-  const signup = await registerMerchantWithStore({ businessName: "تاجر حدث", email: `${testId}.self@codiq.test`, password: "EventsSelf!2026Pass", storeName: "متجر حدث", storeSlug: `${testId}-self`, ownerName: "تاجر", phone: `+96477${suffix}` });
+  domainEvents.on("merchant.registered", "test-recorder", (payload) => {
+    registered.push(payload);
+  });
+  const signup = await registerMerchantWithStore({
+    businessName: "تاجر حدث",
+    email: `${testId}.self@codiq.test`,
+    password: "EventsSelf!2026Pass",
+    storeName: "متجر حدث",
+    storeSlug: `${testId}-self`,
+    ownerName: "تاجر",
+    phone: `+96477${suffix}`,
+  });
   await domainEvents.drain();
   const mine = registered.filter((row) => row.merchantId === signup.merchant.id);
   assert.equal(mine.length, 1);
   assert.equal(mine[0].via, "self");
   assert.ok(mine[0].storeId, "the event names the first store");
-  assert.equal(signup.store.id, undefined, "the public response shape is unchanged (no store id leaked into it)");
+  assert.equal(
+    signup.store.id,
+    undefined,
+    "the public response shape is unchanged (no store id leaked into it)"
+  );
   summary.merchantRegistered = true;
 
   // ── the owner's «الوحدات» list reports subscriptions ─────────────────────
   const listed = installedModules();
   assert.equal(listed.modules[0].id, "auth", "listed in mount order");
-  assert.ok(listed.modules.some((m) => m.id === "platform-modules"), "extension modules are listed");
-  assert.deepEqual(listed.modules.find((m) => m.id === "orders").listensTo, [], "a module with no subscriptions lists none");
+  assert.ok(
+    listed.modules.some((m) => m.id === "platform-modules"),
+    "extension modules are listed"
+  );
+  assert.deepEqual(
+    listed.modules.find((m) => m.id === "orders").listensTo,
+    [],
+    "a module with no subscriptions lists none"
+  );
   summary.modulesListed = listed.modules.length;
 
   console.log(JSON.stringify({ suite: "domain-events", ok: true, summary }, null, 2));

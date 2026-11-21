@@ -89,7 +89,9 @@ export interface HttpMailSettings {
   from: string;
 }
 
-export function httpMailSettingsFromEnv(env: NodeJS.ProcessEnv = process.env): HttpMailSettings | null {
+export function httpMailSettingsFromEnv(
+  env: NodeJS.ProcessEnv = process.env
+): HttpMailSettings | null {
   const apiKey = env.CODIQ_RESEND_API_KEY?.trim();
   // `CODIQ_MAIL_FROM` is the transport-neutral name. It falls back to the SMTP
   // one so that switching transports does not require re-typing an address that
@@ -126,7 +128,10 @@ export function supportReplyToFromEnv(env: NodeJS.ProcessEnv = process.env): str
 /** Recipient kinds whose mail comes from the PLATFORM and deserves a reply path. */
 const PLATFORM_AUDIENCE = new Set(["merchant", "account"]);
 
-export function supportReplyTo(recipientKind: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function supportReplyTo(
+  recipientKind: string,
+  env: NodeJS.ProcessEnv = process.env
+): string | undefined {
   if (!PLATFORM_AUDIENCE.has(recipientKind)) return undefined;
   return supportReplyToFromEnv(env) ?? undefined;
 }
@@ -168,19 +173,31 @@ export class HttpEmailProvider implements NotificationProvider {
         // ASVS V15.3.2: the provider API never redirects; following one would
         // carry the API key to wherever it pointed.
         redirect: "error",
-        headers: { authorization: `Bearer ${this.settings.apiKey}`, "content-type": "application/json" },
+        headers: {
+          authorization: `Bearer ${this.settings.apiKey}`,
+          "content-type": "application/json",
+        },
         // `reply_to` is omitted entirely when absent — Resend rejects a null.
-        body: JSON.stringify({ from: this.settings.from, to: [message.to], subject: message.subject, text: message.body, ...(message.replyTo ? { reply_to: [message.replyTo] } : {}) }),
+        body: JSON.stringify({
+          from: this.settings.from,
+          to: [message.to],
+          subject: message.subject,
+          text: message.body,
+          ...(message.replyTo ? { reply_to: [message.replyTo] } : {}),
+        }),
         signal: AbortSignal.timeout(20_000),
       });
       if (response.ok) return { ok: true, outcome: "http_accepted" };
       // A 4xx is a permanent problem (bad key, unverified sender) and a 5xx is
       // transient; both are named the same way here because the outbox ladder
       // already distinguishes them by how many times they recur.
-      const name = await response.json().then((body: unknown) => {
-        const named = body as { name?: unknown };
-        return typeof named?.name === "string" ? named.name : "error";
-      }).catch(() => "unreadable_body");
+      const name = await response
+        .json()
+        .then((body: unknown) => {
+          const named = body as { name?: unknown };
+          return typeof named?.name === "string" ? named.name : "error";
+        })
+        .catch(() => "unreadable_body");
       return { ok: false, outcome: `http_failed:${response.status}:${name}` };
     } catch (error) {
       const code = error instanceof Error ? error.name : "HTTP_ERROR";
@@ -201,7 +218,12 @@ export class HttpEmailProvider implements NotificationProvider {
         signal: AbortSignal.timeout(20_000),
       });
       if (response.ok) return { ok: true };
-      return { ok: false, error: new Error(`HTTP ${response.status} from ${this.endpoint}/domains — the API key was refused or the account is not usable.`) };
+      return {
+        ok: false,
+        error: new Error(
+          `HTTP ${response.status} from ${this.endpoint}/domains — the API key was refused or the account is not usable.`
+        ),
+      };
     } catch (error) {
       return { ok: false, error };
     }
@@ -284,7 +306,9 @@ export class SmtpEmailProvider implements NotificationProvider {
    */
   private async transport(): Promise<Transporter> {
     const family = Number(process.env.CODIQ_SMTP_FAMILY ?? 4);
-    const auth = this.settings.user ? { auth: { user: this.settings.user, pass: this.settings.pass ?? "" } } : {};
+    const auth = this.settings.user
+      ? { auth: { user: this.settings.user, pass: this.settings.pass ?? "" } }
+      : {};
     const base = { port: this.settings.port, secure: this.settings.secure, ...auth };
     if (family !== 4 && family !== 6) {
       return nodemailer.createTransport({ host: this.settings.host, ...base });
@@ -304,10 +328,19 @@ export class SmtpEmailProvider implements NotificationProvider {
   async sendEmail(message: EmailMessage): Promise<ProviderResult> {
     try {
       const transporter = await this.transport();
-      await transporter.sendMail({ from: this.from, to: message.to, subject: message.subject, text: message.body, ...(message.replyTo ? { replyTo: message.replyTo } : {}) });
+      await transporter.sendMail({
+        from: this.from,
+        to: message.to,
+        subject: message.subject,
+        text: message.body,
+        ...(message.replyTo ? { replyTo: message.replyTo } : {}),
+      });
       return { ok: true, outcome: "smtp_accepted" };
     } catch (error) {
-      const code = error instanceof Error && "code" in error ? String((error as { code?: unknown }).code) : "SMTP_ERROR";
+      const code =
+        error instanceof Error && "code" in error
+          ? String((error as { code?: unknown }).code)
+          : "SMTP_ERROR";
       return { ok: false, outcome: `smtp_failed:${code}` };
     }
   }
@@ -347,7 +380,9 @@ export class SmtpEmailProvider implements NotificationProvider {
  * provider is configured; the worker then marks rows as skipped instead of
  * pretending a delivery happened.
  */
-export function resolveNotificationProvider(env: NodeJS.ProcessEnv = process.env): NotificationProvider | null {
+export function resolveNotificationProvider(
+  env: NodeJS.ProcessEnv = process.env
+): NotificationProvider | null {
   // P27-7: the demo environment must never emit a real message to a real inbox,
   // whatever SMTP variables happen to be present. Returning null reuses the
   // existing "no provider ⇒ mark the row skipped" branch in the outbox worker —

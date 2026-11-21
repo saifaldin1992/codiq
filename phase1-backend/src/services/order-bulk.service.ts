@@ -18,7 +18,12 @@
  */
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
-import { ORDER_STATUSES, orderTransitionNote, transitionOrderStatus, type OrderTransitionActor } from "./order-lifecycle.service.js";
+import {
+  ORDER_STATUSES,
+  orderTransitionNote,
+  transitionOrderStatus,
+  type OrderTransitionActor,
+} from "./order-lifecycle.service.js";
 
 export const BULK_ORDER_LIMIT = 50;
 
@@ -50,17 +55,32 @@ export interface BulkOrderResult {
  * string) keeps the old freshly-read behaviour, so nothing that already calls
  * this route breaks.
  */
-function requestedOrders(value: unknown): Array<{ orderId: string; expectedVersion: number | null }> {
-  if (!Array.isArray(value) || value.length === 0) throw new HttpError(422, "INVALID_BULK_SELECTION", "اختر طلباً واحداً على الأقل.");
+function requestedOrders(
+  value: unknown
+): Array<{ orderId: string; expectedVersion: number | null }> {
+  if (!Array.isArray(value) || value.length === 0)
+    throw new HttpError(422, "INVALID_BULK_SELECTION", "اختر طلباً واحداً على الأقل.");
   const items: Array<{ orderId: string; expectedVersion: number | null }> = [];
   const seen = new Set<string>();
   for (const entry of value) {
-    const record = typeof entry === "object" && entry !== null ? (entry as { orderId?: unknown; expectedVersion?: unknown }) : null;
+    const record =
+      typeof entry === "object" && entry !== null
+        ? (entry as { orderId?: unknown; expectedVersion?: unknown })
+        : null;
     const orderId = typeof entry === "string" ? entry : record?.orderId;
-    if (typeof orderId !== "string" || !orderId) throw new HttpError(422, "INVALID_BULK_SELECTION", "كل عنصر يجب أن يحمل orderId نصياً.");
+    if (typeof orderId !== "string" || !orderId)
+      throw new HttpError(422, "INVALID_BULK_SELECTION", "كل عنصر يجب أن يحمل orderId نصياً.");
     const rawVersion = record?.expectedVersion;
-    if (rawVersion !== undefined && rawVersion !== null && (!Number.isInteger(rawVersion) || (rawVersion as number) < 1)) {
-      throw new HttpError(422, "INVALID_BULK_SELECTION", "expectedVersion يجب أن يكون رقماً صحيحاً موجباً.");
+    if (
+      rawVersion !== undefined &&
+      rawVersion !== null &&
+      (!Number.isInteger(rawVersion) || (rawVersion as number) < 1)
+    ) {
+      throw new HttpError(
+        422,
+        "INVALID_BULK_SELECTION",
+        "expectedVersion يجب أن يكون رقماً صحيحاً موجباً."
+      );
     }
     if (seen.has(orderId)) continue;
     seen.add(orderId);
@@ -69,12 +89,20 @@ function requestedOrders(value: unknown): Array<{ orderId: string; expectedVersi
   // The cap is enforced on the RAW list length too, so a 60-item payload of
   // duplicates is refused rather than silently shrunk to one.
   if (value.length > BULK_ORDER_LIMIT || items.length > BULK_ORDER_LIMIT) {
-    throw new HttpError(422, "BULK_LIMIT_EXCEEDED", `الحد الأقصى ${BULK_ORDER_LIMIT} طلباً في العملية الواحدة.`);
+    throw new HttpError(
+      422,
+      "BULK_LIMIT_EXCEEDED",
+      `الحد الأقصى ${BULK_ORDER_LIMIT} طلباً في العملية الواحدة.`
+    );
   }
   return items;
 }
 
-export async function bulkTransitionOrderStatus(storeId: string, actor: OrderTransitionActor, body: Record<string, unknown>) {
+export async function bulkTransitionOrderStatus(
+  storeId: string,
+  actor: OrderTransitionActor,
+  body: Record<string, unknown>
+) {
   const requested = requestedOrders(body.orders);
   const orderIds = requested.map((item) => item.orderId);
   const toStatus = body.toStatus;
@@ -97,19 +125,49 @@ export async function bulkTransitionOrderStatus(storeId: string, actor: OrderTra
     // when the caller did not send one (ق-219). When it did, the compare-and-swap
     // inside `transitionOrderStatus` is against what the merchant SAW, which is
     // the whole point of an If-Match — fifty of them, one per order.
-    const current = await prisma.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { version: true, orderNumber: true } });
+    const current = await prisma.storeOrder.findFirst({
+      where: { id: orderId, storeId },
+      select: { version: true, orderNumber: true },
+    });
     if (!current) {
-      results.push({ orderId, ok: false, code: "RESOURCE_NOT_FOUND", message: "الطلب غير موجود ضمن هذا المتجر." });
+      results.push({
+        orderId,
+        ok: false,
+        code: "RESOURCE_NOT_FOUND",
+        message: "الطلب غير موجود ضمن هذا المتجر.",
+      });
       continue;
     }
     try {
-      const order = await transitionOrderStatus(storeId, actor, orderId, { toStatus, expectedVersion: expectedVersion ?? current.version, note });
-      results.push({ orderId, ok: true, code: "OK", status: order.status, orderNumber: order.orderNumber });
+      const order = await transitionOrderStatus(storeId, actor, orderId, {
+        toStatus,
+        expectedVersion: expectedVersion ?? current.version,
+        note,
+      });
+      results.push({
+        orderId,
+        ok: true,
+        code: "OK",
+        status: order.status,
+        orderNumber: order.orderNumber,
+      });
     } catch (error) {
       const failure = error instanceof HttpError ? error : null;
       if (!failure) throw error;
-      results.push({ orderId, ok: false, code: failure.code, orderNumber: current.orderNumber, message: failure.message });
+      results.push({
+        orderId,
+        ok: false,
+        code: failure.code,
+        orderNumber: current.orderNumber,
+        message: failure.message,
+      });
     }
   }
-  return { toStatus, requested: orderIds.length, succeeded: results.filter((result) => result.ok).length, failed: results.filter((result) => !result.ok).length, results };
+  return {
+    toStatus,
+    requested: orderIds.length,
+    succeeded: results.filter((result) => result.ok).length,
+    failed: results.filter((result) => !result.ok).length,
+    results,
+  };
 }

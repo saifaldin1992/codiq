@@ -31,9 +31,12 @@ const ALLOWLIST = {
   // raw body and carries no cookie, so there is no session to forge; an
   // Origin check would refuse every genuine delivery. The signature IS the
   // second layer here, and the route answers 503 rather than accept unsigned.
-  "webhooks.ts:POST /webhooks/resend": "signed webhook from the mail provider — no browser, no cookie, Svix signature over the raw body",
-  "modules/market-payments/routes.ts:POST /payments/webhooks/card": "signed notification from the card gateway — no browser, no cookie, HMAC-SHA256 over the raw body",
-  "modules/market-partner/routes.ts:POST /partner/payment-links/complete": "signed report from the partner app — no browser, no cookie, HMAC-SHA256 over the raw body",
+  "webhooks.ts:POST /webhooks/resend":
+    "signed webhook from the mail provider — no browser, no cookie, Svix signature over the raw body",
+  "modules/market-payments/routes.ts:POST /payments/webhooks/card":
+    "signed notification from the card gateway — no browser, no cookie, HMAC-SHA256 over the raw body",
+  "modules/market-partner/routes.ts:POST /partner/payment-links/complete":
+    "signed report from the partner app — no browser, no cookie, HMAC-SHA256 over the raw body",
 };
 
 const WRITE = /app\.(post|put|patch|delete)\(\s*"([^"]+)"/g;
@@ -54,7 +57,10 @@ for (const fullPath of routeSourceFiles()) {
     const nextRoute = source.indexOf("\n  app.", start + 1);
     const body = source.slice(start, nextRoute === -1 ? source.length : nextRoute);
     if (body.includes("requireTrustedWriteOrigin")) continue;
-    if (ALLOWLIST[key]) { suppressed.push(key); continue; }
+    if (ALLOWLIST[key]) {
+      suppressed.push(key);
+      continue;
+    }
     violations.push(key);
   }
 }
@@ -64,7 +70,9 @@ const stale = Object.keys(ALLOWLIST).filter((key) => !suppressed.includes(key));
 if (violations.length > 0 || stale.length > 0) {
   console.error("csrf:guard FAILED");
   if (violations.length > 0) {
-    console.error(`\n  مسارات كتابة بلا فحص الأصل الموثوق (${violations.length}) — أضف requireTrustedWriteOrigin(request) كأول سطر، أو مدخلاً في ALLOWLIST بسبب مكتوب:`);
+    console.error(
+      `\n  مسارات كتابة بلا فحص الأصل الموثوق (${violations.length}) — أضف requireTrustedWriteOrigin(request) كأول سطر، أو مدخلاً في ALLOWLIST بسبب مكتوب:`
+    );
     for (const key of violations) console.error(`    ${key}`);
   }
   if (stale.length > 0) {
@@ -74,8 +82,14 @@ if (violations.length > 0 || stale.length > 0) {
   process.exit(1);
 }
 
-console.log(JSON.stringify({
-  suite: "csrf-origin",
-  status: "passed",
-  summary: { allowlisted: suppressed.length },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "csrf-origin",
+      status: "passed",
+      summary: { allowlisted: suppressed.length },
+    },
+    null,
+    2
+  )
+);

@@ -37,7 +37,9 @@ const fail = (message) => {
 };
 
 if (!existsSync(indexHtmlPath)) {
-  fail(`dist/public/index.html not found — run \`pnpm build\` before this guard (looked at ${indexHtmlPath})`);
+  fail(
+    `dist/public/index.html not found — run \`pnpm build\` before this guard (looked at ${indexHtmlPath})`
+  );
 }
 
 const budget = JSON.parse(readFileSync(budgetPath, "utf8"));
@@ -50,11 +52,15 @@ const uniqueRefs = [...new Set(refs)];
 const js = uniqueRefs.filter((r) => r.endsWith(".js"));
 const css = uniqueRefs.filter((r) => r.endsWith(".css"));
 
-if (js.length === 0) fail("index.html references no JS entry — the build layout changed; update this guard deliberately.");
+if (js.length === 0)
+  fail(
+    "index.html references no JS entry — the build layout changed; update this guard deliberately."
+  );
 
 const gzipSize = (rel) => {
   const p = join(publicDir, rel);
-  if (!existsSync(p)) fail(`index.html references ${rel} but the file does not exist in dist/public`);
+  if (!existsSync(p))
+    fail(`index.html references ${rel} but the file does not exist in dist/public`);
   return gzipSync(readFileSync(p)).length;
 };
 
@@ -74,16 +80,20 @@ for (const rel of js) {
   const body = readFileSync(join(publicDir, rel), "utf8");
   const found = DEV_MARKERS.filter((marker) => body.includes(marker));
   if (found.length > 0) {
-    fail(`${rel} contains React DEVELOPMENT-runtime markers (${found.join(", ")}) — the bundle was built in a dev condition. Check that nothing sets NODE_ENV before \`vite build\` and that vite.config.ts still forces production for the build command.`);
+    fail(
+      `${rel} contains React DEVELOPMENT-runtime markers (${found.join(", ")}) — the bundle was built in a dev condition. Check that nothing sets NODE_ENV before \`vite build\` and that vite.config.ts still forces production for the build command.`
+    );
   }
 }
 
 // Vector-only rule: no raster imagery reachable from the landing's entry.
 const RASTER = /assets\/[A-Za-z0-9._-]+\.(?:png|jpe?g|webp|gif|avif)/i;
-if (RASTER.test(html)) fail("index.html references a raster image — the landing is vector-only (redesign blueprint).");
+if (RASTER.test(html))
+  fail("index.html references a raster image — the landing is vector-only (redesign blueprint).");
 for (const sheet of css) {
   const body = readFileSync(join(publicDir, sheet), "utf8");
-  if (RASTER.test(body)) fail(`${sheet} references a raster image — the landing is vector-only (redesign blueprint).`);
+  if (RASTER.test(body))
+    fail(`${sheet} references a raster image — the landing is vector-only (redesign blueprint).`);
 }
 
 const report = [
@@ -92,7 +102,9 @@ const report = [
 ].join("\n");
 
 if (jsTotal > budget.entryJsGzipMax) {
-  fail(`entry JS exceeds the landing budget.\n${report}\nA top-level import in App.tsx/Home.tsx probably pulled a dashboard or a heavy dep into the entry chunk. Split it with lazy(); raising perf-budget.json is a deliberate reviewed edit, not a fix.`);
+  fail(
+    `entry JS exceeds the landing budget.\n${report}\nA top-level import in App.tsx/Home.tsx probably pulled a dashboard or a heavy dep into the entry chunk. Split it with lazy(); raising perf-budget.json is a deliberate reviewed edit, not a fix.`
+  );
 }
 if (cssTotal > budget.entryCssGzipMax) {
   fail(`entry CSS exceeds the landing budget.\n${report}`);

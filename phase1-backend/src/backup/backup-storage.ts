@@ -95,23 +95,38 @@ export interface BackupStorageConfig {
 const VARIABLE_FAMILIES = {
   dedicated: {
     prefix: "CODIQ_BACKUP_S3_",
-    required: ["CODIQ_BACKUP_S3_ENDPOINT", "CODIQ_BACKUP_S3_BUCKET", "CODIQ_BACKUP_S3_ACCESS_KEY_ID", "CODIQ_BACKUP_S3_SECRET_ACCESS_KEY"],
+    required: [
+      "CODIQ_BACKUP_S3_ENDPOINT",
+      "CODIQ_BACKUP_S3_BUCKET",
+      "CODIQ_BACKUP_S3_ACCESS_KEY_ID",
+      "CODIQ_BACKUP_S3_SECRET_ACCESS_KEY",
+    ],
     region: "CODIQ_BACKUP_S3_REGION",
     forcePathStyle: "CODIQ_BACKUP_S3_FORCE_PATH_STYLE",
   },
   shared: {
     prefix: "PRODUCT_S3_",
-    required: ["PRODUCT_S3_ENDPOINT", "PRODUCT_S3_BUCKET", "PRODUCT_S3_ACCESS_KEY_ID", "PRODUCT_S3_SECRET_ACCESS_KEY"],
+    required: [
+      "PRODUCT_S3_ENDPOINT",
+      "PRODUCT_S3_BUCKET",
+      "PRODUCT_S3_ACCESS_KEY_ID",
+      "PRODUCT_S3_SECRET_ACCESS_KEY",
+    ],
     region: "PRODUCT_S3_REGION",
     forcePathStyle: "PRODUCT_S3_FORCE_PATH_STYLE",
   },
 } as const;
 
-const set = (environment: NodeJS.ProcessEnv, name: string) => (environment[name] ?? "").trim().length > 0;
+const set = (environment: NodeJS.ProcessEnv, name: string) =>
+  (environment[name] ?? "").trim().length > 0;
 
 /** True as soon as ANY dedicated variable exists — including the optional ones, so a lone typo'd region is still a configuration attempt. */
-export function dedicatedBackupStorageAttempted(environment: NodeJS.ProcessEnv = process.env): boolean {
-  return Object.keys(environment).some((name) => name.startsWith(VARIABLE_FAMILIES.dedicated.prefix) && set(environment, name));
+export function dedicatedBackupStorageAttempted(
+  environment: NodeJS.ProcessEnv = process.env
+): boolean {
+  return Object.keys(environment).some(
+    (name) => name.startsWith(VARIABLE_FAMILIES.dedicated.prefix) && set(environment, name)
+  );
 }
 
 /**
@@ -120,7 +135,9 @@ export function dedicatedBackupStorageAttempted(environment: NodeJS.ProcessEnv =
  * different bucket than the rest of the platform because the two readers
  * disagreed about a default would be a genuinely nasty surprise.
  */
-export function resolveBackupStorage(environment: NodeJS.ProcessEnv = process.env): BackupStorageConfig {
+export function resolveBackupStorage(
+  environment: NodeJS.ProcessEnv = process.env
+): BackupStorageConfig {
   const dedicated = dedicatedBackupStorageAttempted(environment);
   const family = dedicated ? VARIABLE_FAMILIES.dedicated : VARIABLE_FAMILIES.shared;
   const missing = family.required.filter((name) => !set(environment, name));
@@ -131,7 +148,7 @@ export function resolveBackupStorage(environment: NodeJS.ProcessEnv = process.en
           `Refusing to fall back to the product-image bucket — believing the dumps are isolated when they are not is worse than knowing they share it. ` +
           `Set all four, or unset every CODIQ_BACKUP_S3_* variable to use the product bucket deliberately.`
         : `[backup-storage] object storage is not configured: ${missing.join(", ")} unset. ` +
-          `These are the same variables the platform already uses for product images.`,
+          `These are the same variables the platform already uses for product images.`
     );
   }
   const read = (name: string) => environment[name] as string;
@@ -161,7 +178,10 @@ export function backupClient(config: BackupStorageConfig): S3Client {
  * chronological order, which is what lets the pruner sort by key and be right.
  */
 export function backupObjectKey(at: Date): string {
-  return `${BACKUP_POLICY.objectPrefix}${at.toISOString().replace(/[:]/g, "-").replace(/\.\d+Z$/, "Z")}.codiq-pgdump.enc`;
+  return `${BACKUP_POLICY.objectPrefix}${at
+    .toISOString()
+    .replace(/[:]/g, "-")
+    .replace(/\.\d+Z$/, "Z")}.codiq-pgdump.enc`;
 }
 
 export interface SpooledCiphertext {
@@ -183,7 +203,7 @@ export async function spoolCiphertext(source: AsyncIterable<Buffer>): Promise<Sp
         yield chunk;
       }
     })(),
-    createWriteStream(file),
+    createWriteStream(file)
   );
   const { size } = await stat(file);
   return {
@@ -198,7 +218,7 @@ export async function uploadBackup(
   client: S3Client,
   config: BackupStorageConfig,
   key: string,
-  spooled: SpooledCiphertext,
+  spooled: SpooledCiphertext
 ): Promise<void> {
   await client.send(
     new PutObjectCommand({
@@ -208,7 +228,7 @@ export async function uploadBackup(
       ContentLength: spooled.bytes,
       ContentType: "application/octet-stream",
       Metadata: { [CHECKSUM_METADATA_KEY]: spooled.sha256 },
-    }),
+    })
   );
 }
 
@@ -218,16 +238,27 @@ export interface StoredBackup {
   readonly lastModified: Date;
 }
 
-export async function listBackups(client: S3Client, config: BackupStorageConfig): Promise<StoredBackup[]> {
+export async function listBackups(
+  client: S3Client,
+  config: BackupStorageConfig
+): Promise<StoredBackup[]> {
   const found: StoredBackup[] = [];
   let token: string | undefined;
   do {
     const page = await client.send(
-      new ListObjectsV2Command({ Bucket: config.bucket, Prefix: BACKUP_POLICY.objectPrefix, ContinuationToken: token }),
+      new ListObjectsV2Command({
+        Bucket: config.bucket,
+        Prefix: BACKUP_POLICY.objectPrefix,
+        ContinuationToken: token,
+      })
     );
     for (const object of (page.Contents ?? []) as _Object[]) {
       if (!object.Key || !object.Key.endsWith(".enc")) continue;
-      found.push({ key: object.Key, bytes: object.Size ?? 0, lastModified: object.LastModified ?? new Date(0) });
+      found.push({
+        key: object.Key,
+        bytes: object.Size ?? 0,
+        lastModified: object.LastModified ?? new Date(0),
+      });
     }
     token = page.IsTruncated ? page.NextContinuationToken : undefined;
   } while (token);
@@ -246,12 +277,20 @@ export function selectExpiredBackups(backups: readonly StoredBackup[], now: Date
   // The floor is applied to POSITION, not to age: whatever the dates claim, the
   // newest `minimumKeptCopies` objects are never candidates. A stopped cron or a
   // skewed clock therefore cannot age the whole bucket out from under us.
-  return newestFirst.slice(BACKUP_POLICY.minimumKeptCopies).filter((b) => b.lastModified.getTime() < cutoff);
+  return newestFirst
+    .slice(BACKUP_POLICY.minimumKeptCopies)
+    .filter((b) => b.lastModified.getTime() < cutoff);
 }
 
-export async function deleteBackup(client: S3Client, config: BackupStorageConfig, key: string): Promise<void> {
+export async function deleteBackup(
+  client: S3Client,
+  config: BackupStorageConfig,
+  key: string
+): Promise<void> {
   if (!key.startsWith(BACKUP_POLICY.objectPrefix)) {
-    throw new Error(`[backup-storage] refusing to delete «${key}»: outside the ${BACKUP_POLICY.objectPrefix} prefix.`);
+    throw new Error(
+      `[backup-storage] refusing to delete «${key}»: outside the ${BACKUP_POLICY.objectPrefix} prefix.`
+    );
   }
   await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
 }
@@ -261,7 +300,11 @@ export interface FetchedBackup {
   readonly expectedSha256: string | null;
 }
 
-export async function fetchBackup(client: S3Client, config: BackupStorageConfig, key: string): Promise<FetchedBackup> {
+export async function fetchBackup(
+  client: S3Client,
+  config: BackupStorageConfig,
+  key: string
+): Promise<FetchedBackup> {
   const response = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
   if (!response.Body) throw new Error(`[backup-storage] «${key}» returned no body.`);
   return {

@@ -37,7 +37,9 @@ export function OrderRail({ active }: { active: boolean }) {
             </span>
             <div className="cq-rail__body">
               <p className="text-[15px] font-bold text-[#20304C]">{stage.label}</p>
-              <p className="mt-1 text-[13px] leading-6 text-[var(--codiq-text-secondary)]">{stage.note}</p>
+              <p className="mt-1 text-[13px] leading-6 text-[var(--codiq-text-secondary)]">
+                {stage.note}
+              </p>
             </div>
           </li>
         ))}

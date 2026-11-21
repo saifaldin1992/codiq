@@ -48,12 +48,24 @@ const planLimitsSchema = z.partialRecord(z.enum(PLAN_FEATURE_CODES), planLimitVa
   // Two refusals arrive through the same door — «limits is not an object at all»
   // and «this feature code is not one of ours» — and they are not the same
   // sentence. The offending code itself is named by the issue's PATH.
-  error: (issue) => (issue.code === "invalid_key" ? "ميزة غير معروفة." : "limits يجب أن يكون كائناً."),
+  error: (issue) =>
+    issue.code === "invalid_key" ? "ميزة غير معروفة." : "limits يجب أن يكون كائناً.",
 });
 
-const planNameSchema = z.string("اسم الخطة غير صالح.").trim().min(2, "اسم الخطة غير صالح.").max(120, "اسم الخطة غير صالح.");
-const planPriceSchema = z.number("سعر الخطة يجب أن يكون عدداً صحيحاً غير سالب.").int("سعر الخطة يجب أن يكون عدداً صحيحاً غير سالب.").min(0, "سعر الخطة يجب أن يكون عدداً صحيحاً غير سالب.");
-const planCommissionSchema = z.number("عمولة الخطة يجب أن تكون بين 0 و10000 نقطة أساس.").int("عمولة الخطة يجب أن تكون بين 0 و10000 نقطة أساس.").min(0, "عمولة الخطة يجب أن تكون بين 0 و10000 نقطة أساس.").max(10_000, "عمولة الخطة يجب أن تكون بين 0 و10000 نقطة أساس.");
+const planNameSchema = z
+  .string("اسم الخطة غير صالح.")
+  .trim()
+  .min(2, "اسم الخطة غير صالح.")
+  .max(120, "اسم الخطة غير صالح.");
+const planPriceSchema = z
+  .number("سعر الخطة يجب أن يكون عدداً صحيحاً غير سالب.")
+  .int("سعر الخطة يجب أن يكون عدداً صحيحاً غير سالب.")
+  .min(0, "سعر الخطة يجب أن يكون عدداً صحيحاً غير سالب.");
+const planCommissionSchema = z
+  .number("عمولة الخطة يجب أن تكون بين 0 و10000 نقطة أساس.")
+  .int("عمولة الخطة يجب أن تكون بين 0 و10000 نقطة أساس.")
+  .min(0, "عمولة الخطة يجب أن تكون بين 0 و10000 نقطة أساس.")
+  .max(10_000, "عمولة الخطة يجب أن تكون بين 0 و10000 نقطة أساس.");
 
 /**
  * Creating a merchant by hand (the third creation path, and the easiest to
@@ -85,11 +97,20 @@ export const updatePlanSchema = z.object({
 
 /** Creating a plan — OWNER-ONLY at the route, for the reason stated there. */
 export const createPlanSchema = z.object({
-  code: z.string("رمز الخطة يجب أن يكون بأحرف إنجليزية صغيرة وأرقام وشرطات فقط (حتى 40 حرفاً).").regex(PLAN_CODE_PATTERN, "رمز الخطة يجب أن يكون بأحرف إنجليزية صغيرة وأرقام وشرطات فقط (حتى 40 حرفاً)."),
+  code: z
+    .string("رمز الخطة يجب أن يكون بأحرف إنجليزية صغيرة وأرقام وشرطات فقط (حتى 40 حرفاً).")
+    .regex(
+      PLAN_CODE_PATTERN,
+      "رمز الخطة يجب أن يكون بأحرف إنجليزية صغيرة وأرقام وشرطات فقط (حتى 40 حرفاً)."
+    ),
   name: planNameSchema,
   monthlyPriceIqd: planPriceSchema.optional(),
   commissionBps: planCommissionSchema.optional(),
-  sortOrder: z.number("ترتيب الخطة يجب أن يكون عدداً صحيحاً غير سالب.").int("ترتيب الخطة يجب أن يكون عدداً صحيحاً غير سالب.").min(0, "ترتيب الخطة يجب أن يكون عدداً صحيحاً غير سالب.").optional(),
+  sortOrder: z
+    .number("ترتيب الخطة يجب أن يكون عدداً صحيحاً غير سالب.")
+    .int("ترتيب الخطة يجب أن يكون عدداً صحيحاً غير سالب.")
+    .min(0, "ترتيب الخطة يجب أن يكون عدداً صحيحاً غير سالب.")
+    .optional(),
   limits: planLimitsSchema.optional(),
 });
 
@@ -101,7 +122,10 @@ export const assignMerchantSubscriptionSchema = z.object({
 /** The merchant's own upgrade request. `SAME_PLAN_REQUESTED` and the pending-request rule stay in the service. */
 export const createUpgradeRequestSchema = z.object({
   planCode: z.string("planCode مطلوب."),
-  note: z.string("الملاحظة يجب أن تكون نصاً لا يتجاوز 500 حرف.").max(500, "الملاحظة يجب أن تكون نصاً لا يتجاوز 500 حرف.").optional(),
+  note: z
+    .string("الملاحظة يجب أن تكون نصاً لا يتجاوز 500 حرف.")
+    .max(500, "الملاحظة يجب أن تكون نصاً لا يتجاوز 500 حرف.")
+    .optional(),
 });
 
 /**

@@ -29,15 +29,35 @@ import ts from "typescript";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const SRC_ROOT = path.resolve(HERE, "..", "..", "src");
 
-const WATCHED_MODELS = ["product", "productVariant", "productCategory", "coupon", "storeStaffMembership"];
-const READ_METHODS = ["findMany", "findFirst", "findUnique", "findUniqueOrThrow", "findFirstOrThrow", "count", "aggregate", "groupBy"];
+const WATCHED_MODELS = [
+  "product",
+  "productVariant",
+  "productCategory",
+  "coupon",
+  "storeStaffMembership",
+];
+const READ_METHODS = [
+  "findMany",
+  "findFirst",
+  "findUnique",
+  "findUniqueOrThrow",
+  "findFirstOrThrow",
+  "count",
+  "aggregate",
+  "groupBy",
+];
 const WATCHED_TABLES = ["products", "product_variants", "coupons", "store_staff_memberships"];
 /** Relation property names whose nested read must filter for itself. */
 const WATCHED_RELATIONS = ["products", "variants", "children", "coupons", "staffMemberships"];
 const FILTER_TOKENS = ["deletedAt", "LIVE", "TRASHED"];
 const SOFT_DELETE_DIR = path.join("services", "soft-delete");
 
-export interface Violation { file: string; line: number; rule: number; detail: string }
+export interface Violation {
+  file: string;
+  line: number;
+  rule: number;
+  detail: string;
+}
 
 /**
  * `relative/path.ts:functionName` → why this read is allowed to see trashed rows.
@@ -104,7 +124,8 @@ function mentionsFilter(text: string, filteredNames: ReadonlySet<string> = new S
   // that whole file. Proven by deleting `...LIVE` from a scoped read in
   // product-catalog.service.ts and watching the guard stay green — the exact
   // leak it exists to catch.
-  for (const name of Array.from(filteredNames)) if (new RegExp(`\\b${name}\\b(?!\\s*:)`).test(text)) return true;
+  for (const name of Array.from(filteredNames))
+    if (new RegExp(`\\b${name}\\b(?!\\s*:)`).test(text)) return true;
   return false;
 }
 
@@ -113,7 +134,8 @@ function filteredIdentifiers(source: ts.SourceFile): Set<string> {
   const names = new Set<string>();
   const visit = (node: ts.Node) => {
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      if (FILTER_TOKENS.some((token) => node.initializer!.getText(source).includes(token))) names.add(node.name.text);
+      if (FILTER_TOKENS.some((token) => node.initializer!.getText(source).includes(token)))
+        names.add(node.name.text);
     }
     ts.forEachChild(node, visit);
   };
@@ -129,7 +151,15 @@ function sourceFiles(): Array<{ relative: string; source: ts.SourceFile }> {
       if (entry.isDirectory()) walk(full);
       else if (entry.name.endsWith(".ts")) {
         const relative = path.relative(SRC_ROOT, full).split(path.sep).join("/");
-        files.push({ relative, source: ts.createSourceFile(full, fs.readFileSync(full, "utf8"), ts.ScriptTarget.ES2022, true) });
+        files.push({
+          relative,
+          source: ts.createSourceFile(
+            full,
+            fs.readFileSync(full, "utf8"),
+            ts.ScriptTarget.ES2022,
+            true
+          ),
+        });
       }
     }
   };
@@ -147,8 +177,11 @@ export function runDeletedLeakGuard(): { violations: Violation[]; suppressed: st
   const suppressed = new Set<string>();
   for (const { relative, source } of sourceFiles()) {
     const filteredNames = filteredIdentifiers(source);
-    const inSoftDeleteModule = relative.split("/").join(path.sep).includes(SOFT_DELETE_DIR) || relative.startsWith("services/soft-delete/");
-    const lineOf = (node: ts.Node) => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+    const inSoftDeleteModule =
+      relative.split("/").join(path.sep).includes(SOFT_DELETE_DIR) ||
+      relative.startsWith("services/soft-delete/");
+    const lineOf = (node: ts.Node) =>
+      source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
     /**
      * The nearest enclosing named function — which is what an allowlist entry is
      * really about anyway. Keying on a LINE meant any edit higher in the file
@@ -158,12 +191,17 @@ export function runDeletedLeakGuard(): { violations: Violation[]; suppressed: st
      */
     const enclosingName = (node: ts.Node): string => {
       for (let current: ts.Node | undefined = node; current; current = current.parent) {
-        if ((ts.isFunctionDeclaration(current) || ts.isMethodDeclaration(current)) && current.name) return current.name.getText(source);
+        if ((ts.isFunctionDeclaration(current) || ts.isMethodDeclaration(current)) && current.name)
+          return current.name.getText(source);
         // A variable declaration counts only when it DECLARES the function — a
         // `const rows = await prisma…` is the assignment target of the read, not
         // the thing the allowlist reason is written about.
-        if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name) && current.initializer
-          && (ts.isArrowFunction(current.initializer) || ts.isFunctionExpression(current.initializer))) {
+        if (
+          ts.isVariableDeclaration(current) &&
+          ts.isIdentifier(current.name) &&
+          current.initializer &&
+          (ts.isArrowFunction(current.initializer) || ts.isFunctionExpression(current.initializer))
+        ) {
           return current.name.getText(source);
         }
       }
@@ -173,9 +211,17 @@ export function runDeletedLeakGuard(): { violations: Violation[]; suppressed: st
       const line = lineOf(node);
       const key = `${relative}:${enclosingName(node)}`;
       const reason = ALLOWLIST[key];
-      if (typeof reason === "string" && reason.trim().length >= 20) { suppressed.add(key); return; }
+      if (typeof reason === "string" && reason.trim().length >= 20) {
+        suppressed.add(key);
+        return;
+      }
       if (typeof reason === "string") {
-        violations.push({ file: relative, line, rule, detail: "ALLOWLIST entry exists but its reason is empty or too short to be a reason." });
+        violations.push({
+          file: relative,
+          line,
+          rule,
+          detail: "ALLOWLIST entry exists but its reason is empty or too short to be a reason.",
+        });
         return;
       }
       violations.push({ file: relative, line, rule, detail });
@@ -187,18 +233,25 @@ export function runDeletedLeakGuard(): { violations: Violation[]; suppressed: st
         const watched = isWatchedRead(node);
         if (watched) {
           const argumentText = node.arguments.map((argument) => argument.getText(source)).join(" ");
-          if (!mentionsFilter(argumentText, filteredNames)) report(node, 1, `${watched} reads without deletedAt/LIVE/TRASHED.`);
+          if (!mentionsFilter(argumentText, filteredNames))
+            report(node, 1, `${watched} reads without deletedAt/LIVE/TRASHED.`);
           for (const nested of nestedRelationProperties(node)) {
             const valueText = nested.initializer.getText(source);
             if (!mentionsFilter(valueText, filteredNames)) {
-              report(nested, 4, `nested relation «${nested.name.getText(source)}» is read without its own deletedAt filter.`);
+              report(
+                nested,
+                4,
+                `nested relation «${nested.name.getText(source)}» is read without its own deletedAt filter.`
+              );
             }
           }
         }
       }
       // ---- rule 2: raw SQL against the watched tables --------------------
       if (ts.isTaggedTemplateExpression(node) || ts.isCallExpression(node)) {
-        const head = ts.isTaggedTemplateExpression(node) ? node.tag.getText(source) : node.expression.getText(source);
+        const head = ts.isTaggedTemplateExpression(node)
+          ? node.tag.getText(source)
+          : node.expression.getText(source);
         // `Prisma.sql` is checked too, not only `$queryRaw`/`$executeRaw`.
         // PG-6 builds its statements as `Prisma.sql` objects so that EXPLAIN can
         // plan the EXACT text the engine runs instead of a hand-copied
@@ -209,14 +262,22 @@ export function runDeletedLeakGuard(): { violations: Violation[]; suppressed: st
         // widening the head costs nothing and closes the hole.
         if (/(\$(queryRaw|executeRaw)|Prisma\.sql)/.test(head)) {
           const text = node.getText(source);
-          const touches = WATCHED_TABLES.some((table) => new RegExp(`(FROM|JOIN|UPDATE|INTO)\\s+${table}\\b`, "i").test(text));
-          if (touches && !text.includes("deleted_at")) report(node, 2, "raw SQL reads a watched table without deleted_at.");
+          const touches = WATCHED_TABLES.some((table) =>
+            new RegExp(`(FROM|JOIN|UPDATE|INTO)\\s+${table}\\b`, "i").test(text)
+          );
+          if (touches && !text.includes("deleted_at"))
+            report(node, 2, "raw SQL reads a watched table without deleted_at.");
         }
       }
       // ---- rule 3: only services/soft-delete may WRITE deletedAt ---------
-      if (!inSoftDeleteModule && ts.isPropertyAssignment(node) && node.name.getText(source) === "deletedAt") {
+      if (
+        !inSoftDeleteModule &&
+        ts.isPropertyAssignment(node) &&
+        node.name.getText(source) === "deletedAt"
+      ) {
         // A `where`/filter position is a read; a `data` position is a write.
-        if (isInsideDataLiteral(node)) report(node, 3, "deletedAt is written outside services/soft-delete/.");
+        if (isInsideDataLiteral(node))
+          report(node, 3, "deletedAt is written outside services/soft-delete/.");
       }
       ts.forEachChild(node, visit);
     };
@@ -239,7 +300,12 @@ export function staleAllowlistKeys(): string[] {
 function isInsideDataLiteral(node: ts.Node): boolean {
   let current: ts.Node | undefined = node.parent;
   while (current) {
-    if (ts.isPropertyAssignment(current) && ts.isIdentifier(current.name) && current.name.text === "data") return true;
+    if (
+      ts.isPropertyAssignment(current) &&
+      ts.isIdentifier(current.name) &&
+      current.name.text === "data"
+    )
+      return true;
     current = current.parent;
   }
   return false;
@@ -249,7 +315,11 @@ function isInsideDataLiteral(node: ts.Node): boolean {
 function nestedRelationProperties(call: ts.CallExpression): ts.PropertyAssignment[] {
   const found: ts.PropertyAssignment[] = [];
   const visit = (node: ts.Node) => {
-    if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && WATCHED_RELATIONS.includes(node.name.text)) {
+    if (
+      ts.isPropertyAssignment(node) &&
+      ts.isIdentifier(node.name) &&
+      WATCHED_RELATIONS.includes(node.name.text)
+    ) {
       // Skip the `where`-side relation filters (`variants: { some: { … } }`
       // used as a PREDICATE); only projections need their own filter.
       if (!isInsideWhere(node, call)) found.push(node);
@@ -263,12 +333,22 @@ function nestedRelationProperties(call: ts.CallExpression): ts.PropertyAssignmen
 function isInsideWhere(node: ts.Node, stopAt: ts.Node): boolean {
   let current: ts.Node | undefined = node.parent;
   while (current && current !== stopAt) {
-    if (ts.isPropertyAssignment(current) && ts.isIdentifier(current.name) && current.name.text === "where") return true;
+    if (
+      ts.isPropertyAssignment(current) &&
+      ts.isIdentifier(current.name) &&
+      current.name.text === "where"
+    )
+      return true;
     current = current.parent;
   }
   return false;
 }
 
 export function formatViolations(violations: readonly Violation[]): string {
-  return violations.map((violation) => `  rule ${violation.rule}  ${violation.file}:${violation.line}  ${violation.detail}`).join("\n");
+  return violations
+    .map(
+      (violation) =>
+        `  rule ${violation.rule}  ${violation.file}:${violation.line}  ${violation.detail}`
+    )
+    .join("\n");
 }

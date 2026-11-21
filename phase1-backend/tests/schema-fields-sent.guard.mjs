@@ -78,14 +78,20 @@ assert.deepEqual(
   `حقلٌ يقبله الخادم ولا ترسله شاشة:\n` +
     broken.map((b) => `  ${b.field} — ${b.why}\n      ${b.where}: ${b.note}`).join("\n") +
     `\n\nThe server has accepted these since they were written. A schema field with no screen behind it is a ` +
-    `capability that exists and cannot be used — the shape this platform produced sixteen times over.`,
+    `capability that exists and cannot be used — the shape this platform produced sixteen times over.`
 );
 
-console.log(JSON.stringify({
-  suite: "schema-fields-sent",
-  status: "passed",
-  summary: {
-    registered: REGISTERED.map((entry) => `${entry.field} → ${entry.screen.split("/").pop()}`),
-    guarantee: "every registered schema field is known to the screen that posts it",
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "schema-fields-sent",
+      status: "passed",
+      summary: {
+        registered: REGISTERED.map((entry) => `${entry.field} → ${entry.screen.split("/").pop()}`),
+        guarantee: "every registered schema field is known to the screen that posts it",
+      },
+    },
+    null,
+    2
+  )
+);

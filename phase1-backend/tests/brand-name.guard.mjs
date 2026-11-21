@@ -64,18 +64,22 @@ function sources(directory) {
   return found;
 }
 
-const files = [...ROOTS.flatMap(sources), ...SINGLE_FILES].filter((file) => !file.endsWith(GENERATED));
+const files = [...ROOTS.flatMap(sources), ...SINGLE_FILES].filter(
+  (file) => !file.endsWith(GENERATED)
+);
 
 const violations = [];
 for (const file of files) {
-  readFileSync(file, "utf8").split(/\r?\n/).forEach((line, index) => {
-    if (isComment(line) || !SHOUTED.test(line)) return;
-    violations.push({
-      file: path.relative(repoRoot, file).replace(/\\/g, "/"),
-      line: index + 1,
-      text: line.trim().slice(0, 120),
+  readFileSync(file, "utf8")
+    .split(/\r?\n/)
+    .forEach((line, index) => {
+      if (isComment(line) || !SHOUTED.test(line)) return;
+      violations.push({
+        file: path.relative(repoRoot, file).replace(/\\/g, "/"),
+        line: index + 1,
+        text: line.trim().slice(0, 120),
+      });
     });
-  });
 }
 
 if (violations.length) {
@@ -83,17 +87,28 @@ if (violations.length) {
     `ق-161: ${violations.length} place(s) still shout the brand. It is written «Codiq» — one capital.\n` +
       violations.map((v) => `  ${v.file}:${v.line}\n      ${v.text}`).join("\n") +
       `\n\nIf one of these is an identifier rather than the brand — an env var, a file magic, a cookie — ` +
-      `it must not match this pattern at all; say so by making it one (CODIQ_…) rather than by exempting it here.`,
+      `it must not match this pattern at all; say so by making it one (CODIQ_…) rather than by exempting it here.`
   );
   process.exitCode = 1;
 } else {
-  console.log(JSON.stringify({
-    suite: "brand-name",
-    status: "passed",
-    summary: {
-      scanned: files.length,
-      shoutedBrand: 0,
-      protected: ["CODIQ_* environment names", "CODIQBK1 backup magic", "--codiq-* tokens", "codiq_session"],
-    },
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        suite: "brand-name",
+        status: "passed",
+        summary: {
+          scanned: files.length,
+          shoutedBrand: 0,
+          protected: [
+            "CODIQ_* environment names",
+            "CODIQBK1 backup magic",
+            "--codiq-* tokens",
+            "codiq_session",
+          ],
+        },
+      },
+      null,
+      2
+    )
+  );
 }

@@ -134,7 +134,10 @@ export function initSentry(environment: NodeJS.ProcessEnv = process.env): boolea
  *
  * Never throws: a reporter that can break a request is worse than no reporter.
  */
-export function reportServerFault(error: unknown, context: { requestId: string; route?: string; status: number }): void {
+export function reportServerFault(
+  error: unknown,
+  context: { requestId: string; route?: string; status: number }
+): void {
   if (!active) return;
   try {
     Sentry.withScope((scope) => {

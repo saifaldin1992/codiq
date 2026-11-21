@@ -17,7 +17,13 @@
  */
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
 import { LIVE } from "./soft-delete/constants.js";
 
 export const ABANDONED_CART_DEFAULT_WINDOW_HOURS = 12;
@@ -38,18 +44,29 @@ export function normalizeAbandonedCartSettings(configuration: unknown): Abandone
   return {
     enabled: stored.enabled === true,
     windowHours:
-      Number.isInteger(window) && window >= ABANDONED_CART_MIN_WINDOW_HOURS && window <= ABANDONED_CART_MAX_WINDOW_HOURS
+      Number.isInteger(window) &&
+      window >= ABANDONED_CART_MIN_WINDOW_HOURS &&
+      window <= ABANDONED_CART_MAX_WINDOW_HOURS
         ? window
         : ABANDONED_CART_DEFAULT_WINDOW_HOURS,
-    recoveryCouponId: typeof stored.recoveryCouponId === "string" && stored.recoveryCouponId ? stored.recoveryCouponId : null,
+    recoveryCouponId:
+      typeof stored.recoveryCouponId === "string" && stored.recoveryCouponId
+        ? stored.recoveryCouponId
+        : null,
   };
 }
 
 export async function abandonedCartSettingsView(storeId: string) {
-  const settings = await prisma.notificationSettings.findUnique({ where: { storeId }, select: { isEnabled: true, configuration: true } });
+  const settings = await prisma.notificationSettings.findUnique({
+    where: { storeId },
+    select: { isEnabled: true, configuration: true },
+  });
   const normalized = normalizeAbandonedCartSettings(settings?.configuration);
   const coupon = normalized.recoveryCouponId
-    ? await prisma.coupon.findFirst({ where: { id: normalized.recoveryCouponId, storeId, ...LIVE }, select: { code: true, isActive: true } })
+    ? await prisma.coupon.findFirst({
+        where: { id: normalized.recoveryCouponId, storeId, ...LIVE },
+        select: { code: true, isActive: true },
+      })
     : null;
   return {
     masterEnabled: settings?.isEnabled === true,
@@ -72,18 +89,47 @@ export async function updateAbandonedCartSettings(storeId: string, body: Record<
     throw new HttpError(422, "INVALID_INPUT", "enabled must be boolean.");
   }
   if (body.windowHours !== undefined) {
-    const window = typeof body.windowHours === "number" ? body.windowHours : Number(body.windowHours);
-    if (!Number.isInteger(window) || window < ABANDONED_CART_MIN_WINDOW_HOURS || window > ABANDONED_CART_MAX_WINDOW_HOURS) {
-      throw new HttpError(422, "INVALID_ABANDONED_CART_WINDOW", `windowHours must be an integer between ${ABANDONED_CART_MIN_WINDOW_HOURS} and ${ABANDONED_CART_MAX_WINDOW_HOURS}.`);
+    const window =
+      typeof body.windowHours === "number" ? body.windowHours : Number(body.windowHours);
+    if (
+      !Number.isInteger(window) ||
+      window < ABANDONED_CART_MIN_WINDOW_HOURS ||
+      window > ABANDONED_CART_MAX_WINDOW_HOURS
+    ) {
+      throw new HttpError(
+        422,
+        "INVALID_ABANDONED_CART_WINDOW",
+        `windowHours must be an integer between ${ABANDONED_CART_MIN_WINDOW_HOURS} and ${ABANDONED_CART_MAX_WINDOW_HOURS}.`
+      );
     }
   }
-  if (body.recoveryCouponId !== undefined && body.recoveryCouponId !== null && body.recoveryCouponId !== "") {
-    if (typeof body.recoveryCouponId !== "string") throw new HttpError(422, "INVALID_RECOVERY_COUPON", "recoveryCouponId must be a coupon id or null.");
-    const coupon = await prisma.coupon.findFirst({ where: { id: body.recoveryCouponId, storeId, ...LIVE }, select: { isActive: true } });
-    if (!coupon || !coupon.isActive) throw new HttpError(422, "INVALID_RECOVERY_COUPON", "recoveryCouponId must reference an active coupon of this store.");
+  if (
+    body.recoveryCouponId !== undefined &&
+    body.recoveryCouponId !== null &&
+    body.recoveryCouponId !== ""
+  ) {
+    if (typeof body.recoveryCouponId !== "string")
+      throw new HttpError(
+        422,
+        "INVALID_RECOVERY_COUPON",
+        "recoveryCouponId must be a coupon id or null."
+      );
+    const coupon = await prisma.coupon.findFirst({
+      where: { id: body.recoveryCouponId, storeId, ...LIVE },
+      select: { isActive: true },
+    });
+    if (!coupon || !coupon.isActive)
+      throw new HttpError(
+        422,
+        "INVALID_RECOVERY_COUPON",
+        "recoveryCouponId must reference an active coupon of this store."
+      );
   }
 
-  const current = await prisma.notificationSettings.findUnique({ where: { storeId }, select: { configuration: true } });
+  const current = await prisma.notificationSettings.findUnique({
+    where: { storeId },
+    select: { configuration: true },
+  });
   const currentConfiguration = (current?.configuration ?? {}) as Record<string, unknown>;
   const existing = normalizeAbandonedCartSettings(currentConfiguration);
   const next: AbandonedCartSettings = {
@@ -119,32 +165,55 @@ const ABANDONED_CARTS_KIND = "merchant.abandoned-carts";
  * in a day, and the merchant could never reach the older ones — the recovery
  * list is the whole point of the screen.
  */
-export async function abandonedCartsPanel(storeId: string, rawLimit?: unknown, rawCursor?: unknown) {
+export async function abandonedCartsPanel(
+  storeId: string,
+  rawLimit?: unknown,
+  rawCursor?: unknown
+) {
   const limit = parseListLimit(rawLimit);
   const cursor = await readListCursor(ABANDONED_CARTS_KIND, rawCursor);
-  const settings = await prisma.notificationSettings.findUnique({ where: { storeId }, select: { configuration: true } });
+  const settings = await prisma.notificationSettings.findUnique({
+    where: { storeId },
+    select: { configuration: true },
+  });
   const { windowHours } = normalizeAbandonedCartSettings(settings?.configuration);
   const cutoff = new Date(Date.now() - windowHours * 60 * 60 * 1000);
   const [carts, sent, recovered] = await Promise.all([
     prisma.shoppingCart.findMany({
-      where: { storeId, status: "active", lastActivityAt: { lt: cutoff }, items: { some: {} }, ...keysetWhere("lastActivityAt", "desc", cursor) },
+      where: {
+        storeId,
+        status: "active",
+        lastActivityAt: { lt: cutoff },
+        items: { some: {} },
+        ...keysetWhere("lastActivityAt", "desc", cursor),
+      },
       select: {
         id: true,
         ownerKind: true,
         lastActivityAt: true,
         customer: { select: { fullName: true, email: true } },
         items: { select: { quantity: true, priceSnapshotIqd: true } },
-        notificationOutbox: { where: { eventType: "cart.abandoned" }, select: { id: true, status: true, createdAt: true }, take: 1 },
+        notificationOutbox: {
+          where: { eventType: "cart.abandoned" },
+          select: { id: true, status: true, createdAt: true },
+          take: 1,
+        },
       },
       orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
       take: limit + 1,
     }),
     // A cart message references a cart by definition — rows without cartId
     // (defensive/manual inserts) never count as sent recovery messages.
-    prisma.notificationOutbox.count({ where: { storeId, eventType: "cart.abandoned", cartId: { not: null } } }),
-    prisma.notificationOutbox.count({ where: { storeId, eventType: "cart.abandoned", cart: { status: "converted" } } }),
+    prisma.notificationOutbox.count({
+      where: { storeId, eventType: "cart.abandoned", cartId: { not: null } },
+    }),
+    prisma.notificationOutbox.count({
+      where: { storeId, eventType: "cart.abandoned", cart: { status: "converted" } },
+    }),
   ]);
-  const { page, nextCursor } = pageOf(carts, limit, (last) => encodeListCursor(ABANDONED_CARTS_KIND, last.lastActivityAt, last.id));
+  const { page, nextCursor } = pageOf(carts, limit, (last) =>
+    encodeListCursor(ABANDONED_CARTS_KIND, last.lastActivityAt, last.id)
+  );
   return {
     windowHours,
     nextCursor,
@@ -156,7 +225,12 @@ export async function abandonedCartsPanel(storeId: string, rawLimit?: unknown, r
       itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
       totalIqd: cart.items.reduce((sum, item) => sum + item.quantity * item.priceSnapshotIqd, 0),
       lastActivityAt: cart.lastActivityAt,
-      message: cart.notificationOutbox[0] ? { status: cart.notificationOutbox[0].status, createdAt: cart.notificationOutbox[0].createdAt } : null,
+      message: cart.notificationOutbox[0]
+        ? {
+            status: cart.notificationOutbox[0].status,
+            createdAt: cart.notificationOutbox[0].createdAt,
+          }
+        : null,
     })),
     stats: { sent, recovered },
   };

@@ -48,7 +48,10 @@ const CLIENT_FILE = "client/src/components/OrderWorkspace.tsx";
  */
 function transitionTable(source, file) {
   const start = source.indexOf("const transitions");
-  assert.ok(start !== -1, `no \`const transitions\` in ${file} — if it was renamed, rename it here rather than dropping the check`);
+  assert.ok(
+    start !== -1,
+    `no \`const transitions\` in ${file} — if it was renamed, rename it here rather than dropping the check`
+  );
   const open = source.indexOf("{", start);
   const close = source.indexOf("\n};", open);
   assert.ok(open !== -1 && close !== -1, `could not read the transitions literal in ${file}`);
@@ -59,7 +62,10 @@ function transitionTable(source, file) {
     const edges = Array.from(match[2].matchAll(/"([a-z_]+)"/g), (edge) => edge[1]).sort();
     table[match[1]] = edges;
   }
-  assert.ok(Object.keys(table).length >= 8, `read ${Object.keys(table).length} statuses from ${file}; the state machine has eight`);
+  assert.ok(
+    Object.keys(table).length >= 8,
+    `read ${Object.keys(table).length} statuses from ${file}; the state machine has eight`
+  );
   return table;
 }
 
@@ -74,21 +80,34 @@ assert.deepEqual(
     `  client (${CLIENT_FILE}): ${JSON.stringify(client)}\n\n` +
     `The client derives TERMINAL_STATUSES from its copy, and that set decides whether a bulk move demands the ` +
     `irreversible-action confirmation. A merchant moving forty COD orders must not be silently denied that warning ` +
-    `because a table drifted. Copy the server's table verbatim.`,
+    `because a table drifted. Copy the server's table verbatim.`
 );
 
 // The derived set is what the screen actually uses, so assert it as well rather
 // than only the table it comes from.
-const terminalOf = (table) => Object.keys(table).filter((status) => table[status].length === 0).sort();
-assert.deepEqual(terminalOf(client), terminalOf(server), "the DERIVED terminal set must match, which is the thing the confirmation gate reads");
+const terminalOf = (table) =>
+  Object.keys(table)
+    .filter((status) => table[status].length === 0)
+    .sort();
+assert.deepEqual(
+  terminalOf(client),
+  terminalOf(server),
+  "the DERIVED terminal set must match, which is the thing the confirmation gate reads"
+);
 
-console.log(JSON.stringify({
-  suite: "order-transitions-mirror",
-  status: "passed",
-  summary: {
-    statuses: Object.keys(server).length,
-    edges: Object.values(server).reduce((total, edges) => total + edges.length, 0),
-    terminal: terminalOf(server),
-    guarantee: "the order board's transition table is the server's transition table",
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "order-transitions-mirror",
+      status: "passed",
+      summary: {
+        statuses: Object.keys(server).length,
+        edges: Object.values(server).reduce((total, edges) => total + edges.length, 0),
+        terminal: terminalOf(server),
+        guarantee: "the order board's transition table is the server's transition table",
+      },
+    },
+    null,
+    2
+  )
+);

@@ -62,20 +62,30 @@ for (const entry of readdirSync(here)) {
   else offenders.push(entry);
 }
 
-assert.ok(holdsTheLine.length > 10, `the scan found only ${holdsTheLine.length} truncating suites — it is probably not reading the files it thinks it is`);
+assert.ok(
+  holdsTheLine.length > 10,
+  `the scan found only ${holdsTheLine.length} truncating suites — it is probably not reading the files it thinks it is`
+);
 assert.deepEqual(
   offenders,
   [],
-  `these suites TRUNCATE but leave the shared login counter, so they read whatever meter the previous suite left behind (#140 measured 6 failures in 10 from exactly this): ${offenders.join(", ")} — add ${COUNTER_TABLE} to the TRUNCATE list`,
+  `these suites TRUNCATE but leave the shared login counter, so they read whatever meter the previous suite left behind (#140 measured 6 failures in 10 from exactly this): ${offenders.join(", ")} — add ${COUNTER_TABLE} to the TRUNCATE list`
 );
 
-console.log(JSON.stringify({
-  suite: "login-counter",
-  status: "passed",
-  summary: {
-    rule: "a suite that truncates must also clear " + COUNTER_TABLE,
-    truncatingSuites: holdsTheLine.length,
-    offenders: 0,
-    outOfScope: "phase6/7/13 clear nothing and import no Prisma client — deliberately not held to this",
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "login-counter",
+      status: "passed",
+      summary: {
+        rule: "a suite that truncates must also clear " + COUNTER_TABLE,
+        truncatingSuites: holdsTheLine.length,
+        offenders: 0,
+        outOfScope:
+          "phase6/7/13 clear nothing and import no Prisma client — deliberately not held to this",
+      },
+    },
+    null,
+    2
+  )
+);

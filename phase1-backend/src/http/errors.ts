@@ -1,7 +1,12 @@
 import { Prisma } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
-import { prescriptionImageConstraints, productImageConstraints, REEL_MAX_BYTES, storeImageConstraints } from "../services/product-image-storage.service.js";
+import {
+  prescriptionImageConstraints,
+  productImageConstraints,
+  REEL_MAX_BYTES,
+  storeImageConstraints,
+} from "../services/product-image-storage.service.js";
 
 /** Marketplace M12: the search photo's ceiling (modules/market-visual/routes.ts keeps the same number). */
 const SEARCH_PHOTO_MAX_BYTES = 8 * 1024 * 1024;
@@ -11,7 +16,11 @@ import { logger } from "../logging/logger.js";
 import { redactKey } from "../logging/redact.js";
 import { reportServerFault } from "../observability/sentry.js";
 import { CORRELATION_HEADER, routePatternOf } from "./correlation.js";
-import { fkRuleFor, foreignKeyConstraintName, isForeignKeyViolation } from "../services/soft-delete/fk-violations.js";
+import {
+  fkRuleFor,
+  foreignKeyConstraintName,
+  isForeignKeyViolation,
+} from "../services/soft-delete/fk-violations.js";
 import { isRetryableTransactionError } from "../db/serializable-retry.js";
 import { clientIp } from "./client-ip.js";
 
@@ -33,7 +42,12 @@ interface ErrorOutcome {
   mapped: boolean;
 }
 
-export function errorHandler(error: unknown, request: Request, response: Response, _next: NextFunction) {
+export function errorHandler(
+  error: unknown,
+  request: Request,
+  response: Response,
+  _next: NextFunction
+) {
   const requestId = ensureCorrelationId(response);
   const outcome = classifyError(error, request);
   logOutcome(error, request, outcome);
@@ -90,9 +104,17 @@ function safeParams(request: Request): Record<string, string> | undefined {
     const key = name.slice(1).replace(/[?*+(].*$/, "");
     const raw = values[index];
     if (!key || !raw) continue;
-    if (redactKey(key)) { output[key] = "[redacted]"; kept += 1; continue; }
+    if (redactKey(key)) {
+      output[key] = "[redacted]";
+      kept += 1;
+      continue;
+    }
     let value = raw;
-    try { value = decodeURIComponent(raw); } catch { /* keep the raw segment */ }
+    try {
+      value = decodeURIComponent(raw);
+    } catch {
+      /* keep the raw segment */
+    }
     output[key] = value.slice(0, 64);
     kept += 1;
   }
@@ -122,7 +144,11 @@ function logOutcome(error: unknown, request: Request, outcome: ErrorOutcome): vo
     // than restated: what Sentry sees is exactly what the platform already
     // classifies as its own fault — never a refusal it made correctly. Inert
     // when SENTRY_DSN is unset, and it cannot throw.
-    reportServerFault(error, { requestId: currentCorrelationId() ?? "unknown", route: fields.route, status: outcome.status });
+    reportServerFault(error, {
+      requestId: currentCorrelationId() ?? "unknown",
+      route: fields.route,
+      status: outcome.status,
+    });
     return;
   }
   if (outcome.status >= 500) {
@@ -147,7 +173,8 @@ function logOutcome(error: unknown, request: Request, outcome: ErrorOutcome): vo
   if (logger.isLevelEnabled("debug")) logger.debug("request.rejected", fields);
 }
 
-const SECURITY_401 = /^INVALID_[A-Z_]*CREDENTIALS$|^INVALID_SECOND_FACTOR$|_ACCESS_REVOKED$|^WEBHOOK_SIGNATURE_INVALID$/;
+const SECURITY_401 =
+  /^INVALID_[A-Z_]*CREDENTIALS$|^INVALID_SECOND_FACTOR$|_ACCESS_REVOKED$|^WEBHOOK_SIGNATURE_INVALID$/;
 const SECURITY_403 = /DENIED$|BOUNDARY|PERMISSION|CSRF|REVOKED$|DISABLED$|FORBIDDEN/;
 
 /** Exported for the logging guard. */
@@ -170,13 +197,26 @@ export function isSecurityRefusal(status: number, code: string): boolean {
 export function classifyError(error: unknown, request: Request): ErrorOutcome {
   // PG-2: `details` is absent on every pre-existing HttpError, so those bodies
   // stay byte-identical; only the restore-conflict errors carry extra keys.
-  if (error instanceof HttpError) return { status: error.status, error: { code: error.code, message: error.message, ...(error.details ?? {}) }, mapped: true };
+  if (error instanceof HttpError)
+    return {
+      status: error.status,
+      error: { code: error.code, message: error.message, ...(error.details ?? {}) },
+      mapped: true,
+    };
   const message = error instanceof Error ? error.message : "Unexpected server error.";
   if (message.includes("CODIQ_EMAIL_CONFLICT")) {
     // 19-ب: the CODE stays (tests and clients name it); the MESSAGE no longer
     // claims the holder is specifically a platform owner or the claimant a
     // merchant — the trigger fires for any of the four identity tables.
-    return { status: 409, error: { code: "EMAIL_RESERVED_FOR_PLATFORM_OWNER", message: "This email already belongs to another identity on the platform (owner, platform staff, merchant, or store staff) and cannot be reused." }, mapped: true };
+    return {
+      status: 409,
+      error: {
+        code: "EMAIL_RESERVED_FOR_PLATFORM_OWNER",
+        message:
+          "This email already belongs to another identity on the platform (owner, platform staff, merchant, or store staff) and cannot be reused.",
+      },
+      mapped: true,
+    };
   }
   // 19-د: the reserved-slug trigger is the LAST line, not the first — the three
   // application checks answer before it in every ordinary flow. It still needs a
@@ -185,12 +225,29 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
   // actionable content. Matched on the trigger's own message text, exactly as
   // the category-cycle guard below is.
   if (message.includes("CODIQ_RESERVED_STORE_SLUG")) {
-    return { status: 422, error: { code: "RESERVED_STORE_SLUG", message: "هذا الرابط محجوز للمنصة — اختر رابطاً آخر لمتجرك." }, mapped: true };
+    return {
+      status: 422,
+      error: {
+        code: "RESERVED_STORE_SLUG",
+        message: "هذا الرابط محجوز للمنصة — اختر رابطاً آخر لمتجرك.",
+      },
+      mapped: true,
+    };
   }
   if (error instanceof multer.MulterError) {
     // Phase 20B-3: the CSV import shares the multer pipeline with its own 2 MB cap.
     if (request.path.includes("/catalog/import/")) {
-      return { status: 422, error: { code: "CSV_FILE_TOO_LARGE", message: error.code === "LIMIT_FILE_SIZE" ? "ملف CSV يجب أن يكون 2 MB أو أصغر." : "رفع ملف CSV غير صالح — أرفق ملفاً واحداً في الحقل «file»." }, mapped: true };
+      return {
+        status: 422,
+        error: {
+          code: "CSV_FILE_TOO_LARGE",
+          message:
+            error.code === "LIMIT_FILE_SIZE"
+              ? "ملف CSV يجب أن يكون 2 MB أو أصغر."
+              : "رفع ملف CSV غير صالح — أرفق ملفاً واحداً في الحقل «file».",
+        },
+        mapped: true,
+      };
     }
     // ق-238 — THE NUMBER IS READ, NOT TYPED.
     //
@@ -212,11 +269,25 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
         : null;
     if (marketCeiling) {
       const mb = Math.round(marketCeiling.maxBytes / (1024 * 1024));
-      return { status: 422, error: { code: marketCeiling.code, message: error.code === "LIMIT_FILE_SIZE" ? `${marketCeiling.noun} يجب أن يكون ${mb} MB أو أصغر.` : `رفع ${marketCeiling.noun} غير صالح.` }, mapped: true };
+      return {
+        status: 422,
+        error: {
+          code: marketCeiling.code,
+          message:
+            error.code === "LIMIT_FILE_SIZE"
+              ? `${marketCeiling.noun} يجب أن يكون ${mb} MB أو أصغر.`
+              : `رفع ${marketCeiling.noun} غير صالح.`,
+        },
+        mapped: true,
+      };
     }
     const prescription = request.path.includes("/prescription");
-    const storeImage = request.path.includes("/banners") || request.path.endsWith("/storefront/logo")
-      || request.path.endsWith("/market/me/avatar") || request.path.endsWith("/market-profile/cover") || request.path.endsWith("/attachments");
+    const storeImage =
+      request.path.includes("/banners") ||
+      request.path.endsWith("/storefront/logo") ||
+      request.path.endsWith("/market/me/avatar") ||
+      request.path.endsWith("/market-profile/cover") ||
+      request.path.endsWith("/attachments");
     const code = prescription ? "INVALID_PRESCRIPTION_IMAGE" : "INVALID_PRODUCT_IMAGE";
     const noun = prescription ? "صورة الوصفة" : storeImage ? "صورة المتجر" : "صورة المنتج";
     const maxBytes = prescription
@@ -225,14 +296,32 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
         ? storeImageConstraints.maxBytes
         : productImageConstraints.maxBytes;
     const maxMb = Math.round(maxBytes / (1024 * 1024));
-    return { status: 422, error: { code, message: error.code === "LIMIT_FILE_SIZE" ? `${noun} يجب أن تكون ${maxMb} MB أو أصغر.` : `رفع ${noun} غير صالح.` }, mapped: true };
+    return {
+      status: 422,
+      error: {
+        code,
+        message:
+          error.code === "LIMIT_FILE_SIZE"
+            ? `${noun} يجب أن تكون ${maxMb} MB أو أصغر.`
+            : `رفع ${noun} غير صالح.`,
+      },
+      mapped: true,
+    };
   }
   // MD-1: a concurrent tag replace on the SAME order. `replaceOrderTags` now
   // serializes on the order row, so this is the belt to that braces — but it
   // must never surface as «حساب بهذه الهوية موجود» (the generic identity
   // duplicate) or as a bare 500, which is exactly what both used to do.
   if (message.includes("at most 8 internal tags") || message.includes("order_tags_max_per_order")) {
-    return { status: 409, error: { code: "ORDER_TAGS_CONFLICT", message: "جرى تعديل وسوم هذا الطلب في جلسة أخرى في اللحظة نفسها — أعِد فتح الطلب وحفظ الوسوم من جديد." }, mapped: true };
+    return {
+      status: 409,
+      error: {
+        code: "ORDER_TAGS_CONFLICT",
+        message:
+          "جرى تعديل وسوم هذا الطلب في جلسة أخرى في اللحظة نفسها — أعِد فتح الطلب وحفظ الوسوم من جديد.",
+      },
+      mapped: true,
+    };
   }
   // 19-د: P2023 «Inconsistent column data» is Prisma refusing to coerce a value
   // into a typed column — in practice, a uuid column handed something that is
@@ -249,37 +338,134 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
   // stay a 4xx and never a 500 — a 500 is a page in the error budget and a
   // wake-up call about a fault the server does not have.
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2023") {
-    return { status: 400, error: { code: "INVALID_IDENTIFIER", message: "أحد المعرّفات في الطلب غير صالح." }, mapped: true };
+    return {
+      status: 400,
+      error: { code: "INVALID_IDENTIFIER", message: "أحد المعرّفات في الطلب غير صالح." },
+      mapped: true,
+    };
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : String(error.meta?.target ?? "");
+    const target = Array.isArray(error.meta?.target)
+      ? error.meta.target.join(",")
+      : String(error.meta?.target ?? "");
     // 19-ب: `codiq_guard_owner_merchant_staff_email` raises its own 23505 and
     // Prisma turns that into a P2002 with NO target and no message text —
     // `includes("CODIQ_EMAIL_CONFLICT")` above never sees it. A target-less
     // P2002 on an identity model IS that trigger, so it gets the same answer.
     if (!target || target === "null" || target === "undefined") {
       const model = (error.meta as { modelName?: unknown } | undefined)?.modelName;
-      if (model === "PlatformOwner" || model === "Merchant" || model === "Staff" || model === "PlatformStaff") {
-        return { status: 409, error: { code: "EMAIL_RESERVED_FOR_PLATFORM_OWNER", message: "This email already belongs to another identity on the platform (owner, platform staff, merchant, or store staff) and cannot be reused." }, mapped: true };
+      if (
+        model === "PlatformOwner" ||
+        model === "Merchant" ||
+        model === "Staff" ||
+        model === "PlatformStaff"
+      ) {
+        return {
+          status: 409,
+          error: {
+            code: "EMAIL_RESERVED_FOR_PLATFORM_OWNER",
+            message:
+              "This email already belongs to another identity on the platform (owner, platform staff, merchant, or store staff) and cannot be reused.",
+          },
+          mapped: true,
+        };
       }
     }
     if (target.includes("order_tags") || target.includes("tag_normalized")) {
-      return { status: 409, error: { code: "ORDER_TAGS_CONFLICT", message: "جرى تعديل وسوم هذا الطلب في جلسة أخرى في اللحظة نفسها — أعِد فتح الطلب وحفظ الوسوم من جديد." }, mapped: true };
+      return {
+        status: 409,
+        error: {
+          code: "ORDER_TAGS_CONFLICT",
+          message:
+            "جرى تعديل وسوم هذا الطلب في جلسة أخرى في اللحظة نفسها — أعِد فتح الطلب وحفظ الوسوم من جديد.",
+        },
+        mapped: true,
+      };
     }
-    if (target.includes("product_categories")) return { status: 409, error: { code: "DUPLICATE_CATEGORY", message: "A category with this name already exists in this store." }, mapped: true };
-    if (target.includes("coupons")) return { status: 409, error: { code: "DUPLICATE_COUPON_CODE", message: "A coupon with this code already exists in this store." }, mapped: true };
-    if (target.includes("product_variants")) return { status: 409, error: { code: "DUPLICATE_VARIANT_SKU", message: "A variant with this SKU already exists in this store." }, mapped: true };
-    if (target.includes("products")) return { status: 409, error: { code: "DUPLICATE_PRODUCT_SKU", message: "A product with this SKU already exists in this store." }, mapped: true };
-    if (target.includes("stores") && (target.includes("slug") || target.includes("default_subdomain"))) return { status: 409, error: { code: "DUPLICATE_STORE_SLUG", message: "رابط المتجر مستخدم بالفعل." }, mapped: true };
+    if (target.includes("product_categories"))
+      return {
+        status: 409,
+        error: {
+          code: "DUPLICATE_CATEGORY",
+          message: "A category with this name already exists in this store.",
+        },
+        mapped: true,
+      };
+    if (target.includes("coupons"))
+      return {
+        status: 409,
+        error: {
+          code: "DUPLICATE_COUPON_CODE",
+          message: "A coupon with this code already exists in this store.",
+        },
+        mapped: true,
+      };
+    if (target.includes("product_variants"))
+      return {
+        status: 409,
+        error: {
+          code: "DUPLICATE_VARIANT_SKU",
+          message: "A variant with this SKU already exists in this store.",
+        },
+        mapped: true,
+      };
+    if (target.includes("products"))
+      return {
+        status: 409,
+        error: {
+          code: "DUPLICATE_PRODUCT_SKU",
+          message: "A product with this SKU already exists in this store.",
+        },
+        mapped: true,
+      };
+    if (
+      target.includes("stores") &&
+      (target.includes("slug") || target.includes("default_subdomain"))
+    )
+      return {
+        status: 409,
+        error: { code: "DUPLICATE_STORE_SLUG", message: "رابط المتجر مستخدم بالفعل." },
+        mapped: true,
+      };
     if (target.includes("phone_normalized")) {
       // The MODEL decides, not the column name — the two share it. Relying on
       // the index name here does not work: Prisma reports the column.
       const model = (error.meta as { modelName?: unknown } | undefined)?.modelName;
-      if (model === "Merchant") return { status: 409, error: { code: "DUPLICATE_MERCHANT_PHONE", message: "رقم الهاتف مسجَّل لحساب تاجر آخر على المنصة." }, mapped: true };
-      return { status: 409, error: { code: "DUPLICATE_CUSTOMER_PHONE", message: "This phone is already registered in this store." }, mapped: true };
+      if (model === "Merchant")
+        return {
+          status: 409,
+          error: {
+            code: "DUPLICATE_MERCHANT_PHONE",
+            message: "رقم الهاتف مسجَّل لحساب تاجر آخر على المنصة.",
+          },
+          mapped: true,
+        };
+      return {
+        status: 409,
+        error: {
+          code: "DUPLICATE_CUSTOMER_PHONE",
+          message: "This phone is already registered in this store.",
+        },
+        mapped: true,
+      };
     }
-    if (target.includes("plan_upgrade_requests")) return { status: 409, error: { code: "DUPLICATE_UPGRADE_REQUEST", message: "لديك طلب ترقية معلق بالفعل — بانتظار مراجعة إدارة المنصة." }, mapped: true };
-    return { status: 409, error: { code: "DUPLICATE_IDENTITY", message: "An account with this identity already exists in this permitted scope." }, mapped: true };
+    if (target.includes("plan_upgrade_requests"))
+      return {
+        status: 409,
+        error: {
+          code: "DUPLICATE_UPGRADE_REQUEST",
+          message: "لديك طلب ترقية معلق بالفعل — بانتظار مراجعة إدارة المنصة.",
+        },
+        mapped: true,
+      };
+    return {
+      status: 409,
+      error: {
+        code: "DUPLICATE_IDENTITY",
+        message: "An account with this identity already exists in this permitted scope.",
+      },
+      mapped: true,
+    };
   }
   // PG-2: the category tree is guarded in TWO layers — the service walks it in
   // TypeScript, and `codiq_guard_category_cycle` re-checks it in SQL under a
@@ -291,10 +477,25 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
   // `purge_block_requires_deleted`) is a broken invariant that MUST stay a 500.
   if (isCheckViolation(error) && message.includes("product_categories")) {
     if (message.includes("would exceed")) {
-      return { status: 422, error: { code: "CATEGORY_DEPTH_EXCEEDED", message: "الحد الأقصى لعمق شجرة التصنيفات هو 3 مستويات." }, mapped: true };
+      return {
+        status: 422,
+        error: {
+          code: "CATEGORY_DEPTH_EXCEEDED",
+          message: "الحد الأقصى لعمق شجرة التصنيفات هو 3 مستويات.",
+        },
+        mapped: true,
+      };
     }
     if (message.includes("cycle") || message.includes("parent chain")) {
-      return { status: 422, error: { code: "INVALID_CATEGORY_PARENT", message: "التصنيف الأب المحدد غير صالح — لا يمكن أن يكون التصنيف تحت أحد تصنيفاته الفرعية." }, mapped: true };
+      return {
+        status: 422,
+        error: {
+          code: "INVALID_CATEGORY_PARENT",
+          message:
+            "التصنيف الأب المحدد غير صالح — لا يمكن أن يكون التصنيف تحت أحد تصنيفاته الفرعية.",
+        },
+        mapped: true,
+      };
     }
   }
   // PG-2: a restricting foreign key is a MERCHANT-FACING conflict, not a server
@@ -306,8 +507,20 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
   // the raw-SQL path ($executeRaw), which never becomes a Prisma P2003.
   if (isForeignKeyViolation(error)) {
     const rule = fkRuleFor(foreignKeyConstraintName(error));
-    if (rule) return { status: rule.status, error: { code: rule.code, message: rule.message, hint: "deactivate" }, mapped: true };
-    return { status: 409, error: { code: "RESOURCE_REFERENCED", message: "لا يمكن تنفيذ العملية: هذا العنصر مرتبط بسجلات أخرى." }, mapped: true };
+    if (rule)
+      return {
+        status: rule.status,
+        error: { code: rule.code, message: rule.message, hint: "deactivate" },
+        mapped: true,
+      };
+    return {
+      status: 409,
+      error: {
+        code: "RESOURCE_REFERENCED",
+        message: "لا يمكن تنفيذ العملية: هذا العنصر مرتبط بسجلات أخرى.",
+      },
+      mapped: true,
+    };
   }
   // 20-2 gate. `express.json({ limit: "1mb" })` refuses two things before any
   // route runs, and both were falling through to the 500 below — so a client
@@ -321,10 +534,21 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
   // that must keep its 500 rather than be reported to the caller as his fault.
   const bodyParser = error as { type?: unknown; status?: unknown };
   if (bodyParser?.type === "entity.parse.failed") {
-    return { status: 400, error: { code: "INVALID_JSON_BODY", message: "جسم الطلب ليس JSON صالحاً." }, mapped: true };
+    return {
+      status: 400,
+      error: { code: "INVALID_JSON_BODY", message: "جسم الطلب ليس JSON صالحاً." },
+      mapped: true,
+    };
   }
   if (bodyParser?.type === "entity.too.large") {
-    return { status: 413, error: { code: "REQUEST_BODY_TOO_LARGE", message: "حجم الطلب يتجاوز الحد المسموح (1 ميغابايت)." }, mapped: true };
+    return {
+      status: 413,
+      error: {
+        code: "REQUEST_BODY_TOO_LARGE",
+        message: "حجم الطلب يتجاوز الحد المسموح (1 ميغابايت).",
+      },
+      mapped: true,
+    };
   }
   // A lost race that outlived its retry budget is NOT a fault we own, and
   // answering 500 says it is.
@@ -347,9 +571,21 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
   // including the two body-parser shapes, which are about the REQUEST and can
   // never be a Prisma error — so this can only ever catch a genuine lost race.
   if (isRetryableTransactionError(error)) {
-    return { status: 503, error: { code: "TRANSACTION_CONTENTION", message: "الخدمة مزدحمة هذه اللحظة ولم تكتمل العملية. أعد المحاولة بعد ثوانٍ — لم يُخصم شيء ولم يُسجَّل طلب." }, mapped: true };
+    return {
+      status: 503,
+      error: {
+        code: "TRANSACTION_CONTENTION",
+        message:
+          "الخدمة مزدحمة هذه اللحظة ولم تكتمل العملية. أعد المحاولة بعد ثوانٍ — لم يُخصم شيء ولم يُسجَّل طلب.",
+      },
+      mapped: true,
+    };
   }
-  return { status: 500, error: { code: "INTERNAL_ERROR", message: "Unexpected server error." }, mapped: false };
+  return {
+    status: 500,
+    error: { code: "INTERNAL_ERROR", message: "Unexpected server error." },
+    mapped: false,
+  };
 }
 
 /**

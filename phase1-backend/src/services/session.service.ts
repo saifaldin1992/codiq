@@ -51,26 +51,71 @@ function tableFor(kind: IdentityKind) {
   // cannot carry `prisma.x` across. It is returned from HERE rather than from a
   // second lookup so this really does stay the only place that knows there are
   // four tables — a second switch would drift the moment a fifth identity exists.
-  if (kind === "platform_owner") return { model: prisma.platformOwnerSession, owner: "platformOwnerId" as const, name: "platformOwnerSession" as const };
-  if (kind === "merchant") return { model: prisma.merchantSession, owner: "merchantId" as const, name: "merchantSession" as const };
-  if (kind === "staff") return { model: prisma.staffSession, owner: "staffId" as const, name: "staffSession" as const };
+  if (kind === "platform_owner")
+    return {
+      model: prisma.platformOwnerSession,
+      owner: "platformOwnerId" as const,
+      name: "platformOwnerSession" as const,
+    };
+  if (kind === "merchant")
+    return {
+      model: prisma.merchantSession,
+      owner: "merchantId" as const,
+      name: "merchantSession" as const,
+    };
+  if (kind === "staff")
+    return { model: prisma.staffSession, owner: "staffId" as const, name: "staffSession" as const };
   // 19-ب: the fifth identity, explicit — the customer fallback below must
   // never silently absorb a platform-staff session.
-  if (kind === "platform_staff") return { model: prisma.platformStaffSession, owner: "platformStaffId" as const, name: "platformStaffSession" as const };
+  if (kind === "platform_staff")
+    return {
+      model: prisma.platformStaffSession,
+      owner: "platformStaffId" as const,
+      name: "platformStaffSession" as const,
+    };
   // Marketplace M4: the sixth identity, explicit for the same reason.
-  if (kind === "shopper") return { model: prisma.shopperSession, owner: "shopperId" as const, name: "shopperSession" as const };
-  return { model: prisma.customerSession, owner: "customerId" as const, name: "customerSession" as const };
+  if (kind === "shopper")
+    return {
+      model: prisma.shopperSession,
+      owner: "shopperId" as const,
+      name: "shopperSession" as const,
+    };
+  return {
+    model: prisma.customerSession,
+    owner: "customerId" as const,
+    name: "customerSession" as const,
+  };
 }
 
 /** Live means: not revoked, and not expired. Both, because either alone lies. */
 function liveWhere(claims: SessionClaims, now: Date) {
   const { owner } = tableFor(claims.identityKind);
-  return { [owner]: claims.subjectId, revokedAt: null, expiresAt: { gt: now } } as Record<string, unknown>;
+  return { [owner]: claims.subjectId, revokedAt: null, expiresAt: { gt: now } } as Record<
+    string,
+    unknown
+  >;
 }
 
-export async function listSessions(claims: SessionClaims, now = new Date()): Promise<{ sessions: SessionView[] }> {
+export async function listSessions(
+  claims: SessionClaims,
+  now = new Date()
+): Promise<{ sessions: SessionView[] }> {
   const { model } = tableFor(claims.identityKind);
-  const rows = await (model as { findMany: (args: unknown) => Promise<Array<{ id: string; userAgent: string | null; createdAt: Date; lastSeenAt: Date | null; expiresAt: Date }>> }).findMany({
+  const rows = await (
+    model as {
+      findMany: (
+        args: unknown
+      ) => Promise<
+        Array<{
+          id: string;
+          userAgent: string | null;
+          createdAt: Date;
+          lastSeenAt: Date | null;
+          expiresAt: Date;
+        }>
+      >;
+    }
+  ).findMany({
     where: liveWhere(claims, now),
     orderBy: [{ lastSeenAt: "desc" }, { createdAt: "desc" }],
     take: 50,
@@ -106,12 +151,22 @@ export async function endCurrentSession(claims: SessionClaims, now = new Date())
  * looks like a bug to the person doing it: the page he is reading logs itself
  * out mid-click. Signing out is a different, clearly-labelled action.
  */
-export async function revokeSession(claims: SessionClaims, sessionId: string, now = new Date()): Promise<void> {
+export async function revokeSession(
+  claims: SessionClaims,
+  sessionId: string,
+  now = new Date()
+): Promise<void> {
   if (sessionId === claims.sessionId) {
-    throw new HttpError(422, "CANNOT_REVOKE_CURRENT_SESSION", "هذه جلستك الحالية. استخدم «تسجيل الخروج» لإنهائها.");
+    throw new HttpError(
+      422,
+      "CANNOT_REVOKE_CURRENT_SESSION",
+      "هذه جلستك الحالية. استخدم «تسجيل الخروج» لإنهائها."
+    );
   }
   const { model, owner } = tableFor(claims.identityKind);
-  const result = await (model as { updateMany: (args: unknown) => Promise<{ count: number }> }).updateMany({
+  const result = await (
+    model as { updateMany: (args: unknown) => Promise<{ count: number }> }
+  ).updateMany({
     where: { id: sessionId, [owner]: claims.subjectId, revokedAt: null },
     data: { revokedAt: now },
   });
@@ -125,9 +180,14 @@ export async function revokeSession(claims: SessionClaims, sessionId: string, no
  * something, and the reason it keeps the current one alive: he needs to still be
  * signed in to change his password immediately afterwards.
  */
-export async function revokeOtherSessions(claims: SessionClaims, now = new Date()): Promise<{ revoked: number }> {
+export async function revokeOtherSessions(
+  claims: SessionClaims,
+  now = new Date()
+): Promise<{ revoked: number }> {
   const { model, owner } = tableFor(claims.identityKind);
-  const result = await (model as { updateMany: (args: unknown) => Promise<{ count: number }> }).updateMany({
+  const result = await (
+    model as { updateMany: (args: unknown) => Promise<{ count: number }> }
+  ).updateMany({
     where: { [owner]: claims.subjectId, revokedAt: null, id: { not: claims.sessionId } },
     data: { revokedAt: now },
   });
@@ -149,10 +209,12 @@ export async function revokeOtherSessions(claims: SessionClaims, now = new Date(
 export async function revokeOtherSessionsWithin(
   tx: Prisma.TransactionClient,
   claims: SessionClaims,
-  now: Date,
+  now: Date
 ): Promise<number> {
   const { owner, name } = tableFor(claims.identityKind);
-  const model = (tx as unknown as Record<string, { updateMany: (args: unknown) => Promise<{ count: number }> }>)[name]!;
+  const model = (
+    tx as unknown as Record<string, { updateMany: (args: unknown) => Promise<{ count: number }> }>
+  )[name]!;
   const result = await model.updateMany({
     where: { [owner]: claims.subjectId, revokedAt: null, id: { not: claims.sessionId } },
     data: { revokedAt: now },
@@ -181,10 +243,12 @@ export async function revokeAllSessionsWithin(
   tx: Prisma.TransactionClient,
   kind: IdentityKind,
   subjectId: string,
-  now: Date,
+  now: Date
 ): Promise<number> {
   const { owner, name } = tableFor(kind);
-  const model = (tx as unknown as Record<string, { updateMany: (args: unknown) => Promise<{ count: number }> }>)[name]!;
+  const model = (
+    tx as unknown as Record<string, { updateMany: (args: unknown) => Promise<{ count: number }> }>
+  )[name]!;
   const result = await model.updateMany({
     where: { [owner]: subjectId, revokedAt: null },
     data: { revokedAt: now },
@@ -224,5 +288,7 @@ export function touchSession(claims: SessionClaims, request: Request, now = new 
       },
       data: { lastSeenAt: now, userAgent: userAgentOf(request) },
     })
-    .catch(() => { /* deliberately silent — see the note above */ });
+    .catch(() => {
+      /* deliberately silent — see the note above */
+    });
 }

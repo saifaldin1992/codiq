@@ -28,7 +28,14 @@ import { encodeListCursor, keysetWhere, parseListLimit, readListCursor } from ".
 import { assertDemoWritable } from "../../demo/demo-mode.js";
 import { assertWithinPlanLimit } from "../entitlement.service.js";
 import { recordAuditEvent, type AuditActor } from "./audit-log.service.js";
-import { LIVE, TRASHED, TRASH_ENTITY_TYPES, TRASH_RETENTION_DAYS, purgeAtFor, type TrashEntityType } from "./constants.js";
+import {
+  LIVE,
+  TRASHED,
+  TRASH_ENTITY_TYPES,
+  TRASH_RETENTION_DAYS,
+  purgeAtFor,
+  type TrashEntityType,
+} from "./constants.js";
 import { reasonForBlockingTable } from "./fk-violations.js";
 
 export interface SoftDeleteResult {
@@ -62,7 +69,11 @@ export interface RestoreOverrides {
 
 export function assertTrashEntityType(value: unknown): TrashEntityType {
   if (typeof value !== "string" || !TRASH_ENTITY_TYPES.includes(value as TrashEntityType)) {
-    throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested trash entity type does not exist.");
+    throw new HttpError(
+      404,
+      "RESOURCE_NOT_FOUND",
+      "The requested trash entity type does not exist."
+    );
   }
   return value as TrashEntityType;
 }
@@ -70,12 +81,22 @@ export function assertTrashEntityType(value: unknown): TrashEntityType {
 function overrideText(value: unknown, field: string, maxLength: number): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "string" || !value.trim() || value.trim().length > maxLength) {
-    throw new HttpError(422, "INVALID_INPUT", `${field} must be a non-empty string within ${maxLength} characters.`);
+    throw new HttpError(
+      422,
+      "INVALID_INPUT",
+      `${field} must be a non-empty string within ${maxLength} characters.`
+    );
   }
   return value.trim();
 }
 
-type SkuConflict = { scope: "product" | "variant"; variantId?: string; sku: string; liveId: string; liveName: string };
+type SkuConflict = {
+  scope: "product" | "variant";
+  variantId?: string;
+  sku: string;
+  liveId: string;
+  liveName: string;
+};
 
 function skuConflictError(conflicts: SkuConflict[]): HttpError {
   const first = conflicts[0]!;
@@ -83,7 +104,7 @@ function skuConflictError(conflicts: SkuConflict[]): HttpError {
     409,
     "SKU_TAKEN_BY_ACTIVE_PRODUCT",
     `الرمز «${first.sku}» يحمله الآن منتج آخر: «${first.liveName}». اختر رمزاً جديداً للمنتج المستعاد.`,
-    { conflicts },
+    { conflicts }
   );
 }
 
@@ -91,16 +112,32 @@ function skuConflictError(conflicts: SkuConflict[]): HttpError {
 // Delete
 // ---------------------------------------------------------------------------
 
-export async function softDelete(entityType: TrashEntityType, storeId: string, id: string, actor: AuditActor): Promise<SoftDeleteResult> {
-  const outcome = entityType === "product" ? await softDeleteProduct(storeId, id, actor)
-    : entityType === "product_category" ? await softDeleteCategory(storeId, id, actor)
-    : entityType === "coupon" ? await softDeleteCoupon(storeId, id, actor)
-    : await softDeleteMembership(storeId, id, actor);
+export async function softDelete(
+  entityType: TrashEntityType,
+  storeId: string,
+  id: string,
+  actor: AuditActor
+): Promise<SoftDeleteResult> {
+  const outcome =
+    entityType === "product"
+      ? await softDeleteProduct(storeId, id, actor)
+      : entityType === "product_category"
+        ? await softDeleteCategory(storeId, id, actor)
+        : entityType === "coupon"
+          ? await softDeleteCoupon(storeId, id, actor)
+          : await softDeleteMembership(storeId, id, actor);
   return withKeptPrediction(storeId, outcome);
 }
 
 function result(entityType: TrashEntityType, id: string, deletedAt: Date): SoftDeleteResult {
-  return { id, entityType, deletedAt, purgeAt: purgeAtFor(deletedAt), keptForRecords: false, keptReason: null };
+  return {
+    id,
+    entityType,
+    deletedAt,
+    purgeAt: purgeAtFor(deletedAt),
+    keptForRecords: false,
+    keptReason: null,
+  };
 }
 
 /**
@@ -111,19 +148,34 @@ function result(entityType: TrashEntityType, id: string, deletedAt: Date): SoftD
  * Runs after the transaction commits: it is a read, and a storage-shaped delay
  * here must not hold write locks on the row the merchant just removed.
  */
-async function withKeptPrediction(storeId: string, outcome: SoftDeleteResult): Promise<SoftDeleteResult> {
+async function withKeptPrediction(
+  storeId: string,
+  outcome: SoftDeleteResult
+): Promise<SoftDeleteResult> {
   const kept = await keptForRecordsIds(outcome.entityType, storeId, [outcome.id]);
   const reason = kept.get(outcome.id);
   return reason ? { ...outcome, keptForRecords: true, keptReason: reason } : outcome;
 }
 
-async function softDeleteProduct(storeId: string, id: string, actor: AuditActor): Promise<SoftDeleteResult> {
+async function softDeleteProduct(
+  storeId: string,
+  id: string,
+  actor: AuditActor
+): Promise<SoftDeleteResult> {
   return prisma.$transaction(async (tx) => {
     const product = await tx.product.findFirst({
       where: { id, storeId, ...LIVE },
-      include: { variants: { where: LIVE, orderBy: [{ isDefault: "desc" }, { position: "asc" }] }, images: { select: { id: true } } },
+      include: {
+        variants: { where: LIVE, orderBy: [{ isDefault: "desc" }, { position: "asc" }] },
+        images: { select: { id: true } },
+      },
     });
-    if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in this store.");
+    if (!product)
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested product was not found in this store."
+      );
 
     // The two guards that survive owner decision (ب): both protect an operation
     // happening RIGHT NOW. «Sold two months ago» is not one of them — a product
@@ -137,13 +189,27 @@ async function softDeleteProduct(storeId: string, id: string, actor: AuditActor)
     // PRODUCT_UNAVAILABLE — no sale, no stock move, no money — and the row waits
     // in the trash carrying the «موجود في سلة زبون» badge. Closing it properly is
     // a BEFORE INSERT trigger on cart_items (backlog PG-2/ع-5), not a comment.
-    const inLiveCart = await tx.cartItem.count({ where: { productId: product.id, storeId, cart: { status: "active" } } });
+    const inLiveCart = await tx.cartItem.count({
+      where: { productId: product.id, storeId, cart: { status: "active" } },
+    });
     if (inLiveCart > 0) {
-      throw new HttpError(409, "PRODUCT_IN_ACTIVE_CART", "هذا المنتج موجود الآن في سلة زبون نشطة — لا يمكن إزالته أثناء عملية شراء جارية.", { hint: "deactivate" });
+      throw new HttpError(
+        409,
+        "PRODUCT_IN_ACTIVE_CART",
+        "هذا المنتج موجود الآن في سلة زبون نشطة — لا يمكن إزالته أثناء عملية شراء جارية.",
+        { hint: "deactivate" }
+      );
     }
-    const activeReservations = await tx.inventoryReservation.count({ where: { productId: product.id, storeId, status: "active" } });
+    const activeReservations = await tx.inventoryReservation.count({
+      where: { productId: product.id, storeId, status: "active" },
+    });
     if (activeReservations > 0) {
-      throw new HttpError(409, "PRODUCT_HAS_ACTIVE_RESERVATION", "هذا المنتج عليه حجز مخزون نشط لطلب قائم — لا يمكن إزالته الآن.", { hint: "deactivate" });
+      throw new HttpError(
+        409,
+        "PRODUCT_HAS_ACTIVE_RESERVATION",
+        "هذا المنتج عليه حجز مخزون نشط لطلب قائم — لا يمكن إزالته الآن.",
+        { hint: "deactivate" }
+      );
     }
 
     const eventId = await recordAuditEvent(tx, {
@@ -164,21 +230,39 @@ async function softDeleteProduct(storeId: string, id: string, actor: AuditActor)
         isActive: product.isActive,
         requiresPrescription: product.requiresPrescription,
         imageCount: product.images.length,
-        variants: product.variants.map((variant) => ({ id: variant.id, sku: variant.sku, name: variant.name, isDefault: variant.isDefault, isActive: variant.isActive })),
+        variants: product.variants.map((variant) => ({
+          id: variant.id,
+          sku: variant.sku,
+          name: variant.name,
+          isDefault: variant.isDefault,
+          isActive: variant.isActive,
+        })),
       },
     });
 
     const deletedAt = new Date();
     await tx.product.update({
       where: { id: product.id },
-      data: { deletedAt, deletedEventId: eventId, deletedWasActive: product.isActive, isActive: false, purgeBlockedAt: null, purgeBlockReason: null },
+      data: {
+        deletedAt,
+        deletedEventId: eventId,
+        deletedWasActive: product.isActive,
+        isActive: false,
+        purgeBlockedAt: null,
+        purgeBlockReason: null,
+      },
     });
     // Per-row, not updateMany: each variant carries its OWN `deletedWasActive`
     // snapshot, which is what lets a disabled variant come back disabled.
     for (const variant of product.variants) {
       await tx.productVariant.update({
         where: { id: variant.id },
-        data: { deletedAt, deletedEventId: eventId, deletedWasActive: variant.isActive, isActive: false },
+        data: {
+          deletedAt,
+          deletedEventId: eventId,
+          deletedWasActive: variant.isActive,
+          isActive: false,
+        },
       });
     }
 
@@ -187,30 +271,59 @@ async function softDeleteProduct(storeId: string, id: string, actor: AuditActor)
     // here belongs to expired / merged / converted carts: rows nobody can buy
     // from, which would otherwise block the purge forever. The version bump
     // keeps any client holding that cart honest.
-    const staleItems = await tx.cartItem.findMany({ where: { productId: product.id, storeId }, select: { id: true, cartId: true } });
+    const staleItems = await tx.cartItem.findMany({
+      where: { productId: product.id, storeId },
+      select: { id: true, cartId: true },
+    });
     if (staleItems.length) {
       await tx.cartItem.deleteMany({ where: { productId: product.id, storeId } });
       // Array.from, not a bare for…of over the Set: the ROOT tsconfig targets
       // ES5 and `pnpm check` compiles this file too.
       for (const cartId of Array.from(new Set(staleItems.map((item) => item.cartId)))) {
-        await tx.shoppingCart.update({ where: { id: cartId }, data: { version: { increment: 1 } } });
+        await tx.shoppingCart.update({
+          where: { id: cartId },
+          data: { version: { increment: 1 } },
+        });
       }
     }
     return result("product", product.id, deletedAt);
   });
 }
 
-async function softDeleteCategory(storeId: string, id: string, actor: AuditActor): Promise<SoftDeleteResult> {
+async function softDeleteCategory(
+  storeId: string,
+  id: string,
+  actor: AuditActor
+): Promise<SoftDeleteResult> {
   return prisma.$transaction(async (tx) => {
     const category = await tx.productCategory.findFirst({ where: { id, storeId, ...LIVE } });
-    if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in this store.");
-    const childCount = await tx.productCategory.count({ where: { parentCategoryId: category.id, storeId, ...LIVE } });
-    if (childCount > 0) throw new HttpError(409, "CATEGORY_HAS_CHILDREN", "لا يمكن حذف تصنيف يحتوي على تصنيفات فرعية. احذف الفروع أو انقلها أولاً.");
+    if (!category)
+      throw new HttpError(
+        404,
+        "CATEGORY_NOT_FOUND",
+        "The requested category was not found in this store."
+      );
+    const childCount = await tx.productCategory.count({
+      where: { parentCategoryId: category.id, storeId, ...LIVE },
+    });
+    if (childCount > 0)
+      throw new HttpError(
+        409,
+        "CATEGORY_HAS_CHILDREN",
+        "لا يمكن حذف تصنيف يحتوي على تصنيفات فرعية. احذف الفروع أو انقلها أولاً."
+      );
     // LIVE products only (plan §1.و exception 2): counting trashed ones would
     // leave the merchant unable, for 30 days, to delete a category he sees empty
     // — the very «looks like a bug» pattern decision (أ) rejected.
-    const productCount = await tx.product.count({ where: { categoryId: category.id, storeId, ...LIVE } });
-    if (productCount > 0) throw new HttpError(409, "CATEGORY_IN_USE", "لا يمكن حذف تصنيف ما زالت له منتجات. انقل منتجاته إلى تصنيف آخر أو احذفها أولاً.");
+    const productCount = await tx.product.count({
+      where: { categoryId: category.id, storeId, ...LIVE },
+    });
+    if (productCount > 0)
+      throw new HttpError(
+        409,
+        "CATEGORY_IN_USE",
+        "لا يمكن حذف تصنيف ما زالت له منتجات. انقل منتجاته إلى تصنيف آخر أو احذفها أولاً."
+      );
 
     const eventId = await recordAuditEvent(tx, {
       storeId,
@@ -219,18 +332,34 @@ async function softDeleteCategory(storeId: string, id: string, actor: AuditActor
       entityLabel: category.name,
       action: "soft_deleted",
       actor,
-      metadata: { name: category.name, normalizedName: category.normalizedName, parentCategoryId: category.parentCategoryId },
+      metadata: {
+        name: category.name,
+        normalizedName: category.normalizedName,
+        parentCategoryId: category.parentCategoryId,
+      },
     });
     const deletedAt = new Date();
-    await tx.productCategory.update({ where: { id: category.id }, data: { deletedAt, deletedEventId: eventId, purgeBlockedAt: null, purgeBlockReason: null } });
+    await tx.productCategory.update({
+      where: { id: category.id },
+      data: { deletedAt, deletedEventId: eventId, purgeBlockedAt: null, purgeBlockReason: null },
+    });
     return result("product_category", category.id, deletedAt);
   });
 }
 
-async function softDeleteCoupon(storeId: string, id: string, actor: AuditActor): Promise<SoftDeleteResult> {
+async function softDeleteCoupon(
+  storeId: string,
+  id: string,
+  actor: AuditActor
+): Promise<SoftDeleteResult> {
   return prisma.$transaction(async (tx) => {
     const coupon = await tx.coupon.findFirst({ where: { id, storeId, ...LIVE } });
-    if (!coupon) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested coupon was not found in this store.");
+    if (!coupon)
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested coupon was not found in this store."
+      );
     const eventId = await recordAuditEvent(tx, {
       storeId,
       entityType: "coupon",
@@ -238,36 +367,73 @@ async function softDeleteCoupon(storeId: string, id: string, actor: AuditActor):
       entityLabel: coupon.code,
       action: "soft_deleted",
       actor,
-      metadata: { code: coupon.code, kind: coupon.kind, isActive: coupon.isActive, startsAt: coupon.startsAt, endsAt: coupon.endsAt },
+      metadata: {
+        code: coupon.code,
+        kind: coupon.kind,
+        isActive: coupon.isActive,
+        startsAt: coupon.startsAt,
+        endsAt: coupon.endsAt,
+      },
     });
     const deletedAt = new Date();
     await tx.coupon.update({
       where: { id: coupon.id },
-      data: { deletedAt, deletedEventId: eventId, deletedWasActive: coupon.isActive, isActive: false, purgeBlockedAt: null, purgeBlockReason: null },
+      data: {
+        deletedAt,
+        deletedEventId: eventId,
+        deletedWasActive: coupon.isActive,
+        isActive: false,
+        purgeBlockedAt: null,
+        purgeBlockReason: null,
+      },
     });
     return result("coupon", coupon.id, deletedAt);
   });
 }
 
-async function softDeleteMembership(storeId: string, id: string, actor: AuditActor): Promise<SoftDeleteResult> {
+async function softDeleteMembership(
+  storeId: string,
+  id: string,
+  actor: AuditActor
+): Promise<SoftDeleteResult> {
   return prisma.$transaction(async (tx) => {
     const membership = await tx.storeStaffMembership.findFirst({
       where: { id, storeId, ...LIVE },
-      include: { staff: { select: { email: true, displayName: true } }, permissionOverrides: { select: { permissionCode: true, effect: true } } },
+      include: {
+        staff: { select: { email: true, displayName: true } },
+        permissionOverrides: { select: { permissionCode: true, effect: true } },
+      },
     });
-    if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested team membership was not found in this store.");
+    if (!membership)
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested team membership was not found in this store."
+      );
     assertDemoWritable("demo_staff", membership.staff.email);
 
     // New guard (plan §1.و): never remove the LAST membership that can still
     // manage the team — that is how a store locks itself out of its own roster.
-    if (membership.isActive && resolvePermissionSet(membership.roleCode, membership.permissionOverrides).has("team.manage")) {
+    if (
+      membership.isActive &&
+      resolvePermissionSet(membership.roleCode, membership.permissionOverrides).has("team.manage")
+    ) {
       const survivors = await tx.storeStaffMembership.findMany({
         where: { storeId, isActive: true, id: { not: membership.id }, ...LIVE },
-        select: { roleCode: true, permissionOverrides: { select: { permissionCode: true, effect: true } } },
+        select: {
+          roleCode: true,
+          permissionOverrides: { select: { permissionCode: true, effect: true } },
+        },
       });
-      const stillManaged = survivors.some((other) => resolvePermissionSet(other.roleCode, other.permissionOverrides).has("team.manage"));
+      const stillManaged = survivors.some((other) =>
+        resolvePermissionSet(other.roleCode, other.permissionOverrides).has("team.manage")
+      );
       if (!stillManaged) {
-        throw new HttpError(409, "LAST_TEAM_MANAGER", "لا يمكن إزالة آخر عضوية تملك صلاحية إدارة الفريق — أضف مديراً آخر أولاً.");
+        throw new HttpError(
+          409,
+          "LAST_TEAM_MANAGER",
+          "لا يمكن إزالة آخر عضوية تملك صلاحية إدارة الفريق — أضف مديراً آخر أولاً."
+        );
       }
     }
 
@@ -301,7 +467,10 @@ async function softDeleteMembership(storeId: string, id: string, actor: AuditAct
       },
     });
     // D14-07: removal takes effect immediately — open sessions die now.
-    await tx.staffSession.updateMany({ where: { membershipId: membership.id, revokedAt: null }, data: { revokedAt: deletedAt } });
+    await tx.staffSession.updateMany({
+      where: { membershipId: membership.id, revokedAt: null },
+      data: { revokedAt: deletedAt },
+    });
     // ق-227 — THE LAST MEMBERSHIP RELEASES THE ADDRESS.
     //
     // A store removes a MEMBERSHIP and never the person, which is right: he may
@@ -320,7 +489,10 @@ async function softDeleteMembership(storeId: string, id: string, actor: AuditAct
     });
     if (!stillEmployed) {
       await tx.staff.update({ where: { id: membership.staffId }, data: { deletedAt } });
-      await tx.staffSession.updateMany({ where: { staffId: membership.staffId, revokedAt: null }, data: { revokedAt: deletedAt } });
+      await tx.staffSession.updateMany({
+        where: { staffId: membership.staffId, revokedAt: null },
+        data: { revokedAt: deletedAt },
+      });
     }
     return result("staff_membership", membership.id, deletedAt);
   });
@@ -330,14 +502,25 @@ async function softDeleteMembership(storeId: string, id: string, actor: AuditAct
 // Restore
 // ---------------------------------------------------------------------------
 
-export async function restore(entityType: TrashEntityType, storeId: string, id: string, actor: AuditActor, overrides: RestoreOverrides = {}) {
+export async function restore(
+  entityType: TrashEntityType,
+  storeId: string,
+  id: string,
+  actor: AuditActor,
+  overrides: RestoreOverrides = {}
+) {
   if (entityType === "product") return restoreProduct(storeId, id, actor, overrides);
   if (entityType === "product_category") return restoreCategory(storeId, id, actor);
   if (entityType === "coupon") return restoreCoupon(storeId, id, actor, overrides);
   return restoreMembership(storeId, id, actor);
 }
 
-const CLEAR_DELETE_STAMP = { deletedAt: null, deletedEventId: null, purgeBlockedAt: null, purgeBlockReason: null } as const;
+const CLEAR_DELETE_STAMP = {
+  deletedAt: null,
+  deletedEventId: null,
+  purgeBlockedAt: null,
+  purgeBlockReason: null,
+} as const;
 
 type TrashTable = "products" | "product_categories" | "coupons" | "store_staff_memberships";
 
@@ -354,7 +537,12 @@ type TrashTable = "products" | "product_categories" | "coupons" | "store_staff_m
  *
  * `table` is a closed union, never caller input, so `Prisma.raw` is safe here.
  */
-async function lockTrashedRow(tx: Prisma.TransactionClient, table: TrashTable, id: string, storeId: string): Promise<boolean> {
+async function lockTrashedRow(
+  tx: Prisma.TransactionClient,
+  table: TrashTable,
+  id: string,
+  storeId: string
+): Promise<boolean> {
   const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
     SELECT id FROM ${Prisma.raw(table)}
     WHERE id = ${id}::uuid AND store_id = ${storeId}::uuid AND deleted_at IS NOT NULL
@@ -374,23 +562,49 @@ async function merchantIdForStore(tx: Prisma.TransactionClient, storeId: string)
  * back in a REAL tree, not under a parent that is itself in the bin. Returns
  * the ids revived; throws 409 CATEGORY_NAME_TAKEN naming the live holder.
  */
-async function reviveCategoryChain(tx: Prisma.TransactionClient, storeId: string, categoryId: string, actor: AuditActor): Promise<string[]> {
+async function reviveCategoryChain(
+  tx: Prisma.TransactionClient,
+  storeId: string,
+  categoryId: string,
+  actor: AuditActor
+): Promise<string[]> {
   const revived: string[] = [];
   let current: string | null = categoryId;
   const seen = new Set<string>();
   while (current && !seen.has(current)) {
     seen.add(current);
-    const category: { id: string; name: string; normalizedName: string; parentCategoryId: string | null; deletedAt: Date | null } | null =
-      await tx.productCategory.findFirst({ where: { id: current, storeId }, select: { id: true, name: true, normalizedName: true, parentCategoryId: true, deletedAt: true } });
+    const category: {
+      id: string;
+      name: string;
+      normalizedName: string;
+      parentCategoryId: string | null;
+      deletedAt: Date | null;
+    } | null = await tx.productCategory.findFirst({
+      where: { id: current, storeId },
+      select: {
+        id: true,
+        name: true,
+        normalizedName: true,
+        parentCategoryId: true,
+        deletedAt: true,
+      },
+    });
     if (!category) break;
     if (category.deletedAt) {
-      const holder = await tx.productCategory.findFirst({ where: { storeId, normalizedName: category.normalizedName, ...LIVE }, select: { id: true, name: true } });
+      const holder = await tx.productCategory.findFirst({
+        where: { storeId, normalizedName: category.normalizedName, ...LIVE },
+        select: { id: true, name: true },
+      });
       if (holder) {
         throw new HttpError(
           409,
           "CATEGORY_NAME_TAKEN",
           `اسم التصنيف «${category.name}» صار الآن لتصنيف حيّ آخر. اختر تصنيفاً بديلاً للمنتج المستعاد أو أعده بلا تصنيف.`,
-          { conflicts: [{ scope: "category", name: category.name, liveId: holder.id, liveName: holder.name }] },
+          {
+            conflicts: [
+              { scope: "category", name: category.name, liveId: holder.id, liveName: holder.name },
+            ],
+          }
         );
       }
       // Same lock as the entry point: an ancestor revived here is an expired
@@ -413,44 +627,96 @@ async function reviveCategoryChain(tx: Prisma.TransactionClient, storeId: string
   return revived;
 }
 
-async function restoreProduct(storeId: string, id: string, actor: AuditActor, overrides: RestoreOverrides) {
+async function restoreProduct(
+  storeId: string,
+  id: string,
+  actor: AuditActor,
+  overrides: RestoreOverrides
+) {
   const requestedSku = overrideText(overrides.sku, "sku", 80);
   const requestedCategoryRaw = overrides.categoryId;
   const variantSkuOverrides = new Map<string, string>();
   if (overrides.variantSkus !== undefined) {
-    if (typeof overrides.variantSkus !== "object" || overrides.variantSkus === null || Array.isArray(overrides.variantSkus)) {
-      throw new HttpError(422, "INVALID_INPUT", "variantSkus must be an object keyed by variant id.");
+    if (
+      typeof overrides.variantSkus !== "object" ||
+      overrides.variantSkus === null ||
+      Array.isArray(overrides.variantSkus)
+    ) {
+      throw new HttpError(
+        422,
+        "INVALID_INPUT",
+        "variantSkus must be an object keyed by variant id."
+      );
     }
-    for (const [variantId, value] of Object.entries(overrides.variantSkus as Record<string, unknown>)) {
+    for (const [variantId, value] of Object.entries(
+      overrides.variantSkus as Record<string, unknown>
+    )) {
       variantSkuOverrides.set(variantId, overrideText(value, `variantSkus.${variantId}`, 80)!);
     }
   }
 
   return prisma.$transaction(async (tx) => {
     const product = await tx.product.findFirst({ where: { id, storeId, ...TRASHED } });
-    if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in the trash of this store.");
+    if (!product)
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested product was not found in the trash of this store."
+      );
     if (!(await lockTrashedRow(tx, "products", product.id, storeId))) {
-      throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in the trash of this store.");
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested product was not found in the trash of this store."
+      );
     }
     // ح-1: deleting RELEASES the quota (a merchant at his cap must be able to
     // replace a product), so restoring must RE-SPEND it. Without this line the
     // ladder «delete 50 → create 50 → restore the 50» parks a free-plan store at
     // 150 products for good, and nothing re-checks it afterwards.
-    await assertWithinPlanLimit(tx, await merchantIdForStore(tx, storeId), "max_products", 1, "أو احذف منتجاً آخر لاستعادة هذا المنتج");
+    await assertWithinPlanLimit(
+      tx,
+      await merchantIdForStore(tx, storeId),
+      "max_products",
+      1,
+      "أو احذف منتجاً آخر لاستعادة هذا المنتج"
+    );
     // Only the variants that died in the SAME event come back — this is the
     // structural half of the promise, not a convention (plan §1.هـ).
-    const variants = await tx.productVariant.findMany({ where: { productId: product.id, storeId, ...TRASHED, deletedEventId: product.deletedEventId }, orderBy: [{ isDefault: "desc" }, { position: "asc" }] });
+    const variants = await tx.productVariant.findMany({
+      where: { productId: product.id, storeId, ...TRASHED, deletedEventId: product.deletedEventId },
+      orderBy: [{ isDefault: "desc" }, { position: "asc" }],
+    });
 
     const conflicts: SkuConflict[] = [];
     const nextSku = requestedSku ?? product.sku;
-    const productHolder = await tx.product.findFirst({ where: { storeId, sku: nextSku, ...LIVE }, select: { id: true, name: true } });
-    if (productHolder) conflicts.push({ scope: "product", sku: nextSku, liveId: productHolder.id, liveName: productHolder.name });
+    const productHolder = await tx.product.findFirst({
+      where: { storeId, sku: nextSku, ...LIVE },
+      select: { id: true, name: true },
+    });
+    if (productHolder)
+      conflicts.push({
+        scope: "product",
+        sku: nextSku,
+        liveId: productHolder.id,
+        liveName: productHolder.name,
+      });
     const nextVariantSkus = new Map<string, string>();
     for (const variant of variants) {
       const sku = variantSkuOverrides.get(variant.id) ?? variant.sku;
       nextVariantSkus.set(variant.id, sku);
-      const holder = await tx.productVariant.findFirst({ where: { storeId, sku, ...LIVE }, select: { id: true, name: true } });
-      if (holder) conflicts.push({ scope: "variant", variantId: variant.id, sku, liveId: holder.id, liveName: holder.name });
+      const holder = await tx.productVariant.findFirst({
+        where: { storeId, sku, ...LIVE },
+        select: { id: true, name: true },
+      });
+      if (holder)
+        conflicts.push({
+          scope: "variant",
+          variantId: variant.id,
+          sku,
+          liveId: holder.id,
+          liveName: holder.name,
+        });
     }
     if (conflicts.length) throw skuConflictError(conflicts);
 
@@ -460,9 +726,18 @@ async function restoreProduct(storeId: string, id: string, actor: AuditActor, ov
     if (requestedCategoryRaw !== undefined) {
       if (requestedCategoryRaw === null || requestedCategoryRaw === "") categoryId = null;
       else {
-        if (typeof requestedCategoryRaw !== "string") throw new HttpError(422, "INVALID_INPUT", "categoryId is invalid.");
-        const target = await tx.productCategory.findFirst({ where: { id: requestedCategoryRaw, storeId, ...LIVE }, select: { id: true } });
-        if (!target) throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in this store.");
+        if (typeof requestedCategoryRaw !== "string")
+          throw new HttpError(422, "INVALID_INPUT", "categoryId is invalid.");
+        const target = await tx.productCategory.findFirst({
+          where: { id: requestedCategoryRaw, storeId, ...LIVE },
+          select: { id: true },
+        });
+        if (!target)
+          throw new HttpError(
+            404,
+            "CATEGORY_NOT_FOUND",
+            "The requested category was not found in this store."
+          );
         categoryId = target.id;
       }
     } else if (categoryId) {
@@ -472,12 +747,24 @@ async function restoreProduct(storeId: string, id: string, actor: AuditActor, ov
     for (const variant of variants) {
       await tx.productVariant.update({
         where: { id: variant.id },
-        data: { deletedAt: null, deletedEventId: null, deletedWasActive: null, isActive: variant.deletedWasActive ?? false, sku: nextVariantSkus.get(variant.id)! },
+        data: {
+          deletedAt: null,
+          deletedEventId: null,
+          deletedWasActive: null,
+          isActive: variant.deletedWasActive ?? false,
+          sku: nextVariantSkus.get(variant.id)!,
+        },
       });
     }
     await tx.product.update({
       where: { id: product.id },
-      data: { ...CLEAR_DELETE_STAMP, deletedWasActive: null, isActive: product.deletedWasActive ?? false, sku: nextSku, categoryId },
+      data: {
+        ...CLEAR_DELETE_STAMP,
+        deletedWasActive: null,
+        isActive: product.deletedWasActive ?? false,
+        sku: nextSku,
+        categoryId,
+      },
     });
     await recordAuditEvent(tx, {
       storeId,
@@ -487,48 +774,91 @@ async function restoreProduct(storeId: string, id: string, actor: AuditActor, ov
       entitySecondary: nextSku,
       action: "restored",
       actor,
-      metadata: { sku: nextSku, previousSku: product.sku, categoryId, restoredVariants: variants.length },
+      metadata: {
+        sku: nextSku,
+        previousSku: product.sku,
+        categoryId,
+        restoredVariants: variants.length,
+      },
     });
-    return { id: product.id, entityType: "product" as const, sku: nextSku, categoryId, restoredVariants: variants.length };
+    return {
+      id: product.id,
+      entityType: "product" as const,
+      sku: nextSku,
+      categoryId,
+      restoredVariants: variants.length,
+    };
   });
 }
 
 async function restoreCategory(storeId: string, id: string, actor: AuditActor) {
   return prisma.$transaction(async (tx) => {
     const category = await tx.productCategory.findFirst({ where: { id, storeId, ...TRASHED } });
-    if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in the trash of this store.");
+    if (!category)
+      throw new HttpError(
+        404,
+        "CATEGORY_NOT_FOUND",
+        "The requested category was not found in the trash of this store."
+      );
     if (!(await lockTrashedRow(tx, "product_categories", category.id, storeId))) {
-      throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in the trash of this store.");
+      throw new HttpError(
+        404,
+        "CATEGORY_NOT_FOUND",
+        "The requested category was not found in the trash of this store."
+      );
     }
     await reviveCategoryChain(tx, storeId, category.id, actor);
     return { id: category.id, entityType: "product_category" as const, name: category.name };
   });
 }
 
-async function restoreCoupon(storeId: string, id: string, actor: AuditActor, overrides: RestoreOverrides) {
+async function restoreCoupon(
+  storeId: string,
+  id: string,
+  actor: AuditActor,
+  overrides: RestoreOverrides
+) {
   const requestedCode = overrideText(overrides.code, "code", 40);
   return prisma.$transaction(async (tx) => {
     const coupon = await tx.coupon.findFirst({ where: { id, storeId, ...TRASHED } });
-    if (!coupon) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested coupon was not found in the trash of this store.");
+    if (!coupon)
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested coupon was not found in the trash of this store."
+      );
     if (!(await lockTrashedRow(tx, "coupons", coupon.id, storeId))) {
-      throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested coupon was not found in the trash of this store.");
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested coupon was not found in the trash of this store."
+      );
     }
     const code = requestedCode ?? coupon.code;
     const codeNormalized = code.trim().toUpperCase();
-    const holder = await tx.coupon.findFirst({ where: { storeId, codeNormalized, ...LIVE }, select: { id: true, code: true } });
+    const holder = await tx.coupon.findFirst({
+      where: { storeId, codeNormalized, ...LIVE },
+      select: { id: true, code: true },
+    });
     if (holder) {
       throw new HttpError(
         409,
         "COUPON_CODE_TAKEN",
         `الرمز «${code}» يحمله الآن كوبون حيّ آخر. اختر رمزاً جديداً للكوبون المستعاد.`,
-        { conflicts: [{ scope: "coupon", code, liveId: holder.id, liveName: holder.code }] },
+        { conflicts: [{ scope: "coupon", code, liveId: holder.id, liveName: holder.code }] }
       );
     }
     // The validity window is NOT extended (plan §1.و exception 3): a coupon whose
     // endsAt has passed comes back EXPIRED. We do not back-date a commercial offer.
     await tx.coupon.update({
       where: { id: coupon.id },
-      data: { ...CLEAR_DELETE_STAMP, deletedWasActive: null, isActive: coupon.deletedWasActive ?? false, code, codeNormalized },
+      data: {
+        ...CLEAR_DELETE_STAMP,
+        deletedWasActive: null,
+        isActive: coupon.deletedWasActive ?? false,
+        code,
+        codeNormalized,
+      },
     });
     await recordAuditEvent(tx, {
       storeId,
@@ -539,7 +869,12 @@ async function restoreCoupon(storeId: string, id: string, actor: AuditActor, ove
       actor,
       metadata: { code, previousCode: coupon.code, endsAt: coupon.endsAt },
     });
-    return { id: coupon.id, entityType: "coupon" as const, code, expired: Boolean(coupon.endsAt && coupon.endsAt < new Date()) };
+    return {
+      id: coupon.id,
+      entityType: "coupon" as const,
+      code,
+      expired: Boolean(coupon.endsAt && coupon.endsAt < new Date()),
+    };
   });
 }
 
@@ -549,53 +884,94 @@ async function restoreMembership(storeId: string, id: string, actor: AuditActor)
       where: { id, storeId, ...TRASHED },
       include: { staff: { select: { email: true, displayName: true } } },
     });
-    if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested team membership was not found in the trash of this store.");
+    if (!membership)
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested team membership was not found in the trash of this store."
+      );
     if (!(await lockTrashedRow(tx, "store_staff_memberships", membership.id, storeId))) {
-      throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested team membership was not found in the trash of this store.");
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "The requested team membership was not found in the trash of this store."
+      );
     }
     // ح-1 on the seat count — but ONLY when the seat comes back OCCUPIED.
     // `merchantUsage.max_staff` counts `isActive` rows, so a membership that was
     // suspended before it was removed returns suspended and spends nothing;
     // refusing that restore would be a limit the merchant never crossed.
     if (membership.deletedWasActive) {
-      await assertWithinPlanLimit(tx, await merchantIdForStore(tx, storeId), "max_staff", 1, "أو أوقف موظفاً آخر لإعادة هذه العضوية");
+      await assertWithinPlanLimit(
+        tx,
+        await merchantIdForStore(tx, storeId),
+        "max_staff",
+        1,
+        "أو أوقف موظفاً آخر لإعادة هذه العضوية"
+      );
     }
     // The nicer special case (plan §1.أ): if the person is already back on the
     // team, the merchant HAS what he wanted — say so and link the live seat.
-    const holder = await tx.storeStaffMembership.findFirst({ where: { storeId, staffId: membership.staffId, ...LIVE }, select: { id: true } });
+    const holder = await tx.storeStaffMembership.findFirst({
+      where: { storeId, staffId: membership.staffId, ...LIVE },
+      select: { id: true },
+    });
     if (holder) {
       throw new HttpError(
         409,
         "STAFF_ALREADY_ON_TEAM",
         `${membership.staff.displayName} عاد إلى الفريق بالفعل — لا حاجة لاستعادة العضوية القديمة.`,
-        { conflicts: [{ scope: "staff_membership", email: membership.staff.email, liveId: holder.id, liveName: membership.staff.displayName }] },
+        {
+          conflicts: [
+            {
+              scope: "staff_membership",
+              email: membership.staff.email,
+              liveId: holder.id,
+              liveName: membership.staff.displayName,
+            },
+          ],
+        }
       );
     }
     // ق-227: the identity comes back with the seat — unless the address it holds
     // was claimed by someone else while nobody employed him. Refused by NAME
     // rather than by a 23505 from three layers down: the merchant is restoring a
     // seat and deserves to be told which person he cannot restore, and why.
-    const staffRow = await tx.staff.findUniqueOrThrow({ where: { id: membership.staffId }, select: { deletedAt: true, email: true } });
+    const staffRow = await tx.staff.findUniqueOrThrow({
+      where: { id: membership.staffId },
+      select: { deletedAt: true, email: true },
+    });
     if (staffRow.deletedAt) {
       const claimedElsewhere = await Promise.all([
-        tx.staff.findFirst({ where: { email: staffRow.email, deletedAt: null }, select: { id: true } }),
+        tx.staff.findFirst({
+          where: { email: staffRow.email, deletedAt: null },
+          select: { id: true },
+        }),
         tx.merchant.findFirst({ where: { email: staffRow.email }, select: { id: true } }),
         tx.platformOwner.findFirst({ where: { email: staffRow.email }, select: { id: true } }),
-        tx.platformStaff.findFirst({ where: { email: staffRow.email, deletedAt: null }, select: { id: true } }),
+        tx.platformStaff.findFirst({
+          where: { email: staffRow.email, deletedAt: null },
+          select: { id: true },
+        }),
       ]);
       if (claimedElsewhere.some(Boolean)) {
         throw new HttpError(
           409,
           "STAFF_EMAIL_TAKEN_SINCE",
           `${membership.staff.displayName} لم يعد يملك هذا البريد — سُجّل لحساب آخر بعد إزالته. أضِفه من جديد ببريد يخصّه.`,
-          { conflicts: [{ scope: "staff", email: staffRow.email }] },
+          { conflicts: [{ scope: "staff", email: staffRow.email }] }
         );
       }
       await tx.staff.update({ where: { id: membership.staffId }, data: { deletedAt: null } });
     }
     await tx.storeStaffMembership.update({
       where: { id: membership.id },
-      data: { ...CLEAR_DELETE_STAMP, deletedWasActive: null, isActive: membership.deletedWasActive ?? false, permissionVersion: { increment: 1 } },
+      data: {
+        ...CLEAR_DELETE_STAMP,
+        deletedWasActive: null,
+        isActive: membership.deletedWasActive ?? false,
+        permissionVersion: { increment: 1 },
+      },
     });
     // Overrides survive (they were never deleted); SESSIONS do not — the person
     // signs in again. Reviving a revoked session would resurrect a credential.
@@ -609,7 +985,11 @@ async function restoreMembership(storeId: string, id: string, actor: AuditActor)
       actor,
       metadata: { staffId: membership.staffId, roleCode: membership.roleCode },
     });
-    return { id: membership.id, entityType: "staff_membership" as const, email: membership.staff.email };
+    return {
+      id: membership.id,
+      entityType: "staff_membership" as const,
+      email: membership.staff.email,
+    };
   });
 }
 
@@ -665,15 +1045,25 @@ export const TRASH_GOVERNING_PERMISSION: Record<TrashEntityType, PermissionCode 
   staff_membership: "team.manage",
 };
 
-export function mayTouchTrashEntity(entityType: TrashEntityType, permissions: ReadonlySet<PermissionCode>): boolean {
+export function mayTouchTrashEntity(
+  entityType: TrashEntityType,
+  permissions: ReadonlySet<PermissionCode>
+): boolean {
   const governing = TRASH_GOVERNING_PERMISSION[entityType];
   return governing === null || permissions.has(governing);
 }
 
-export function assertMayTouchTrashEntity(entityType: TrashEntityType, permissions: ReadonlySet<PermissionCode>): void {
+export function assertMayTouchTrashEntity(
+  entityType: TrashEntityType,
+  permissions: ReadonlySet<PermissionCode>
+): void {
   const governing = TRASH_GOVERNING_PERMISSION[entityType];
   if (governing && !permissions.has(governing)) {
-    throw new HttpError(403, "STAFF_PERMISSION_DENIED", `This staff membership lacks the ${governing} permission.`);
+    throw new HttpError(
+      403,
+      "STAFF_PERMISSION_DENIED",
+      `This staff membership lacks the ${governing} permission.`
+    );
   }
 }
 
@@ -722,21 +1112,38 @@ export interface TrashPage {
  * Which trashed rows a restricting foreign key already holds. One grouped query
  * per referencing table, never one per row.
  */
-async function keptForRecordsIds(entityType: TrashEntityType, storeId: string, ids: string[]): Promise<Map<string, string>> {
+async function keptForRecordsIds(
+  entityType: TrashEntityType,
+  storeId: string,
+  ids: string[]
+): Promise<Map<string, string>> {
   const kept = new Map<string, string>();
   if (!ids.length) return kept;
   if (entityType === "product") {
     // order_items.product_id → products(id) ON DELETE RESTRICT. Scoped through
     // the order because order_items carries no store_id of its own.
-    const sold = await prisma.orderItem.groupBy({ by: ["productId"], where: { productId: { in: ids }, order: { storeId } } });
-    for (const row of sold) if (row.productId) kept.set(row.productId, reasonForBlockingTable("order_items"));
+    const sold = await prisma.orderItem.groupBy({
+      by: ["productId"],
+      where: { productId: { in: ids }, order: { storeId } },
+    });
+    for (const row of sold)
+      if (row.productId) kept.set(row.productId, reasonForBlockingTable("order_items"));
     return kept;
   }
   if (entityType === "coupon") {
-    const redeemed = await prisma.couponRedemption.groupBy({ by: ["couponId"], where: { couponId: { in: ids }, storeId } });
-    for (const row of redeemed) kept.set(row.couponId, reasonForBlockingTable("coupon_redemptions"));
-    const onOrders = await prisma.storeOrder.groupBy({ by: ["couponId"], where: { couponId: { in: ids }, storeId } });
-    for (const row of onOrders) if (row.couponId && !kept.has(row.couponId)) kept.set(row.couponId, reasonForBlockingTable("store_orders_coupon"));
+    const redeemed = await prisma.couponRedemption.groupBy({
+      by: ["couponId"],
+      where: { couponId: { in: ids }, storeId },
+    });
+    for (const row of redeemed)
+      kept.set(row.couponId, reasonForBlockingTable("coupon_redemptions"));
+    const onOrders = await prisma.storeOrder.groupBy({
+      by: ["couponId"],
+      where: { couponId: { in: ids }, storeId },
+    });
+    for (const row of onOrders)
+      if (row.couponId && !kept.has(row.couponId))
+        kept.set(row.couponId, reasonForBlockingTable("store_orders_coupon"));
     return kept;
   }
   if (entityType === "product_category") {
@@ -747,11 +1154,19 @@ async function keptForRecordsIds(entityType: TrashEntityType, storeId: string, i
     // ع-9: `storeId` is what lets this use products_store_category_idx by its
     // LEADING column. Without it Postgres scanned the whole products heap — from
     // inside an HTTP handler, and even for a category holding zero products.
-    const referencing = await prisma.product.findMany({ where: { categoryId: { in: ids }, storeId }, select: { id: true, categoryId: true } });
+    const referencing = await prisma.product.findMany({
+      where: { categoryId: { in: ids }, storeId },
+      select: { id: true, categoryId: true },
+    });
     if (!referencing.length) return kept;
-    const keptProducts = await keptForRecordsIds("product", storeId, referencing.map((product) => product.id));
+    const keptProducts = await keptForRecordsIds(
+      "product",
+      storeId,
+      referencing.map((product) => product.id)
+    );
     for (const product of referencing) {
-      if (product.categoryId && keptProducts.has(product.id)) kept.set(product.categoryId, reasonForBlockingTable("products_category"));
+      if (product.categoryId && keptProducts.has(product.id))
+        kept.set(product.categoryId, reasonForBlockingTable("products_category"));
     }
     return kept;
   }
@@ -765,7 +1180,11 @@ async function stampKeptForRecords(storeId: string, rows: TrashRow[]): Promise<v
   for (const entityType of TRASH_ENTITY_TYPES) {
     const ofType = rows.filter((row) => row.entityType === entityType);
     if (!ofType.length) continue;
-    const kept = await keptForRecordsIds(entityType, storeId, ofType.map((row) => row.id));
+    const kept = await keptForRecordsIds(
+      entityType,
+      storeId,
+      ofType.map((row) => row.id)
+    );
     for (const row of ofType) {
       const reason = kept.get(row.id);
       if (!reason) continue;
@@ -794,9 +1213,12 @@ export async function listTrash(
   permissions: ReadonlySet<PermissionCode>,
   rawEntityType?: unknown,
   rawLimit?: unknown,
-  rawCursor?: unknown,
+  rawCursor?: unknown
 ): Promise<TrashPage> {
-  const only = rawEntityType === undefined || rawEntityType === "" ? undefined : assertTrashEntityType(rawEntityType);
+  const only =
+    rawEntityType === undefined || rawEntityType === ""
+      ? undefined
+      : assertTrashEntityType(rawEntityType);
   if (only) assertMayTouchTrashEntity(only, permissions);
   const limit = parseListLimit(rawLimit, TRASH_PAGE_MAX, TRASH_PAGE_DEFAULT);
   const cursor = await readListCursor(TRASH_KIND, rawCursor, { legacyEncoded: legacyTrashCursor });
@@ -810,7 +1232,15 @@ export async function listTrash(
   if (wants("product")) {
     const rows = await prisma.product.findMany({
       where: { storeId, ...page },
-      select: { id: true, name: true, sku: true, deletedAt: true, purgeBlockedAt: true, purgeBlockReason: true, deletedEvent: deletedEventSelect },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        deletedAt: true,
+        purgeBlockedAt: true,
+        purgeBlockReason: true,
+        deletedEvent: deletedEventSelect,
+      },
       orderBy: order,
       take,
     });
@@ -819,7 +1249,14 @@ export async function listTrash(
   if (wants("product_category")) {
     const rows = await prisma.productCategory.findMany({
       where: { storeId, ...page },
-      select: { id: true, name: true, deletedAt: true, purgeBlockedAt: true, purgeBlockReason: true, deletedEvent: deletedEventSelect },
+      select: {
+        id: true,
+        name: true,
+        deletedAt: true,
+        purgeBlockedAt: true,
+        purgeBlockReason: true,
+        deletedEvent: deletedEventSelect,
+      },
       orderBy: order,
       take,
     });
@@ -828,7 +1265,15 @@ export async function listTrash(
   if (wants("coupon")) {
     const rows = await prisma.coupon.findMany({
       where: { storeId, ...page },
-      select: { id: true, code: true, kind: true, deletedAt: true, purgeBlockedAt: true, purgeBlockReason: true, deletedEvent: deletedEventSelect },
+      select: {
+        id: true,
+        code: true,
+        kind: true,
+        deletedAt: true,
+        purgeBlockedAt: true,
+        purgeBlockReason: true,
+        deletedEvent: deletedEventSelect,
+      },
       orderBy: order,
       take,
     });
@@ -837,11 +1282,19 @@ export async function listTrash(
   if (wants("staff_membership")) {
     const rows = await prisma.storeStaffMembership.findMany({
       where: { storeId, ...page },
-      select: { id: true, deletedAt: true, purgeBlockedAt: true, purgeBlockReason: true, staff: { select: { displayName: true, email: true } }, deletedEvent: deletedEventSelect },
+      select: {
+        id: true,
+        deletedAt: true,
+        purgeBlockedAt: true,
+        purgeBlockReason: true,
+        staff: { select: { displayName: true, email: true } },
+        deletedEvent: deletedEventSelect,
+      },
       orderBy: order,
       take,
     });
-    for (const row of rows) items.push(trashRow("staff_membership", row.id, row.staff.displayName, row.staff.email, row));
+    for (const row of rows)
+      items.push(trashRow("staff_membership", row.id, row.staff.displayName, row.staff.email, row));
   }
   items.sort(sortTrashDescending);
   const hasMore = items.length > limit;
@@ -853,7 +1306,14 @@ export async function listTrash(
   return {
     retentionDays: TRASH_RETENTION_DAYS,
     items: pageItems,
-    nextCursor: hasMore && pageItems.length ? encodeListCursor(TRASH_KIND, pageItems[pageItems.length - 1]!.deletedAt, pageItems[pageItems.length - 1]!.id) : null,
+    nextCursor:
+      hasMore && pageItems.length
+        ? encodeListCursor(
+            TRASH_KIND,
+            pageItems[pageItems.length - 1]!.deletedAt,
+            pageItems[pageItems.length - 1]!.id
+          )
+        : null,
   };
 }
 
@@ -862,7 +1322,12 @@ function trashRow(
   id: string,
   label: string,
   secondary: string | null,
-  row: { deletedAt: Date | null; purgeBlockedAt: Date | null; purgeBlockReason: string | null; deletedEvent: { actorLabel: string } | null },
+  row: {
+    deletedAt: Date | null;
+    purgeBlockedAt: Date | null;
+    purgeBlockReason: string | null;
+    deletedEvent: { actorLabel: string } | null;
+  }
 ): TrashRow {
   const deletedAt = row.deletedAt!;
   return {

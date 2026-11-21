@@ -134,7 +134,7 @@ function normalizeContactMobile(value: unknown, field: "phone" | "whatsapp"): st
     throw new HttpError(
       422,
       "INVALID_PLATFORM_CONTACT_PHONE",
-      `${field === "phone" ? "رقم التواصل" : "رقم واتساب"} يجب أن يكون رقم موبايل عراقياً بصيغة 07XXXXXXXXX أو \u200E+9647XXXXXXXXX.`,
+      `${field === "phone" ? "رقم التواصل" : "رقم واتساب"} يجب أن يكون رقم موبايل عراقياً بصيغة 07XXXXXXXXX أو \u200E+9647XXXXXXXXX.`
     );
   }
   return normalized;
@@ -152,7 +152,10 @@ export interface UpdatePlatformContactInput {
  * are the addresses every visitor is told to use to reach the platform, so a
  * change to them that left no trace would be a change nobody could later explain.
  */
-export async function updatePlatformContact(actor: PlatformActor, input: UpdatePlatformContactInput): Promise<PlatformContactAdminView> {
+export async function updatePlatformContact(
+  actor: PlatformActor,
+  input: UpdatePlatformContactInput
+): Promise<PlatformContactAdminView> {
   const email = normalizeEmail(input.email);
   const phone = normalizeContactMobile(input.phone, "phone");
   const rawWhatsapp = typeof input.whatsapp === "string" ? input.whatsapp.trim() : "";
@@ -162,10 +165,22 @@ export async function updatePlatformContact(actor: PlatformActor, input: UpdateP
   const override = whatsapp && whatsapp !== phone ? whatsapp : null;
 
   await prisma.$transaction(async (tx) => {
-    await tx.platformSetting.upsert({ where: { key: CONTACT_EMAIL_KEY }, create: { key: CONTACT_EMAIL_KEY, value: email }, update: { value: email } });
-    await tx.platformSetting.upsert({ where: { key: CONTACT_PHONE_KEY }, create: { key: CONTACT_PHONE_KEY, value: phone }, update: { value: phone } });
+    await tx.platformSetting.upsert({
+      where: { key: CONTACT_EMAIL_KEY },
+      create: { key: CONTACT_EMAIL_KEY, value: email },
+      update: { value: email },
+    });
+    await tx.platformSetting.upsert({
+      where: { key: CONTACT_PHONE_KEY },
+      create: { key: CONTACT_PHONE_KEY, value: phone },
+      update: { value: phone },
+    });
     if (override) {
-      await tx.platformSetting.upsert({ where: { key: CONTACT_WHATSAPP_KEY }, create: { key: CONTACT_WHATSAPP_KEY, value: override }, update: { value: override } });
+      await tx.platformSetting.upsert({
+        where: { key: CONTACT_WHATSAPP_KEY },
+        create: { key: CONTACT_WHATSAPP_KEY, value: override },
+        update: { value: override },
+      });
     } else {
       await tx.platformSetting.deleteMany({ where: { key: CONTACT_WHATSAPP_KEY } });
     }
@@ -174,7 +189,12 @@ export async function updatePlatformContact(actor: PlatformActor, input: UpdateP
       entityLabel: "معلومات التواصل",
       action: "contact_details_changed",
       actor,
-      metadata: { email, phone, whatsapp: override ?? phone, whatsappIsSeparate: override !== null },
+      metadata: {
+        email,
+        phone,
+        whatsapp: override ?? phone,
+        whatsappIsSeparate: override !== null,
+      },
     });
   });
 

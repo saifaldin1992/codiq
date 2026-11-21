@@ -17,11 +17,16 @@ export const posDeviceSchema = z.object({
 export const posTicketSchema = z.object({
   deviceId: z.string().uuid(),
   ticketId: z.string().uuid(),
-  lines: z.array(z.object({
-    variantId: z.string().uuid(),
-    quantity: z.number().int().min(1).max(10_000),
-    unitPriceIqd: z.number().int().min(0).max(1_000_000_000),
-  })).min(1).max(100),
+  lines: z
+    .array(
+      z.object({
+        variantId: z.string().uuid(),
+        quantity: z.number().int().min(1).max(10_000),
+        unitPriceIqd: z.number().int().min(0).max(1_000_000_000),
+      })
+    )
+    .min(1)
+    .max(100),
   discountIqd: z.number().int().min(0),
   totalIqd: z.number().int().min(0),
   customerName: z.string().trim().max(120).optional(),

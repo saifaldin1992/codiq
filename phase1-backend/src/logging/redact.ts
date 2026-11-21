@@ -94,7 +94,8 @@ export function fingerprint(value: string): string {
  * row id, it is not the token, and it is half of what makes «this device, this
  * request» answerable. The token itself is caught by `token`/`cookie`/`authoriz`.
  */
-const REDACT_KEY = /pass|secret|token|jwt|bearer|authoriz|cookie|totp|otp|mfa|recovery|credential|apikey|api_key|encryption|signature|objectkey|object_key|presign|privatekey|salt|hash/i;
+const REDACT_KEY =
+  /pass|secret|token|jwt|bearer|authoriz|cookie|totp|otp|mfa|recovery|credential|apikey|api_key|encryption|signature|objectkey|object_key|presign|privatekey|salt|hash/i;
 
 export function redactKey(key: string): boolean {
   return REDACT_KEY.test(key);

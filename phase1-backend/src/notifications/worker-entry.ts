@@ -23,17 +23,36 @@
  */
 import { prisma } from "../db/prisma.js";
 import { ABANDONED_CART_SCAN_INTERVAL_MS, scanAbandonedCarts } from "./abandoned-cart-scanner.js";
-import { purgeExpiredSoftDeletes, TRASH_PURGE_INTERVAL_MS } from "../services/soft-delete/purge-job.js";
-import { RETENTION_SWEEP_INTERVAL_MS, sweepOperationalRetention } from "../services/retention-job.js";
-import { releaseExpiredReservations, RESERVATION_EXPIRY_INTERVAL_MS } from "../services/reservation-expiry-job.js";
+import {
+  purgeExpiredSoftDeletes,
+  TRASH_PURGE_INTERVAL_MS,
+} from "../services/soft-delete/purge-job.js";
+import {
+  RETENTION_SWEEP_INTERVAL_MS,
+  sweepOperationalRetention,
+} from "../services/retention-job.js";
+import {
+  releaseExpiredReservations,
+  RESERVATION_EXPIRY_INTERVAL_MS,
+} from "../services/reservation-expiry-job.js";
 import { resolveNotificationProvider } from "./notification-provider.js";
-import { MERCHANT_DIGEST_SCAN_INTERVAL_MS, scanMerchantDigests } from "./merchant-digest-scanner.js";
-import { expireLapsedTrials, remindEndingTrials, TRIAL_EXPIRY_SCAN_INTERVAL_MS } from "./trial-expiry-scanner.js";
+import {
+  MERCHANT_DIGEST_SCAN_INTERVAL_MS,
+  scanMerchantDigests,
+} from "./merchant-digest-scanner.js";
+import {
+  expireLapsedTrials,
+  remindEndingTrials,
+  TRIAL_EXPIRY_SCAN_INTERVAL_MS,
+} from "./trial-expiry-scanner.js";
 import { RESTOCK_SCAN_INTERVAL_MS, scanRestocks } from "./restock-scanner.js";
 import { startOutboxWorker } from "./outbox-worker.js";
 import { logger } from "../logging/logger.js";
 import { HEALTH_WATCH_INTERVAL_MS, runHealthWatch } from "../services/platform-health.service.js";
-import { MAINTENANCE_TICK_INTERVAL_MS, tickMaintenanceWindows } from "../services/maintenance.service.js";
+import {
+  MAINTENANCE_TICK_INTERVAL_MS,
+  tickMaintenanceWindows,
+} from "../services/maintenance.service.js";
 import { JOB_TICK_MS, startJobScheduler, type ScheduledJob } from "../jobs/scheduler.js";
 import { isOutboxSignalMessage, setOutboxSignalSink } from "../jobs/outbox-signal.js";
 import { recomputeMarketMetrics } from "../modules/market-stores/metrics.service.js";
@@ -61,35 +80,96 @@ const provider = resolveNotificationProvider();
  */
 const JOBS: ScheduledJob[] = [
   // Phase 20B-2: only enqueues outbox rows; delivery stays with the loop below.
-  { name: "abandoned-cart", everyMs: intervalFromEnv(process.env.CODIQ_ABANDONED_CART_SCAN_INTERVAL_MS, ABANDONED_CART_SCAN_INTERVAL_MS), run: () => scanAbandonedCarts() },
+  {
+    name: "abandoned-cart",
+    everyMs: intervalFromEnv(
+      process.env.CODIQ_ABANDONED_CART_SCAN_INTERVAL_MS,
+      ABANDONED_CART_SCAN_INTERVAL_MS
+    ),
+    run: () => scanAbandonedCarts(),
+  },
   // CD-2: enqueues only; the marketing gate in the outbox worker decides whether each message may go out.
-  { name: "restock", everyMs: intervalFromEnv(process.env.CODIQ_RESTOCK_SCAN_INTERVAL_MS, RESTOCK_SCAN_INTERVAL_MS), run: () => scanRestocks() },
+  {
+    name: "restock",
+    everyMs: intervalFromEnv(process.env.CODIQ_RESTOCK_SCAN_INTERVAL_MS, RESTOCK_SCAN_INTERVAL_MS),
+    run: () => scanRestocks(),
+  },
   // MD-3: once-per-store-per-day is enforced by the outbox unique key, not by this schedule — so a missed or repeated pass changes nothing.
-  { name: "merchant-digest", everyMs: intervalFromEnv(process.env.CODIQ_MERCHANT_DIGEST_SCAN_INTERVAL_MS, MERCHANT_DIGEST_SCAN_INTERVAL_MS), run: () => scanMerchantDigests() },
+  {
+    name: "merchant-digest",
+    everyMs: intervalFromEnv(
+      process.env.CODIQ_MERCHANT_DIGEST_SCAN_INTERVAL_MS,
+      MERCHANT_DIGEST_SCAN_INTERVAL_MS
+    ),
+    run: () => scanMerchantDigests(),
+  },
   // ق-128: ends a lapsed free month by WRITING a free-plan row. Letting `ends_at`
   // merely pass would leave the merchant with no active subscription at all —
   // a dead dashboard and a dead checkout rather than a downgrade.
-  { name: "trial-expiry", everyMs: intervalFromEnv(process.env.CODIQ_TRIAL_EXPIRY_SCAN_INTERVAL_MS, TRIAL_EXPIRY_SCAN_INTERVAL_MS), run: async () => ({ reminded: await remindEndingTrials(), expired: await expireLapsedTrials() }) },
+  {
+    name: "trial-expiry",
+    everyMs: intervalFromEnv(
+      process.env.CODIQ_TRIAL_EXPIRY_SCAN_INTERVAL_MS,
+      TRIAL_EXPIRY_SCAN_INTERVAL_MS
+    ),
+    run: async () => ({
+      reminded: await remindEndingTrials(),
+      expired: await expireLapsedTrials(),
+    }),
+  },
   // ق-250: maintenance windows start and end on the CLOCK at read time; this job only
   // stamps the ones that ended and mails «it is over». A missed pass changes nothing.
-  { name: "maintenance-windows", everyMs: intervalFromEnv(process.env.CODIQ_MAINTENANCE_TICK_INTERVAL_MS, MAINTENANCE_TICK_INTERVAL_MS), run: () => tickMaintenanceWindows() },
+  {
+    name: "maintenance-windows",
+    everyMs: intervalFromEnv(
+      process.env.CODIQ_MAINTENANCE_TICK_INTERVAL_MS,
+      MAINTENANCE_TICK_INTERVAL_MS
+    ),
+    run: () => tickMaintenanceWindows(),
+  },
   // D-46: releases reservations older than 72 h whose order is still `new`, so an
   // abandoned COD order stops hiding stock from the storefront and the till.
-  { name: "reservation-expiry", everyMs: intervalFromEnv(process.env.CODIQ_RESERVATION_EXPIRY_INTERVAL_MS, RESERVATION_EXPIRY_INTERVAL_MS), run: () => releaseExpiredReservations() },
+  {
+    name: "reservation-expiry",
+    everyMs: intervalFromEnv(
+      process.env.CODIQ_RESERVATION_EXPIRY_INTERVAL_MS,
+      RESERVATION_EXPIRY_INTERVAL_MS
+    ),
+    run: () => releaseExpiredReservations(),
+  },
   // ق-188: the only one that watches the others rather than doing work of its own.
   // It cannot see THIS process dying; that needs a prober outside it (ق-235's
   // hourly Sentry monitor on /api/ready), and this is not a substitute for it.
-  { name: "health-watch", everyMs: intervalFromEnv(process.env.CODIQ_HEALTH_WATCH_INTERVAL_MS, HEALTH_WATCH_INTERVAL_MS), run: () => runHealthWatch(provider) },
+  {
+    name: "health-watch",
+    everyMs: intervalFromEnv(process.env.CODIQ_HEALTH_WATCH_INTERVAL_MS, HEALTH_WATCH_INTERVAL_MS),
+    run: () => runHealthWatch(provider),
+  },
   // PG-2: each expired row is hard-deleted in its own transaction and a
   // foreign-key refusal is a recorded outcome, not a crash.
-  { name: "trash-purger", everyMs: intervalFromEnv(process.env.CODIQ_TRASH_PURGE_INTERVAL_MS, TRASH_PURGE_INTERVAL_MS), run: () => purgeExpiredSoftDeletes() },
+  {
+    name: "trash-purger",
+    everyMs: intervalFromEnv(process.env.CODIQ_TRASH_PURGE_INTERVAL_MS, TRASH_PURGE_INTERVAL_MS),
+    run: () => purgeExpiredSoftDeletes(),
+  },
   // D-39: OPERATIONAL rows only — rate limits, dead sessions, settled
   // notifications, abandoned guest carts, spent idempotency keys. The audit and
   // ledger tables are never swept; `services/retention.ts` says why, at length.
   // Marketplace M1: the directory's scores, tiers and badges. Idempotent — a missed
   // or doubled pass only changes how fresh the numbers are.
-  { name: "market-metrics", everyMs: intervalFromEnv(process.env.CODIQ_MARKET_METRICS_INTERVAL_MS, 60 * 60 * 1000), run: async () => ({ ...(await recomputeMarketMetrics()), ...(await recomputeProductStats()) }) },
-  { name: "retention", everyMs: intervalFromEnv(process.env.CODIQ_RETENTION_SWEEP_INTERVAL_MS, RETENTION_SWEEP_INTERVAL_MS), run: () => sweepOperationalRetention() },
+  {
+    name: "market-metrics",
+    everyMs: intervalFromEnv(process.env.CODIQ_MARKET_METRICS_INTERVAL_MS, 60 * 60 * 1000),
+    run: async () => ({ ...(await recomputeMarketMetrics()), ...(await recomputeProductStats()) }),
+  },
+  {
+    name: "retention",
+    everyMs: intervalFromEnv(
+      process.env.CODIQ_RETENTION_SWEEP_INTERVAL_MS,
+      RETENTION_SWEEP_INTERVAL_MS
+    ),
+    run: () => sweepOperationalRetention(),
+  },
 ];
 
 const tickMs = intervalFromEnv(process.env.CODIQ_JOB_TICK_MS, JOB_TICK_MS);
@@ -104,7 +184,9 @@ logger.info("worker.started", { job: "outbox", provider: provider?.name ?? null 
  * one tick. `CODIQ_NOTIFICATIONS_INTERVAL_MS` still overrides it, and now means
  * what its name always implied: how long the worker may stay quiet.
  */
-const worker = startOutboxWorker(provider, { idleMaxMs: intervalFromEnv(process.env.CODIQ_NOTIFICATIONS_INTERVAL_MS, tickMs) });
+const worker = startOutboxWorker(provider, {
+  idleMaxMs: intervalFromEnv(process.env.CODIQ_NOTIFICATIONS_INTERVAL_MS, tickMs),
+});
 
 // TWO WAYS A ROW ARRIVES, AND BOTH WAKE THE SAME LOOP.
 //
@@ -113,7 +195,9 @@ const worker = startOutboxWorker(provider, { idleMaxMs: intervalFromEnv(process.
 //                    round-trip through the parent to tell a loop in their own
 //                    process that they just wrote a row
 setOutboxSignalSink(() => worker.wake());
-process.on("message", (message) => { if (isOutboxSignalMessage(message)) worker.wake(); });
+process.on("message", (message) => {
+  if (isOutboxSignalMessage(message)) worker.wake();
+});
 
 async function shutdown(signal: string) {
   logger.info("worker.stopping", { signal });

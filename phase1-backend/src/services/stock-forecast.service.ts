@@ -54,14 +54,24 @@ export interface StockForecast {
  * is not the same as being well stocked, and a UI that implies otherwise would
  * make the omission a claim.
  */
-export async function stockForecasts(storeId: string, options: { now?: Date; limit?: number } = {}): Promise<StockForecast[]> {
+export async function stockForecasts(
+  storeId: string,
+  options: { now?: Date; limit?: number } = {}
+): Promise<StockForecast[]> {
   const now = options.now ?? new Date();
   const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
   const since = new Date(now.getTime() - FORECAST_WINDOW_DAYS * 86_400_000);
 
-  const rows = await prisma.$queryRaw<Array<{
-    variant_id: string; product_id: string; name: string; sku: string | null; stock_quantity: number; sold: number;
-  }>>`
+  const rows = await prisma.$queryRaw<
+    Array<{
+      variant_id: string;
+      product_id: string;
+      name: string;
+      sku: string | null;
+      stock_quantity: number;
+      sold: number;
+    }>
+  >`
     SELECT v.id            AS variant_id,
            v.product_id    AS product_id,
            p.name || CASE WHEN v.is_default THEN '' ELSE ' — ' || v.name END AS name,
@@ -111,18 +121,33 @@ export async function stockForecasts(storeId: string, options: { now?: Date; lim
 }
 
 /** The forecast for ONE variant, or null when it has not sold enough to have one. */
-export async function stockForecastFor(storeId: string, variantId: string, now = new Date()): Promise<StockForecast | null> {
+export async function stockForecastFor(
+  storeId: string,
+  variantId: string,
+  now = new Date()
+): Promise<StockForecast | null> {
   const since = new Date(now.getTime() - FORECAST_WINDOW_DAYS * 86_400_000);
   const [variant, sold] = await Promise.all([
     prisma.productVariant.findFirst({
       where: { id: variantId, storeId, ...LIVE },
-      select: { id: true, productId: true, sku: true, name: true, isDefault: true, stockQuantity: true, product: { select: { name: true } } },
+      select: {
+        id: true,
+        productId: true,
+        sku: true,
+        name: true,
+        isDefault: true,
+        stockQuantity: true,
+        product: { select: { name: true } },
+      },
     }),
     prisma.orderItem.aggregate({
       // Scoped through the ORDER: order_items carries no store_id at all (see the
       // join in stockForecasts above), so the order is the only thing that
       // belongs to a store and the tenancy filter has to ride on it.
-      where: { variantId, order: { storeId, createdAt: { gte: since }, status: { notIn: NON_SELLING_STATUSES } } },
+      where: {
+        variantId,
+        order: { storeId, createdAt: { gte: since }, status: { notIn: NON_SELLING_STATUSES } },
+      },
       _sum: { quantity: true },
     }),
   ]);

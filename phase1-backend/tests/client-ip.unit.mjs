@@ -36,14 +36,25 @@ function fakeRequest(headers, ip) {
 // ============================================================
 // This is every local run, every test, every CI job, and production today. The
 // attacker's claim must buy him nothing at all.
-const spoofed = fakeRequest({ "cf-connecting-ip": "1.2.3.4", "x-forwarded-for": "5.6.7.8" }, "203.0.113.9");
-assert.equal(clientIpFrom(spoofed, null), "203.0.113.9", "ق-236: with no declared edge, a claimed address is ignored entirely — otherwise every limit on the platform is bypassed one header at a time");
+const spoofed = fakeRequest(
+  { "cf-connecting-ip": "1.2.3.4", "x-forwarded-for": "5.6.7.8" },
+  "203.0.113.9"
+);
+assert.equal(
+  clientIpFrom(spoofed, null),
+  "203.0.113.9",
+  "ق-236: with no declared edge, a claimed address is ignored entirely — otherwise every limit on the platform is bypassed one header at a time"
+);
 summary.spoofRefusedWhenNoEdge = true;
 
 // And the ordinary request is unchanged, which is what lets this ship before the
 // edge exists: nothing about today's behaviour moves.
 assert.equal(clientIpFrom(fakeRequest({}, "203.0.113.9"), null), "203.0.113.9");
-assert.equal(clientIpFrom(fakeRequest({}, undefined), null), "unknown", "a socket with no address still yields a usable bucket key rather than throwing");
+assert.equal(
+  clientIpFrom(fakeRequest({}, undefined), null),
+  "unknown",
+  "a socket with no address still yields a usable bucket key rather than throwing"
+);
 summary.unchangedToday = true;
 
 // ============================================================
@@ -52,8 +63,16 @@ summary.unchangedToday = true;
 // This is the whole point: without it, enabling Cloudflare silently collapses
 // every bucket into the edge's own address.
 const proxied = fakeRequest({ "cf-connecting-ip": "37.236.1.1" }, "172.71.0.5");
-assert.equal(clientIpFrom(proxied, "cf-connecting-ip"), "37.236.1.1", "ق-236: behind the declared edge, the shopper's address is the bucket key — not Cloudflare's");
-assert.notEqual(clientIpFrom(proxied, "cf-connecting-ip"), "172.71.0.5", "…and never the edge, which is the same address for every caller on the platform");
+assert.equal(
+  clientIpFrom(proxied, "cf-connecting-ip"),
+  "37.236.1.1",
+  "ق-236: behind the declared edge, the shopper's address is the bucket key — not Cloudflare's"
+);
+assert.notEqual(
+  clientIpFrom(proxied, "cf-connecting-ip"),
+  "172.71.0.5",
+  "…and never the edge, which is the same address for every caller on the platform"
+);
 summary.realCallerRecovered = true;
 
 // ============================================================
@@ -68,7 +87,11 @@ for (const [label, value] of [
   ["whitespace", "   "],
   ["absurdly long", "x".repeat(200)],
 ]) {
-  assert.equal(clientIpFrom(fakeRequest({ "cf-connecting-ip": value }, "172.71.0.5"), "cf-connecting-ip"), "172.71.0.5", `ق-236: ${label} is not one address — fall back to the socket rather than trust it`);
+  assert.equal(
+    clientIpFrom(fakeRequest({ "cf-connecting-ip": value }, "172.71.0.5"), "cf-connecting-ip"),
+    "172.71.0.5",
+    `ق-236: ${label} is not one address — fall back to the socket rather than trust it`
+  );
 }
 summary.malformedClaimRejected = "chain, empty, whitespace and oversized all fall back";
 

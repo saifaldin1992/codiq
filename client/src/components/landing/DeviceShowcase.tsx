@@ -42,7 +42,17 @@ const LAYOUTS: Record<number, { x: number; y: number; rotate: number; scale: num
 };
 
 function bar(x: number, y: number, width: number, height = 6, fill = LINE) {
-  return <rect key={`${x}-${y}-${width}`} x={x} y={y} width={width} height={height} rx={height / 2} fill={fill} />;
+  return (
+    <rect
+      key={`${x}-${y}-${width}`}
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      rx={height / 2}
+      fill={fill}
+    />
+  );
 }
 
 /** Shared chrome every screen sits under. */
@@ -74,7 +84,7 @@ function CatalogueScreen() {
               {bar(x, y + 65, 26, 5, "#E6ECF5")}
             </g>
           );
-        }),
+        })
       )}
       <rect x={12} y={298} width={128} height={16} rx={8} fill={FAINT} />
     </g>
@@ -116,7 +126,16 @@ function OrdersScreen() {
         const y = 42 + row * 54;
         return (
           <g key={pill}>
-            <rect x={12} y={y} width={128} height={44} rx={11} fill="#FFFFFF" stroke={EDGE} strokeWidth={1} />
+            <rect
+              x={12}
+              y={y}
+              width={128}
+              height={44}
+              rx={11}
+              fill="#FFFFFF"
+              stroke={EDGE}
+              strokeWidth={1}
+            />
             {bar(24, y + 13, 46, 5, "#C9D8EE")}
             {bar(24, y + 26, 30, 5, "#E1E8F3")}
             <rect x={96} y={y + 15} width={32} height={13} rx={6.5} fill={pill} />
@@ -125,7 +144,15 @@ function OrdersScreen() {
       })}
       <rect x={12} y={266} width={128} height={28} rx={11} fill="#F6F9FD" />
       {[0, 1, 2, 3, 4].map((index) => (
-        <rect key={index} x={22 + index * 22} y={286 - index * 3 - 4} width={10} height={index * 3 + 8} rx={3} fill="#CBDDF6" />
+        <rect
+          key={index}
+          x={22 + index * 22}
+          y={286 - index * 3 - 4}
+          width={10}
+          height={index * 3 + 8}
+          rx={3}
+          fill="#CBDDF6"
+        />
       ))}
     </g>
   );
@@ -140,12 +167,30 @@ function CheckoutScreen() {
         const y = 44 + row * 34;
         return (
           <g key={row}>
-            <rect x={12} y={y} width={128} height={26} rx={9} fill="#FFFFFF" stroke={EDGE} strokeWidth={1} />
+            <rect
+              x={12}
+              y={y}
+              width={128}
+              height={26}
+              rx={9}
+              fill="#FFFFFF"
+              stroke={EDGE}
+              strokeWidth={1}
+            />
             {bar(24, y + 10, 54, 5, "#DCE4F0")}
           </g>
         );
       })}
-      <rect x={12} y={156} width={128} height={40} rx={12} fill="#EAF2FF" stroke="#D3E2F9" strokeWidth={1} />
+      <rect
+        x={12}
+        y={156}
+        width={128}
+        height={40}
+        rx={12}
+        fill="#EAF2FF"
+        stroke="#D3E2F9"
+        strokeWidth={1}
+      />
       <circle cx={34} cy={176} r={11} fill="#FFFFFF" stroke={BLUE} strokeWidth={1.6} />
       <circle cx={34} cy={176} r={4} fill={BLUE} />
       {bar(54, 168, 56, 5, "#A9C7EE")}
@@ -166,8 +211,26 @@ function PhoneFrame({ index }: { index: number }) {
   const first = index % SCREEN_COUNT;
   return (
     <g className="cq-device__float" style={{ animationDelay: `${index * -1.7}s` }}>
-      <rect x={0} y={0} width={168} height={340} rx={27} fill="#FFFFFF" stroke="#DEE7F3" strokeWidth={1.5} />
-      <rect x={5} y={5} width={158} height={330} rx={23} fill="none" stroke="#F1F5FB" strokeWidth={1} />
+      <rect
+        x={0}
+        y={0}
+        width={168}
+        height={340}
+        rx={27}
+        fill="#FFFFFF"
+        stroke="#DEE7F3"
+        strokeWidth={1.5}
+      />
+      <rect
+        x={5}
+        y={5}
+        width={158}
+        height={330}
+        rx={23}
+        fill="none"
+        stroke="#F1F5FB"
+        strokeWidth={1}
+      />
       <rect x={8} y={8} width={152} height={324} rx={20} fill="#FBFCFE" />
       <g className="cq-device__screens" transform="translate(8 8)">
         {SCREENS.map((Screen, screenIndex) => {
@@ -194,7 +257,13 @@ function PhoneFrame({ index }: { index: number }) {
 export function DeviceShowcase({ frames, className = "" }: { frames: 2 | 4; className?: string }) {
   const layout = LAYOUTS[frames];
   return (
-    <svg viewBox="0 0 400 410" className={className} aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      viewBox="0 0 400 410"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+      xmlns="http://www.w3.org/2000/svg"
+    >
       <defs>
         <radialGradient id={`cq-device-glow-${frames}`} cx="0.5" cy="0.45" r="0.55">
           <stop offset="0" stopColor="var(--codiq-accent)" stopOpacity="0.13" />
@@ -203,7 +272,10 @@ export function DeviceShowcase({ frames, className = "" }: { frames: 2 | 4; clas
       </defs>
       <ellipse cx="200" cy="205" rx="200" ry="185" fill={`url(#cq-device-glow-${frames})`} />
       {layout.map((placement, index) => (
-        <g key={index} transform={`translate(${placement.x} ${placement.y}) rotate(${placement.rotate} 84 170) scale(${placement.scale})`}>
+        <g
+          key={index}
+          transform={`translate(${placement.x} ${placement.y}) rotate(${placement.rotate} 84 170) scale(${placement.scale})`}
+        >
           <PhoneFrame index={index} />
         </g>
       ))}

@@ -9,7 +9,13 @@ import { HttpError } from "../auth/auth.errors.js";
 import type { StoreActor } from "../auth/staff-permissions.js";
 import { recordAuditEvent } from "./soft-delete/audit-log.service.js";
 import { prisma } from "../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
 import { phoneNeedle } from "./merchant-search.service.js";
 import { mergeSearchPages, searchEngine } from "./search/index.js";
 
@@ -28,7 +34,11 @@ export type CustomerDirectoryRow = {
 function parseSegment(value: unknown): CustomerSegment | undefined {
   if (value === undefined || value === "") return undefined;
   if (typeof value !== "string" || !SEGMENTS.includes(value as CustomerSegment)) {
-    throw new HttpError(422, "INVALID_CUSTOMER_SEGMENT", "segment يجب أن يكون new أو active أو prospect.");
+    throw new HttpError(
+      422,
+      "INVALID_CUSTOMER_SEGMENT",
+      "segment يجب أن يكون new أو active أو prospect."
+    );
   }
   return value as CustomerSegment;
 }
@@ -70,7 +80,10 @@ async function customerSearchIds(storeId: string, q: string): Promise<string[]> 
 /** The cursor's list kind. One per list, so a cursor cannot cross lists. */
 const LIST_KIND = "merchant.customers";
 
-export async function listStoreCustomers(storeId: string, query: Record<string, unknown>): Promise<{ customers: CustomerDirectoryRow[]; nextCursor: string | null }> {
+export async function listStoreCustomers(
+  storeId: string,
+  query: Record<string, unknown>
+): Promise<{ customers: CustomerDirectoryRow[]; nextCursor: string | null }> {
   const limit = parseListLimit(query.limit);
   // 20-2: the cursor is opaque and carries its own `(createdAt, id)`, so the
   // page is a KEYSET predicate and Prisma never resolves an anchor row by id
@@ -78,7 +91,10 @@ export async function listStoreCustomers(storeId: string, query: Record<string, 
   // before this branch — resolved store-scoped, exactly as it always was.
   const cursor = await readListCursor(LIST_KIND, query.cursor, {
     legacy: async (id) => {
-      const row = await prisma.customer.findFirst({ where: { id, storeId }, select: { createdAt: true } });
+      const row = await prisma.customer.findFirst({
+        where: { id, storeId },
+        select: { createdAt: true },
+      });
       return row ? { value: row.createdAt } : null;
     },
   });
@@ -97,13 +113,32 @@ export async function listStoreCustomers(storeId: string, query: Record<string, 
     where,
     // ق-201: `isGuest` lets the directory say «ضيف» — a shopper who bought
     // without choosing a password, and whom the merchant cannot expect to sign in.
-    select: { id: true, fullName: true, phone: true, email: true, isActive: true, isGuest: true, createdAt: true, _count: { select: { orders: true } } },
+    select: {
+      id: true,
+      fullName: true,
+      phone: true,
+      email: true,
+      isActive: true,
+      isGuest: true,
+      createdAt: true,
+      _count: { select: { orders: true } },
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(LIST_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(LIST_KIND, last.createdAt, last.id)
+  );
   return {
-    customers: page.map((row) => ({ id: row.id, fullName: row.fullName, phone: row.phone, email: row.email, isActive: row.isActive, createdAt: row.createdAt, ordersCount: row._count.orders })),
+    customers: page.map((row) => ({
+      id: row.id,
+      fullName: row.fullName,
+      phone: row.phone,
+      email: row.email,
+      isActive: row.isActive,
+      createdAt: row.createdAt,
+      ordersCount: row._count.orders,
+    })),
     nextCursor,
   };
 }
@@ -125,11 +160,15 @@ export async function setCustomerActive(
   storeId: string,
   customerId: string,
   actor: StoreActor,
-  input: { isActive: boolean; reason?: string },
+  input: { isActive: boolean; reason?: string }
 ): Promise<{ id: string; isActive: boolean }> {
   return prisma.$transaction(async (tx) => {
-    const customer = await tx.customer.findFirst({ where: { id: customerId, storeId }, select: { id: true, fullName: true, phone: true, isActive: true } });
-    if (!customer) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الزبون غير موجود في هذا المتجر.");
+    const customer = await tx.customer.findFirst({
+      where: { id: customerId, storeId },
+      select: { id: true, fullName: true, phone: true, isActive: true },
+    });
+    if (!customer)
+      throw new HttpError(404, "RESOURCE_NOT_FOUND", "الزبون غير موجود في هذا المتجر.");
     if (customer.isActive !== input.isActive) {
       await tx.customer.update({ where: { id: customer.id }, data: { isActive: input.isActive } });
       await recordAuditEvent(tx, {

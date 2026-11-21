@@ -21,7 +21,12 @@ import { prisma } from "../db/prisma.js";
 import { createPasswordHash, verifyPassword } from "../auth/identity.js";
 import { generateTotpSecret, totpEnrolmentUri, verifyTotp } from "../auth/totp.js";
 import { openSecret, sealSecret } from "../auth/secret-box.js";
-import { REAUTH_ATTEMPT_LIMIT, REAUTH_WINDOW_MS, consumeStorefrontRateLimit, refundStorefrontRateLimit } from "./storefront.service.js";
+import {
+  REAUTH_ATTEMPT_LIMIT,
+  REAUTH_WINDOW_MS,
+  consumeStorefrontRateLimit,
+  refundStorefrontRateLimit,
+} from "./storefront.service.js";
 
 /**
  * 19-د (D-40): the column holds an AEAD envelope now, never the base32 secret.
@@ -75,19 +80,35 @@ export async function totpStatus(ownerId: string): Promise<TotpStatus> {
     prisma.platformOwnerRecoveryCode.count({ where: { platformOwnerId: ownerId, usedAt: null } }),
   ]);
   if (!owner) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الحساب غير موجود.");
-  return { enabled: owner.totpEnabledAt !== null, enabledAt: owner.totpEnabledAt, recoveryCodesLeft: left };
+  return {
+    enabled: owner.totpEnabledAt !== null,
+    enabledAt: owner.totpEnabledAt,
+    recoveryCodesLeft: left,
+  };
 }
 
 /** Step one: a secret and a QR. Nothing is enabled yet. */
-export async function beginTotpEnrolment(ownerId: string): Promise<{ secret: string; uri: string }> {
-  const owner = await prisma.platformOwner.findUnique({ where: { id: ownerId }, select: { email: true, totpEnabledAt: true } });
+export async function beginTotpEnrolment(
+  ownerId: string
+): Promise<{ secret: string; uri: string }> {
+  const owner = await prisma.platformOwner.findUnique({
+    where: { id: ownerId },
+    select: { email: true, totpEnabledAt: true },
+  });
   if (!owner) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الحساب غير موجود.");
   if (owner.totpEnabledAt) {
     // Re-enrolling silently would replace a working factor with an unproven one.
-    throw new HttpError(409, "TOTP_ALREADY_ENABLED", "العامل الثاني مفعّل. عطّله أولاً إن أردت ربط تطبيق آخر.");
+    throw new HttpError(
+      409,
+      "TOTP_ALREADY_ENABLED",
+      "العامل الثاني مفعّل. عطّله أولاً إن أردت ربط تطبيق آخر."
+    );
   }
   const secret = generateTotpSecret();
-  await prisma.platformOwner.update({ where: { id: ownerId }, data: { totpSecret: sealSecret(PURPOSE, secret), totpLastStep: null } });
+  await prisma.platformOwner.update({
+    where: { id: ownerId },
+    data: { totpSecret: sealSecret(PURPOSE, secret), totpLastStep: null },
+  });
   return { secret, uri: totpEnrolmentUri(secret, owner.email) };
 }
 
@@ -98,16 +119,31 @@ export async function beginTotpEnrolment(ownerId: string): Promise<{ secret: str
  * They are hashed before this function returns, so a second request cannot
  * retrieve them and neither can a database dump.
  */
-export async function confirmTotpEnrolment(ownerId: string, code: unknown, now = new Date()): Promise<{ recoveryCodes: string[] }> {
-  const owner = await prisma.platformOwner.findUnique({ where: { id: ownerId }, select: { totpSecret: true, totpEnabledAt: true } });
+export async function confirmTotpEnrolment(
+  ownerId: string,
+  code: unknown,
+  now = new Date()
+): Promise<{ recoveryCodes: string[] }> {
+  const owner = await prisma.platformOwner.findUnique({
+    where: { id: ownerId },
+    select: { totpSecret: true, totpEnabledAt: true },
+  });
   if (!owner?.totpSecret) throw new HttpError(409, "TOTP_NOT_STARTED", "ابدأ الربط أولاً.");
-  if (owner.totpEnabledAt) throw new HttpError(409, "TOTP_ALREADY_ENABLED", "العامل الثاني مفعّل بالفعل.");
+  if (owner.totpEnabledAt)
+    throw new HttpError(409, "TOTP_ALREADY_ENABLED", "العامل الثاني مفعّل بالفعل.");
 
   const check = verifyTotp(openSecret(PURPOSE, owner.totpSecret), code, { now });
-  if (!check.ok) throw new HttpError(422, "INVALID_TOTP_CODE", "الرمز غير صحيح. تأكد أن وقت هاتفك مضبوط تلقائياً.");
+  if (!check.ok)
+    throw new HttpError(
+      422,
+      "INVALID_TOTP_CODE",
+      "الرمز غير صحيح. تأكد أن وقت هاتفك مضبوط تلقائياً."
+    );
 
   const codes = Array.from({ length: RECOVERY_CODE_COUNT }, newRecoveryCode);
-  const hashes = await Promise.all(codes.map((value) => createPasswordHash(normaliseRecoveryCode(value))));
+  const hashes = await Promise.all(
+    codes.map((value) => createPasswordHash(normaliseRecoveryCode(value)))
+  );
 
   await prisma.$transaction(async (tx) => {
     // Any codes from an abandoned earlier enrolment go: they were minted against
@@ -132,16 +168,24 @@ export async function confirmTotpEnrolment(ownerId: string, code: unknown, now =
  * reached the account.
  */
 export async function disableTotp(ownerId: string, password: unknown): Promise<void> {
-  const owner = await prisma.platformOwner.findUnique({ where: { id: ownerId }, select: { passwordHash: true, totpEnabledAt: true } });
+  const owner = await prisma.platformOwner.findUnique({
+    where: { id: ownerId },
+    select: { passwordHash: true, totpEnabledAt: true },
+  });
   if (!owner) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الحساب غير موجود.");
-  if (!owner.totpEnabledAt) throw new HttpError(409, "TOTP_NOT_ENABLED", "العامل الثاني غير مفعّل.");
+  if (!owner.totpEnabledAt)
+    throw new HttpError(409, "TOTP_NOT_ENABLED", "العامل الثاني غير مفعّل.");
   // 19-د: an attempt ceiling, keyed on the owner and placed BEFORE the compare.
   // The comment above says the factor exists precisely for the case where
   // someone else has reached the account — and until this line, that someone
   // could grind the password with no ceiling and take the factor off. See
   // REAUTH_ATTEMPT_LIMIT for why ten, and why the key is the subject.
   const reauthKey = { scope: "password_reverify", rawKey: `platform_owner:${ownerId}` };
-  await consumeStorefrontRateLimit({ ...reauthKey, limit: REAUTH_ATTEMPT_LIMIT, windowMs: REAUTH_WINDOW_MS });
+  await consumeStorefrontRateLimit({
+    ...reauthKey,
+    limit: REAUTH_ATTEMPT_LIMIT,
+    windowMs: REAUTH_WINDOW_MS,
+  });
   if (!(await verifyPassword(password, owner.passwordHash))) {
     throw new HttpError(422, "INVALID_PASSWORD", "كلمة المرور غير صحيحة.");
   }
@@ -164,7 +208,11 @@ export type SecondFactorOutcome = { ok: true; usedRecoveryCode: boolean } | { ok
  * code by advancing `totpLastStep`, the recovery code by stamping `usedAt`.
  * A factor that can be replayed is a factor that only delays an attacker.
  */
-export async function verifySecondFactor(ownerId: string, code: unknown, now = new Date()): Promise<SecondFactorOutcome> {
+export async function verifySecondFactor(
+  ownerId: string,
+  code: unknown,
+  now = new Date()
+): Promise<SecondFactorOutcome> {
   const owner = await prisma.platformOwner.findUnique({
     where: { id: ownerId },
     select: { totpSecret: true, totpEnabledAt: true, totpLastStep: true },
@@ -176,7 +224,10 @@ export async function verifySecondFactor(ownerId: string, code: unknown, now = n
     lastUsedStep: owner.totpLastStep === null ? null : Number(owner.totpLastStep),
   });
   if (check.ok) {
-    await prisma.platformOwner.update({ where: { id: ownerId }, data: { totpLastStep: BigInt(check.step!) } });
+    await prisma.platformOwner.update({
+      where: { id: ownerId },
+      data: { totpLastStep: BigInt(check.step!) },
+    });
     return { ok: true, usedRecoveryCode: false };
   }
 
@@ -190,7 +241,10 @@ export async function verifySecondFactor(ownerId: string, code: unknown, now = n
     });
     for (const candidate of candidates) {
       if (await verifyPassword(attempt, candidate.codeHash)) {
-        await prisma.platformOwnerRecoveryCode.update({ where: { id: candidate.id }, data: { usedAt: now } });
+        await prisma.platformOwnerRecoveryCode.update({
+          where: { id: candidate.id },
+          data: { usedAt: now },
+        });
         return { ok: true, usedRecoveryCode: true };
       }
     }

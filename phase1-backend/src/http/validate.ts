@@ -52,12 +52,14 @@ export function validationError(issues: FieldIssue[]): HttpError {
     // of them: a wall of text is not more useful than a sentence, and the full
     // list is in `fields` for any client that wants it.
     first ? `${first.message} (${first.path})` : "المُدخلات غير صالحة.",
-    { fields: issues },
+    { fields: issues }
   );
 }
 
 function issuesFrom(error: unknown): FieldIssue[] {
-  const zodIssues = (error as { issues?: Array<{ path: Array<string | number>; code: string; message: string }> }).issues;
+  const zodIssues = (
+    error as { issues?: Array<{ path: Array<string | number>; code: string; message: string }> }
+  ).issues;
   if (!Array.isArray(zodIssues)) return [];
   return zodIssues.map((issue) => ({
     path: issue.path.join("."),
@@ -99,7 +101,10 @@ export function validateQuery<T>(schema: ZodType<T>) {
     try {
       // Express 5 makes `req.query` a getter, so it is stashed rather than
       // reassigned. Routes read it through `validatedQuery(request)`.
-      (request as Request & { validatedQuery?: unknown }).validatedQuery = parseOrThrow(schema, request.query ?? {});
+      (request as Request & { validatedQuery?: unknown }).validatedQuery = parseOrThrow(
+        schema,
+        request.query ?? {}
+      );
       next();
     } catch (error) {
       next(error);

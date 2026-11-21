@@ -9,9 +9,23 @@ import { requireStoreActor } from "../../auth/staff-permissions.js";
 import { merchantHome } from "../../services/merchant-home.service.js";
 
 export function registerMerchantHomeRoutes(app: ExpressApp) {
-  app.get("/merchant/stores/:storeSlug/dashboard/home", asyncRoute(async (request, response) => {
-    const { store, actor } = await requireStoreActor(request, "orders.view");
-    // Audit 14-أ: the merchant-wide wallet is for the merchant, not for staff holding orders.view.
-    response.status(200).json({ storeSlug: store.slug, home: await merchantHome(store.id, store.merchantId, request.query as Record<string, unknown>, new Date(), { includeWallet: actor.kind === "merchant" }) });
-  }));
+  app.get(
+    "/merchant/stores/:storeSlug/dashboard/home",
+    asyncRoute(async (request, response) => {
+      const { store, actor } = await requireStoreActor(request, "orders.view");
+      // Audit 14-أ: the merchant-wide wallet is for the merchant, not for staff holding orders.view.
+      response
+        .status(200)
+        .json({
+          storeSlug: store.slug,
+          home: await merchantHome(
+            store.id,
+            store.merchantId,
+            request.query as Record<string, unknown>,
+            new Date(),
+            { includeWallet: actor.kind === "merchant" }
+          ),
+        });
+    })
+  );
 }

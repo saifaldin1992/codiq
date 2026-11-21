@@ -21,22 +21,57 @@ export function parseCsv(text: string): string[][] {
   let fieldStarted = false;
   let inQuotes = false;
   let index = text.charCodeAt(0) === 0xfeff ? 1 : 0; // strip BOM
-  const endField = () => { row.push(field); field = ""; fieldStarted = false; };
-  const endRow = () => { endField(); rows.push(row); row = []; };
+  const endField = () => {
+    row.push(field);
+    field = "";
+    fieldStarted = false;
+  };
+  const endRow = () => {
+    endField();
+    rows.push(row);
+    row = [];
+  };
   while (index < text.length) {
     const char = text[index]!;
     if (inQuotes) {
       if (char === '"') {
-        if (text[index + 1] === '"') { field += '"'; index += 2; continue; }
-        inQuotes = false; index += 1; continue;
+        if (text[index + 1] === '"') {
+          field += '"';
+          index += 2;
+          continue;
+        }
+        inQuotes = false;
+        index += 1;
+        continue;
       }
-      field += char; index += 1; continue;
+      field += char;
+      index += 1;
+      continue;
     }
-    if (char === '"' && !fieldStarted && field === "") { inQuotes = true; fieldStarted = true; index += 1; continue; }
-    if (char === ",") { endField(); index += 1; continue; }
-    if (char === "\r") { endRow(); index += text[index + 1] === "\n" ? 2 : 1; continue; }
-    if (char === "\n") { endRow(); index += 1; continue; }
-    field += char; fieldStarted = true; index += 1;
+    if (char === '"' && !fieldStarted && field === "") {
+      inQuotes = true;
+      fieldStarted = true;
+      index += 1;
+      continue;
+    }
+    if (char === ",") {
+      endField();
+      index += 1;
+      continue;
+    }
+    if (char === "\r") {
+      endRow();
+      index += text[index + 1] === "\n" ? 2 : 1;
+      continue;
+    }
+    if (char === "\n") {
+      endRow();
+      index += 1;
+      continue;
+    }
+    field += char;
+    fieldStarted = true;
+    index += 1;
   }
   if (inQuotes) throw new Error("CSV_UNTERMINATED_QUOTE");
   if (field !== "" || fieldStarted || row.length) endRow();
@@ -67,12 +102,16 @@ export function csvUnguardField(text: string): string {
 }
 
 /** One CRLF-terminated record — CRLF is the RFC 4180 line ending Excel expects. */
-export function csvLine(fields: ReadonlyArray<string | number | boolean | null | undefined>): string {
+export function csvLine(
+  fields: ReadonlyArray<string | number | boolean | null | undefined>
+): string {
   return `${fields.map(csvField).join(",")}\r\n`;
 }
 
 /** csvLine with the formula-injection guard applied to every field. */
-export function csvGuardedLine(fields: ReadonlyArray<string | number | boolean | null | undefined>): string {
+export function csvGuardedLine(
+  fields: ReadonlyArray<string | number | boolean | null | undefined>
+): string {
   return `${fields.map(csvGuardedField).join(",")}\r\n`;
 }
 

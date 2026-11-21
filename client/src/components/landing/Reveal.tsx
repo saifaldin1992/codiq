@@ -20,7 +20,14 @@ type RevealProps = {
   id?: string;
 };
 
-export function Reveal({ children, className = "", delay = 0, as: Tag = "div", style, id }: RevealProps) {
+export function Reveal({
+  children,
+  className = "",
+  delay = 0,
+  as: Tag = "div",
+  style,
+  id,
+}: RevealProps) {
   const { ref, revealed } = useReveal<HTMLElement>();
   return (
     <Tag

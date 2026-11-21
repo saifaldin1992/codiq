@@ -58,19 +58,36 @@ for (const file of sources(path.join(repoRoot, "phase1-backend/src/notifications
   // stores verbatim. Both shapes appear as a bare literal or as a template
   // carrying a number — a cap, an HTTP status, an SMTP code — after a colon,
   // and the client keys on the part before it.
-  for (const [, value] of source.matchAll(/(?:last)?[Oo]utcome:\s*"([a-z0-9_]+)"/g)) written.add(value);
-  for (const [, value] of source.matchAll(/(?:last)?[Oo]utcome:\s*`([a-z0-9_]+):/g)) written.add(value);
+  for (const [, value] of source.matchAll(/(?:last)?[Oo]utcome:\s*"([a-z0-9_]+)"/g))
+    written.add(value);
+  for (const [, value] of source.matchAll(/(?:last)?[Oo]utcome:\s*`([a-z0-9_]+):/g))
+    written.add(value);
 }
 
-assert.ok(written.size >= 8, `expected the worker to carry a real vocabulary, collected ${written.size}`);
-assert.ok(written.has("daily_cap_deferred"), "the cap outcome must still be collected — it is the one a merchant meets most");
+assert.ok(
+  written.size >= 8,
+  `expected the worker to carry a real vocabulary, collected ${written.size}`
+);
+assert.ok(
+  written.has("daily_cap_deferred"),
+  "the cap outcome must still be collected — it is the one a merchant meets most"
+);
 
 // ── what the client can say ──────────────────────────────────────────────────
-const centre = readFileSync(path.join(repoRoot, "client/src/components/NotificationCenter.tsx"), "utf8");
+const centre = readFileSync(
+  path.join(repoRoot, "client/src/components/NotificationCenter.tsx"),
+  "utf8"
+);
 const start = centre.indexOf("function outcomeReason(");
-assert.notEqual(start, -1, "NotificationCenter must keep `outcomeReason` — if it was renamed, rename it here too");
+assert.notEqual(
+  start,
+  -1,
+  "NotificationCenter must keep `outcomeReason` — if it was renamed, rename it here too"
+);
 const translator = centre.slice(start, centre.indexOf("\n}\n", start));
-const translated = new Set(Array.from(translator.matchAll(/case "([a-z0-9_]+)":/g), (match) => match[1]));
+const translated = new Set(
+  Array.from(translator.matchAll(/case "([a-z0-9_]+)":/g), (match) => match[1])
+);
 
 // ── they must agree ──────────────────────────────────────────────────────────
 const untranslated = [...written].filter((outcome) => !translated.has(outcome)).sort();
@@ -81,16 +98,23 @@ assert.deepEqual(
   `الخادم يكتب أسباباً لا تعرفها الواجهة: ${untranslated.join(", ")}\n\n` +
     `Each of these can appear on a merchant's notification row. Without a case in \`outcomeReason\` he sees a status ` +
     `badge and no reason — which for a deferral means a full day of silence he cannot explain. Add the Arabic ` +
-    `sentence beside the others, or return null deliberately if the status badge already says everything.`,
+    `sentence beside the others, or return null deliberately if the status badge already says everything.`
 );
 
-console.log(JSON.stringify({
-  suite: "outcome-vocabulary",
-  status: "passed",
-  summary: {
-    written: written.size,
-    translated: translated.size,
-    vocabulary: [...written].sort(),
-    guarantee: "every outcome the outbox worker records has an Arabic sentence the merchant reads",
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "outcome-vocabulary",
+      status: "passed",
+      summary: {
+        written: written.size,
+        translated: translated.size,
+        vocabulary: [...written].sort(),
+        guarantee:
+          "every outcome the outbox worker records has an Arabic sentence the merchant reads",
+      },
+    },
+    null,
+    2
+  )
+);

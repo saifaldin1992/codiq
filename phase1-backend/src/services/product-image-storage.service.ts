@@ -1,9 +1,20 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { randomUUID } from "node:crypto";
 import { HttpError } from "../auth/auth.errors.js";
 import { logger } from "../logging/logger.js";
 import { fingerprint } from "../logging/redact.js";
-import { PRODUCT_IMAGE_VARIANT_SET, renderProductImageVariants, variantObjectKey, type ImageVariantName, type RenderedImageSet } from "./image-variants.service.js";
+import {
+  PRODUCT_IMAGE_VARIANT_SET,
+  renderProductImageVariants,
+  variantObjectKey,
+  type ImageVariantName,
+  type RenderedImageSet,
+} from "./image-variants.service.js";
 
 /**
  * ق-238 — WHAT HE UPLOADS IS NO LONGER WHAT WE KEEP.
@@ -51,19 +62,46 @@ function s3Config(): S3Config {
   const accessKeyId = process.env.PRODUCT_S3_ACCESS_KEY_ID;
   const secretAccessKey = process.env.PRODUCT_S3_SECRET_ACCESS_KEY;
   if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) {
-    throw new HttpError(503, "IMAGE_STORAGE_NOT_CONFIGURED", "Product image storage is not configured.");
+    throw new HttpError(
+      503,
+      "IMAGE_STORAGE_NOT_CONFIGURED",
+      "Product image storage is not configured."
+    );
   }
-  return { endpoint, bucket, accessKeyId, secretAccessKey, region: process.env.PRODUCT_S3_REGION ?? "us-east-1" };
+  return {
+    endpoint,
+    bucket,
+    accessKeyId,
+    secretAccessKey,
+    region: process.env.PRODUCT_S3_REGION ?? "us-east-1",
+  };
 }
 
 function client(config: S3Config) {
-  return new S3Client({ endpoint: config.endpoint, region: config.region, forcePathStyle: process.env.PRODUCT_S3_FORCE_PATH_STYLE !== "false", credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey } });
+  return new S3Client({
+    endpoint: config.endpoint,
+    region: config.region,
+    forcePathStyle: process.env.PRODUCT_S3_FORCE_PATH_STYLE !== "false",
+    credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+  });
 }
 
-export function detectedImageType(buffer: Buffer): { contentType: string; extension: string } | null {
-  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return { contentType: "image/jpeg", extension: "jpg" };
-  if (buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return { contentType: "image/png", extension: "png" };
-  if (buffer.length >= 12 && buffer.subarray(0, 4).toString() === "RIFF" && buffer.subarray(8, 12).toString() === "WEBP") return { contentType: "image/webp", extension: "webp" };
+export function detectedImageType(
+  buffer: Buffer
+): { contentType: string; extension: string } | null {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff)
+    return { contentType: "image/jpeg", extension: "jpg" };
+  if (
+    buffer.length >= 8 &&
+    buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  )
+    return { contentType: "image/png", extension: "png" };
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString() === "RIFF" &&
+    buffer.subarray(8, 12).toString() === "WEBP"
+  )
+    return { contentType: "image/webp", extension: "webp" };
   return null;
 }
 
@@ -73,14 +111,27 @@ export function detectedImageType(buffer: Buffer): { contentType: string; extens
  * the old text said «up to 5 MB» as a literal and would have started lying the
  * moment any of the three moved.
  */
-function validateImageWithin(file: Express.Multer.File, maxBytes: number, code: string, label: string) {
+function validateImageWithin(
+  file: Express.Multer.File,
+  maxBytes: number,
+  code: string,
+  label: string
+) {
   if (!allowedContentTypes.has(file.mimetype) || file.size <= 0 || file.size > maxBytes) {
-    throw new HttpError(422, code, `Only JPEG, PNG, and WebP ${label} up to ${Math.round(maxBytes / (1024 * 1024))} MB are allowed.`);
+    throw new HttpError(
+      422,
+      code,
+      `Only JPEG, PNG, and WebP ${label} up to ${Math.round(maxBytes / (1024 * 1024))} MB are allowed.`
+    );
   }
   // THE MIME TYPE IS THE BROWSER'S CLAIM; THIS IS THE FILE'S OWN WORD.
   const detected = detectedImageType(file.buffer);
   if (!detected || detected.contentType !== file.mimetype) {
-    throw new HttpError(422, code, "The uploaded file content does not match a supported image type.");
+    throw new HttpError(
+      422,
+      code,
+      "The uploaded file content does not match a supported image type."
+    );
   }
   return detected;
 }
@@ -120,18 +171,31 @@ async function putRenderedSet(prefix: string, rendered: RenderedImageSet) {
   const s3 = client(config);
   const objectKey = `${prefix}/${randomUUID()}.webp`;
   for (const variant of rendered.variants) {
-    await s3.send(new PutObjectCommand({
-      Bucket: config.bucket,
-      Key: variantObjectKey(objectKey, variant.variant),
-      Body: variant.body,
-      ContentType: variant.contentType,
-      ContentLength: variant.byteSize,
-    }));
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: config.bucket,
+        Key: variantObjectKey(objectKey, variant.variant),
+        Body: variant.body,
+        ContentType: variant.contentType,
+        ContentLength: variant.byteSize,
+      })
+    );
   }
-  return { objectKey, contentType: "image/webp", byteSize: rendered.totalBytes, variantSet: PRODUCT_IMAGE_VARIANT_SET, width: rendered.width, height: rendered.height };
+  return {
+    objectKey,
+    contentType: "image/webp",
+    byteSize: rendered.totalBytes,
+    variantSet: PRODUCT_IMAGE_VARIANT_SET,
+    width: rendered.width,
+    height: rendered.height,
+  };
 }
 
-export async function putProductImage(storeId: string, productId: string, rendered: RenderedImageSet) {
+export async function putProductImage(
+  storeId: string,
+  productId: string,
+  rendered: RenderedImageSet
+) {
   return putRenderedSet(`products/${storeId}/${productId}`, rendered);
 }
 
@@ -140,15 +204,23 @@ export async function putProductImage(storeId: string, productId: string, render
  * thirds of it. A legacy row (`variantSet` null) names exactly one object, which
  * is why the null branch is not an error case but the original behaviour.
  */
-export function productImageObjectKeys(image: { objectKey: string; variantSet?: number | null }): string[] {
+export function productImageObjectKeys(image: {
+  objectKey: string;
+  variantSet?: number | null;
+}): string[] {
   if (!image.variantSet) return [image.objectKey];
-  return (["full", "card", "thumb"] as ImageVariantName[]).map((variant) => variantObjectKey(image.objectKey, variant));
+  return (["full", "card", "thumb"] as ImageVariantName[]).map((variant) =>
+    variantObjectKey(image.objectKey, variant)
+  );
 }
 
 export async function getProductImageBytes(objectKey: string) {
   const config = s3Config();
-  const object = await client(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }));
-  if (!object.Body || !("transformToByteArray" in object.Body)) throw new HttpError(404, "IMAGE_NOT_FOUND", "The requested product image could not be read.");
+  const object = await client(config).send(
+    new GetObjectCommand({ Bucket: config.bucket, Key: objectKey })
+  );
+  if (!object.Body || !("transformToByteArray" in object.Body))
+    throw new HttpError(404, "IMAGE_NOT_FOUND", "The requested product image could not be read.");
   return Buffer.from(await object.Body.transformToByteArray());
 }
 
@@ -183,11 +255,19 @@ async function deleteStoredObjects(objectKeys: readonly string[], label: string)
         // bucket it is what a presigned URL is minted from, so it never reaches
         // a log line. The fingerprint is enough to see the same object failing
         // on pass after pass, which is the only reason it was ever printed.
-        logger.error("storage.delete_failed", { component: label, objectKeyFingerprint: fingerprint(objectKey), err: error });
+        logger.error("storage.delete_failed", {
+          component: label,
+          objectKeyFingerprint: fingerprint(objectKey),
+          err: error,
+        });
       }
     }
   } catch (error) {
-    logger.error("storage.unavailable", { component: label, objects: objectKeys.length, err: error });
+    logger.error("storage.unavailable", {
+      component: label,
+      objects: objectKeys.length,
+      err: error,
+    });
   }
 }
 
@@ -206,14 +286,31 @@ async function deleteStoredObjects(objectKeys: readonly string[], label: string)
  * Five megabytes of original beats fifteen megabytes of anything else.
  */
 export function validatePrescriptionImage(file: Express.Multer.File) {
-  return validateImageWithin(file, MAX_PRESCRIPTION_BYTES, "INVALID_PRESCRIPTION_IMAGE", "prescription images");
+  return validateImageWithin(
+    file,
+    MAX_PRESCRIPTION_BYTES,
+    "INVALID_PRESCRIPTION_IMAGE",
+    "prescription images"
+  );
 }
 
-export async function putPrescriptionImage(storeId: string, orderId: string, file: Express.Multer.File) {
+export async function putPrescriptionImage(
+  storeId: string,
+  orderId: string,
+  file: Express.Multer.File
+) {
   const detected = validatePrescriptionImage(file);
   const config = s3Config();
   const objectKey = `prescriptions/${storeId}/${orderId}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
+  await client(config).send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+      Body: file.buffer,
+      ContentType: detected.contentType,
+      ContentLength: file.size,
+    })
+  );
   return { objectKey, contentType: detected.contentType, byteSize: file.size };
 }
 
@@ -237,8 +334,11 @@ export async function deletePrescriptionObjects(objectKeys: readonly string[]) {
 
 export async function getPrescriptionBytes(objectKey: string) {
   const config = s3Config();
-  const object = await client(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }));
-  if (!object.Body || !("transformToByteArray" in object.Body)) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested prescription could not be read.");
+  const object = await client(config).send(
+    new GetObjectCommand({ Bucket: config.bucket, Key: objectKey })
+  );
+  if (!object.Body || !("transformToByteArray" in object.Body))
+    throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested prescription could not be read.");
   return Buffer.from(await object.Body.transformToByteArray());
 }
 
@@ -255,7 +355,15 @@ export async function putStoreBanner(storeId: string, file: Express.Multer.File)
   const detected = validateStoreImage(file);
   const config = s3Config();
   const objectKey = `banners/${storeId}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
+  await client(config).send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+      Body: file.buffer,
+      ContentType: detected.contentType,
+      ContentLength: file.size,
+    })
+  );
   return { objectKey, contentType: detected.contentType, byteSize: file.size };
 }
 
@@ -276,7 +384,15 @@ export async function putStoreLogo(storeId: string, file: Express.Multer.File) {
   const detected = validateStoreImage(file);
   const config = s3Config();
   const objectKey = `logos/${storeId}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
+  await client(config).send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+      Body: file.buffer,
+      ContentType: detected.contentType,
+      ContentLength: file.size,
+    })
+  );
   return { objectKey, contentType: detected.contentType, byteSize: file.size };
 }
 
@@ -296,7 +412,15 @@ export async function putStoreCover(storeId: string, file: Express.Multer.File) 
   const detected = validateStoreImage(file);
   const config = s3Config();
   const objectKey = `covers/${storeId}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
+  await client(config).send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+      Body: file.buffer,
+      ContentType: detected.contentType,
+      ContentLength: file.size,
+    })
+  );
   return { objectKey, contentType: detected.contentType, byteSize: file.size };
 }
 
@@ -308,11 +432,22 @@ export async function deleteStoreCoverObjects(objectKeys: readonly string[]) {
  * Marketplace M3 — the platform's own market images (banners). Same validator
  * and bucket as every store image; no plan meter, because the platform pays.
  */
-export async function putMarketImage(kind: "banners" | "avatars" | "tickets" | "reel-posters", file: Express.Multer.File) {
+export async function putMarketImage(
+  kind: "banners" | "avatars" | "tickets" | "reel-posters",
+  file: Express.Multer.File
+) {
   const detected = validateStoreImage(file);
   const config = s3Config();
   const objectKey = `market/${kind}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
+  await client(config).send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+      Body: file.buffer,
+      ContentType: detected.contentType,
+      ContentLength: file.size,
+    })
+  );
   return { objectKey, contentType: detected.contentType, byteSize: file.size };
 }
 
@@ -321,15 +456,20 @@ export async function deleteMarketImageObjects(objectKeys: readonly string[]) {
 }
 
 export const productImageConstraints = { maxBytes: MAX_IMAGE_BYTES, allowedContentTypes };
-export const prescriptionImageConstraints = { maxBytes: MAX_PRESCRIPTION_BYTES, allowedContentTypes };
+export const prescriptionImageConstraints = {
+  maxBytes: MAX_PRESCRIPTION_BYTES,
+  allowedContentTypes,
+};
 export const storeImageConstraints = { maxBytes: MAX_STORE_IMAGE_BYTES, allowedContentTypes };
-
 
 // ── Marketplace M10: short videos ──────────────────────────────────────────
 
 /** A reel's ceiling. Thirty seconds of phone video at a sensible bitrate fits well inside it. */
 export const REEL_MAX_BYTES = 30 * 1024 * 1024;
-export const reelVideoConstraints = { maxBytes: REEL_MAX_BYTES, allowedContentTypes: new Set(["video/mp4", "video/webm", "video/quicktime"]) };
+export const reelVideoConstraints = {
+  maxBytes: REEL_MAX_BYTES,
+  allowedContentTypes: new Set(["video/mp4", "video/webm", "video/quicktime"]),
+};
 
 /**
  * The container is read from the BYTES, never from the name or the declared
@@ -339,19 +479,42 @@ export const reelVideoConstraints = { maxBytes: REEL_MAX_BYTES, allowedContentTy
 export function detectReelVideo(buffer: Buffer): { contentType: string; extension: string } | null {
   if (buffer.length >= 12 && buffer.subarray(4, 8).toString("latin1") === "ftyp") {
     const brand = buffer.subarray(8, 12).toString("latin1");
-    return brand === "qt  " ? { contentType: "video/quicktime", extension: "mov" } : { contentType: "video/mp4", extension: "mp4" };
+    return brand === "qt  "
+      ? { contentType: "video/quicktime", extension: "mov" }
+      : { contentType: "video/mp4", extension: "mp4" };
   }
-  if (buffer.length >= 4 && buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) return { contentType: "video/webm", extension: "webm" };
+  if (
+    buffer.length >= 4 &&
+    buffer[0] === 0x1a &&
+    buffer[1] === 0x45 &&
+    buffer[2] === 0xdf &&
+    buffer[3] === 0xa3
+  )
+    return { contentType: "video/webm", extension: "webm" };
   return null;
 }
 
 export async function putReelVideo(storeId: string, file: Express.Multer.File) {
-  if (file.size > REEL_MAX_BYTES) throw new HttpError(413, "REEL_TOO_LARGE", "المقطع أكبر من ٣٠ ميغابايت.");
+  if (file.size > REEL_MAX_BYTES)
+    throw new HttpError(413, "REEL_TOO_LARGE", "المقطع أكبر من ٣٠ ميغابايت.");
   const detected = detectReelVideo(file.buffer);
-  if (!detected) throw new HttpError(422, "REEL_TYPE_NOT_ALLOWED", "المقطع يجب أن يكون فيديو MP4 أو MOV أو WebM.");
+  if (!detected)
+    throw new HttpError(
+      422,
+      "REEL_TYPE_NOT_ALLOWED",
+      "المقطع يجب أن يكون فيديو MP4 أو MOV أو WebM."
+    );
   const config = s3Config();
   const objectKey = `market/reels/${storeId}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
+  await client(config).send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+      Body: file.buffer,
+      ContentType: detected.contentType,
+      ContentLength: file.size,
+    })
+  );
   return { objectKey, contentType: detected.contentType, byteSize: file.size };
 }
 
@@ -364,7 +527,13 @@ export async function putReelVideo(storeId: string, file: Express.Multer.File) {
 export async function getObjectRange(objectKey: string, range: string | undefined) {
   const config = s3Config();
   const valid = range && /^bytes=\d*-\d*$/.test(range) && range !== "bytes=-" ? range : undefined;
-  const object = await client(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: objectKey, ...(valid ? { Range: valid } : {}) }));
+  const object = await client(config).send(
+    new GetObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+      ...(valid ? { Range: valid } : {}),
+    })
+  );
   if (!object.Body) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الملفّ غير موجود.");
   return {
     body: object.Body as NodeJS.ReadableStream,

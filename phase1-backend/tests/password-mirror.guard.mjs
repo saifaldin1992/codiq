@@ -80,19 +80,22 @@ function numberOf(source, name, file) {
 const serverList = entriesOf(server, "const COMMON_PASSWORDS = new Set(", "server");
 const clientList = entriesOf(client, "export const COMMON_PASSWORDS: string[] =", "client");
 
-assert.ok(serverList.length > 100, `the server list looks truncated (${serverList.length} entries) — parse failure?`);
+assert.ok(
+  serverList.length > 100,
+  `the server list looks truncated (${serverList.length} entries) — parse failure?`
+);
 
 const onlyServer = serverList.filter((entry) => !clientList.includes(entry));
 const onlyClient = clientList.filter((entry) => !serverList.includes(entry));
 assert.deepEqual(
   onlyServer,
   [],
-  `these are refused by the server but the meter would call them fine: ${onlyServer.join(", ")}`,
+  `these are refused by the server but the meter would call them fine: ${onlyServer.join(", ")}`
 );
 assert.deepEqual(
   onlyClient,
   [],
-  `the meter refuses these but the server accepts them — it would block a usable password: ${onlyClient.join(", ")}`,
+  `the meter refuses these but the server accepts them — it would block a usable password: ${onlyClient.join(", ")}`
 );
 assert.equal(clientList.length, serverList.length, "the two lists differ in length");
 
@@ -101,7 +104,7 @@ for (const name of ["PASSWORD_MIN_LENGTH", "PASSWORD_MAX_LENGTH"]) {
   assert.equal(
     numberOf(client, name, "client"),
     numberOf(server, name, "server"),
-    `${name} differs between the meter and the policy`,
+    `${name} differs between the meter and the policy`
   );
 }
 
@@ -111,19 +114,32 @@ for (const name of ["PASSWORD_MIN_LENGTH", "PASSWORD_MAX_LENGTH"]) {
 // drift that matters, and comparing bodies would fail on a comment.
 for (const rule of ["deLeet", "isSingleCharacter", "isSequentialRun", "isRepeatedPattern"]) {
   assert.ok(server.includes(`function ${rule}(`), `server lost ${rule}`);
-  assert.ok(client.includes(`function ${rule}(`), `the meter is missing ${rule} — it would score a refused password as fine`);
+  assert.ok(
+    client.includes(`function ${rule}(`),
+    `the meter is missing ${rule} — it would score a refused password as fine`
+  );
 }
 
 // The digit wrap is easy to add on one side only, and «1234567890» is common
 // enough that missing it on either side is a real hole.
-for (const [name, source] of [["server", server], ["client", client]]) {
-  assert.ok(source.includes("% 10"), `${name}: the digit-run WRAP is gone — «1234567890» would pass`);
+for (const [name, source] of [
+  ["server", server],
+  ["client", client],
+]) {
+  assert.ok(
+    source.includes("% 10"),
+    `${name}: the digit-run WRAP is gone — «1234567890» would pass`
+  );
 }
 
 // The normalisation closure: the round count must match, or one side stops
 // catching «Adm1n123» while the other still refuses it.
 const rounds = (source) => Number(source.match(/round\s*<\s*(\d+)/)?.[1]);
-assert.equal(rounds(client), rounds(server), "the normalisation runs a different number of rounds on each side");
+assert.equal(
+  rounds(client),
+  rounds(server),
+  "the normalisation runs a different number of rounds on each side"
+);
 
 // ---------------------------------------------------------------- behaviour
 //
@@ -137,13 +153,38 @@ const { assessPassword } = await import("../../client/src/lib/password-strength.
 
 const CORPUS = [
   // refused
-  "password", "PASSWORD", "P@ssw0rd", "12345678", "1234567890", "123456789012",
-  "Adm1n123", "admin2026", "alnoor123", "codiq123", "baghdad123", "aaaaaaaaaaaa",
-  "abcdefgh", "87654321", "abcabcabcabc", "qwerty123", "bismillah", "short", "s9Kd2mQ",
+  "password",
+  "PASSWORD",
+  "P@ssw0rd",
+  "12345678",
+  "1234567890",
+  "123456789012",
+  "Adm1n123",
+  "admin2026",
+  "alnoor123",
+  "codiq123",
+  "baghdad123",
+  "aaaaaaaaaaaa",
+  "abcdefgh",
+  "87654321",
+  "abcabcabcabc",
+  "qwerty123",
+  "bismillah",
+  "short",
+  "s9Kd2mQ",
   // accepted
-  "shrt1abc", "burtuqal-jamil", "burtuqal-jamil-2026", "MatjarAlNoor!47",
-  "correcthorsebattery", "T4jir-Baghdad-88", "zaytoun.wa.laymoon", "29471638",
-  "khamsatun", "acegikmoq", "K7M2PQR4TV9XZBN", "شجرة الرمان في بيت جدي",
+  "shrt1abc",
+  "burtuqal-jamil",
+  "burtuqal-jamil-2026",
+  "MatjarAlNoor!47",
+  "correcthorsebattery",
+  "T4jir-Baghdad-88",
+  "zaytoun.wa.laymoon",
+  "29471638",
+  "khamsatun",
+  "acegikmoq",
+  "K7M2PQR4TV9XZBN",
+  "شجرة الرمان في بيت جدي",
 ];
 
 const disagreements = [];
@@ -156,22 +197,40 @@ for (const candidate of CORPUS) {
   }
   const meterAccepts = assessPassword(candidate).accepted;
   if (serverAccepts !== meterAccepts) {
-    disagreements.push(`«${candidate}» — server ${serverAccepts ? "accepts" : "refuses"}, meter ${meterAccepts ? "accepts" : "refuses"}`);
+    disagreements.push(
+      `«${candidate}» — server ${serverAccepts ? "accepts" : "refuses"}, meter ${meterAccepts ? "accepts" : "refuses"}`
+    );
   }
 }
-assert.deepEqual(disagreements, [], `the meter and the server disagree:${disagreements.join("; ")}`);
+assert.deepEqual(
+  disagreements,
+  [],
+  `the meter and the server disagree:${disagreements.join("; ")}`
+);
 
 // …and the corpus must actually contain both outcomes, or the loop above proves
 // nothing: two implementations that refuse everything also never disagree.
 const accepted = CORPUS.filter((candidate) => assessPassword(candidate).accepted).length;
-assert.ok(accepted >= 10, `the corpus has only ${accepted} accepted entries — it is not exercising the accept path`);
+assert.ok(
+  accepted >= 10,
+  `the corpus has only ${accepted} accepted entries — it is not exercising the accept path`
+);
 assert.ok(CORPUS.length - accepted >= 10, "the corpus is not exercising the refuse path");
 
 console.log(
   JSON.stringify(
-    { passwordMirror: { entries: serverList.length, minimum: numberOf(server, "PASSWORD_MIN_LENGTH", "server"), rulesChecked: 4, corpusChecked: CORPUS.length, accepted, inSync: true } },
+    {
+      passwordMirror: {
+        entries: serverList.length,
+        minimum: numberOf(server, "PASSWORD_MIN_LENGTH", "server"),
+        rulesChecked: 4,
+        corpusChecked: CORPUS.length,
+        accepted,
+        inSync: true,
+      },
+    },
     null,
-    2,
-  ),
+    2
+  )
 );
 console.log("password:mirror OK");

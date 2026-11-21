@@ -48,8 +48,10 @@ export const architectureLayers: ArchitectureLayer[] = [
     shortLabel: "الواجهة",
     tone: "blue",
     technologies: ["React 19", "Vite 7", "TypeScript", "Wouter", "Tailwind v4", "RTL"],
-    responsibility: "لوحات المالك والتاجر وواجهة Storefront العربية، مع اتصال same-origin إلى REST API.",
-    challenge: "تطوير theme وi18n وSEO وإتاحة الوصول من دون نقل منطق الأعمال أو التفويض إلى المتصفح.",
+    responsibility:
+      "لوحات المالك والتاجر وواجهة Storefront العربية، مع اتصال same-origin إلى REST API.",
+    challenge:
+      "تطوير theme وi18n وSEO وإتاحة الوصول من دون نقل منطق الأعمال أو التفويض إلى المتصفح.",
   },
   {
     id: "api",
@@ -67,7 +69,8 @@ export const architectureLayers: ArchitectureLayer[] = [
     tone: "teal",
     technologies: ["Services", "Transactions", "Idempotency", "Row locks"],
     responsibility: "السلات، checkout، الحجوزات، تسعير التوصيل، المخزون ودورة الطلبات.",
-    challenge: "الإبقاء على سلامة التسلسل بين الطلب والحجز والحدث المالي أو الخارجي عند نمو المنصة.",
+    challenge:
+      "الإبقاء على سلامة التسلسل بين الطلب والحجز والحدث المالي أو الخارجي عند نمو المنصة.",
   },
   {
     id: "data",
@@ -76,7 +79,8 @@ export const architectureLayers: ArchitectureLayer[] = [
     tone: "amber",
     technologies: ["PostgreSQL", "Neon", "Prisma 6", "Composite FKs", "Triggers"],
     responsibility: "مصدر الحقيقة متعدد المستأجرين؛ store_id والعلاقات المركبة والقيود والمعاملات.",
-    challenge: "هجرات additive-first، فهارس بحث واقعية، وسجل مالي append-only من دون تراجع في العزل.",
+    challenge:
+      "هجرات additive-first، فهارس بحث واقعية، وسجل مالي append-only من دون تراجع في العزل.",
   },
   {
     id: "operations",
@@ -275,7 +279,11 @@ export const roadmapStages: RoadmapStage[] = [
 export const engineeringGates = [
   { id: "scope", label: "نطاق واضح", detail: "وثيقة قبول وحدود صريحة قبل لمس الكود." },
   { id: "branch", label: "فرع وPR", detail: "تغيير معزول؛ لا دفع مباشر إلى main." },
-  { id: "proof", label: "دليل واختبارات", detail: "اختبارات إيجابية وسلبية وIDOR أو تزامن عند الحاجة." },
+  {
+    id: "proof",
+    label: "دليل واختبارات",
+    detail: "اختبارات إيجابية وسلبية وIDOR أو تزامن عند الحاجة.",
+  },
   { id: "review", label: "مراجعة المالك", detail: "تقرير، مراجعة خارجية وموافقة صريحة قبل الدمج." },
 ];
 

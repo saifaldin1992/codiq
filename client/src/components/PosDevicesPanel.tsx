@@ -23,7 +23,14 @@
  * arrives with an Arabic message and is shown where the refused act happened.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BadgeCheck, CircleAlert, LoaderCircle, MonitorSmartphone, PackageMinus, ScanBarcode } from "lucide-react";
+import {
+  BadgeCheck,
+  CircleAlert,
+  LoaderCircle,
+  MonitorSmartphone,
+  PackageMinus,
+  ScanBarcode,
+} from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,7 +122,12 @@ function DevicesCard({ storeSlug }: { storeSlug: string }) {
   const [armed, setArmed] = useState<string | null>(null);
   const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const armedAt = useRef(0);
-  useEffect(() => () => { if (armTimer.current) clearTimeout(armTimer.current); }, []);
+  useEffect(
+    () => () => {
+      if (armTimer.current) clearTimeout(armTimer.current);
+    },
+    []
+  );
 
   const load = useCallback(async () => {
     try {
@@ -130,7 +142,9 @@ function DevicesCard({ storeSlug }: { storeSlug: string }) {
     }
   }, [base]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   async function pair(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -195,7 +209,8 @@ function DevicesCard({ storeSlug }: { storeSlug: string }) {
       </p>
       <h2 className="mb-1 text-xl font-bold text-[var(--codiq-text)]">أجهزة الكاشير</h2>
       <p className="mb-6 text-sm leading-7 text-[var(--codiq-text-muted)]">
-        اربط كل جهاز باسم يعرفه موظفوك. لكل جهاز رمز من أربعة أحرف يظهر على كل فاتورة تصدر منه، فتعرف دائماً أي كاشير باع ماذا.
+        اربط كل جهاز باسم يعرفه موظفوك. لكل جهاز رمز من أربعة أحرف يظهر على كل فاتورة تصدر منه،
+        فتعرف دائماً أي كاشير باع ماذا.
       </p>
 
       {failure && (
@@ -208,11 +223,17 @@ function DevicesCard({ storeSlug }: { storeSlug: string }) {
       )}
 
       {paired && (
-        <div data-testid="pos-paired-notice" className="mb-5 rounded-2xl bg-[var(--codiq-success-soft)] px-4 py-4">
+        <div
+          data-testid="pos-paired-notice"
+          className="mb-5 rounded-2xl bg-[var(--codiq-success-soft)] px-4 py-4"
+        >
           <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-[var(--codiq-success)]">
             <BadgeCheck className="h-4 w-4 shrink-0" />
             رُبط «{paired.label}» — رمزه
-            <span dir="ltr" className="rounded-md bg-[var(--codiq-surface)] px-2 py-0.5 font-mono text-sm font-bold tracking-widest text-[var(--codiq-success)]">
+            <span
+              dir="ltr"
+              className="rounded-md bg-[var(--codiq-surface)] px-2 py-0.5 font-mono text-sm font-bold tracking-widest text-[var(--codiq-success)]"
+            >
               {paired.deviceShort}
             </span>
           </p>
@@ -222,7 +243,11 @@ function DevicesCard({ storeSlug }: { storeSlug: string }) {
         </div>
       )}
 
-      <form onSubmit={pair} className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end" noValidate>
+      <form
+        onSubmit={pair}
+        className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end"
+        noValidate
+      >
         <label className="block flex-1 space-y-1.5 text-sm font-semibold text-[var(--codiq-text-secondary)]">
           <span>اسم الجهاز</span>
           <Input
@@ -247,7 +272,9 @@ function DevicesCard({ storeSlug }: { storeSlug: string }) {
       {devices === null ? (
         !failure && <p className="text-sm text-[var(--codiq-text-muted)]">جارٍ التحميل…</p>
       ) : devices.length === 0 ? (
-        <p className="text-sm text-[var(--codiq-text-muted)]">لا أجهزة بعد — اربط أول كاشير من النموذج أعلاه.</p>
+        <p className="text-sm text-[var(--codiq-text-muted)]">
+          لا أجهزة بعد — اربط أول كاشير من النموذج أعلاه.
+        </p>
       ) : (
         <>
           <p className="mb-3 text-xs font-semibold text-[var(--codiq-text-secondary)]">
@@ -277,7 +304,9 @@ function DevicesCard({ storeSlug }: { storeSlug: string }) {
                       )}
                     </p>
                     <p className="mt-1 text-xs text-[var(--codiq-text-muted)]">
-                      {device.lastSeenAt ? `آخر استعمال: ${formatWhen(device.lastSeenAt)}` : "لم يُستعمل بعد"}
+                      {device.lastSeenAt
+                        ? `آخر استعمال: ${formatWhen(device.lastSeenAt)}`
+                        : "لم يُستعمل بعد"}
                       {" · "}رُبط: {formatWhen(device.createdAt)}
                       {device.revokedAt ? ` · أُلغي: ${formatWhen(device.revokedAt)}` : ""}
                     </p>
@@ -293,7 +322,9 @@ function DevicesCard({ storeSlug }: { storeSlug: string }) {
                           ? "shrink-0 rounded-xl font-bold text-[var(--codiq-danger)] hover:bg-[var(--codiq-danger-soft)] hover:text-[var(--codiq-danger)]"
                           : "shrink-0 rounded-xl text-[var(--codiq-text-muted)]"
                       }
-                      onClick={() => (armed === device.id ? void revoke(device.id) : armRevoke(device.id))}
+                      onClick={() =>
+                        armed === device.id ? void revoke(device.id) : armRevoke(device.id)
+                      }
                     >
                       {busy === device.id ? (
                         <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -332,26 +363,37 @@ function ShortfallsCard({ storeSlug }: { storeSlug: string }) {
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const load = useCallback(async (cursor?: string) => {
-    if (cursor) setLoadingMore(true);
-    try {
-      const query = new URLSearchParams({ limit: "50" });
-      if (cursor) query.set("cursor", cursor);
-      const response = await fetch(`${base}/shortfalls?${query.toString()}`, { credentials: "same-origin" });
-      if (!response.ok) throw new Error(await readError(response));
-      const body = await response.json();
-      setShortfalls((current) => (cursor ? [...(current ?? []), ...((body.shortfalls ?? []) as Shortfall[])] : ((body.shortfalls ?? []) as Shortfall[])));
-      setNextCursor(body.nextCursor ?? null);
-      setFailure(null);
-    } catch (error) {
-      if (!cursor) setShortfalls(null);
-      setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [base]);
+  const load = useCallback(
+    async (cursor?: string) => {
+      if (cursor) setLoadingMore(true);
+      try {
+        const query = new URLSearchParams({ limit: "50" });
+        if (cursor) query.set("cursor", cursor);
+        const response = await fetch(`${base}/shortfalls?${query.toString()}`, {
+          credentials: "same-origin",
+        });
+        if (!response.ok) throw new Error(await readError(response));
+        const body = await response.json();
+        setShortfalls((current) =>
+          cursor
+            ? [...(current ?? []), ...((body.shortfalls ?? []) as Shortfall[])]
+            : ((body.shortfalls ?? []) as Shortfall[])
+        );
+        setNextCursor(body.nextCursor ?? null);
+        setFailure(null);
+      } catch (error) {
+        if (!cursor) setShortfalls(null);
+        setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
+      } finally {
+        setLoadingMore(false);
+      }
+    },
+    [base]
+  );
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   async function review(shortfallId: string) {
     setBusy(shortfallId);
@@ -382,7 +424,8 @@ function ShortfallsCard({ storeSlug }: { storeSlug: string }) {
           about it. The sale itself was accepted on purpose: refusing a sale
           whose goods already left the shop deletes a fact. */}
       <p className="mb-6 text-sm leading-7 text-[var(--codiq-text-muted)]">
-        بيعٌ في الكاشير تجاوز المخزون المسجّل — راجع الرفّ وصحّح الكمية من المخزون، ثم علّم السجل كمُراجَع.
+        بيعٌ في الكاشير تجاوز المخزون المسجّل — راجع الرفّ وصحّح الكمية من المخزون، ثم علّم السجل
+        كمُراجَع.
       </p>
 
       {failure && (
@@ -409,7 +452,12 @@ function ShortfallsCard({ storeSlug }: { storeSlug: string }) {
                   <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-[var(--codiq-text)]">
                     <span className="truncate">
                       {row.variant?.product.name ?? "صنف محذوف"}
-                      {row.variant?.name ? <span className="font-semibold text-[var(--codiq-text-secondary)]"> — {row.variant.name}</span> : null}
+                      {row.variant?.name ? (
+                        <span className="font-semibold text-[var(--codiq-text-secondary)]">
+                          {" "}
+                          — {row.variant.name}
+                        </span>
+                      ) : null}
                     </span>
                     <span className="shrink-0 rounded-full bg-[var(--codiq-danger-soft)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--codiq-danger)]">
                       الفرق: {piecesPhrase(row.shortfallQty)}
@@ -419,9 +467,16 @@ function ShortfallsCard({ storeSlug }: { storeSlug: string }) {
                     بِيع: {count.format(row.soldQty)} · كان المتاح: {count.format(row.availableQty)}
                   </p>
                   <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--codiq-text-muted)]">
-                    {row.variant?.sku ? <span dir="ltr" className="font-mono">{row.variant.sku}</span> : null}
+                    {row.variant?.sku ? (
+                      <span dir="ltr" className="font-mono">
+                        {row.variant.sku}
+                      </span>
+                    ) : null}
                     <span>
-                      الطلب: <span dir="ltr" className="font-mono">{row.ticket?.order?.orderNumber ?? "—"}</span>
+                      الطلب:{" "}
+                      <span dir="ltr" className="font-mono">
+                        {row.ticket?.order?.orderNumber ?? "—"}
+                      </span>
                     </span>
                     <span>{formatWhen(row.createdAt)}</span>
                   </p>
@@ -434,14 +489,23 @@ function ShortfallsCard({ storeSlug }: { storeSlug: string }) {
                   className="shrink-0 rounded-xl"
                   onClick={() => void review(row.id)}
                 >
-                  {busy === row.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : "علّمه مُراجَعاً"}
+                  {busy === row.id ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "علّمه مُراجَعاً"
+                  )}
                 </Button>
               </div>
             </li>
           ))}
         </ul>
       )}
-      <LoadMoreButton cursor={nextCursor} busy={loadingMore} onLoad={(cursor) => void load(cursor)} testId="pos-shortfalls-more" />
+      <LoadMoreButton
+        cursor={nextCursor}
+        busy={loadingMore}
+        onLoad={(cursor) => void load(cursor)}
+        testId="pos-shortfalls-more"
+      />
     </div>
   );
 }

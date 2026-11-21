@@ -223,11 +223,18 @@ interface ResolvedIdentity {
  * None of that changes what the caller is TOLD. It only changes whether a token
  * is minted.
  */
-async function resolveIdentity(kind: IdentityKind, email: string, storeId: string | null): Promise<ResolvedIdentity | null> {
+async function resolveIdentity(
+  kind: IdentityKind,
+  email: string,
+  storeId: string | null
+): Promise<ResolvedIdentity | null> {
   const found = (subjectId: string): ResolvedIdentity => ({ kind, subjectId, email, storeId });
 
   if (kind === "platform_owner") {
-    const row = await prisma.platformOwner.findUnique({ where: { email }, select: { id: true, isActive: true } });
+    const row = await prisma.platformOwner.findUnique({
+      where: { email },
+      select: { id: true, isActive: true },
+    });
     return row && row.isActive ? found(row.id) : null;
   }
   if (kind === "platform_staff") {
@@ -235,24 +242,36 @@ async function resolveIdentity(kind: IdentityKind, email: string, storeId: strin
     // live_key` is a PARTIAL unique index over living rows only, so a removed
     // member's address becomes available again — matching his row would mail a
     // link for a dead account to whoever holds that address today.
-    const row = await prisma.platformStaff.findFirst({ where: { email, deletedAt: null }, select: { id: true, isActive: true } });
+    const row = await prisma.platformStaff.findFirst({
+      where: { email, deletedAt: null },
+      select: { id: true, isActive: true },
+    });
     return row && row.isActive ? found(row.id) : null;
   }
   if (kind === "merchant") {
-    const row = await prisma.merchant.findUnique({ where: { email }, select: { id: true, isActive: true, approvalStatus: true } });
+    const row = await prisma.merchant.findUnique({
+      where: { email },
+      select: { id: true, isActive: true, approvalStatus: true },
+    });
     return row && row.isActive && row.approvalStatus === "approved" ? found(row.id) : null;
   }
   if (kind === "staff") {
     // ق-227: a released identity must not receive a reset link — the address may
     // be somebody else's now, and the row that remains is history, not a door.
-    const row = await prisma.staff.findFirst({ where: { email, deletedAt: null }, select: { id: true, isActive: true } });
+    const row = await prisma.staff.findFirst({
+      where: { email, deletedAt: null },
+      select: { id: true, isActive: true },
+    });
     return row && row.isActive ? found(row.id) : null;
   }
   // The customer, and the ONE identity that is scoped: `customers_store_email_
   // present_uq` is UNIQUE(store_id, email), so the same address is a different
   // person at a different shop. Resolving without the store would mail store A's
   // shopper a link into store B's account.
-  const row = await prisma.customer.findFirst({ where: { storeId: storeId!, email, isActive: true }, select: { id: true } });
+  const row = await prisma.customer.findFirst({
+    where: { storeId: storeId!, email, isActive: true },
+    select: { id: true },
+  });
   return row ? found(row.id) : null;
 }
 
@@ -284,7 +303,10 @@ async function resetLinkFor(identity: ResolvedIdentity, token: string): Promise<
   const query = `?token=${encodeURIComponent(token)}`;
   if (identity.kind !== "customer") return publicUrl(`/reset-password${query}`);
 
-  const store = await prisma.store.findUnique({ where: { id: identity.storeId! }, select: { slug: true, customDomain: true } });
+  const store = await prisma.store.findUnique({
+    where: { id: identity.storeId! },
+    select: { slug: true, customDomain: true },
+  });
   if (!store) return null;
   const path = `/store/${encodeURIComponent(store.slug)}/account/reset-password${query}`;
   if (store.customDomain) return `https://${store.customDomain}${path}`;
@@ -306,7 +328,7 @@ export async function invalidateLiveResetTokens(
   subjectId: string,
   reason: InvalidationReason,
   now: Date,
-  exceptId?: string,
+  exceptId?: string
 ): Promise<number> {
   const result = await writer.passwordResetToken.updateMany({
     where: {
@@ -362,13 +384,25 @@ export interface ResetRequestResult {
  * «fast means nobody» — which is why the suite asserts the band in BOTH
  * directions rather than only the one the login doors needed.
  */
-async function constantWorkForMiss(tokenHash: string, email: string, expiresAt: Date, now: Date): Promise<void> {
+async function constantWorkForMiss(
+  tokenHash: string,
+  email: string,
+  expiresAt: Date,
+  now: Date
+): Promise<void> {
   try {
     await prisma.$transaction(async (tx) => {
       const decoySubject = crypto.randomUUID();
       await invalidateLiveResetTokens(tx, "merchant", decoySubject, "superseded", now);
       await tx.passwordResetToken.create({
-        data: { identityKind: "merchant", subjectId: decoySubject, storeId: null, tokenHash, emailNormalized: email, expiresAt },
+        data: {
+          identityKind: "merchant",
+          subjectId: decoySubject,
+          storeId: null,
+          tokenHash,
+          emailNormalized: email,
+          expiresAt,
+        },
       });
       await tx.notificationOutbox.create({
         data: {
@@ -377,7 +411,13 @@ async function constantWorkForMiss(tokenHash: string, email: string, expiresAt: 
           recipientKind: "account",
           channel: "email",
           recipient: email,
-          payload: { resetUrlSealed: sealSecret("password-reset-link", "https://example.invalid/reset-password"), expiresInMinutes: Math.round(RESET_TOKEN_TTL_MS / 60000) },
+          payload: {
+            resetUrlSealed: sealSecret(
+              "password-reset-link",
+              "https://example.invalid/reset-password"
+            ),
+            expiresInMinutes: Math.round(RESET_TOKEN_TTL_MS / 60000),
+          },
         },
       });
       // Nothing here is meant to survive. Throwing is how a Prisma interactive
@@ -501,13 +541,19 @@ export async function requestPasswordReset(input: {
 }
 
 /** Is this link still worth showing a form for? Nothing is spent by asking. */
-export async function inspectPasswordReset(token: unknown, now = new Date()): Promise<{ valid: boolean }> {
+export async function inspectPasswordReset(
+  token: unknown,
+  now = new Date()
+): Promise<{ valid: boolean }> {
   if (typeof token !== "string" || !token) return { valid: false };
   const row = await prisma.passwordResetToken.findUnique({
     where: { tokenHash: sha256(token) },
     select: { consumedAt: true, invalidatedAt: true, expiresAt: true },
   });
-  return { valid: row !== null && row.consumedAt === null && row.invalidatedAt === null && row.expiresAt > now };
+  return {
+    valid:
+      row !== null && row.consumedAt === null && row.invalidatedAt === null && row.expiresAt > now,
+  };
 }
 
 export interface ResetConsumeResult {
@@ -547,7 +593,12 @@ export async function consumePasswordReset(input: {
   now?: Date;
 }): Promise<ResetConsumeResult> {
   const now = input.now ?? new Date();
-  const invalid = () => new HttpError(422, "INVALID_RESET_TOKEN", "هذا الرابط لم يعد صالحاً. اطلب رابطاً جديداً لاستعادة كلمة السر.");
+  const invalid = () =>
+    new HttpError(
+      422,
+      "INVALID_RESET_TOKEN",
+      "هذا الرابط لم يعد صالحاً. اطلب رابطاً جديداً لاستعادة كلمة السر."
+    );
   if (typeof input.token !== "string" || !input.token) throw invalid();
   const tokenHash = sha256(input.token);
 
@@ -569,9 +620,18 @@ export async function consumePasswordReset(input: {
 
   const row = await prisma.passwordResetToken.findUnique({
     where: { tokenHash },
-    select: { id: true, identityKind: true, subjectId: true, storeId: true, consumedAt: true, invalidatedAt: true, expiresAt: true },
+    select: {
+      id: true,
+      identityKind: true,
+      subjectId: true,
+      storeId: true,
+      consumedAt: true,
+      invalidatedAt: true,
+      expiresAt: true,
+    },
   });
-  if (!row || row.consumedAt !== null || row.invalidatedAt !== null || row.expiresAt <= now) throw invalid();
+  if (!row || row.consumedAt !== null || row.invalidatedAt !== null || row.expiresAt <= now)
+    throw invalid();
   const kind = row.identityKind as IdentityKind;
 
   // Refused BEFORE the claim, so a password the policy rejects does not burn the
@@ -581,7 +641,8 @@ export async function consumePasswordReset(input: {
   const passwordHash = await createPasswordHash(input.newPassword);
 
   const storeSlug = row.storeId
-    ? (await prisma.store.findUnique({ where: { id: row.storeId }, select: { slug: true } }))?.slug ?? null
+    ? ((await prisma.store.findUnique({ where: { id: row.storeId }, select: { slug: true } }))
+        ?.slug ?? null)
     : null;
 
   const sessionsEnded = await prisma.$transaction(async (tx) => {
@@ -595,7 +656,9 @@ export async function consumePasswordReset(input: {
     // ONLY passwordHash. Not totpSecret, not totpEnabledAt, not totpLastStep,
     // and no recovery code is spent or reissued — see the header. A reset must
     // not be a second factor bypass.
-    const delegate = (tx as unknown as Record<string, { update: (args: unknown) => Promise<unknown> }>)[delegateNameFor(kind)]!;
+    const delegate = (
+      tx as unknown as Record<string, { update: (args: unknown) => Promise<unknown> }>
+    )[delegateNameFor(kind)]!;
     await delegate.update({ where: { id: row.subjectId }, data: { passwordHash } });
 
     // Every OTHER outstanding link for this identity dies with the one just

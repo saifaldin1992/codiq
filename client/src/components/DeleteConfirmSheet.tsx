@@ -59,7 +59,12 @@ export function ar(value: number): string {
  * «٣ حركات» · «١٤ حركة». Getting this wrong is the kind of detail that makes a
  * platform read as machine-translated, and ق-34 asks for it explicitly.
  */
-export interface CountedForms { one: string; two: string; few: string; many: string }
+export interface CountedForms {
+  one: string;
+  two: string;
+  few: string;
+  many: string;
+}
 export function counted(value: number, forms: CountedForms): string {
   if (value === 1) return forms.one;
   if (value === 2) return forms.two;
@@ -73,13 +78,43 @@ export function counted(value: number, forms: CountedForms): string {
 // «استُخدم في …» · «فيه …» · «تحته …» · «تُزال معه …» · «له …». Getting this wrong
 // is the one visible break in a helper written precisely to prevent it, and
 // Home.tsx already had the precedent right («متجرين» · «طلبين شهرياً»).
-export const DAY_FORMS: CountedForms = { one: "يوم واحد", two: "يومين", few: "أيام", many: "يوماً" };
-const MOVEMENT_FORMS: CountedForms = { one: "حركة واحدة", two: "حركتين", few: "حركات", many: "حركة" };
+export const DAY_FORMS: CountedForms = {
+  one: "يوم واحد",
+  two: "يومين",
+  few: "أيام",
+  many: "يوماً",
+};
+const MOVEMENT_FORMS: CountedForms = {
+  one: "حركة واحدة",
+  two: "حركتين",
+  few: "حركات",
+  many: "حركة",
+};
 const ORDER_FORMS: CountedForms = { one: "طلب واحد", two: "طلبين", few: "طلبات", many: "طلباً" };
-const PRODUCT_FORMS: CountedForms = { one: "منتج واحد", two: "منتجين", few: "منتجات", many: "منتجاً" };
-const CATEGORY_FORMS: CountedForms = { one: "تصنيف فرعي واحد", two: "تصنيفين فرعيين", few: "تصنيفات فرعية", many: "تصنيفاً فرعياً" };
-const VARIANT_FORMS: CountedForms = { one: "متغيّر واحد", two: "متغيّرين", few: "متغيّرات", many: "متغيّراً" };
-const SESSION_FORMS: CountedForms = { one: "جلسة واحدة", two: "جلستين", few: "جلسات", many: "جلسة" };
+const PRODUCT_FORMS: CountedForms = {
+  one: "منتج واحد",
+  two: "منتجين",
+  few: "منتجات",
+  many: "منتجاً",
+};
+const CATEGORY_FORMS: CountedForms = {
+  one: "تصنيف فرعي واحد",
+  two: "تصنيفين فرعيين",
+  few: "تصنيفات فرعية",
+  many: "تصنيفاً فرعياً",
+};
+const VARIANT_FORMS: CountedForms = {
+  one: "متغيّر واحد",
+  two: "متغيّرين",
+  few: "متغيّرات",
+  many: "متغيّراً",
+};
+const SESSION_FORMS: CountedForms = {
+  one: "جلسة واحدة",
+  two: "جلستين",
+  few: "جلسات",
+  many: "جلسة",
+};
 
 /** Whole days left before the purge sweep may hard-delete a row. */
 export function daysUntil(iso: string): number {
@@ -97,7 +132,7 @@ export class TrashApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
-    public readonly details: Record<string, unknown> = {},
+    public readonly details: Record<string, unknown> = {}
   ) {
     super(message);
   }
@@ -107,13 +142,22 @@ export async function trashApi<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     credentials: "same-origin",
     ...init,
-    ...(init?.body ? { headers: { "content-type": "application/json", ...(init.headers ?? {}) } } : {}),
+    ...(init?.body
+      ? { headers: { "content-type": "application/json", ...(init.headers ?? {}) } }
+      : {}),
   });
-  const payload = (await response.json().catch(() => null)) as { error?: Record<string, unknown> } | null;
+  const payload = (await response.json().catch(() => null)) as {
+    error?: Record<string, unknown>;
+  } | null;
   if (!response.ok) {
     const error = payload?.error ?? {};
     const { code, message, ...rest } = error as { code?: string; message?: string };
-    throw new TrashApiError(response.status, code ?? "REQUEST_FAILED", message ?? "تعذر إتمام العملية.", rest);
+    throw new TrashApiError(
+      response.status,
+      code ?? "REQUEST_FAILED",
+      message ?? "تعذر إتمام العملية.",
+      rest
+    );
   }
   return payload as T;
 }
@@ -156,15 +200,30 @@ type Endpoints = { remove: string; restore: string; deactivate: string | null };
  * anything changing is worse than no permission at all, so the bin and its undo
  * both ride `catalog.trash.restore` for all four entities.
  */
-export function endpointsFor(storeSlug: string, entityType: TrashEntityType, id: string): Endpoints {
+export function endpointsFor(
+  storeSlug: string,
+  entityType: TrashEntityType,
+  id: string
+): Endpoints {
   const base = merchantStoreBase(storeSlug);
   const encoded = encodeURIComponent(id);
   const restore = `${base}/trash/${entityType}/${encoded}/restore`;
-  if (entityType === "product") return { remove: `${base}/catalog/products/${encoded}`, restore, deactivate: `${base}/catalog/products/${encoded}` };
+  if (entityType === "product")
+    return {
+      remove: `${base}/catalog/products/${encoded}`,
+      restore,
+      deactivate: `${base}/catalog/products/${encoded}`,
+    };
   // A category has no `is_active` column at all, so «أخفِه بدلاً من ذلك» does not
   // exist for it — the sheet must not offer a button that cannot work.
-  if (entityType === "product_category") return { remove: `${base}/catalog/categories/${encoded}`, restore, deactivate: null };
-  if (entityType === "coupon") return { remove: `${base}/marketing/coupons/${encoded}`, restore, deactivate: `${base}/marketing/coupons/${encoded}` };
+  if (entityType === "product_category")
+    return { remove: `${base}/catalog/categories/${encoded}`, restore, deactivate: null };
+  if (entityType === "coupon")
+    return {
+      remove: `${base}/marketing/coupons/${encoded}`,
+      restore,
+      deactivate: `${base}/marketing/coupons/${encoded}`,
+    };
   return { remove: `${base}/team/${encoded}`, restore, deactivate: `${base}/team/${encoded}` };
 }
 
@@ -249,9 +308,11 @@ function consequenceLines(target: DeleteTarget, preview: DeletePreview | null): 
     lines.push(restoreLine);
     const movements = number(effects, "inventoryMovements");
     if (movements !== null) {
-      lines.push(movements > 0
-        ? `سجل حركة المخزون (${counted(movements, MOVEMENT_FORMS)}) يُحفظ دائماً، حتى بعد التنقية النهائية.`
-        : "لا توجد حركات مخزون مسجّلة على هذا المنتج بعد.");
+      lines.push(
+        movements > 0
+          ? `سجل حركة المخزون (${counted(movements, MOVEMENT_FORMS)}) يُحفظ دائماً، حتى بعد التنقية النهائية.`
+          : "لا توجد حركات مخزون مسجّلة على هذا المنتج بعد."
+      );
     } else {
       lines.push("سجل حركة المخزون يُحفظ دائماً، حتى بعد التنقية النهائية.");
     }
@@ -262,20 +323,30 @@ function consequenceLines(target: DeleteTarget, preview: DeletePreview | null): 
     // requires, with no sales data attached.
     const soldOrders = number(effects, "soldOrders");
     const keptForRecords = effects.keptForRecords === true;
-    if (soldOrders && soldOrders > 0) lines.push(`هذا المنتج مباع في ${counted(soldOrders, ORDER_FORMS)}.`);
+    if (soldOrders && soldOrders > 0)
+      lines.push(`هذا المنتج مباع في ${counted(soldOrders, ORDER_FORMS)}.`);
     if (keptForRecords) lines.push("يبقى صفّه محفوظاً لسجلاتك ولا يُحذف نهائياً بعد المدة.");
     // The two conditions that will REFUSE this removal. The server already sends
     // them, so saying nothing would mean letting the merchant discover after the
     // click what the sheet could have told him before it.
     const inCart = number(effects, "liveCartItems");
-    if (inCart && inCart > 0) lines.push("هذا المنتج في سلة زبون نشطة الآن، فستُرفض الإزالة حتى تنتهي تلك السلة — ويبقى «الإخفاء» متاحاً.");
+    if (inCart && inCart > 0)
+      lines.push(
+        "هذا المنتج في سلة زبون نشطة الآن، فستُرفض الإزالة حتى تنتهي تلك السلة — ويبقى «الإخفاء» متاحاً."
+      );
     const reserved = number(effects, "activeReservations");
-    if (reserved && reserved > 0) lines.push("عليه حجز مخزون لطلب قائم الآن، فستُرفض الإزالة حتى يُغلق ذلك الطلب — ويبقى «الإخفاء» متاحاً.");
+    if (reserved && reserved > 0)
+      lines.push(
+        "عليه حجز مخزون لطلب قائم الآن، فستُرفض الإزالة حتى يُغلق ذلك الطلب — ويبقى «الإخفاء» متاحاً."
+      );
     const variants = number(effects, "variants");
-    if (variants && variants > 1) lines.push(`تُزال معه ${counted(variants, VARIANT_FORMS)}، وتعود كلها عند الاستعادة.`);
+    if (variants && variants > 1)
+      lines.push(`تُزال معه ${counted(variants, VARIANT_FORMS)}، وتعود كلها عند الاستعادة.`);
     // Plan §6.6 obliges the UI to DECLARE this asymmetry rather than let the
     // merchant discover it from a quota that did not move.
-    lines.push("تتحرر حصة المنتجات في خطتك فوراً، أما مساحة صوره فتبقى محسوبة حتى التنقية النهائية.");
+    lines.push(
+      "تتحرر حصة المنتجات في خطتك فوراً، أما مساحة صوره فتبقى محسوبة حتى التنقية النهائية."
+    );
     return lines;
   }
 
@@ -283,9 +354,16 @@ function consequenceLines(target: DeleteTarget, preview: DeletePreview | null): 
     lines.push(`سيختفي التصنيف «${target.label}» من متجرك ومن تصفح الزبائن.`);
     const liveProducts = number(effects, "liveProducts");
     const liveChildren = number(effects, "liveChildren");
-    if (liveProducts && liveProducts > 0) lines.push(`فيه ${counted(liveProducts, PRODUCT_FORMS)} ما زال حيّاً — انقلها إلى تصنيف آخر أولاً، وإلا رُفض الحذف.`);
-    if (liveChildren && liveChildren > 0) lines.push(`تحته ${counted(liveChildren, CATEGORY_FORMS)} — احذفها أو انقلها أولاً، وإلا رُفض الحذف.`);
-    if (!liveProducts && !liveChildren) lines.push("لا منتجات ولا تصنيفات فرعية تحته الآن، فحذفه لا يمسّ شيئاً آخر.");
+    if (liveProducts && liveProducts > 0)
+      lines.push(
+        `فيه ${counted(liveProducts, PRODUCT_FORMS)} ما زال حيّاً — انقلها إلى تصنيف آخر أولاً، وإلا رُفض الحذف.`
+      );
+    if (liveChildren && liveChildren > 0)
+      lines.push(
+        `تحته ${counted(liveChildren, CATEGORY_FORMS)} — احذفها أو انقلها أولاً، وإلا رُفض الحذف.`
+      );
+    if (!liveProducts && !liveChildren)
+      lines.push("لا منتجات ولا تصنيفات فرعية تحته الآن، فحذفه لا يمسّ شيئاً آخر.");
     lines.push(restoreLine);
     lines.push("وإن استعدت لاحقاً منتجاً كان مصنَّفاً تحته، عاد التصنيف معه تلقائياً.");
     return lines;
@@ -295,14 +373,19 @@ function consequenceLines(target: DeleteTarget, preview: DeletePreview | null): 
     lines.push(`لن يعمل الرمز «${target.label}» في متجرك بعد الآن.`);
     const redemptions = number(effects, "redemptions");
     if (redemptions !== null) {
-      lines.push(redemptions > 0
-        ? `استُخدم في ${counted(redemptions, ORDER_FORMS)}، وسجل استخداماته يبقى محفوظاً كما هو.`
-        : "لم يُستخدم في أي طلب بعد.");
+      lines.push(
+        redemptions > 0
+          ? `استُخدم في ${counted(redemptions, ORDER_FORMS)}، وسجل استخداماته يبقى محفوظاً كما هو.`
+          : "لم يُستخدم في أي طلب بعد."
+      );
     }
-    if (effects.keptForRecords === true) lines.push("يبقى سجلّه محفوظاً لسجلاتك ولا يُحذف نهائياً بعد المدة.");
+    if (effects.keptForRecords === true)
+      lines.push("يبقى سجلّه محفوظاً لسجلاتك ولا يُحذف نهائياً بعد المدة.");
     const endsAt = typeof effects.endsAt === "string" ? effects.endsAt : null;
     if (endsAt && new Date(endsAt).valueOf() < Date.now()) {
-      lines.push(`مدته انتهت في ${new Date(endsAt).toLocaleDateString("ar-IQ")}؛ والاستعادة لا تمدّدها، فيعود منتهياً.`);
+      lines.push(
+        `مدته انتهت في ${new Date(endsAt).toLocaleDateString("ar-IQ")}؛ والاستعادة لا تمدّدها، فيعود منتهياً.`
+      );
     }
     lines.push(restoreLine);
     lines.push("ورمزه يتحرر فوراً — تستطيع إنشاء كوبون جديد بالرمز نفسه.");
@@ -311,17 +394,28 @@ function consequenceLines(target: DeleteTarget, preview: DeletePreview | null): 
 
   lines.push(`تُزال عضوية «${target.label}» من فريق هذا المتجر.`);
   const sessions = number(effects, "openSessions");
-  if (sessions && sessions > 0) lines.push(`له ${counted(sessions, SESSION_FORMS)} مفتوحة الآن، تُبطل كلها في اللحظة نفسها.`);
+  if (sessions && sessions > 0)
+    lines.push(`له ${counted(sessions, SESSION_FORMS)} مفتوحة الآن، تُبطل كلها في اللحظة نفسها.`);
   else lines.push("لا جلسات مفتوحة له الآن.");
   lines.push("حسابه على المنصة لا يُحذف — قد يكون عضواً في متاجر أخرى.");
-  lines.push(window ? `تستطيع إعادته إلى الفريق خلال ${window}؛ تعود صلاحياته الخاصة معه، ولا تعود جلساته.` : "تستطيع إعادته إلى الفريق من سلة المحذوفات؛ تعود صلاحياته الخاصة معه، ولا تعود جلساته.");
+  lines.push(
+    window
+      ? `تستطيع إعادته إلى الفريق خلال ${window}؛ تعود صلاحياته الخاصة معه، ولا تعود جلساته.`
+      : "تستطيع إعادته إلى الفريق من سلة المحذوفات؛ تعود صلاحياته الخاصة معه، ولا تعود جلساته."
+  );
   // Plan §1.و exception 6: `is_active` now carries two meanings, and the UI is
   // where they are told apart in words the merchant can act on.
   lines.push("وهذا غير «الإيقاف»: الموقوف يبقى في قائمة الفريق، والمُزال ينتقل إلى سلة المحذوفات.");
   return lines;
 }
 
-export function DeleteConfirmSheet({ storeSlug, target, onClose, onDeleted, onDeactivated }: DeleteConfirmSheetProps) {
+export function DeleteConfirmSheet({
+  storeSlug,
+  target,
+  onClose,
+  onDeleted,
+  onDeactivated,
+}: DeleteConfirmSheetProps) {
   const [preview, setPreview] = useState<DeletePreview | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(true);
   const [busy, setBusy] = useState<"remove" | "deactivate" | null>(null);
@@ -337,7 +431,9 @@ export function DeleteConfirmSheet({ storeSlug, target, onClose, onDeleted, onDe
     setLoadingPreview(true);
     void (async () => {
       try {
-        const data = await trashApi<{ preview: DeletePreview }>(`${merchantStoreBase(storeSlug)}/trash/preview/${target.entityType}/${encodeURIComponent(target.id)}`);
+        const data = await trashApi<{ preview: DeletePreview }>(
+          `${merchantStoreBase(storeSlug)}/trash/preview/${target.entityType}/${encodeURIComponent(target.id)}`
+        );
         if (!cancelled) setPreview(data.preview);
       } catch (error) {
         if (cancelled) return;
@@ -353,7 +449,9 @@ export function DeleteConfirmSheet({ storeSlug, target, onClose, onDeleted, onDe
         if (!cancelled) setLoadingPreview(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [storeSlug, target.entityType, target.id]);
 
   const remove = useCallback(async () => {
@@ -376,11 +474,18 @@ export function DeleteConfirmSheet({ storeSlug, target, onClose, onDeleted, onDe
     if (!endpoints.deactivate) return;
     setBusy("deactivate");
     try {
-      await trashApi(endpoints.deactivate, { method: "PATCH", body: JSON.stringify({ isActive: false }) });
+      await trashApi(endpoints.deactivate, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: false }),
+      });
       onDeactivated?.();
       onClose();
     } catch (error) {
-      setConflict(error instanceof TrashApiError ? error : new TrashApiError(0, "NETWORK", "تعذر الاتصال بالخادم — أعد المحاولة."));
+      setConflict(
+        error instanceof TrashApiError
+          ? error
+          : new TrashApiError(0, "NETWORK", "تعذر الاتصال بالخادم — أعد المحاولة.")
+      );
     } finally {
       setBusy(null);
     }
@@ -389,10 +494,17 @@ export function DeleteConfirmSheet({ storeSlug, target, onClose, onDeleted, onDe
   const heading = HEADINGS[target.entityType];
   const lines = denied ? [] : consequenceLines(target, preview);
   const deactivateLabel = DEACTIVATE_LABEL[target.entityType];
-  const offersDeactivate = Boolean(endpoints.deactivate && deactivateLabel && conflict?.details.hint === "deactivate");
+  const offersDeactivate = Boolean(
+    endpoints.deactivate && deactivateLabel && conflict?.details.hint === "deactivate"
+  );
 
   return (
-    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
       {/* Bottom sheet on a phone, centred card from `sm` up. The overrides ride
           tailwind-merge, so the later classes win over the primitive's own. */}
       <DialogContent
@@ -402,34 +514,92 @@ export function DeleteConfirmSheet({ storeSlug, target, onClose, onDeleted, onDe
         className="top-auto bottom-0 max-h-[92vh] w-full max-w-full translate-y-0 gap-0 overflow-y-auto rounded-b-none rounded-t-[26px] border-[var(--codiq-surface)] bg-[var(--codiq-surface)] p-6 text-right shadow-[0_-12px_44px_rgba(31,55,98,0.14)] sm:top-[50%] sm:bottom-auto sm:max-w-[560px] sm:translate-y-[-50%] sm:rounded-[26px] sm:p-8 sm:shadow-[0_18px_52px_rgba(31,55,98,0.18)]"
       >
         <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--codiq-danger-soft)] text-[#B44B40]"><Trash2 className="h-5 w-5" strokeWidth={1.8} /></span>
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--codiq-danger-soft)] text-[#B44B40]">
+            <Trash2 className="h-5 w-5" strokeWidth={1.8} />
+          </span>
           <div className="min-w-0 flex-1">
             <DialogTitle className="text-lg font-bold text-[#15233E]">{heading.title}</DialogTitle>
             <DialogDescription className="mt-1 truncate text-sm text-[#61708A]">
               {target.label}
-              {target.secondary ? <span className="mr-2 text-xs text-[#8A96A9]" dir="ltr">{target.secondary}</span> : null}
+              {target.secondary ? (
+                <span className="mr-2 text-xs text-[#8A96A9]" dir="ltr">
+                  {target.secondary}
+                </span>
+              ) : null}
             </DialogDescription>
           </div>
-          <Button type="button" variant="ghost" size="icon" className="shrink-0 rounded-xl" aria-label="إغلاق" onClick={onClose}><X className="h-4 w-4" /></Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="shrink-0 rounded-xl"
+            aria-label="إغلاق"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
         {denied ? (
-          <p data-testid="delete-sheet-denied" role="alert" className="mt-5 rounded-2xl border border-[#F0C7C4] bg-[#FFF7F7] p-4 text-sm leading-7 text-[#8E3B34]">{denied}</p>
+          <p
+            data-testid="delete-sheet-denied"
+            role="alert"
+            className="mt-5 rounded-2xl border border-[#F0C7C4] bg-[#FFF7F7] p-4 text-sm leading-7 text-[#8E3B34]"
+          >
+            {denied}
+          </p>
         ) : (
-          <ul data-testid="delete-sheet-consequences" className="mt-5 space-y-2.5 rounded-2xl bg-[var(--codiq-surface-sunken)] p-4 text-sm leading-7 text-[#3D4F6B]">
-            {lines.map((line) => <li key={line} className="flex gap-2"><span aria-hidden className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#9DB3D2]" />{line}</li>)}
-            {loadingPreview ? <li className="flex items-center gap-2 text-xs text-[#8A96A9]"><LoaderCircle className="h-3.5 w-3.5 animate-spin" />جارٍ قراءة أثر الإزالة من الخادم…</li> : null}
+          <ul
+            data-testid="delete-sheet-consequences"
+            className="mt-5 space-y-2.5 rounded-2xl bg-[var(--codiq-surface-sunken)] p-4 text-sm leading-7 text-[#3D4F6B]"
+          >
+            {lines.map((line) => (
+              <li key={line} className="flex gap-2">
+                <span
+                  aria-hidden
+                  className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#9DB3D2]"
+                />
+                {line}
+              </li>
+            ))}
+            {loadingPreview ? (
+              <li className="flex items-center gap-2 text-xs text-[#8A96A9]">
+                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                جارٍ قراءة أثر الإزالة من الخادم…
+              </li>
+            ) : null}
           </ul>
         )}
 
         {conflict ? (
-          <div data-testid="delete-sheet-conflict" role="alert" className="mt-4 rounded-2xl border border-[#F0C7C4] bg-[#FFF7F7] p-4 text-sm leading-7 text-[#8E3B34]">
-            <p className="flex items-start gap-2 font-semibold"><CircleAlert className="mt-1 h-4 w-4 shrink-0" />{readableError(conflict)}</p>
+          <div
+            data-testid="delete-sheet-conflict"
+            role="alert"
+            className="mt-4 rounded-2xl border border-[#F0C7C4] bg-[#FFF7F7] p-4 text-sm leading-7 text-[#8E3B34]"
+          >
+            <p className="flex items-start gap-2 font-semibold">
+              <CircleAlert className="mt-1 h-4 w-4 shrink-0" />
+              {readableError(conflict)}
+            </p>
             {offersDeactivate ? (
               <>
-                <p className="mt-2 text-[13px] text-[#9B5A53]">تريد إخفاءه من متجرك بدلاً من ذلك؟ يبقى في لوحتك ويختفي عن الزبائن، بلا مساس بأي عملية جارية.</p>
-                <Button type="button" size="sm" disabled={busy !== null} data-testid="delete-sheet-deactivate" className="mt-3 rounded-xl bg-[var(--codiq-accent)] hover:bg-[var(--codiq-accent-hover)]" onClick={() => void deactivate()}>
-                  {busy === "deactivate" ? <LoaderCircle className="ml-2 h-4 w-4 animate-spin" /> : <EyeOff className="ml-2 h-4 w-4" />}
+                <p className="mt-2 text-[13px] text-[#9B5A53]">
+                  تريد إخفاءه من متجرك بدلاً من ذلك؟ يبقى في لوحتك ويختفي عن الزبائن، بلا مساس بأي
+                  عملية جارية.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={busy !== null}
+                  data-testid="delete-sheet-deactivate"
+                  className="mt-3 rounded-xl bg-[var(--codiq-accent)] hover:bg-[var(--codiq-accent-hover)]"
+                  onClick={() => void deactivate()}
+                >
+                  {busy === "deactivate" ? (
+                    <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <EyeOff className="ml-2 h-4 w-4" />
+                  )}
                   {deactivateLabel}
                 </Button>
               </>
@@ -438,7 +608,15 @@ export function DeleteConfirmSheet({ storeSlug, target, onClose, onDeleted, onDe
         ) : null}
 
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row">
-          <Button type="button" variant="outline" className="rounded-xl sm:min-w-[120px]" disabled={busy !== null} onClick={onClose}>{denied ? "إغلاق" : "إلغاء"}</Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl sm:min-w-[120px]"
+            disabled={busy !== null}
+            onClick={onClose}
+          >
+            {denied ? "إغلاق" : "إلغاء"}
+          </Button>
           <Button
             type="button"
             data-testid="delete-sheet-confirm"
@@ -446,7 +624,11 @@ export function DeleteConfirmSheet({ storeSlug, target, onClose, onDeleted, onDe
             className="rounded-xl bg-[#B34B43] hover:bg-[#9A3F38] sm:flex-1"
             onClick={() => void remove()}
           >
-            {busy === "remove" ? <LoaderCircle className="ml-2 h-4 w-4 animate-spin" /> : <Trash2 className="ml-2 h-4 w-4" />}
+            {busy === "remove" ? (
+              <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="ml-2 h-4 w-4" />
+            )}
             {heading.confirm}
           </Button>
         </div>
@@ -489,29 +671,64 @@ export function UndoBar({ result, label, storeSlug, onUndone, onDismiss }: UndoB
     setBusy(true);
     setFailure(null);
     try {
-      await trashApi(endpointsFor(storeSlug, result.entityType, result.id).restore, { method: "POST", body: JSON.stringify({}) });
+      await trashApi(endpointsFor(storeSlug, result.entityType, result.id).restore, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
       onUndone();
     } catch (error) {
-      setFailure(error instanceof TrashApiError
-        ? `${readableError(error)} افتح «سلة المحذوفات» لاستعادته باسم أو رمز بديل.`
-        : "تعذر الاتصال بالخادم — أعد المحاولة من «سلة المحذوفات».");
+      setFailure(
+        error instanceof TrashApiError
+          ? `${readableError(error)} افتح «سلة المحذوفات» لاستعادته باسم أو رمز بديل.`
+          : "تعذر الاتصال بالخادم — أعد المحاولة من «سلة المحذوفات»."
+      );
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div data-testid="trash-undo-bar" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D8E6F8] bg-[var(--codiq-canvas)] px-4 py-3 text-sm text-[#35577F]">
+    <div
+      data-testid="trash-undo-bar"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D8E6F8] bg-[var(--codiq-canvas)] px-4 py-3 text-sm text-[#35577F]"
+    >
       <p className="min-w-0">
         نُقل «{label}» إلى سلة المحذوفات.{" "}
-        {result.keptForRecords ? "ويبقى محفوظاً لسجلاتك — لا يُحذف نهائياً." : `يُحذف نهائياً بعد ${days}.`}
-        {failure ? <span className="mt-1 block text-[13px] font-semibold text-[var(--codiq-danger)]">{failure}</span> : null}
+        {result.keptForRecords
+          ? "ويبقى محفوظاً لسجلاتك — لا يُحذف نهائياً."
+          : `يُحذف نهائياً بعد ${days}.`}
+        {failure ? (
+          <span className="mt-1 block text-[13px] font-semibold text-[var(--codiq-danger)]">
+            {failure}
+          </span>
+        ) : null}
       </p>
       <div className="flex shrink-0 gap-2">
-        <Button type="button" size="sm" variant="outline" className="rounded-xl" disabled={busy} data-testid="trash-undo" onClick={() => void undo()}>
-          {busy ? <LoaderCircle className="ml-1 h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="ml-1 h-3.5 w-3.5" />}تراجع
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="rounded-xl"
+          disabled={busy}
+          data-testid="trash-undo"
+          onClick={() => void undo()}
+        >
+          {busy ? (
+            <LoaderCircle className="ml-1 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RotateCcw className="ml-1 h-3.5 w-3.5" />
+          )}
+          تراجع
         </Button>
-        <Button type="button" size="sm" variant="ghost" className="rounded-xl text-[#66779A]" onClick={onDismiss}>إخفاء</Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="rounded-xl text-[#66779A]"
+          onClick={onDismiss}
+        >
+          إخفاء
+        </Button>
       </div>
     </div>
   );

@@ -93,11 +93,15 @@ export function correlationMiddleware(): RequestHandler {
         if (logger.isLevelEnabled("debug")) {
           const startedAt = Date.now();
           response.on("finish", () => {
-            logger.debug("request.completed", { route: routePatternOf(request), status: response.statusCode, durationMs: Date.now() - startedAt });
+            logger.debug("request.completed", {
+              route: routePatternOf(request),
+              status: response.statusCode,
+              durationMs: Date.now() - startedAt,
+            });
           });
         }
         next();
-      },
+      }
     );
   };
 }

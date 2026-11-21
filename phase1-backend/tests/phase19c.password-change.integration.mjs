@@ -28,7 +28,8 @@ import { registerMerchantDirect } from "./helpers/register-merchant.js";
 import { Client } from "pg";
 
 const testId = `p19c-${Date.now()}`;
-process.env.SESSION_JWT_SECRET = process.env.SESSION_JWT_SECRET ?? "p19c-test-secret-only-not-for-production";
+process.env.SESSION_JWT_SECRET =
+  process.env.SESSION_JWT_SECRET ?? "p19c-test-secret-only-not-for-production";
 process.env.CODIQ_ALLOW_OWNER_REGISTRATION = "true";
 const { assertSafeTestDatabaseUrl } = await import("./helpers/test-database-guard.ts");
 const testDatabaseUrl = assertSafeTestDatabaseUrl(process.env.CODIQ_TEST_DATABASE_URL);
@@ -80,37 +81,92 @@ async function runFor(kind, { login, oldPassword, newPassword }) {
   assert.notEqual(held, other, `${kind}: two real, distinct sessions`);
 
   // Both alive BEFORE anything happens — otherwise the 401 below proves nothing.
-  assert.equal((await request("/auth/sessions", { token: held })).status, 200, `${kind}: the held session starts alive`);
-  assert.equal((await request("/auth/sessions", { token: other })).status, 200, `${kind}: the other session starts alive`);
+  assert.equal(
+    (await request("/auth/sessions", { token: held })).status,
+    200,
+    `${kind}: the held session starts alive`
+  );
+  assert.equal(
+    (await request("/auth/sessions", { token: other })).status,
+    200,
+    `${kind}: the other session starts alive`
+  );
 
   // 1. A live session is not enough.
-  const wrong = await request("/auth/password", { method: "POST", token: held, body: { currentPassword: "not-the-password", newPassword } });
+  const wrong = await request("/auth/password", {
+    method: "POST",
+    token: held,
+    body: { currentPassword: "not-the-password", newPassword },
+  });
   assert.equal(wrong.status, 422, JSON.stringify(wrong.payload));
-  assert.equal(wrong.payload.error.code, "INVALID_PASSWORD", `${kind}: a borrowed unlocked laptop cannot seize the account`);
+  assert.equal(
+    wrong.payload.error.code,
+    "INVALID_PASSWORD",
+    `${kind}: a borrowed unlocked laptop cannot seize the account`
+  );
 
   // 2. A change that changes nothing.
-  const same = await request("/auth/password", { method: "POST", token: held, body: { currentPassword: oldPassword, newPassword: oldPassword } });
-  assert.equal(same.payload.error.code, "PASSWORD_UNCHANGED", `${kind}: refused, rather than reported as a change`);
+  const same = await request("/auth/password", {
+    method: "POST",
+    token: held,
+    body: { currentPassword: oldPassword, newPassword: oldPassword },
+  });
+  assert.equal(
+    same.payload.error.code,
+    "PASSWORD_UNCHANGED",
+    `${kind}: refused, rather than reported as a change`
+  );
 
   // 3. The platform's single policy, reached by calling it — not restated.
-  const weak = await request("/auth/password", { method: "POST", token: held, body: { currentPassword: oldPassword, newPassword: "short1!" } });
-  assert.equal(weak.payload.error.code, "WEAK_PASSWORD", `${kind}: the floor, from the one place that defines it`);
-  assert.match(weak.payload.error.message, /[؀-ۿ]/, `${kind}: and it says so in Arabic — this is an Arabic-first platform`);
+  const weak = await request("/auth/password", {
+    method: "POST",
+    token: held,
+    body: { currentPassword: oldPassword, newPassword: "short1!" },
+  });
+  assert.equal(
+    weak.payload.error.code,
+    "WEAK_PASSWORD",
+    `${kind}: the floor, from the one place that defines it`
+  );
+  assert.match(
+    weak.payload.error.message,
+    /[؀-ۿ]/,
+    `${kind}: and it says so in Arabic — this is an Arabic-first platform`
+  );
 
   // Nothing above changed anything: the old password still signs him in.
-  assert.equal((await login(oldPassword)).status, 200, `${kind}: three refusals left the account exactly as it was`);
+  assert.equal(
+    (await login(oldPassword)).status,
+    200,
+    `${kind}: three refusals left the account exactly as it was`
+  );
 
   // The real change.
-  const changed = await request("/auth/password", { method: "POST", token: held, body: { currentPassword: oldPassword, newPassword } });
+  const changed = await request("/auth/password", {
+    method: "POST",
+    token: held,
+    body: { currentPassword: oldPassword, newPassword },
+  });
   assert.equal(changed.status, 200, JSON.stringify(changed.payload));
-  assert.ok(changed.payload.otherSessionsEnded >= 2, `${kind}: the other sessions are reported ended (${changed.payload.otherSessionsEnded})`);
+  assert.ok(
+    changed.payload.otherSessionsEnded >= 2,
+    `${kind}: the other sessions are reported ended (${changed.payload.otherSessionsEnded})`
+  );
 
   // 4. THE ASSERTION THAT MATTERS. Not the count — the 401.
   const otherNow = await request("/auth/sessions", { token: other });
-  assert.equal(otherNow.status, 401, `${kind}: the other session is DEAD, not merely counted as revoked`);
+  assert.equal(
+    otherNow.status,
+    401,
+    `${kind}: the other session is DEAD, not merely counted as revoked`
+  );
 
   // 5. …and he is still signed in on the device he is holding.
-  assert.equal((await request("/auth/sessions", { token: held })).status, 200, `${kind}: doing the right thing did not sign him out`);
+  assert.equal(
+    (await request("/auth/sessions", { token: held })).status,
+    200,
+    `${kind}: doing the right thing did not sign him out`
+  );
 
   // 6. The old password is genuinely gone, and the new one genuinely works.
   assert.equal((await login(oldPassword)).status, 401, `${kind}: the old password no longer works`);
@@ -135,17 +191,31 @@ try {
   });
   assert.equal(ownerReg.status, 201, JSON.stringify(ownerReg.payload));
   const ownerId = ownerReg.payload.account.id;
-  const hashBefore = (await prisma.platformOwner.findUnique({ where: { id: ownerId }, select: { passwordHash: true } })).passwordHash;
+  const hashBefore = (
+    await prisma.platformOwner.findUnique({
+      where: { id: ownerId },
+      select: { passwordHash: true },
+    })
+  ).passwordHash;
 
   summary.owner = await runFor("owner", {
-    login: (password) => request("/auth/platform/login", { method: "POST", body: { email: ownerEmail, password } }),
+    login: (password) =>
+      request("/auth/platform/login", { method: "POST", body: { email: ownerEmail, password } }),
     oldPassword: ownerOld,
     newPassword: ownerNew,
   });
 
-  const hashAfter = (await prisma.platformOwner.findUnique({ where: { id: ownerId }, select: { passwordHash: true } })).passwordHash;
+  const hashAfter = (
+    await prisma.platformOwner.findUnique({
+      where: { id: ownerId },
+      select: { passwordHash: true },
+    })
+  ).passwordHash;
   assert.notEqual(hashAfter, hashBefore, "19-أ: the stored hash actually moved");
-  assert.ok(hashAfter.startsWith("$2"), "19-أ: …and what replaced it is a bcrypt hash, not the password");
+  assert.ok(
+    hashAfter.startsWith("$2"),
+    "19-أ: …and what replaced it is a bcrypt hash, not the password"
+  );
   assert.ok(!hashAfter.includes(ownerNew), "19-أ: …the new password is nowhere in the column");
 
   // Every other owner session row carries `revokedAt` — and, exactly as the
@@ -154,13 +224,13 @@ try {
   // implementation that did that would pass every assertion above this one.
   const rows = await sql.query(
     "SELECT revoked_at, expires_at > now() AS still_in_date FROM platform_owner_sessions WHERE platform_owner_id = $1",
-    [ownerId],
+    [ownerId]
   );
   const revoked = rows.rows.filter((row) => row.revoked_at !== null);
   assert.ok(revoked.length >= 2, "19-أ: the other sessions are revoked at the row level");
   assert.ok(
     revoked.every((row) => row.still_in_date),
-    "19-أ: REVOKED, not quietly expired — the distinction the sessions work established",
+    "19-أ: REVOKED, not quietly expired — the distinction the sessions work established"
   );
 
   // ============================================================
@@ -170,17 +240,32 @@ try {
   const merchantOld = "P19cMerchantPass2026!";
   const merchantNew = "P19cMerchantFresh2026!";
   const phone = `+9647${String(Date.now()).slice(-9)}`;
-  const merchantReg = await registerMerchantDirect({ email: merchantEmail, password: merchantOld, businessName: "متجر النور", ownerName: "سيف الدين", phone });
+  const merchantReg = await registerMerchantDirect({
+    email: merchantEmail,
+    password: merchantOld,
+    businessName: "متجر النور",
+    ownerName: "سيف الدين",
+    phone,
+  });
   assert.equal(merchantReg.status, 201, JSON.stringify(merchantReg.payload));
   // A registered merchant cannot sign in until a store exists — the platform
   // refuses a merchant with no active store, which is its own correct rule and
   // not something this suite should route around.
   await prisma.store.create({
-    data: { merchantId: merchantReg.payload.account.id, name: "متجر النور", slug: `${testId}-m`, defaultSubdomain: `${testId}-m` },
+    data: {
+      merchantId: merchantReg.payload.account.id,
+      name: "متجر النور",
+      slug: `${testId}-m`,
+      defaultSubdomain: `${testId}-m`,
+    },
   });
 
   summary.merchant = await runFor("merchant", {
-    login: (password) => request("/auth/merchant/login", { method: "POST", body: { identifier: merchantEmail, password } }),
+    login: (password) =>
+      request("/auth/merchant/login", {
+        method: "POST",
+        body: { identifier: merchantEmail, password },
+      }),
     oldPassword: merchantOld,
     newPassword: merchantNew,
   });
@@ -203,30 +288,70 @@ try {
   // ============================================================
   const { REAUTH_ATTEMPT_LIMIT } = await import("../src/services/storefront.service.ts");
   await sql.query("DELETE FROM storefront_rate_limits");
-  const grindLogin = await request("/auth/merchant/login", { method: "POST", body: { identifier: merchantEmail, password: merchantNew } });
+  const grindLogin = await request("/auth/merchant/login", {
+    method: "POST",
+    body: { identifier: merchantEmail, password: merchantNew },
+  });
   assert.equal(grindLogin.status, 200, JSON.stringify(grindLogin.payload));
   const grindToken = grindLogin.payload.accessToken;
   const grind = [];
   for (let attempt = 0; attempt < REAUTH_ATTEMPT_LIMIT + 2; attempt += 1) {
-    const response = await request("/auth/password", { method: "POST", token: grindToken, keepRateLimits: true, body: { currentPassword: `guess-${attempt}`, newPassword: "P19dGrindPass2026!" } });
+    const response = await request("/auth/password", {
+      method: "POST",
+      token: grindToken,
+      keepRateLimits: true,
+      body: { currentPassword: `guess-${attempt}`, newPassword: "P19dGrindPass2026!" },
+    });
     grind.push(response.status);
-    if (response.status === 429) { assert.equal(response.payload.error.code, "RATE_LIMITED"); break; }
-    assert.equal(response.status, 422, `19-د: attempt ${attempt} must be a refused guess, not ${response.status}`);
+    if (response.status === 429) {
+      assert.equal(response.payload.error.code, "RATE_LIMITED");
+      break;
+    }
+    assert.equal(
+      response.status,
+      422,
+      `19-د: attempt ${attempt} must be a refused guess, not ${response.status}`
+    );
     assert.equal(response.payload.error.code, "INVALID_PASSWORD");
   }
-  assert.ok(grind.includes(429), `19-د: unmetered guessing at the password gate — ${grind.length} wrong currentPassword values and not one 429 (${grind.join(",")})`);
-  assert.ok(grind.length <= REAUTH_ATTEMPT_LIMIT + 1, `19-د: the ceiling must bite by attempt ${REAUTH_ATTEMPT_LIMIT + 1}`);
+  assert.ok(
+    grind.includes(429),
+    `19-د: unmetered guessing at the password gate — ${grind.length} wrong currentPassword values and not one 429 (${grind.join(",")})`
+  );
+  assert.ok(
+    grind.length <= REAUTH_ATTEMPT_LIMIT + 1,
+    `19-د: the ceiling must bite by attempt ${REAUTH_ATTEMPT_LIMIT + 1}`
+  );
 
   // …and the honest path never walks toward its own lockout. The budget exists
   // to slow GUESSING, so a correct password gives its attempt straight back —
   // read off the bucket itself rather than inferred from a status code.
   await sql.query("DELETE FROM storefront_rate_limits");
-  const honest = await request("/auth/password", { method: "POST", token: grindToken, keepRateLimits: true, body: { currentPassword: merchantNew, newPassword: "P19dHonestPass2026!" } });
+  const honest = await request("/auth/password", {
+    method: "POST",
+    token: grindToken,
+    keepRateLimits: true,
+    body: { currentPassword: merchantNew, newPassword: "P19dHonestPass2026!" },
+  });
   assert.equal(honest.status, 200, JSON.stringify(honest.payload));
-  const bucket = await sql.query("SELECT attempt_count FROM storefront_rate_limits WHERE scope = 'password_reverify'");
-  assert.equal(bucket.rows.length, 1, "19-د: the gate must be keyed on the subject, so exactly one bucket exists for one account");
-  assert.equal(Number(bucket.rows[0].attempt_count), 1, "19-د: a correct password must be refunded — ten honest changes must not lock the account out");
-  summary.reauthCeiling = { limit: REAUTH_ATTEMPT_LIMIT, attemptsBefore429: grind.length - 1, refundedTo: Number(bucket.rows[0].attempt_count) };
+  const bucket = await sql.query(
+    "SELECT attempt_count FROM storefront_rate_limits WHERE scope = 'password_reverify'"
+  );
+  assert.equal(
+    bucket.rows.length,
+    1,
+    "19-د: the gate must be keyed on the subject, so exactly one bucket exists for one account"
+  );
+  assert.equal(
+    Number(bucket.rows[0].attempt_count),
+    1,
+    "19-د: a correct password must be refunded — ten honest changes must not lock the account out"
+  );
+  summary.reauthCeiling = {
+    limit: REAUTH_ATTEMPT_LIMIT,
+    attemptsBefore429: grind.length - 1,
+    refundedTo: Number(bucket.rows[0].attempt_count),
+  };
   await sql.query("DELETE FROM storefront_rate_limits");
 
   summary.identitiesCovered = ["platform_owner", "merchant"];

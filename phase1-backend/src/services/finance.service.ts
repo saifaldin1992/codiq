@@ -8,7 +8,13 @@
  */
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
 import { activePlanForMerchant } from "./entitlement.service.js";
 import type { PlatformActor } from "../auth/platform-permissions.js";
 import { platformActorLabelFor, recordPlatformAuditEvent } from "./platform-audit.service.js";
@@ -47,8 +53,21 @@ function commissionFor(subtotalIqd: number, commissionBps: number): number {
  * and MOVES REAL MONEY out of the platform's commission on every redemption.
  * Do not make it without a new owner decision replacing the one above.
  */
-export async function recordOrderCompletion(tx: DbClient, input: { storeId: string; orderId: string; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number; platformDiscountIqd?: number }) {
-  const store = await tx.store.findUnique({ where: { id: input.storeId }, select: { merchantId: true } });
+export async function recordOrderCompletion(
+  tx: DbClient,
+  input: {
+    storeId: string;
+    orderId: string;
+    subtotalIqd: number;
+    deliveryFeeIqd: number;
+    loyaltyDiscountIqd: number;
+    platformDiscountIqd?: number;
+  }
+) {
+  const store = await tx.store.findUnique({
+    where: { id: input.storeId },
+    select: { merchantId: true },
+  });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
   const plan = await activePlanForMerchant(tx, store.merchantId);
   const bps = plan.commissionBps;
@@ -71,13 +90,19 @@ export async function recordOrderCompletion(tx: DbClient, input: { storeId: stri
 
 export type ReturnReversalOutcome = "reversed" | "outside_window" | "no_completion_entry";
 
-export async function recordOrderReturn(tx: DbClient, input: { storeId: string; orderId: string; now?: Date }): Promise<ReturnReversalOutcome> {
+export async function recordOrderReturn(
+  tx: DbClient,
+  input: { storeId: string; orderId: string; now?: Date }
+): Promise<ReturnReversalOutcome> {
   const completion = await tx.ledgerEntry.findFirst({
     where: { storeId: input.storeId, orderId: input.orderId, entryType: "order_completed" },
     orderBy: { createdAt: "desc" },
   });
   if (!completion) return "no_completion_entry";
-  const alreadyReversed = await tx.ledgerEntry.findFirst({ where: { orderId: input.orderId, entryType: "order_returned" }, select: { id: true } });
+  const alreadyReversed = await tx.ledgerEntry.findFirst({
+    where: { orderId: input.orderId, entryType: "order_returned" },
+    select: { id: true },
+  });
   if (alreadyReversed) return "reversed";
   const now = input.now ?? new Date();
   const windowMs = RETURN_REVERSAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -101,15 +126,30 @@ export async function recordOrderReturn(tx: DbClient, input: { storeId: string; 
 }
 
 /** Owner-authored reversal for a return outside the automatic window (append-only). */
-export async function createManualReturnAdjustment(actor: PlatformActor, input: { orderId: string; note: unknown }) {
-  const note = typeof input.note === "string" && input.note.trim() ? input.note.trim().slice(0, 500) : null;
+export async function createManualReturnAdjustment(
+  actor: PlatformActor,
+  input: { orderId: string; note: unknown }
+) {
+  const note =
+    typeof input.note === "string" && input.note.trim() ? input.note.trim().slice(0, 500) : null;
   return prisma.$transaction(async (tx) => {
-    const completion = await tx.ledgerEntry.findFirst({ where: { orderId: input.orderId, entryType: "order_completed" }, orderBy: { createdAt: "desc" } });
-    if (!completion) throw new HttpError(404, "RESOURCE_NOT_FOUND", "لا يوجد قيد إتمام لهذا الطلب.");
-    const reversed = await tx.ledgerEntry.findFirst({ where: { orderId: input.orderId, entryType: { in: ["order_returned", "manual_adjustment"] } }, select: { id: true } });
+    const completion = await tx.ledgerEntry.findFirst({
+      where: { orderId: input.orderId, entryType: "order_completed" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!completion)
+      throw new HttpError(404, "RESOURCE_NOT_FOUND", "لا يوجد قيد إتمام لهذا الطلب.");
+    const reversed = await tx.ledgerEntry.findFirst({
+      where: { orderId: input.orderId, entryType: { in: ["order_returned", "manual_adjustment"] } },
+      select: { id: true },
+    });
     if (reversed) throw new HttpError(409, "ALREADY_REVERSED", "هذا الطلب معكوس مالياً بالفعل.");
-    const order = await tx.storeOrder.findUnique({ where: { id: input.orderId }, select: { status: true, orderNumber: true } });
-    if (order?.status !== "returned") throw new HttpError(422, "ORDER_NOT_RETURNED", "التسوية اليدوية متاحة للطلبات المرتجعة فقط.");
+    const order = await tx.storeOrder.findUnique({
+      where: { id: input.orderId },
+      select: { status: true, orderNumber: true },
+    });
+    if (order?.status !== "returned")
+      throw new HttpError(422, "ORDER_NOT_RETURNED", "التسوية اليدوية متاحة للطلبات المرتجعة فقط.");
     const entry = await tx.ledgerEntry.create({
       data: {
         storeId: completion.storeId,
@@ -132,7 +172,11 @@ export async function createManualReturnAdjustment(actor: PlatformActor, input: 
       entityLabel: order.orderNumber,
       action: "adjustment_created",
       actor,
-      metadata: { orderId: input.orderId, subtotalIqd: completion.subtotalIqd, commissionIqd: completion.commissionIqd },
+      metadata: {
+        orderId: input.orderId,
+        subtotalIqd: completion.subtotalIqd,
+        commissionIqd: completion.commissionIqd,
+      },
     });
     return entry;
   });
@@ -142,7 +186,8 @@ function parseReportRange(query: Record<string, unknown>) {
   const parse = (value: unknown, fallback: Date) => {
     if (value === undefined || value === "") return fallback;
     const parsed = new Date(String(value));
-    if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", "from/to must be ISO dates.");
+    if (Number.isNaN(parsed.valueOf()))
+      throw new HttpError(400, "INVALID_DATE_FILTER", "from/to must be ISO dates.");
     return parsed;
   };
   const now = new Date();
@@ -175,17 +220,36 @@ function parseReportRange(query: Record<string, unknown>) {
 function settlementPeriod(body: Record<string, unknown>, now: Date) {
   const { from, to: requested } = parseReportRange({ from: body.periodFrom, to: body.periodTo });
   const to = requested > now ? now : requested;
-  if (to <= from) throw new HttpError(400, "INVALID_DATE_FILTER", "لا يمكن تسوية فترة لم تبدأ بعد.");
+  if (to <= from)
+    throw new HttpError(400, "INVALID_DATE_FILTER", "لا يمكن تسوية فترة لم تبدأ بعد.");
   return { from, to };
 }
 
-
 /** Aggregated signed totals computed in the database, so they stay exact past any page size. */
-function totalsFromGroups(groups: { entryType: string; _count: { _all: number }; _sum: { subtotalIqd: number | null; deliveryFeeIqd: number | null; loyaltyDiscountIqd: number | null; commissionIqd: number | null } }[]) {
-  const totals = { completedOrders: 0, reversedOrders: 0, subtotalIqd: 0, deliveryFeeIqd: 0, loyaltyDiscountIqd: 0, commissionIqd: 0 };
+function totalsFromGroups(
+  groups: {
+    entryType: string;
+    _count: { _all: number };
+    _sum: {
+      subtotalIqd: number | null;
+      deliveryFeeIqd: number | null;
+      loyaltyDiscountIqd: number | null;
+      commissionIqd: number | null;
+    };
+  }[]
+) {
+  const totals = {
+    completedOrders: 0,
+    reversedOrders: 0,
+    subtotalIqd: 0,
+    deliveryFeeIqd: 0,
+    loyaltyDiscountIqd: 0,
+    commissionIqd: 0,
+  };
   for (const group of groups) {
     const sign = group.entryType === "order_completed" ? 1 : -1;
-    if (sign === 1) totals.completedOrders += group._count._all; else totals.reversedOrders += group._count._all;
+    if (sign === 1) totals.completedOrders += group._count._all;
+    else totals.reversedOrders += group._count._all;
     totals.subtotalIqd += sign * (group._sum.subtotalIqd ?? 0);
     totals.deliveryFeeIqd += sign * (group._sum.deliveryFeeIqd ?? 0);
     totals.loyaltyDiscountIqd += sign * (group._sum.loyaltyDiscountIqd ?? 0);
@@ -223,13 +287,33 @@ export async function merchantFinanceReport(merchantId: string, query: Record<st
       where,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 200,
-      select: { id: true, storeId: true, orderId: true, entryType: true, subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true, commissionBps: true, planCode: true, note: true, createdAt: true, store: { select: { slug: true, name: true } }, order: { select: { orderNumber: true } } },
+      select: {
+        id: true,
+        storeId: true,
+        orderId: true,
+        entryType: true,
+        subtotalIqd: true,
+        deliveryFeeIqd: true,
+        loyaltyDiscountIqd: true,
+        commissionIqd: true,
+        commissionBps: true,
+        planCode: true,
+        note: true,
+        createdAt: true,
+        store: { select: { slug: true, name: true } },
+        order: { select: { orderNumber: true } },
+      },
     }),
     prisma.ledgerEntry.groupBy({
       by: ["entryType"],
       where,
       _count: { _all: true },
-      _sum: { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true },
+      _sum: {
+        subtotalIqd: true,
+        deliveryFeeIqd: true,
+        loyaltyDiscountIqd: true,
+        commissionIqd: true,
+      },
     }),
   ]);
   return { period: { from, to }, totals: totalsFromGroups(groups), entries };
@@ -244,7 +328,11 @@ const SETTLEMENTS_KIND = "finance.settlements";
  * longer reach his first year's payouts — on the screen that exists to prove
  * what he was paid.
  */
-export async function merchantSettlements(merchantId: string, rawLimit?: unknown, rawCursor?: unknown) {
+export async function merchantSettlements(
+  merchantId: string,
+  rawLimit?: unknown,
+  rawCursor?: unknown
+) {
   const limit = parseListLimit(rawLimit);
   const cursor = await readListCursor(SETTLEMENTS_KIND, rawCursor);
   const rows = await prisma.settlement.findMany({
@@ -252,7 +340,9 @@ export async function merchantSettlements(merchantId: string, rawLimit?: unknown
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(SETTLEMENTS_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(SETTLEMENTS_KIND, last.createdAt, last.id)
+  );
   return { settlements: page, nextCursor };
 }
 
@@ -262,27 +352,53 @@ export async function platformFinanceReport(query: Record<string, unknown>) {
     by: ["storeId", "entryType"],
     where: { createdAt: { gte: from, lte: to } },
     _count: { _all: true },
-    _sum: { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true },
+    _sum: {
+      subtotalIqd: true,
+      deliveryFeeIqd: true,
+      loyaltyDiscountIqd: true,
+      commissionIqd: true,
+    },
   });
   const stores = await prisma.store.findMany({
     where: { id: { in: Array.from(new Set(groups.map((group) => group.storeId))) } },
-    select: { id: true, merchantId: true, merchant: { select: { email: true, businessName: true } } },
+    select: {
+      id: true,
+      merchantId: true,
+      merchant: { select: { email: true, businessName: true } },
+    },
   });
   const storeById = new Map(stores.map((store) => [store.id, store]));
-  const byMerchant = new Map<string, { merchantId: string; email: string; businessName: string; groups: typeof groups }>();
+  const byMerchant = new Map<
+    string,
+    { merchantId: string; email: string; businessName: string; groups: typeof groups }
+  >();
   for (const group of groups) {
     const store = storeById.get(group.storeId);
     if (!store) continue;
-    if (!byMerchant.has(store.merchantId)) byMerchant.set(store.merchantId, { merchantId: store.merchantId, email: store.merchant.email, businessName: store.merchant.businessName, groups: [] });
+    if (!byMerchant.has(store.merchantId))
+      byMerchant.set(store.merchantId, {
+        merchantId: store.merchantId,
+        email: store.merchant.email,
+        businessName: store.merchant.businessName,
+        groups: [],
+      });
     byMerchant.get(store.merchantId)!.groups.push(group);
   }
   return {
     period: { from, to },
     totals: totalsFromGroups(groups),
-    merchants: Array.from(byMerchant.values()).map((row) => {
-      const totals = totalsFromGroups(row.groups);
-      return { merchantId: row.merchantId, email: row.email, businessName: row.businessName, totals, deliveryToSubtotalBps: deliveryShareBps(totals) };
-    }).sort((a, b) => b.totals.commissionIqd - a.totals.commissionIqd),
+    merchants: Array.from(byMerchant.values())
+      .map((row) => {
+        const totals = totalsFromGroups(row.groups);
+        return {
+          merchantId: row.merchantId,
+          email: row.email,
+          businessName: row.businessName,
+          totals,
+          deliveryToSubtotalBps: deliveryShareBps(totals),
+        };
+      })
+      .sort((a, b) => b.totals.commissionIqd - a.totals.commissionIqd),
   };
 }
 
@@ -299,7 +415,12 @@ export async function platformFinanceReport(query: Record<string, unknown>) {
  * It also carries every refusal (overlap, gap) so a preview fails exactly where
  * the write would.
  */
-async function draftSettlement(tx: Prisma.TransactionClient, merchant: { id: string }, from: Date, to: Date) {
+async function draftSettlement(
+  tx: Prisma.TransactionClient,
+  merchant: { id: string },
+  from: Date,
+  to: Date
+) {
   // 19-د — A PERIOD IS SETTLED ONCE.
   //
   // This function used to read the ledger and write a Settlement without ever
@@ -321,7 +442,11 @@ async function draftSettlement(tx: Prisma.TransactionClient, merchant: { id: str
     select: { id: true, periodFrom: true, periodTo: true },
   });
   if (previous && from < previous.periodTo) {
-    throw new HttpError(409, "SETTLEMENT_PERIOD_OVERLAP", `هذه الفترة تتداخل مع تسوية سابقة تنتهي في ${previous.periodTo.toISOString()}. ابدأ الفترة الجديدة من تلك اللحظة بالضبط.`);
+    throw new HttpError(
+      409,
+      "SETTLEMENT_PERIOD_OVERLAP",
+      `هذه الفترة تتداخل مع تسوية سابقة تنتهي في ${previous.periodTo.toISOString()}. ابدأ الفترة الجديدة من تلك اللحظة بالضبط.`
+    );
   }
   /**
    * ق-233 — CONTIGUITY IS TWO-SIDED, AND ONLY ONE SIDE WAS BUILT.
@@ -354,45 +479,72 @@ async function draftSettlement(tx: Prisma.TransactionClient, merchant: { id: str
    */
   const anchor = previous
     ? previous.periodTo
-    : (await tx.ledgerEntry.findFirst({
-        where: { store: { merchantId: merchant.id } },
-        orderBy: { createdAt: "asc" },
-        select: { createdAt: true },
-      }))?.createdAt ?? null;
+    : ((
+        await tx.ledgerEntry.findFirst({
+          where: { store: { merchantId: merchant.id } },
+          orderBy: { createdAt: "asc" },
+          select: { createdAt: true },
+        })
+      )?.createdAt ?? null);
   if (anchor && from > anchor) {
     const instant = anchor.toISOString();
-    throw new HttpError(409, "SETTLEMENT_PERIOD_GAP", previous
-      ? `تبدأ هذه الفترة بعد نهاية التسوية السابقة، فيسقط ما بينهما من كل الشاشات: لا يدخل تسويةً ولا يبقى في «المستحق للتاجر». ابدأها من ${instant} بالضبط.`
-      : `للتاجر قيودٌ أقدم من بداية هذه الفترة، ولن تدخل أيّ تسوية بعدها. ابدأ أول تسوية من ${instant} بالضبط.`);
+    throw new HttpError(
+      409,
+      "SETTLEMENT_PERIOD_GAP",
+      previous
+        ? `تبدأ هذه الفترة بعد نهاية التسوية السابقة، فيسقط ما بينهما من كل الشاشات: لا يدخل تسويةً ولا يبقى في «المستحق للتاجر». ابدأها من ${instant} بالضبط.`
+        : `للتاجر قيودٌ أقدم من بداية هذه الفترة، ولن تدخل أيّ تسوية بعدها. ابدأ أول تسوية من ${instant} بالضبط.`
+    );
   }
   // Summed in the database rather than read row by row: a busy merchant's
   // month is thousands of entries, and the preview runs on every form open.
   // The one-type-adds rule, as two filters: completions add, every other type subtracts.
   const period = { store: { merchantId: merchant.id }, createdAt: { gte: from, lte: to } };
-  const sum = { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true } as const;
+  const sum = {
+    subtotalIqd: true,
+    deliveryFeeIqd: true,
+    loyaltyDiscountIqd: true,
+    commissionIqd: true,
+  } as const;
   const [added, subtracted] = await Promise.all([
-    tx.ledgerEntry.aggregate({ where: { ...period, entryType: "order_completed" }, _count: { _all: true }, _sum: sum }),
-    tx.ledgerEntry.aggregate({ where: { ...period, entryType: { not: "order_completed" } }, _count: { _all: true }, _sum: sum }),
+    tx.ledgerEntry.aggregate({
+      where: { ...period, entryType: "order_completed" },
+      _count: { _all: true },
+      _sum: sum,
+    }),
+    tx.ledgerEntry.aggregate({
+      where: { ...period, entryType: { not: "order_completed" } },
+      _count: { _all: true },
+      _sum: sum,
+    }),
   ]);
   const totals = {
     completedOrders: added._count._all,
     reversedOrders: subtracted._count._all,
     subtotalIqd: (added._sum.subtotalIqd ?? 0) - (subtracted._sum.subtotalIqd ?? 0),
     deliveryFeeIqd: (added._sum.deliveryFeeIqd ?? 0) - (subtracted._sum.deliveryFeeIqd ?? 0),
-    loyaltyDiscountIqd: (added._sum.loyaltyDiscountIqd ?? 0) - (subtracted._sum.loyaltyDiscountIqd ?? 0),
+    loyaltyDiscountIqd:
+      (added._sum.loyaltyDiscountIqd ?? 0) - (subtracted._sum.loyaltyDiscountIqd ?? 0),
     commissionIqd: (added._sum.commissionIqd ?? 0) - (subtracted._sum.commissionIqd ?? 0),
   };
-  const netPayoutIqd = totals.subtotalIqd + totals.deliveryFeeIqd - totals.loyaltyDiscountIqd - totals.commissionIqd;
+  const netPayoutIqd =
+    totals.subtotalIqd + totals.deliveryFeeIqd - totals.loyaltyDiscountIqd - totals.commissionIqd;
   return { totals, netPayoutIqd };
 }
 
 /** Audit 17-ب: what confirming this settlement would record and transfer — read only. */
 export async function previewSettlement(body: Record<string, unknown>) {
-  if (typeof body.merchantId !== "string") throw new HttpError(422, "INVALID_INPUT", "merchantId مطلوب.");
+  if (typeof body.merchantId !== "string")
+    throw new HttpError(422, "INVALID_INPUT", "merchantId مطلوب.");
   const { from, to } = settlementPeriod(body, new Date());
-  const merchant = await prisma.merchant.findUnique({ where: { id: body.merchantId }, select: { id: true } });
+  const merchant = await prisma.merchant.findUnique({
+    where: { id: body.merchantId },
+    select: { id: true },
+  });
   if (!merchant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "التاجر غير موجود.");
-  const { totals, netPayoutIqd } = await prisma.$transaction((tx) => draftSettlement(tx, merchant, from, to));
+  const { totals, netPayoutIqd } = await prisma.$transaction((tx) =>
+    draftSettlement(tx, merchant, from, to)
+  );
   return {
     // `periodTo` is the CLAMPED instant: the confirm must send this exact value
     // back, so the write settles the same period the operator was shown.
@@ -408,19 +560,31 @@ export async function previewSettlement(body: Record<string, unknown>) {
 }
 
 export async function createSettlement(actor: PlatformActor, body: Record<string, unknown>) {
-  if (typeof body.merchantId !== "string") throw new HttpError(422, "INVALID_INPUT", "merchantId مطلوب.");
+  if (typeof body.merchantId !== "string")
+    throw new HttpError(422, "INVALID_INPUT", "merchantId مطلوب.");
   const { from, to } = settlementPeriod(body, new Date());
-  const merchant = await prisma.merchant.findUnique({ where: { id: body.merchantId }, select: { id: true, businessName: true, email: true } });
+  const merchant = await prisma.merchant.findUnique({
+    where: { id: body.merchantId },
+    select: { id: true, businessName: true, email: true },
+  });
   if (!merchant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "التاجر غير موجود.");
-  const note = typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 500) : null;
+  const note =
+    typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 500) : null;
   const settlement = await prisma.$transaction(async (tx) => {
     const { totals, netPayoutIqd } = await draftSettlement(tx, merchant, from, to);
     // Audit 17-ب: the operator confirms an AMOUNT, not a date range. If the
     // ledger moved between the preview he read and this write (a completion or
     // a return landed in the period), the recorded payout would differ from
     // the money he transferred — so it is refused and he previews again.
-    if (typeof body.expectedNetPayoutIqd === "number" && body.expectedNetPayoutIqd !== netPayoutIqd) {
-      throw new HttpError(409, "SETTLEMENT_AMOUNT_CHANGED", `تغيّر المبلغ المستحق منذ عرضه: صار ${netPayoutIqd} د.ع بدل ${body.expectedNetPayoutIqd} د.ع. راجع المبلغ الجديد ثم أكّد.`);
+    if (
+      typeof body.expectedNetPayoutIqd === "number" &&
+      body.expectedNetPayoutIqd !== netPayoutIqd
+    ) {
+      throw new HttpError(
+        409,
+        "SETTLEMENT_AMOUNT_CHANGED",
+        `تغيّر المبلغ المستحق منذ عرضه: صار ${netPayoutIqd} د.ع بدل ${body.expectedNetPayoutIqd} د.ع. راجع المبلغ الجديد ثم أكّد.`
+      );
     }
     const settlement = await tx.settlement.create({
       data: {
@@ -444,10 +608,19 @@ export async function createSettlement(actor: PlatformActor, body: Record<string
       entityLabel: merchant.businessName || merchant.email,
       action: "settlement_created",
       actor,
-      metadata: { merchantId: merchant.id, commissionIqd: totals.commissionIqd, subtotalIqd: totals.subtotalIqd, netPayoutIqd: settlement.netPayoutIqd },
+      metadata: {
+        merchantId: merchant.id,
+        commissionIqd: totals.commissionIqd,
+        subtotalIqd: totals.subtotalIqd,
+        netPayoutIqd: settlement.netPayoutIqd,
+      },
     });
     return settlement;
   });
-  domainEvents.emit("settlement.created", { merchantId: merchant.id, settlementId: settlement.id, netPayoutIqd: settlement.netPayoutIqd ?? 0 });
+  domainEvents.emit("settlement.created", {
+    merchantId: merchant.id,
+    settlementId: settlement.id,
+    netPayoutIqd: settlement.netPayoutIqd ?? 0,
+  });
   return settlement;
 }

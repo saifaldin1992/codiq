@@ -12,7 +12,7 @@ import { assertStoreSlugNotReserved } from "./reserved-slugs.js";
 /** Creates only locked-ready settings for a new store; no external provider is activated. */
 export async function createStoreFoundation(
   input: { merchantId: string; name: string; slug: string; defaultSubdomain: string },
-  client: typeof prisma | Prisma.TransactionClient = prisma,
+  client: typeof prisma | Prisma.TransactionClient = prisma
 ) {
   const slug = input.slug.trim().toLowerCase();
   const defaultSubdomain = input.defaultSubdomain.trim().toLowerCase();
@@ -32,13 +32,23 @@ export async function createStoreFoundation(
       slug,
       defaultSubdomain,
       customDomain: null,
-      paymentMethods: { create: [
-        // ق-209: lowercase, the code every order carries; the card row that could
-        // never be switched on is gone — a gateway arrives with 25أ, not as a dead row.
-        { code: "cod", displayName: "الدفع عند الاستلام", isEnabled: true },
-      ] },
-      notificationSettings: { create: { provider: null, apiKey: null, senderId: null, isEnabled: false } },
-      deliveryRates: { create: GOVERNORATE_KEYS.map((governorate) => ({ governorate, amountIqd: 0, isEnabled: false })) },
+      paymentMethods: {
+        create: [
+          // ق-209: lowercase, the code every order carries; the card row that could
+          // never be switched on is gone — a gateway arrives with 25أ, not as a dead row.
+          { code: "cod", displayName: "الدفع عند الاستلام", isEnabled: true },
+        ],
+      },
+      notificationSettings: {
+        create: { provider: null, apiKey: null, senderId: null, isEnabled: false },
+      },
+      deliveryRates: {
+        create: GOVERNORATE_KEYS.map((governorate) => ({
+          governorate,
+          amountIqd: 0,
+          isEnabled: false,
+        })),
+      },
     },
   });
 }
@@ -49,6 +59,7 @@ export async function notificationEligibility(storeId: string) {
   // still answered by its presence — this deliberately does NOT decrypt, because
   // knowing a credential exists never requires reading it. The one place it is
   // read back in the clear is `notificationApiKey()`.
-  if (!settings || !settings.apiKey || !settings.isEnabled) return { allowed: false, reason: "NOT_CONFIGURED" as const };
+  if (!settings || !settings.apiKey || !settings.isEnabled)
+    return { allowed: false, reason: "NOT_CONFIGURED" as const };
   return { allowed: true, reason: "CONFIGURED" as const };
 }

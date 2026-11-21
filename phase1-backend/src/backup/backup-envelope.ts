@@ -115,11 +115,16 @@ export interface BackupKey {
 }
 
 function derive(root: string, label: string, bytes: number): Buffer {
-  return Buffer.from(crypto.hkdfSync("sha256", Buffer.from(root, "utf8"), SALT, Buffer.from(label, "utf8"), bytes));
+  return Buffer.from(
+    crypto.hkdfSync("sha256", Buffer.from(root, "utf8"), SALT, Buffer.from(label, "utf8"), bytes)
+  );
 }
 
 function keyFromRoot(root: string): BackupKey {
-  return { keyId: derive(root, KEY_ID_LABEL, 4).toString("hex"), key: derive(root, KEY_LABEL, KEY_BYTES) };
+  return {
+    keyId: derive(root, KEY_ID_LABEL, 4).toString("hex"),
+    key: derive(root, KEY_LABEL, KEY_BYTES),
+  };
 }
 
 function readRoot(environment: NodeJS.ProcessEnv, variable: string): string | null {
@@ -127,7 +132,7 @@ function readRoot(environment: NodeJS.ProcessEnv, variable: string): string | nu
   if (!value) return null;
   if (value.length < MINIMUM_ROOT_LENGTH) {
     throw new Error(
-      `${variable} is too short: use at least ${MINIMUM_ROOT_LENGTH} characters (e.g. \`openssl rand -base64 48\`).`,
+      `${variable} is too short: use at least ${MINIMUM_ROOT_LENGTH} characters (e.g. \`openssl rand -base64 48\`).`
     );
   }
   return value;
@@ -141,7 +146,7 @@ export function currentBackupKey(environment: NodeJS.ProcessEnv = process.env): 
       "Missing required environment variable: CODIQ_BACKUP_ENCRYPTION_KEY. " +
         "There is no development fallback: a dump sealed with a key printed in the repository is a plaintext dump " +
         "that merely looks encrypted. Generate one with `openssl rand -base64 48` and escrow it OUTSIDE Railway — " +
-        "a key that only exists in the environment you are insuring is not a backup key.",
+        "a key that only exists in the environment you are insuring is not a backup key."
     );
   }
   return keyFromRoot(root);
@@ -179,7 +184,13 @@ function frameAad(headerDigest: Buffer, index: number, final: boolean): Buffer {
   return Buffer.concat([headerDigest, suffix]);
 }
 
-function sealFrame(key: BackupKey, headerDigest: Buffer, index: number, final: boolean, plaintext: Buffer): Buffer {
+function sealFrame(
+  key: BackupKey,
+  headerDigest: Buffer,
+  index: number,
+  final: boolean,
+  plaintext: Buffer
+): Buffer {
   const iv = crypto.randomBytes(IV_BYTES);
   const cipher = crypto.createCipheriv(ALGORITHM, key.key, iv);
   cipher.setAAD(frameAad(headerDigest, index, final));
@@ -199,7 +210,7 @@ function sealFrame(key: BackupKey, headerDigest: Buffer, index: number, final: b
 export async function* encryptBackupStream(
   source: AsyncIterable<Uint8Array> | Iterable<Uint8Array>,
   key: BackupKey,
-  options: { chunkBytes?: number; createdAt?: Date } = {},
+  options: { chunkBytes?: number; createdAt?: Date } = {}
 ): AsyncGenerator<Buffer> {
   const chunkBytes = options.chunkBytes ?? BACKUP_POLICY.chunkBytes;
   const header: EnvelopeHeader = {
@@ -233,7 +244,8 @@ export async function* encryptBackupStream(
     }
   }
 
-  if (pendingBytes > 0) yield sealFrame(key, headerDigest, index++, false, Buffer.concat(pending, pendingBytes));
+  if (pendingBytes > 0)
+    yield sealFrame(key, headerDigest, index++, false, Buffer.concat(pending, pendingBytes));
   // The end-of-stream marker. Its absence is what makes a truncated dump fail.
   yield sealFrame(key, headerDigest, index, true, Buffer.alloc(0));
 }
@@ -252,7 +264,7 @@ class ByteReader {
         if (this.buffered.length === 0) return null;
         throw new Error(
           `[backup-envelope] the stream ended mid-structure: wanted ${count} bytes, had ${this.buffered.length}. ` +
-            `This file is truncated — do NOT restore from it.`,
+            `This file is truncated — do NOT restore from it.`
         );
       }
       const next = await this.iterator.next();
@@ -269,7 +281,7 @@ class ByteReader {
     const chunk = await this.read(count);
     if (!chunk) {
       throw new Error(
-        `[backup-envelope] the stream ended before ${what}. This file is truncated — do NOT restore from it.`,
+        `[backup-envelope] the stream ended before ${what}. This file is truncated — do NOT restore from it.`
       );
     }
     return chunk;
@@ -290,7 +302,7 @@ export interface DecryptedEnvelope {
 export async function* decryptBackupStream(
   source: AsyncIterable<Uint8Array> | Iterable<Uint8Array>,
   keyring: readonly BackupKey[],
-  onHeader?: (header: EnvelopeHeader) => void,
+  onHeader?: (header: EnvelopeHeader) => void
 ): AsyncGenerator<Buffer> {
   const iterable = source as AsyncIterable<Uint8Array>;
   const iterator = (iterable[Symbol.asyncIterator]?.() ??
@@ -301,7 +313,7 @@ export async function* decryptBackupStream(
   if (!magic.equals(MAGIC)) {
     throw new Error(
       `[backup-envelope] this is not a Codiq backup envelope (magic was ${JSON.stringify(magic.toString("latin1"))}). ` +
-        `Check the object key before restoring.`,
+        `Check the object key before restoring.`
     );
   }
 
@@ -310,10 +322,14 @@ export async function* decryptBackupStream(
   const header = JSON.parse(headerBytes.toString("utf8")) as EnvelopeHeader;
 
   if (header.v !== FORMAT_VERSION) {
-    throw new Error(`[backup-envelope] envelope format v${header.v} is not supported by this build (expects v${FORMAT_VERSION}).`);
+    throw new Error(
+      `[backup-envelope] envelope format v${header.v} is not supported by this build (expects v${FORMAT_VERSION}).`
+    );
   }
   if (header.alg !== ALGORITHM) {
-    throw new Error(`[backup-envelope] unexpected algorithm «${header.alg}»; this build only opens ${ALGORITHM}.`);
+    throw new Error(
+      `[backup-envelope] unexpected algorithm «${header.alg}»; this build only opens ${ALGORITHM}.`
+    );
   }
 
   const key = keyring.find((candidate) => candidate.keyId === header.kid);
@@ -321,7 +337,7 @@ export async function* decryptBackupStream(
     throw new Error(
       `[backup-envelope] no key with id ${header.kid} is declared. This dump was sealed with a key that is neither ` +
         `CODIQ_BACKUP_ENCRYPTION_KEY nor CODIQ_BACKUP_ENCRYPTION_KEY_PREVIOUS — recover that key from escrow; ` +
-        `the ciphertext is useless without it.`,
+        `the ciphertext is useless without it.`
     );
   }
   onHeader?.(header);
@@ -335,13 +351,16 @@ export async function* decryptBackupStream(
       // A clean end of stream HERE means the final marker never arrived.
       throw new Error(
         `[backup-envelope] the envelope ended after ${index} frame(s) without its end-of-stream marker. ` +
-          `The upload was cut short — this dump is INCOMPLETE and must not be restored.`,
+          `The upload was cut short — this dump is INCOMPLETE and must not be restored.`
       );
     }
     const ciphertextLength = lengthBytes.readUInt32BE(0);
     const iv = await reader.readExact(IV_BYTES, `frame ${index}'s nonce`);
     const tag = await reader.readExact(TAG_BYTES, `frame ${index}'s authentication tag`);
-    const ciphertext = ciphertextLength === 0 ? Buffer.alloc(0) : await reader.readExact(ciphertextLength, `frame ${index}'s body`);
+    const ciphertext =
+      ciphertextLength === 0
+        ? Buffer.alloc(0)
+        : await reader.readExact(ciphertextLength, `frame ${index}'s body`);
 
     // A zero-length frame is only ever the terminator, so the flag it must be
     // authenticated under is known before the tag is checked.
@@ -356,7 +375,7 @@ export async function* decryptBackupStream(
     } catch {
       throw new Error(
         `[backup-envelope] frame ${index} failed authentication. The dump has been altered, reordered or corrupted ` +
-          `in storage — do NOT restore from it. Reach for the previous object under the same prefix.`,
+          `in storage — do NOT restore from it. Reach for the previous object under the same prefix.`
       );
     }
 

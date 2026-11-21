@@ -22,7 +22,10 @@
  * HTTP path (ADR-004).
  */
 import { prisma } from "../../db/prisma.js";
-import { deleteProductImageObjects, productImageObjectKeys } from "../product-image-storage.service.js";
+import {
+  deleteProductImageObjects,
+  productImageObjectKeys,
+} from "../product-image-storage.service.js";
 import { recordAuditEvent } from "./audit-log.service.js";
 import { TRASH_RETENTION_MS } from "./constants.js";
 import { isForeignKeyViolation, purgeBlockReason } from "./fk-violations.js";
@@ -53,21 +56,97 @@ type Candidate = {
 };
 
 /** `purge_blocked_at NULLS FIRST, deleted_at` — blocked rows never starve the new ones. */
-const sweepOrder = [{ purgeBlockedAt: { sort: "asc" as const, nulls: "first" as const } }, { deletedAt: "asc" as const }];
+const sweepOrder = [
+  { purgeBlockedAt: { sort: "asc" as const, nulls: "first" as const } },
+  { deletedAt: "asc" as const },
+];
 
 async function candidates(cutoff: Date, batchSize: number): Promise<Candidate[]> {
   const expired = { deletedAt: { not: null, lte: cutoff } } as const;
   const [products, categories, coupons, memberships] = await Promise.all([
-    prisma.product.findMany({ where: expired, select: { id: true, storeId: true, name: true, sku: true, purgeBlockedAt: true, purgeBlockReason: true }, orderBy: sweepOrder, take: batchSize }),
-    prisma.productCategory.findMany({ where: expired, select: { id: true, storeId: true, name: true, purgeBlockedAt: true, purgeBlockReason: true }, orderBy: sweepOrder, take: batchSize }),
-    prisma.coupon.findMany({ where: expired, select: { id: true, storeId: true, code: true, purgeBlockedAt: true, purgeBlockReason: true }, orderBy: sweepOrder, take: batchSize }),
-    prisma.storeStaffMembership.findMany({ where: expired, select: { id: true, storeId: true, purgeBlockedAt: true, purgeBlockReason: true, staff: { select: { displayName: true, email: true } } }, orderBy: sweepOrder, take: batchSize }),
+    prisma.product.findMany({
+      where: expired,
+      select: {
+        id: true,
+        storeId: true,
+        name: true,
+        sku: true,
+        purgeBlockedAt: true,
+        purgeBlockReason: true,
+      },
+      orderBy: sweepOrder,
+      take: batchSize,
+    }),
+    prisma.productCategory.findMany({
+      where: expired,
+      select: { id: true, storeId: true, name: true, purgeBlockedAt: true, purgeBlockReason: true },
+      orderBy: sweepOrder,
+      take: batchSize,
+    }),
+    prisma.coupon.findMany({
+      where: expired,
+      select: { id: true, storeId: true, code: true, purgeBlockedAt: true, purgeBlockReason: true },
+      orderBy: sweepOrder,
+      take: batchSize,
+    }),
+    prisma.storeStaffMembership.findMany({
+      where: expired,
+      select: {
+        id: true,
+        storeId: true,
+        purgeBlockedAt: true,
+        purgeBlockReason: true,
+        staff: { select: { displayName: true, email: true } },
+      },
+      orderBy: sweepOrder,
+      take: batchSize,
+    }),
   ]);
   return [
-    ...products.map((row): Candidate => ({ entityType: "product", id: row.id, storeId: row.storeId, label: row.name, secondary: row.sku, purgeBlockedAt: row.purgeBlockedAt, purgeBlockReason: row.purgeBlockReason })),
-    ...categories.map((row): Candidate => ({ entityType: "product_category", id: row.id, storeId: row.storeId, label: row.name, secondary: null, purgeBlockedAt: row.purgeBlockedAt, purgeBlockReason: row.purgeBlockReason })),
-    ...coupons.map((row): Candidate => ({ entityType: "coupon", id: row.id, storeId: row.storeId, label: row.code, secondary: null, purgeBlockedAt: row.purgeBlockedAt, purgeBlockReason: row.purgeBlockReason })),
-    ...memberships.map((row): Candidate => ({ entityType: "staff_membership", id: row.id, storeId: row.storeId, label: row.staff.displayName, secondary: row.staff.email, purgeBlockedAt: row.purgeBlockedAt, purgeBlockReason: row.purgeBlockReason })),
+    ...products.map(
+      (row): Candidate => ({
+        entityType: "product",
+        id: row.id,
+        storeId: row.storeId,
+        label: row.name,
+        secondary: row.sku,
+        purgeBlockedAt: row.purgeBlockedAt,
+        purgeBlockReason: row.purgeBlockReason,
+      })
+    ),
+    ...categories.map(
+      (row): Candidate => ({
+        entityType: "product_category",
+        id: row.id,
+        storeId: row.storeId,
+        label: row.name,
+        secondary: null,
+        purgeBlockedAt: row.purgeBlockedAt,
+        purgeBlockReason: row.purgeBlockReason,
+      })
+    ),
+    ...coupons.map(
+      (row): Candidate => ({
+        entityType: "coupon",
+        id: row.id,
+        storeId: row.storeId,
+        label: row.code,
+        secondary: null,
+        purgeBlockedAt: row.purgeBlockedAt,
+        purgeBlockReason: row.purgeBlockReason,
+      })
+    ),
+    ...memberships.map(
+      (row): Candidate => ({
+        entityType: "staff_membership",
+        id: row.id,
+        storeId: row.storeId,
+        label: row.staff.displayName,
+        secondary: row.staff.email,
+        purgeBlockedAt: row.purgeBlockedAt,
+        purgeBlockReason: row.purgeBlockReason,
+      })
+    ),
   ];
 }
 
@@ -94,23 +173,36 @@ async function purgeOne(candidate: Candidate, cutoff: Date): Promise<string[] | 
       // ق-238: one row now names THREE objects. Expanding here rather than at
       // the delete call is deliberate — the expansion needs `variantSet`, which
       // only this read has, and a legacy row still expands to its single key.
-      const images = await tx.productImage.findMany({ where: { productId: candidate.id }, select: { objectKey: true, variantSet: true } });
+      const images = await tx.productImage.findMany({
+        where: { productId: candidate.id },
+        select: { objectKey: true, variantSet: true },
+      });
       objectKeys = images.flatMap((image) => productImageObjectKeys(image));
       // Variants, images and notification_outbox rows cascade; inventory
       // movements are SET NULL and survive with their stamped snapshot — D-48.
-      ({ count: removed } = await tx.product.deleteMany({ where: { id: candidate.id, ...stillExpired } }));
+      ({ count: removed } = await tx.product.deleteMany({
+        where: { id: candidate.id, ...stillExpired },
+      }));
     } else if (candidate.entityType === "product_category") {
-      ({ count: removed } = await tx.productCategory.deleteMany({ where: { id: candidate.id, ...stillExpired } }));
+      ({ count: removed } = await tx.productCategory.deleteMany({
+        where: { id: candidate.id, ...stillExpired },
+      }));
     } else if (candidate.entityType === "coupon") {
-      ({ count: removed } = await tx.coupon.deleteMany({ where: { id: candidate.id, ...stillExpired } }));
+      ({ count: removed } = await tx.coupon.deleteMany({
+        where: { id: candidate.id, ...stillExpired },
+      }));
     } else {
       // staff_sessions is Restrict, so the membership's already-revoked sessions
       // go first. The Staff row itself is NEVER touched: it is an identity that
       // crosses stores, and order_status_events.actor_id still points at it. The
       // relation filter carries the same guard, so a restored membership does not
       // lose the sessions it is about to stop having.
-      await tx.staffSession.deleteMany({ where: { membershipId: candidate.id, membership: stillExpired } });
-      ({ count: removed } = await tx.storeStaffMembership.deleteMany({ where: { id: candidate.id, ...stillExpired } }));
+      await tx.staffSession.deleteMany({
+        where: { membershipId: candidate.id, membership: stillExpired },
+      });
+      ({ count: removed } = await tx.storeStaffMembership.deleteMany({
+        where: { id: candidate.id, ...stillExpired },
+      }));
     }
     if (removed === 0) return null;
     await recordAuditEvent(tx, {
@@ -138,10 +230,26 @@ async function stampBlocked(candidate: Candidate, reason: string) {
   const data = { purgeBlockedAt: new Date(), purgeBlockReason: reason };
   const stillTrashed = { deletedAt: { not: null } } as const;
   let stamped = 0;
-  if (candidate.entityType === "product") ({ count: stamped } = await prisma.product.updateMany({ where: { id: candidate.id, ...stillTrashed }, data }));
-  else if (candidate.entityType === "product_category") ({ count: stamped } = await prisma.productCategory.updateMany({ where: { id: candidate.id, ...stillTrashed }, data }));
-  else if (candidate.entityType === "coupon") ({ count: stamped } = await prisma.coupon.updateMany({ where: { id: candidate.id, ...stillTrashed }, data }));
-  else ({ count: stamped } = await prisma.storeStaffMembership.updateMany({ where: { id: candidate.id, ...stillTrashed }, data }));
+  if (candidate.entityType === "product")
+    ({ count: stamped } = await prisma.product.updateMany({
+      where: { id: candidate.id, ...stillTrashed },
+      data,
+    }));
+  else if (candidate.entityType === "product_category")
+    ({ count: stamped } = await prisma.productCategory.updateMany({
+      where: { id: candidate.id, ...stillTrashed },
+      data,
+    }));
+  else if (candidate.entityType === "coupon")
+    ({ count: stamped } = await prisma.coupon.updateMany({
+      where: { id: candidate.id, ...stillTrashed },
+      data,
+    }));
+  else
+    ({ count: stamped } = await prisma.storeStaffMembership.updateMany({
+      where: { id: candidate.id, ...stillTrashed },
+      data,
+    }));
   if (stamped === 0) return;
   // Log the block ONCE per reason, not every six hours forever.
   if (candidate.purgeBlockedAt && candidate.purgeBlockReason === reason) return;
@@ -163,7 +271,9 @@ async function stampBlocked(candidate: Candidate, reason: string) {
  * One sweep. `now` is injected so tests drive the job directly (`now: +31d`)
  * exactly as they drive `scanAbandonedCarts`.
  */
-export async function purgeExpiredSoftDeletes(options: { now?: Date; batchSize?: number } = {}): Promise<PurgeResult> {
+export async function purgeExpiredSoftDeletes(
+  options: { now?: Date; batchSize?: number } = {}
+): Promise<PurgeResult> {
   const now = options.now ?? new Date();
   const batchSize = options.batchSize ?? PURGE_BATCH_SIZE;
   const cutoff = new Date(now.valueOf() - TRASH_RETENTION_MS);
@@ -183,7 +293,10 @@ export async function purgeExpiredSoftDeletes(options: { now?: Date; batchSize?:
   for (const candidate of pending) {
     try {
       const keys = await purgeOne(candidate, cutoff);
-      if (keys === null) { outcome.skipped += 1; continue; }
+      if (keys === null) {
+        outcome.skipped += 1;
+        continue;
+      }
       orphanedObjectKeys.push(...keys);
       bump(candidate.entityType, "purged");
     } catch (error) {
@@ -199,19 +312,32 @@ export async function purgeExpiredSoftDeletes(options: { now?: Date; batchSize?:
   for (const { candidate, reason } of blockedThisPass) {
     try {
       const keys = await purgeOne(candidate, cutoff);
-      if (keys === null) { outcome.skipped += 1; continue; }
+      if (keys === null) {
+        outcome.skipped += 1;
+        continue;
+      }
       orphanedObjectKeys.push(...keys);
       bump(candidate.entityType, "purged");
     } catch (error) {
       if (!isForeignKeyViolation(error)) {
-        logger.error("job.row_failed", { job: "trash-purger", entityType: candidate.entityType, entityId: candidate.id, err: error });
+        logger.error("job.row_failed", {
+          job: "trash-purger",
+          entityType: candidate.entityType,
+          entityId: candidate.id,
+          err: error,
+        });
         continue;
       }
       try {
         await stampBlocked(candidate, purgeBlockReason(error) || reason);
         bump(candidate.entityType, "blocked");
       } catch (stampError) {
-        logger.error("job.stamp_failed", { job: "trash-purger", entityType: candidate.entityType, entityId: candidate.id, err: stampError });
+        logger.error("job.stamp_failed", {
+          job: "trash-purger",
+          entityType: candidate.entityType,
+          entityId: candidate.id,
+          err: stampError,
+        });
       }
     }
   }

@@ -13,9 +13,18 @@ import { judgeStore, type StoreFacts } from "./market-score.js";
 
 type FactRow = {
   store_id: string;
-  completed: number; completed_30d: number; settled: number; cancelled: number;
-  median_minutes: number | null; customers: number; repeat_customers: number;
-  rating_avg: number | null; rating_count: number; products: number; in_stock: number; views_30d: number;
+  completed: number;
+  completed_30d: number;
+  settled: number;
+  cancelled: number;
+  median_minutes: number | null;
+  customers: number;
+  repeat_customers: number;
+  rating_avg: number | null;
+  rating_count: number;
+  products: number;
+  in_stock: number;
+  views_30d: number;
 };
 
 /** Stores the directory may show or is about to: listed and waiting for a decision. */
@@ -90,36 +99,52 @@ function factsOf(row: FactRow): StoreFacts {
   };
 }
 
-const round = (value: number | null, places: number) => (value === null ? null : Math.round(value * 10 ** places) / 10 ** places);
+const round = (value: number | null, places: number) =>
+  value === null ? null : Math.round(value * 10 ** places) / 10 ** places;
 
 /** Recompute the given stores, or every listed/pending store. Returns how many rows were written. */
-export async function recomputeMarketMetrics(storeIds?: readonly string[]): Promise<{ stores: number }> {
-  const ids = storeIds ?? (await prisma.store.findMany({ where: { marketStatus: { in: JUDGED_STATUSES } }, select: { id: true } })).map((row) => row.id);
+export async function recomputeMarketMetrics(
+  storeIds?: readonly string[]
+): Promise<{ stores: number }> {
+  const ids =
+    storeIds ??
+    (
+      await prisma.store.findMany({
+        where: { marketStatus: { in: JUDGED_STATUSES } },
+        select: { id: true },
+      })
+    ).map((row) => row.id);
   let written = 0;
   // Batches keep each statement's id array and the upsert transaction small at a thousand stores.
   for (let start = 0; start < ids.length; start += 200) {
     const rows = await readFacts(ids.slice(start, start + 200));
-    await prisma.$transaction(rows.map((row) => {
-      const facts = factsOf(row);
-      const verdict = judgeStore(facts);
-      const data = {
-        score: verdict.score,
-        tier: verdict.tier,
-        ratingAvg: round(facts.ratingAvg, 2),
-        ratingCount: facts.ratingCount,
-        completedOrders: facts.completedOrders,
-        completedOrders30d: facts.completedOrders30d,
-        cancelRate: round(verdict.cancelRate, 4),
-        repeatRate: round(verdict.repeatRate, 4),
-        medianResponseMinutes: facts.medianResponseMinutes,
-        inStockRate: round(verdict.inStockRate, 4),
-        views30d: row.views_30d,
-        productCount: facts.productCount,
-        badges: verdict.badges,
-        computedAt: new Date(),
-      };
-      return prisma.storeMarketMetrics.upsert({ where: { storeId: row.store_id }, create: { storeId: row.store_id, ...data }, update: data });
-    }));
+    await prisma.$transaction(
+      rows.map((row) => {
+        const facts = factsOf(row);
+        const verdict = judgeStore(facts);
+        const data = {
+          score: verdict.score,
+          tier: verdict.tier,
+          ratingAvg: round(facts.ratingAvg, 2),
+          ratingCount: facts.ratingCount,
+          completedOrders: facts.completedOrders,
+          completedOrders30d: facts.completedOrders30d,
+          cancelRate: round(verdict.cancelRate, 4),
+          repeatRate: round(verdict.repeatRate, 4),
+          medianResponseMinutes: facts.medianResponseMinutes,
+          inStockRate: round(verdict.inStockRate, 4),
+          views30d: row.views_30d,
+          productCount: facts.productCount,
+          badges: verdict.badges,
+          computedAt: new Date(),
+        };
+        return prisma.storeMarketMetrics.upsert({
+          where: { storeId: row.store_id },
+          create: { storeId: row.store_id, ...data },
+          update: data,
+        });
+      })
+    );
     written += rows.length;
   }
   return { stores: written };

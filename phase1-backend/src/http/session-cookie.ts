@@ -48,7 +48,11 @@ export const WEB_SESSION_COOKIE = webSessionCookieName(config.cookieSecure);
  * implementation.
  */
 export function cookieValue(request: Request, name: string): string | undefined {
-  return request.headers.cookie?.split(";").map((value) => value.trim()).find((value) => value.startsWith(`${name}=`))?.slice(name.length + 1);
+  return request.headers.cookie
+    ?.split(";")
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
 }
 
 /** The dashboard session token as the browser sent it, decoded — or undefined. */

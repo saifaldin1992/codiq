@@ -41,7 +41,13 @@ const base = `http://127.0.0.1:${server.address().port}`;
 // Windows with `UV_HANDLE_CLOSING` and exit code 3221226505 — which reads as
 // «127» through a pipe and hides WHY the suite failed behind a crash. The
 // cleanup belongs on the way out, not only on the happy path.
-process.on("exit", () => { try { server.close(); } catch { /* already closed */ } });
+process.on("exit", () => {
+  try {
+    server.close();
+  } catch {
+    /* already closed */
+  }
+});
 
 // ============================================================
 // 1. The happy path — everything readable.
@@ -65,13 +71,23 @@ summary.healthy = `200 with db, search (${body.search.engine}), mail and config`
 const original = searchEngine.threshold;
 try {
   searchEngine.threshold = async () => {
-    throw Object.assign(new Error('unrecognized configuration parameter "pg_trgm.word_similarity_threshold"'), { code: "42704" });
+    throw Object.assign(
+      new Error('unrecognized configuration parameter "pg_trgm.word_similarity_threshold"'),
+      { code: "42704" }
+    );
   };
   const degraded = await fetch(`${base}/ready`);
-  assert.equal(degraded.status, 200, "an unreadable DIAGNOSTIC must not turn /ready into a 500 — this is the whole regression");
+  assert.equal(
+    degraded.status,
+    200,
+    "an unreadable DIAGNOSTIC must not turn /ready into a 500 — this is the whole regression"
+  );
   const payload = await degraded.json();
   assert.equal(payload.db, "ok", "…and the checks that DID succeed must still be reported");
-  assert.ok(payload.config?.groups, "…including the configuration groups, which are the reason an operator opens this route");
+  assert.ok(
+    payload.config?.groups,
+    "…including the configuration groups, which are the reason an operator opens this route"
+  );
   summary.degrades = "a throwing threshold leaves /ready at 200 with every other field intact";
 } finally {
   searchEngine.threshold = original;
@@ -95,9 +111,17 @@ summary.readerIsTotal = `threshold() resolved to «${value}» instead of throwin
 // Reporting a value read WITHOUT loading pg_trgm would report a default nobody
 // searches with — true-looking and useless.
 const { readFileSync } = await import("node:fs");
-const source = readFileSync(new URL("../src/services/search/postgres-trigram.engine.ts", import.meta.url), "utf8");
-assert.match(source, /word_similarity\(/, "the threshold read must touch a pg_trgm function so the module is loaded first");
-summary.loadsFirst = "the read forces pg_trgm to load, so the number is the one a real search would use";
+const source = readFileSync(
+  new URL("../src/services/search/postgres-trigram.engine.ts", import.meta.url),
+  "utf8"
+);
+assert.match(
+  source,
+  /word_similarity\(/,
+  "the threshold read must touch a pg_trgm function so the module is loaded first"
+);
+summary.loadsFirst =
+  "the read forces pg_trgm to load, so the number is the one a real search would use";
 
 // ============================================================
 // 5. D-66 — NEITHER PROBE NAMES THE DEPLOYMENT.
@@ -118,10 +142,14 @@ try {
     const probe = await fetch(`${base}${path}`);
     assert.equal(probe.status, 200, `${path} still answers 200`);
     const text = await probe.text();
-    assert.ok(!text.includes("codiq-probe-sentinel-9f2a"), `D-66: ${path} must not name the deployment to an anonymous caller`);
+    assert.ok(
+      !text.includes("codiq-probe-sentinel-9f2a"),
+      `D-66: ${path} must not name the deployment to an anonymous caller`
+    );
     assert.equal(JSON.parse(text).env, undefined, `D-66: ${path} carries no «env» field`);
   }
-  summary.namesNoEnvironment = "D-66: /health and /ready answer 200 without NODE_ENV reaching the body under any key";
+  summary.namesNoEnvironment =
+    "D-66: /health and /ready answer 200 without NODE_ENV reaching the body under any key";
 } finally {
   if (realNodeEnv === undefined) delete process.env.NODE_ENV;
   else process.env.NODE_ENV = realNodeEnv;

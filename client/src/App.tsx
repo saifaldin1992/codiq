@@ -35,7 +35,9 @@ const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
    marketing page every visitor loads. */
 const PasswordResetRequest = lazy(() => import("./pages/PasswordResetRequest"));
 const PasswordResetConsume = lazy(() => import("./pages/PasswordResetConsume"));
-const EngineeringArchitectureDashboard = lazy(() => import("./pages/EngineeringArchitectureDashboard"));
+const EngineeringArchitectureDashboard = lazy(
+  () => import("./pages/EngineeringArchitectureDashboard")
+);
 const StorefrontWrapper = lazy(() => import("./pages/StorefrontWrapper"));
 /* Marketplace (docs/MARKETPLACE_PLAN.md): the shopper app, its own chunk. */
 const MarketApp = lazy(() => import("./market/MarketApp"));
@@ -51,7 +53,11 @@ function useHostStorefrontRedirect() {
     if (location !== "/") return;
     const forced = new URLSearchParams(window.location.search).get("codiq_host");
     const hostname = forced ?? window.location.hostname;
-    if (!forced && (hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".up.railway.app"))) return;
+    if (
+      !forced &&
+      (hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".up.railway.app"))
+    )
+      return;
     fetch(`/api/public/store-for-host?host=${encodeURIComponent(hostname)}`)
       .then(async (response) => {
         if (!response.ok) return;
@@ -103,7 +109,7 @@ function Router() {
   useDocumentTitle();
   return (
     <>
-    {/* P27-7: the demo banner is mounted ONCE, above the route table, so EVERY
+      {/* P27-7: the demo banner is mounted ONCE, above the route table, so EVERY
         route carries it — including the ones that have no shell of their own:
         `/` (the public marketing page a prospect reaches by trimming the demo
         link), the three login pages, `/demo`, and NotFound. It used to be
@@ -111,13 +117,13 @@ function Router() {
         left the marketing page — the page with the self-registration form on
         it — looking exactly like production. Renders null outside the demo
         environment, so this is a no-op in staging and production. */}
-    <DemoBanner />
-    <Suspense fallback={null}>
-    <Switch>
-      <Route path={"/"} component={Home} />
-      {/* PG-3: reached from a link in an email — no session, and never inside a store shell. */}
-      <Route path={"/unsubscribe/:token"} component={UnsubscribePage} />
-      {/* PR-1 «استعادة كلمة السر». Four mount points, two components.
+      <DemoBanner />
+      <Suspense fallback={null}>
+        <Switch>
+          <Route path={"/"} component={Home} />
+          {/* PG-3: reached from a link in an email — no session, and never inside a store shell. */}
+          <Route path={"/unsubscribe/:token"} component={UnsubscribePage} />
+          {/* PR-1 «استعادة كلمة السر». Four mount points, two components.
           The reset pages are session-less by nature — a person who cannot sign
           in must not meet a screen that assumes he did — so they sit outside
           every shell, exactly like /unsubscribe above.
@@ -126,66 +132,141 @@ function Router() {
           request to the store he actually has an account at: `customers` is
           UNIQUE(store_id, email), so the same address is a different person at
           a different shop. */}
-      <Route path={"/forgot-password"} component={PasswordResetRequest} />
-      <Route path={"/reset-password"} component={PasswordResetConsume} />
-      <Route path={"/store/:storeSlug/account/forgot-password"} component={PasswordResetRequest} />
-      <Route path={"/store/:storeSlug/account/reset-password"} component={PasswordResetConsume} />
-      <Route path={"/engineering/architecture"} component={EngineeringArchitectureDashboard} />
-      {/* P27-7: the guest-entry link the owner sends to prospects. Inert outside
+          <Route path={"/forgot-password"} component={PasswordResetRequest} />
+          <Route path={"/reset-password"} component={PasswordResetConsume} />
+          <Route
+            path={"/store/:storeSlug/account/forgot-password"}
+            component={PasswordResetRequest}
+          />
+          <Route
+            path={"/store/:storeSlug/account/reset-password"}
+            component={PasswordResetConsume}
+          />
+          <Route path={"/engineering/architecture"} component={EngineeringArchitectureDashboard} />
+          {/* P27-7: the guest-entry link the owner sends to prospects. Inert outside
           the demo environment — the server never registers /api/public/demo-login there. */}
-      <Route path={"/demo"} component={DemoEntryPage} />
-      <Route path={"/platform/login"}>{() => <HiddenInDemo><DashboardLogin kind="platform" /></HiddenInDemo>}</Route>
-      {/* المرحلة 19-ب: the platform-staff door hides in the demo exactly like the
+          <Route path={"/demo"} component={DemoEntryPage} />
+          <Route path={"/platform/login"}>
+            {() => (
+              <HiddenInDemo>
+                <DashboardLogin kind="platform" />
+              </HiddenInDemo>
+            )}
+          </Route>
+          {/* المرحلة 19-ب: the platform-staff door hides in the demo exactly like the
           owner's — the demo must not advertise that a platform area exists. */}
-      <Route path={"/platform/staff/login"}>{() => <HiddenInDemo><DashboardLogin kind="platformStaff" /></HiddenInDemo>}</Route>
-      <Route path={"/platform/staff/dashboard/:section/:subsection"}>{() => <HiddenInDemo><PlatformStaffDashboard /></HiddenInDemo>}</Route>
-      <Route path={"/platform/staff/dashboard/:section"}>{() => <HiddenInDemo><PlatformStaffDashboard /></HiddenInDemo>}</Route>
-      <Route path={"/platform/staff/dashboard"}>{() => <HiddenInDemo><PlatformStaffDashboard /></HiddenInDemo>}</Route>
-      <Route path={"/merchant/login"}>{() => <DashboardLogin kind="merchant" />}</Route>
-      <Route path={"/staff/login"}>{() => <DashboardLogin kind="staff" />}</Route>
-      {/* ق-132: the till is a FULL-SCREEN counter surface, deliberately outside
+          <Route path={"/platform/staff/login"}>
+            {() => (
+              <HiddenInDemo>
+                <DashboardLogin kind="platformStaff" />
+              </HiddenInDemo>
+            )}
+          </Route>
+          <Route path={"/platform/staff/dashboard/:section/:subsection"}>
+            {() => (
+              <HiddenInDemo>
+                <PlatformStaffDashboard />
+              </HiddenInDemo>
+            )}
+          </Route>
+          <Route path={"/platform/staff/dashboard/:section"}>
+            {() => (
+              <HiddenInDemo>
+                <PlatformStaffDashboard />
+              </HiddenInDemo>
+            )}
+          </Route>
+          <Route path={"/platform/staff/dashboard"}>
+            {() => (
+              <HiddenInDemo>
+                <PlatformStaffDashboard />
+              </HiddenInDemo>
+            )}
+          </Route>
+          <Route path={"/merchant/login"}>{() => <DashboardLogin kind="merchant" />}</Route>
+          <Route path={"/staff/login"}>{() => <DashboardLogin kind="staff" />}</Route>
+          {/* ق-132: the till is a FULL-SCREEN counter surface, deliberately outside
           the dashboard shell — a cashier with a queue does not navigate. */}
-      <Route path={"/merchant/stores/:storeSlug/till"} component={TillPage} />
-      <Route path={"/staff/stores/:storeSlug/dashboard/:section/:subsection"} component={StaffDashboard} />
-      <Route path={"/staff/stores/:storeSlug/dashboard/:section"} component={StaffDashboard} />
-      <Route path={"/staff/stores/:storeSlug/dashboard"} component={StaffDashboard} />
-      <Route path={"/merchant/stores/:storeSlug/dashboard/:section/:subsection/:detail"} component={MerchantDashboard} />
-      <Route path={"/merchant/stores/:storeSlug/dashboard/:section/:subsection"} component={MerchantDashboard} />
-      <Route path={"/merchant/stores/:storeSlug/dashboard/:section"} component={MerchantDashboard} />
-      <Route path={"/merchant/stores/:storeSlug/dashboard"} component={MerchantDashboard} />
-      <Route path={"/merchant/dashboard/:section/:subsection/:detail"} component={MerchantDashboard} />
-      <Route path={"/merchant/dashboard/:section/:subsection"} component={MerchantDashboard} />
-      <Route path={"/merchant/dashboard/:section"} component={MerchantDashboard} />
-      <Route path={"/merchant/dashboard"} component={MerchantDashboard} />
-      <Route path={"/store/:storeSlug/account/orders/:orderId"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/account/orders"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/account/wishlist"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/account/returns"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/account/addresses"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/account/preferences"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/account/register"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/account/login"} component={StorefrontWrapper} />
-      {/* ق-203: the catalog grid moved off the front page; categories and the written policies have pages of their own. */}
-      <Route path={"/store/:storeSlug/products"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/categories/:categoryId"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/policies/:kind"} component={StorefrontWrapper} />
-      {/* ق-211: the pages the merchant wrote himself, linked from «روابط مهمة». */}
-      <Route path={"/store/:storeSlug/pages/:pageSlug"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/products/:productId"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/cart"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/checkout"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug/track"} component={StorefrontWrapper} />
-      <Route path={"/store/:storeSlug"} component={StorefrontWrapper} />
-      <Route path={"/platform/dashboard/:section/:subsection/:detail"}>{() => <HiddenInDemo><OwnerDashboard /></HiddenInDemo>}</Route>
-      <Route path={"/platform/dashboard/:section/:subsection"}>{() => <HiddenInDemo><OwnerDashboard /></HiddenInDemo>}</Route>
-      <Route path={"/platform/dashboard/:section"}>{() => <HiddenInDemo><OwnerDashboard /></HiddenInDemo>}</Route>
-      <Route path={"/platform/dashboard"}>{() => <HiddenInDemo><OwnerDashboard /></HiddenInDemo>}</Route>
-      <Route path={"/market"} nest component={MarketApp} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
-      <Route component={NotFound} />
-    </Switch>
-    </Suspense>
+          <Route path={"/merchant/stores/:storeSlug/till"} component={TillPage} />
+          <Route
+            path={"/staff/stores/:storeSlug/dashboard/:section/:subsection"}
+            component={StaffDashboard}
+          />
+          <Route path={"/staff/stores/:storeSlug/dashboard/:section"} component={StaffDashboard} />
+          <Route path={"/staff/stores/:storeSlug/dashboard"} component={StaffDashboard} />
+          <Route
+            path={"/merchant/stores/:storeSlug/dashboard/:section/:subsection/:detail"}
+            component={MerchantDashboard}
+          />
+          <Route
+            path={"/merchant/stores/:storeSlug/dashboard/:section/:subsection"}
+            component={MerchantDashboard}
+          />
+          <Route
+            path={"/merchant/stores/:storeSlug/dashboard/:section"}
+            component={MerchantDashboard}
+          />
+          <Route path={"/merchant/stores/:storeSlug/dashboard"} component={MerchantDashboard} />
+          <Route
+            path={"/merchant/dashboard/:section/:subsection/:detail"}
+            component={MerchantDashboard}
+          />
+          <Route path={"/merchant/dashboard/:section/:subsection"} component={MerchantDashboard} />
+          <Route path={"/merchant/dashboard/:section"} component={MerchantDashboard} />
+          <Route path={"/merchant/dashboard"} component={MerchantDashboard} />
+          <Route path={"/store/:storeSlug/account/orders/:orderId"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/account/orders"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/account/wishlist"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/account/returns"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/account/addresses"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/account/preferences"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/account/register"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/account/login"} component={StorefrontWrapper} />
+          {/* ق-203: the catalog grid moved off the front page; categories and the written policies have pages of their own. */}
+          <Route path={"/store/:storeSlug/products"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/categories/:categoryId"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/policies/:kind"} component={StorefrontWrapper} />
+          {/* ق-211: the pages the merchant wrote himself, linked from «روابط مهمة». */}
+          <Route path={"/store/:storeSlug/pages/:pageSlug"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/products/:productId"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/cart"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/checkout"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug/track"} component={StorefrontWrapper} />
+          <Route path={"/store/:storeSlug"} component={StorefrontWrapper} />
+          <Route path={"/platform/dashboard/:section/:subsection/:detail"}>
+            {() => (
+              <HiddenInDemo>
+                <OwnerDashboard />
+              </HiddenInDemo>
+            )}
+          </Route>
+          <Route path={"/platform/dashboard/:section/:subsection"}>
+            {() => (
+              <HiddenInDemo>
+                <OwnerDashboard />
+              </HiddenInDemo>
+            )}
+          </Route>
+          <Route path={"/platform/dashboard/:section"}>
+            {() => (
+              <HiddenInDemo>
+                <OwnerDashboard />
+              </HiddenInDemo>
+            )}
+          </Route>
+          <Route path={"/platform/dashboard"}>
+            {() => (
+              <HiddenInDemo>
+                <OwnerDashboard />
+              </HiddenInDemo>
+            )}
+          </Route>
+          <Route path={"/market"} nest component={MarketApp} />
+          <Route path={"/404"} component={NotFound} />
+          {/* Final fallback route */}
+          <Route component={NotFound} />
+        </Switch>
+      </Suspense>
     </>
   );
 }

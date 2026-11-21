@@ -13,7 +13,13 @@
  */
 import { prisma } from "../db/prisma.js";
 import { HttpError } from "../auth/auth.errors.js";
-import { ABSENT_IDENTITY_HASH, createPasswordHash, createTypedSession, normalizeEmail, verifyPassword } from "../auth/identity.js";
+import {
+  ABSENT_IDENTITY_HASH,
+  createPasswordHash,
+  createTypedSession,
+  normalizeEmail,
+  verifyPassword,
+} from "../auth/identity.js";
 import { platformStaffDashboardPath } from "../auth/redirects.js";
 import {
   PLATFORM_PERMISSION_CODES,
@@ -34,7 +40,10 @@ const memberSelect = {
   permissionVersion: true,
   totpEnabledAt: true,
   createdAt: true,
-  permissionOverrides: { select: { permissionCode: true, effect: true }, orderBy: { permissionCode: "asc" as const } },
+  permissionOverrides: {
+    select: { permissionCode: true, effect: true },
+    orderBy: { permissionCode: "asc" as const },
+  },
 } as const;
 
 function memberPayload(member: {
@@ -58,7 +67,9 @@ function memberPayload(member: {
     totpEnrolled: member.totpEnabledAt !== null,
     createdAt: member.createdAt,
     overrides: member.permissionOverrides,
-    permissions: Array.from(resolvePlatformPermissionSet(member.roleCode, member.permissionOverrides)).sort(),
+    permissions: Array.from(
+      resolvePlatformPermissionSet(member.roleCode, member.permissionOverrides)
+    ).sort(),
   };
 }
 
@@ -73,7 +84,7 @@ export async function listPlatformTeam() {
 
 export async function createPlatformStaff(
   actor: PlatformActor,
-  input: { email: unknown; displayName: unknown; temporaryPassword: unknown; roleCode: unknown },
+  input: { email: unknown; displayName: unknown; temporaryPassword: unknown; roleCode: unknown }
 ) {
   const email = normalizeEmail(input.email);
   const roleCode = assertPlatformStaffRoleCode(input.roleCode);
@@ -112,10 +123,11 @@ async function requireLiveMember(staffId: string) {
 export async function updatePlatformStaff(
   actor: PlatformActor,
   staffId: string,
-  input: { roleCode?: unknown; isActive?: unknown },
+  input: { roleCode?: unknown; isActive?: unknown }
 ) {
   const current = await requireLiveMember(staffId);
-  const nextRole = input.roleCode === undefined ? undefined : assertPlatformStaffRoleCode(input.roleCode);
+  const nextRole =
+    input.roleCode === undefined ? undefined : assertPlatformStaffRoleCode(input.roleCode);
   const nextActive = input.isActive === undefined ? undefined : input.isActive === true;
   if (nextRole === undefined && nextActive === undefined) {
     throw new HttpError(400, "EMPTY_MEMBERSHIP_UPDATE", "roleCode أو isActive مطلوب.");
@@ -135,7 +147,10 @@ export async function updatePlatformStaff(
     });
     if (roleChanged || (activeChanged && nextActive === false)) {
       // D14-07 mirror: the change takes effect immediately — open sessions die now.
-      await tx.platformStaffSession.updateMany({ where: { platformStaffId: staffId, revokedAt: null }, data: { revokedAt: new Date() } });
+      await tx.platformStaffSession.updateMany({
+        where: { platformStaffId: staffId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
     }
     await recordPlatformAuditEvent(tx, {
       entityType: "platform_staff",
@@ -153,10 +168,21 @@ export async function updatePlatformStaff(
   return { member: memberPayload(member) };
 }
 
-export async function setPlatformStaffOverrides(actor: PlatformActor, staffId: string, input: { overrides: unknown }) {
+export async function setPlatformStaffOverrides(
+  actor: PlatformActor,
+  staffId: string,
+  input: { overrides: unknown }
+) {
   const current = await requireLiveMember(staffId);
-  if (!Array.isArray(input.overrides) || input.overrides.length > PLATFORM_PERMISSION_CODES.length) {
-    throw new HttpError(400, "INVALID_OVERRIDES", "overrides يجب أن تكون مصفوفة بعنصر واحد على الأكثر لكل رمز صلاحية.");
+  if (
+    !Array.isArray(input.overrides) ||
+    input.overrides.length > PLATFORM_PERMISSION_CODES.length
+  ) {
+    throw new HttpError(
+      400,
+      "INVALID_OVERRIDES",
+      "overrides يجب أن تكون مصفوفة بعنصر واحد على الأكثر لكل رمز صلاحية."
+    );
   }
   const seen = new Set<string>();
   const entries = input.overrides.map((entry: { permissionCode?: unknown; effect?: unknown }) => {
@@ -164,7 +190,8 @@ export async function setPlatformStaffOverrides(actor: PlatformActor, staffId: s
     if (entry?.effect !== "allow" && entry?.effect !== "deny") {
       throw new HttpError(422, "INVALID_OVERRIDE_EFFECT", "أثر التجاوز يجب أن يكون allow أو deny.");
     }
-    if (seen.has(permissionCode)) throw new HttpError(422, "DUPLICATE_OVERRIDE", "كل رمز صلاحية يظهر مرة واحدة على الأكثر.");
+    if (seen.has(permissionCode))
+      throw new HttpError(422, "DUPLICATE_OVERRIDE", "كل رمز صلاحية يظهر مرة واحدة على الأكثر.");
     seen.add(permissionCode);
     return { permissionCode, effect: entry.effect as "allow" | "deny" };
   });
@@ -174,7 +201,9 @@ export async function setPlatformStaffOverrides(actor: PlatformActor, staffId: s
   const member = await prisma.$transaction(async (tx) => {
     await tx.platformStaffPermissionOverride.deleteMany({ where: { staffId } });
     if (entries.length) {
-      await tx.platformStaffPermissionOverride.createMany({ data: entries.map((entry) => ({ staffId, ...entry })) });
+      await tx.platformStaffPermissionOverride.createMany({
+        data: entries.map((entry) => ({ staffId, ...entry })),
+      });
     }
     const updated = await tx.platformStaff.update({
       where: { id: staffId },
@@ -206,7 +235,10 @@ export async function removePlatformStaff(actor: PlatformActor, staffId: string)
       where: { id: staffId },
       data: { deletedAt: new Date(), permissionVersion: { increment: 1 } },
     });
-    await tx.platformStaffSession.updateMany({ where: { platformStaffId: staffId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await tx.platformStaffSession.updateMany({
+      where: { platformStaffId: staffId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
     await recordPlatformAuditEvent(tx, {
       entityType: "platform_staff",
       entityId: staffId,
@@ -232,7 +264,10 @@ export async function resetPlatformStaffTotp(actor: PlatformActor, staffId: stri
       data: { totpSecret: null, totpEnabledAt: null, totpLastStep: null },
       select: memberSelect,
     });
-    await tx.platformStaffSession.updateMany({ where: { platformStaffId: staffId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await tx.platformStaffSession.updateMany({
+      where: { platformStaffId: staffId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
     await recordPlatformAuditEvent(tx, {
       entityType: "platform_staff",
       entityId: staffId,
@@ -253,20 +288,34 @@ export async function resetPlatformStaffTotp(actor: PlatformActor, staffId: stri
  * enrolment signs in on the password alone; the guard then admits it to the
  * enrolment routes and nothing else (ق-124).
  */
-export async function loginPlatformStaff(input: { email: unknown; password: unknown; totpCode?: unknown }) {
+export async function loginPlatformStaff(input: {
+  email: unknown;
+  password: unknown;
+  totpCode?: unknown;
+}) {
   // findFirst, not findUnique: uniqueness moved to the LIVE partial index, so
   // the email is no longer a Prisma unique key. The deletedAt check below still
   // runs AFTER the read on purpose — refusing in one branch with one message
   // keeps a removed address indistinguishable from a wrong password.
-  const staff = await prisma.platformStaff.findFirst({ where: { email: normalizeEmail(input.email) }, orderBy: { createdAt: "desc" } });
+  const staff = await prisma.platformStaff.findFirst({
+    where: { email: normalizeEmail(input.email) },
+    orderBy: { createdAt: "desc" },
+  });
   // 19-د: the compare runs BEFORE the branch, unconditionally — see
   // ABSENT_IDENTITY_HASH. The comment above promises one generic 401 for
   // unknown, wrong-password, disabled and removed alike; until this line existed
   // the STATUS CODE kept that promise and the CLOCK broke it, answering in
   // ~30 ms for the first, third and fourth and ~800 ms for the second.
-  const passwordOk = await verifyPassword(input.password, staff?.passwordHash ?? ABSENT_IDENTITY_HASH);
+  const passwordOk = await verifyPassword(
+    input.password,
+    staff?.passwordHash ?? ABSENT_IDENTITY_HASH
+  );
   if (!staff || staff.deletedAt !== null || !staff.isActive || !passwordOk) {
-    throw new HttpError(401, "INVALID_PLATFORM_STAFF_CREDENTIALS", "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور.");
+    throw new HttpError(
+      401,
+      "INVALID_PLATFORM_STAFF_CREDENTIALS",
+      "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور."
+    );
   }
   if (staff.totpEnabledAt) {
     // A distinct code, deliberately (the ق-123 shape): the client must know to

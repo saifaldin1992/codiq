@@ -33,26 +33,48 @@ const { prisma } = await import("../src/db/prisma.ts");
 const codes = [];
 const web = spawn("node", ["dist/index.js"], {
   cwd: process.cwd(),
-  env: { ...process.env, NODE_ENV: "production", PORT: String(port), DATABASE_URL: dbUrl, CODIQ_POSTGRES_URL: dbUrl, CODIQ_PUBLIC_BASE_URL: base, CODIQ_NOTIFICATIONS_WORKER: "off", CODIQ_OTP_PROVIDER: "insecure-log" },
+  env: {
+    ...process.env,
+    NODE_ENV: "production",
+    PORT: String(port),
+    DATABASE_URL: dbUrl,
+    CODIQ_POSTGRES_URL: dbUrl,
+    CODIQ_PUBLIC_BASE_URL: base,
+    CODIQ_NOTIFICATIONS_WORKER: "off",
+    CODIQ_OTP_PROVIDER: "insecure-log",
+  },
   stdio: ["ignore", "pipe", "inherit"],
 });
 web.stdout.on("data", (chunk) => {
   for (const line of String(chunk).split("\n")) {
     if (!line.includes("otp.code_logged_not_sent")) continue;
-    try { const entry = JSON.parse(line); codes.push({ tail: entry.ctx.phoneTail, code: entry.ctx.code }); } catch { /* not JSON */ }
+    try {
+      const entry = JSON.parse(line);
+      codes.push({ tail: entry.ctx.phoneTail, code: entry.ctx.code });
+    } catch {
+      /* not JSON */
+    }
   }
 });
 async function codeFor(phone) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const found = [...codes].reverse().find((row) => phone.endsWith(row.tail));
-    if (found) { codes.splice(codes.indexOf(found), 1); return found.code; }
+    if (found) {
+      codes.splice(codes.indexOf(found), 1);
+      return found.code;
+    }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`no code logged for ${phone}`);
 }
 async function waitFor(url) {
   for (let attempt = 0; attempt < 150; attempt += 1) {
-    try { const response = await fetch(url); if (response.status < 500) return; } catch { /* not up yet */ }
+    try {
+      const response = await fetch(url);
+      if (response.status < 500) return;
+    } catch {
+      /* not up yet */
+    }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`Timed out waiting for ${url}`);
@@ -62,14 +84,42 @@ let browser;
 const storeIds = [];
 try {
   await waitFor(`${base}/api/health`);
-  const registered = await registerMerchantDirect({ ownerName: "تاجر", businessName: "متجر", phone: `+96475${digits}5`.slice(0, 14), email: `${runId}@codiq.test`, password: "MarketAccountUi!2026" });
+  const registered = await registerMerchantDirect({
+    ownerName: "تاجر",
+    businessName: "متجر",
+    phone: `+96475${digits}5`.slice(0, 14),
+    email: `${runId}@codiq.test`,
+    password: "MarketAccountUi!2026",
+  });
   assert.equal(registered.status, 201, JSON.stringify(registered.payload));
-  const store = await prisma.store.create({ data: { merchantId: registered.payload.account.id, name: `متجر ${runId}`, slug: `${runId}-a`, defaultSubdomain: `${runId}-a`, marketStatus: "listed", marketStatusAt: new Date(), marketListedAt: new Date() } });
+  const store = await prisma.store.create({
+    data: {
+      merchantId: registered.payload.account.id,
+      name: `متجر ${runId}`,
+      slug: `${runId}-a`,
+      defaultSubdomain: `${runId}-a`,
+      marketStatus: "listed",
+      marketStatusAt: new Date(),
+      marketListedAt: new Date(),
+    },
+  });
   storeIds.push(store.id);
-  await prisma.deliveryRate.create({ data: { storeId: store.id, governorate: "Baghdad", amountIqd: 4000, isEnabled: true } });
-  const product = await prisma.product.create({ data: { storeId: store.id, sku: `${runId}-1`, name: `منتج ${runId}`, priceIqd: 10000, stockQuantity: 5 } });
+  await prisma.deliveryRate.create({
+    data: { storeId: store.id, governorate: "Baghdad", amountIqd: 4000, isEnabled: true },
+  });
+  const product = await prisma.product.create({
+    data: {
+      storeId: store.id,
+      sku: `${runId}-1`,
+      name: `منتج ${runId}`,
+      priceIqd: 10000,
+      stockQuantity: 5,
+    },
+  });
 
-  browser = await chromium.launch(process.env.CODIQ_CHROMIUM_PATH ? { executablePath: process.env.CODIQ_CHROMIUM_PATH } : {});
+  browser = await chromium.launch(
+    process.env.CODIQ_CHROMIUM_PATH ? { executablePath: process.env.CODIQ_CHROMIUM_PATH } : {}
+  );
   const page = await (await browser.newContext({ ...devices["iPhone 13"] })).newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(String(error)));
@@ -87,27 +137,52 @@ try {
   // ── profile ─────────────────────────────────────────────────────────────────
   await page.getByTestId("market-account-info-link").click();
   await page.getByTestId("market-info-name").fill("زينب علي");
-  await page.getByTestId("market-info-interests").getByRole("button", { name: "الإلكترونيات والموبايل" }).click();
+  await page
+    .getByTestId("market-info-interests")
+    .getByRole("button", { name: "الإلكترونيات والموبايل" })
+    .click();
   await page.getByTestId("market-info-save").click();
   await page.getByTestId("market-info-saved").waitFor();
-  const shopper = await prisma.shopper.findUniqueOrThrow({ where: { phoneNormalized: `+964${ownPhone.slice(1)}` } });
+  const shopper = await prisma.shopper.findUniqueOrThrow({
+    where: { phoneNormalized: `+964${ownPhone.slice(1)}` },
+  });
   assert.equal(shopper.fullName, "زينب علي");
   assert.equal(shopper.interests.length, 1);
 
   // ── addresses ───────────────────────────────────────────────────────────────
   await page.goto(`${base}/market/account/addresses`);
   await page.getByTestId("market-address-add").click();
-  assert.equal(await page.getByTestId("market-address-recipient").inputValue(), "زينب علي", "the name is suggested");
-  assert.equal(await page.getByTestId("market-address-phone").inputValue(), ownPhone, "the shopper's own phone is suggested");
-  assert.equal(await page.getByTestId("market-address-phone-verify").count(), 0, "her own phone needs no code");
+  assert.equal(
+    await page.getByTestId("market-address-recipient").inputValue(),
+    "زينب علي",
+    "the name is suggested"
+  );
+  assert.equal(
+    await page.getByTestId("market-address-phone").inputValue(),
+    ownPhone,
+    "the shopper's own phone is suggested"
+  );
+  assert.equal(
+    await page.getByTestId("market-address-phone-verify").count(),
+    0,
+    "her own phone needs no code"
+  );
   await page.getByTestId("market-address-governorate").selectOption("Baghdad");
   await page.getByTestId("market-address-district").selectOption({ label: "الكرادة" });
   await page.getByTestId("market-address-line").fill("شارع ٦٢، بناية ١٤، الطابق ٣");
   await page.getByTestId("market-address-save").click();
   const rows = page.getByTestId("market-addresses").locator("li");
   await rows.filter({ hasText: "البيت" }).waitFor();
-  assert.match(await rows.filter({ hasText: "البيت" }).innerText(), /الافتراضي/, "the first address is the default");
-  assert.match(await page.getByTestId("market-location-button").innerText(), /بغداد · الكرادة/, "the default address drives «التوصيل إلى»");
+  assert.match(
+    await rows.filter({ hasText: "البيت" }).innerText(),
+    /الافتراضي/,
+    "the first address is the default"
+  );
+  assert.match(
+    await page.getByTestId("market-location-button").innerText(),
+    /بغداد · الكرادة/,
+    "the default address drives «التوصيل إلى»"
+  );
 
   await page.getByTestId("market-address-add").click();
   await page.getByRole("button", { name: "العمل" }).click();
@@ -116,7 +191,11 @@ try {
   await page.getByTestId("market-address-governorate").selectOption("Baghdad");
   await page.getByTestId("market-address-district").selectOption({ label: "المنصور" });
   await page.getByTestId("market-address-line").fill("مجمع تجاري، مكتب ٢٠٧");
-  assert.equal(await page.getByTestId("market-address-save").isDisabled(), true, "cannot save an unproven phone");
+  assert.equal(
+    await page.getByTestId("market-address-save").isDisabled(),
+    true,
+    "cannot save an unproven phone"
+  );
   await page.getByTestId("market-address-send-code").click();
   await page.getByTestId("market-address-code").fill(await codeFor(otherPhone));
   await page.getByTestId("market-address-save").click();
@@ -126,7 +205,10 @@ try {
   // ── delivery price on a product ─────────────────────────────────────────────
   await page.goto(`${base}/market/p/${product.id}`);
   await page.getByTestId("market-delivery-to-me").waitFor();
-  assert.match(await page.getByTestId("market-delivery-to-me").innerText(), /البيت.*٤٬٠٠٠|البيت.*4,000/);
+  assert.match(
+    await page.getByTestId("market-delivery-to-me").innerText(),
+    /البيت.*٤٬٠٠٠|البيت.*4,000/
+  );
 
   // ── sign out ────────────────────────────────────────────────────────────────
   await page.goto(`${base}/market/account`);
@@ -136,10 +218,35 @@ try {
   await page.getByTestId("market-sign-in").waitFor();
 
   assert.deepEqual(errors, [], "no script errors");
-  console.log(JSON.stringify({ suite: "market-account-browser", status: "passed", summary: { signIn: true, persisted: true, profile: true, addresses: true, deliveryQuote: true, signOut: true } }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        suite: "market-account-browser",
+        status: "passed",
+        summary: {
+          signIn: true,
+          persisted: true,
+          profile: true,
+          addresses: true,
+          deliveryQuote: true,
+          signOut: true,
+        },
+      },
+      null,
+      2
+    )
+  );
 } finally {
-  await prisma.shopper.deleteMany({ where: { phoneNormalized: { in: [`+964${ownPhone.slice(1)}`] } } }).catch(() => undefined);
-  if (storeIds.length) await prisma.store.updateMany({ where: { id: { in: storeIds } }, data: { marketStatus: "unlisted", marketStatusAt: new Date() } }).catch(() => undefined);
+  await prisma.shopper
+    .deleteMany({ where: { phoneNormalized: { in: [`+964${ownPhone.slice(1)}`] } } })
+    .catch(() => undefined);
+  if (storeIds.length)
+    await prisma.store
+      .updateMany({
+        where: { id: { in: storeIds } },
+        data: { marketStatus: "unlisted", marketStatusAt: new Date() },
+      })
+      .catch(() => undefined);
   await browser?.close();
   await killTree(web);
   await prisma.$disconnect();

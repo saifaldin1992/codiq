@@ -73,7 +73,9 @@ for (const entry of readdirSync(testsDir)) {
 
 if (process.argv.includes("--write")) {
   writeFileSync(legacyPath, `${JSON.stringify(counts, null, 2)}\n`, "utf8");
-  console.log(`frozen-clock.legacy.json rewritten — ${Object.keys(counts).length} files, ${Object.values(counts).reduce((a, b) => a + b, 0)} literals`);
+  console.log(
+    `frozen-clock.legacy.json rewritten — ${Object.keys(counts).length} files, ${Object.values(counts).reduce((a, b) => a + b, 0)} literals`
+  );
   process.exit(0);
 }
 
@@ -86,7 +88,7 @@ for (const [file, hits] of Object.entries(counts)) {
     violations.push(
       allowed === 0
         ? `  ${file}: ${hits} literal date(s) in a file that had none. Derive them from Date.now() instead.`
-        : `  ${file}: ${hits} literal dates, up from ${allowed}. This file's debt may only shrink.`,
+        : `  ${file}: ${hits} literal dates, up from ${allowed}. This file's debt may only shrink.`
     );
   }
 }
@@ -102,18 +104,24 @@ if (violations.length) {
       `spent that day's per-recipient budget.\n\n` +
       `Derive the instant from Date.now() with an offset chosen to avoid collision, the way pg3's utcDay() now does. ` +
       `If the date is genuinely DATA and not a clock, shrink another file's count to keep the total falling, or say ` +
-      `so in this file rather than raising the number silently.`,
+      `so in this file rather than raising the number silently.`
   );
   process.exitCode = 1;
 } else {
-  console.log(JSON.stringify({
-    suite: "frozen-clock",
-    status: "passed",
-    summary: {
-      literals: total,
-      budget,
-      files: Object.keys(counts).length,
-      guarantee: "no test file gains a hardcoded calendar date; the total may only fall",
-    },
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        suite: "frozen-clock",
+        status: "passed",
+        summary: {
+          literals: total,
+          budget,
+          files: Object.keys(counts).length,
+          guarantee: "no test file gains a hardcoded calendar date; the total may only fall",
+        },
+      },
+      null,
+      2
+    )
+  );
 }

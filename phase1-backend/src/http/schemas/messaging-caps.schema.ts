@@ -15,4 +15,6 @@ export const messagingCapsSchema = z
     operationalDailyCap: z.number().int().min(1).max(100_000).optional(),
     operationalRecipientDailyCap: z.number().int().min(1).max(1_000).optional(),
   })
-  .refine((value) => Object.values(value).some((entry) => entry !== undefined), { message: "لم يُذكر أيّ سقف." });
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+    message: "لم يُذكر أيّ سقف.",
+  });

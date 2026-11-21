@@ -24,14 +24,24 @@
  * Run: pnpm db:url:test
  */
 import assert from "node:assert/strict";
-import { databaseHost, resolveCodiqMigrationDatabaseUrl, withoutNeonPooler } from "../src/db/database-url.ts";
+import {
+  databaseHost,
+  resolveCodiqMigrationDatabaseUrl,
+  withoutNeonPooler,
+} from "../src/db/database-url.ts";
 
-const POOLED = "postgresql://user:secret@ep-red-mode-b1tc5e9d-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require";
-const DIRECT = "postgresql://user:secret@ep-red-mode-b1tc5e9d.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+const POOLED =
+  "postgresql://user:secret@ep-red-mode-b1tc5e9d-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+const DIRECT =
+  "postgresql://user:secret@ep-red-mode-b1tc5e9d.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require";
 
 // 1. The rewrite itself: host only, everything else byte-for-byte.
 const corrected = withoutNeonPooler(POOLED);
-assert.equal(databaseHost(corrected), "ep-red-mode-b1tc5e9d.c-5.eu-central-1.aws.neon.tech", "the -pooler suffix is removed from the HOST");
+assert.equal(
+  databaseHost(corrected),
+  "ep-red-mode-b1tc5e9d.c-5.eu-central-1.aws.neon.tech",
+  "the -pooler suffix is removed from the HOST"
+);
 assert.ok(corrected.includes("user:secret@"), "credentials survive untouched");
 assert.ok(corrected.includes("sslmode=require"), "query parameters survive untouched");
 assert.ok(!corrected.includes("-pooler"), "…and no trace of the pooler remains");
@@ -49,8 +59,16 @@ assert.equal(withoutNeonPooler(LOCAL), LOCAL, "localhost is left alone — this 
 
 // 4. A string that will not parse must NOT be rewritten. Silently mangling an
 //    unrecognised connection string is worse than passing it through.
-assert.equal(withoutNeonPooler("not a url at all"), "not a url at all", "an unparseable value is returned as given");
-assert.equal(databaseHost("not a url at all"), "unparseable", "…and reports itself honestly rather than throwing mid-deploy");
+assert.equal(
+  withoutNeonPooler("not a url at all"),
+  "not a url at all",
+  "an unparseable value is returned as given"
+);
+assert.equal(
+  databaseHost("not a url at all"),
+  "unparseable",
+  "…and reports itself honestly rather than throwing mid-deploy"
+);
 
 // 5. THE ASSERTION THAT EARNS ITS PLACE: the resolver used by the migration
 //    command corrects a mislabelled variable rather than trusting its name.
@@ -62,28 +80,37 @@ const staging = {
 };
 assert.ok(
   !resolveCodiqMigrationDatabaseUrl(staging).includes("-pooler"),
-  "a variable NAMED unpooled that holds a pooled url must not reach `prisma migrate deploy`",
+  "a variable NAMED unpooled that holds a pooled url must not reach `prisma migrate deploy`"
 );
 
 // …and the ordinary case still prefers the explicitly configured direct url.
 assert.equal(
-  resolveCodiqMigrationDatabaseUrl({ CODIQ_POSTGRES_URL_UNPOOLED: DIRECT, CODIQ_POSTGRES_URL: POOLED }),
+  resolveCodiqMigrationDatabaseUrl({
+    CODIQ_POSTGRES_URL_UNPOOLED: DIRECT,
+    CODIQ_POSTGRES_URL: POOLED,
+  }),
   DIRECT,
-  "the dedicated variable is still preferred when it is correct",
+  "the dedicated variable is still preferred when it is correct"
 );
 
 // …and with no dedicated variable at all it falls back and still corrects.
 assert.ok(
   !resolveCodiqMigrationDatabaseUrl({ CODIQ_POSTGRES_URL: POOLED }).includes("-pooler"),
-  "the fallback path is corrected too — an environment with only one variable is the common case",
+  "the fallback path is corrected too — an environment with only one variable is the common case"
 );
 
-console.log(JSON.stringify({
-  suite: "database-url",
-  status: "passed",
-  summary: {
-    rewrites: "neon -pooler hosts only",
-    untouched: ["already-direct", "non-neon", "localhost", "unparseable"],
-    guarantees: "prisma migrate deploy never receives a transaction-pooled connection",
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "database-url",
+      status: "passed",
+      summary: {
+        rewrites: "neon -pooler hosts only",
+        untouched: ["already-direct", "non-neon", "localhost", "unparseable"],
+        guarantees: "prisma migrate deploy never receives a transaction-pooled connection",
+      },
+    },
+    null,
+    2
+  )
+);

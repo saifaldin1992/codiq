@@ -38,11 +38,18 @@ export interface PlatformPulse {
   /** Signed in during the window and sold nothing — the early warning. */
   signedInWithoutSelling: number;
   conversion: { registered: number; reachedFirstOrder: number };
-  fastestGrowing: { storeId: string; storeName: string; merchantId: string; current: number; previous: number }[];
+  fastestGrowing: {
+    storeId: string;
+    storeName: string;
+    merchantId: string;
+    current: number;
+    previous: number;
+  }[];
 }
 
 const DEFINITIONS = {
-  active: "التاجر النشط = مَن له طلب واحد على الأقل لم يُلغَ خلال المدة. الدخول إلى اللوحة وحده لا يجعله نشطاً.",
+  active:
+    "التاجر النشط = مَن له طلب واحد على الأقل لم يُلغَ خلال المدة. الدخول إلى اللوحة وحده لا يجعله نشطاً.",
   stalled: "المتوقف = باع من قبل، ولم يبع شيئاً خلال المدة. وهو أهم رقم لأنه إنذار مغادرة مبكر.",
   neverSold: "لم يبدأ = لم يبع قط. ليس متوقفاً — مشكلته مختلفة وعلاجها مسار البداية (PG-8).",
 } as const;
@@ -67,7 +74,15 @@ export async function platformPulse(rawDays: unknown, now = new Date()): Promise
     prisma.$queryRaw<{ merchant_id: string }[]>`
       SELECT DISTINCT merchant_id FROM merchant_sessions WHERE created_at >= ${from}`,
     prisma.merchant.count({ where: { createdAt: { gte: from } } }),
-    prisma.$queryRaw<{ store_id: string; store_name: string; merchant_id: string; current: bigint; previous: bigint }[]>`
+    prisma.$queryRaw<
+      {
+        store_id: string;
+        store_name: string;
+        merchant_id: string;
+        current: bigint;
+        previous: bigint;
+      }[]
+    >`
       SELECT s.id AS store_id, s.name AS store_name, s.merchant_id,
              COUNT(*) FILTER (WHERE o.created_at >= ${from}) AS current,
              COUNT(*) FILTER (WHERE o.created_at >= ${previousFrom} AND o.created_at < ${from}) AS previous
@@ -98,7 +113,10 @@ export async function platformPulse(rawDays: unknown, now = new Date()): Promise
       registered: registeredInWindow,
       // Of those who registered in the window, how many reached a first order.
       reachedFirstOrder: await prisma.merchant.count({
-        where: { createdAt: { gte: from }, stores: { some: { orders: { some: { status: { notIn: NON_CONSUMING } } } } } },
+        where: {
+          createdAt: { gte: from },
+          stores: { some: { orders: { some: { status: { notIn: NON_CONSUMING } } } } },
+        },
       }),
     },
     fastestGrowing: growth.map((row) => ({
@@ -135,7 +153,13 @@ const PULSE_COHORT_KIND = "platform.pulse.cohort";
  * predicate is appended to that WHERE, never to the subqueries, so the cohort's
  * definition is untouched by paging through it.
  */
-export async function pulseCohort(kind: "active" | "stalled" | "never_sold", rawDays: unknown, rawLimit?: unknown, rawCursor?: unknown, now = new Date()) {
+export async function pulseCohort(
+  kind: "active" | "stalled" | "never_sold",
+  rawDays: unknown,
+  rawLimit?: unknown,
+  rawCursor?: unknown,
+  now = new Date()
+) {
   const windowDays = Math.min(Math.max(Number(rawDays) || 7, 1), 90);
   const limit = parseListLimit(rawLimit);
   const cursor = await readListCursor(PULSE_COHORT_KIND, rawCursor);
@@ -151,18 +175,30 @@ export async function pulseCohort(kind: "active" | "stalled" | "never_sold", raw
     : Prisma.empty;
   const take = limit + 1;
 
-  const rows = kind === "active"
-    ? await prisma.$queryRaw<{ id: string; business_name: string; email: string }[]>`
+  const rows =
+    kind === "active"
+      ? await prisma.$queryRaw<{ id: string; business_name: string; email: string }[]>`
         SELECT m.id, m.business_name, m.email FROM merchants m
         WHERE m.id IN (${soldInWindow}) ${after} ORDER BY m.business_name, m.id LIMIT ${take}`
-    : kind === "stalled"
-      ? await prisma.$queryRaw<{ id: string; business_name: string; email: string }[]>`
+      : kind === "stalled"
+        ? await prisma.$queryRaw<{ id: string; business_name: string; email: string }[]>`
           SELECT m.id, m.business_name, m.email FROM merchants m
           WHERE m.id IN (${soldEver}) AND m.id NOT IN (${soldInWindow}) ${after} ORDER BY m.business_name, m.id LIMIT ${take}`
-      : await prisma.$queryRaw<{ id: string; business_name: string; email: string }[]>`
+        : await prisma.$queryRaw<{ id: string; business_name: string; email: string }[]>`
           SELECT m.id, m.business_name, m.email FROM merchants m
           WHERE m.approval_status = 'approved' AND m.id NOT IN (${soldEver}) ${after} ORDER BY m.business_name, m.id LIMIT ${take}`;
 
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(PULSE_COHORT_KIND, last.business_name, last.id));
-  return { kind, windowDays, merchants: page.map((row) => ({ id: row.id, businessName: row.business_name, email: row.email })), nextCursor };
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(PULSE_COHORT_KIND, last.business_name, last.id)
+  );
+  return {
+    kind,
+    windowDays,
+    merchants: page.map((row) => ({
+      id: row.id,
+      businessName: row.business_name,
+      email: row.email,
+    })),
+    nextCursor,
+  };
 }

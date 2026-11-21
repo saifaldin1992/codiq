@@ -76,8 +76,17 @@ const READERS = [
 
 /** Closed by ق-167: written, selected by a NAMED reader, and rendered. */
 const CLOSED = [
-  { column: "ownerName", why: "اسم من يقف خلف طلب التسجيل — تُوافق عليه ولا تعرفه", readers: READERS },
-  { column: "phoneNormalized", rendersAs: "phone", why: "رقمٌ يُتّصل به قبل الموافقة وبعدها", readers: READERS },
+  {
+    column: "ownerName",
+    why: "اسم من يقف خلف طلب التسجيل — تُوافق عليه ولا تعرفه",
+    readers: READERS,
+  },
+  {
+    column: "phoneNormalized",
+    rendersAs: "phone",
+    why: "رقمٌ يُتّصل به قبل الموافقة وبعدها",
+    readers: READERS,
+  },
 ];
 
 /**
@@ -103,7 +112,12 @@ for (const { column, rendersAs, why, readers } of CLOSED) {
     const source = readFileSync(path.join(repoRoot, "phase1-backend/src/services", file), "utf8");
     const body = functionBody(source, fn);
     if (body === null) {
-      broken.push({ column, why, where: `${file}:${fn}`, note: "الدالّة غير موجودة — أُعيدت تسميتها؟" });
+      broken.push({
+        column,
+        why,
+        where: `${file}:${fn}`,
+        note: "الدالّة غير موجودة — أُعيدت تسميتها؟",
+      });
       continue;
     }
     if (!new RegExp(`\\b${column}:\\s*true`).test(body)) {
@@ -122,15 +136,23 @@ assert.deepEqual(
     broken.map((b) => `  ${b.column} — ${b.why}\n      ${b.where}: ${b.note}`).join("\n") +
     `\n\nA column selected but never rendered is the same defect one layer along, so both halves are required. ` +
     `If a column genuinely should not surface — a hash, a normalised key matched only server-side — remove it ` +
-    `from this registry with a reason rather than weakening the assertion.`,
+    `from this registry with a reason rather than weakening the assertion.`
 );
 
-console.log(JSON.stringify({
-  suite: "column-round-trip",
-  status: "passed",
-  summary: {
-    closed: CLOSED.map((entry) => `${entry.column} ← ${entry.readers.map((reader) => reader.fn).join(" + ")}`),
-    openDebt: OPEN,
-    guarantee: "every registered column is selected by a NAMED list query and reaches a screen",
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "column-round-trip",
+      status: "passed",
+      summary: {
+        closed: CLOSED.map(
+          (entry) => `${entry.column} ← ${entry.readers.map((reader) => reader.fn).join(" + ")}`
+        ),
+        openDebt: OPEN,
+        guarantee: "every registered column is selected by a NAMED list query and reaches a screen",
+      },
+    },
+    null,
+    2
+  )
+);

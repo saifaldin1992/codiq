@@ -53,21 +53,28 @@ const read = (file) => readFileSync(fileURLToPath(new URL(file, repoRoot)), "utf
 const ACTS_NOT_SCREENS = {
   // ق-249: the overrides TAB of the services screen — the entry carries services.manage,
   // and a supervisor holds both; a staff member with only this code reaches the same screen.
-  "availability.manage": "an act inside «الخدمات والإتاحة» (the overrides tab), which the services.manage entry opens",
-  "finance.settle": "a button inside «المالية» — the screen itself is gated by finance.view, settling is what an accountant does on it",
+  "availability.manage":
+    "an act inside «الخدمات والإتاحة» (the overrides tab), which the services.manage entry opens",
+  "finance.settle":
+    "a button inside «المالية» — the screen itself is gated by finance.view, settling is what an accountant does on it",
 };
 
 // ── the server's matrix ──────────────────────────────────────────────────────
 const permissions = read("phase1-backend/src/auth/platform-permissions.ts");
-const matrixBlock = permissions.slice(permissions.indexOf("PLATFORM_PERMISSION_CODES = ["), permissions.indexOf("] as const"));
+const matrixBlock = permissions.slice(
+  permissions.indexOf("PLATFORM_PERMISSION_CODES = ["),
+  permissions.indexOf("] as const")
+);
 const codes = Array.from(matrixBlock.matchAll(/"([a-z]+\.[a-z]+)"/g), (m) => m[1]);
 assert.ok(codes.length >= 9, `expected the full matrix, read ${codes.length} codes`);
 
 // ── the shell's navigation DATA ──────────────────────────────────────────────
 const navigation = read("client/src/config/platform-staff-navigation.ts");
 const entries = Array.from(
-  navigation.matchAll(/\{\s*id:\s*"([^"]+)".*?segment:\s*"([^"]*)".*?permission:\s*(null|"([a-z]+\.[a-z]+)")/gs),
-  (m) => ({ id: m[1], segment: m[2], permission: m[4] ?? null }),
+  navigation.matchAll(
+    /\{\s*id:\s*"([^"]+)".*?segment:\s*"([^"]*)".*?permission:\s*(null|"([a-z]+\.[a-z]+)")/gs
+  ),
+  (m) => ({ id: m[1], segment: m[2], permission: m[4] ?? null })
 );
 assert.ok(entries.length >= 11, `expected the navigation entries, read ${entries.length}`);
 const navPermissions = new Set(entries.map((e) => e.permission).filter(Boolean));
@@ -83,12 +90,15 @@ assert.deepEqual(
   `صلاحيات بلا شاشة: ${doorless.join(", ")}\n\n` +
     `Each of these can be granted from the team screen and answers 200 on the server, and a staff member holding it ` +
     `can open nothing. Add a navigation entry whose \`permission\` is the code and a branch in PlatformStaffDashboard ` +
-    `that renders it — or, if it is an act inside an existing screen, exempt it in ACTS_NOT_SCREENS with the reason.`,
+    `that renders it — or, if it is an act inside an existing screen, exempt it in ACTS_NOT_SCREENS with the reason.`
 );
 
 // …and every exemption still names a real code, so the list cannot rot
 for (const code of Object.keys(ACTS_NOT_SCREENS)) {
-  assert.ok(codes.includes(code), `ACTS_NOT_SCREENS names "${code}", which the matrix no longer carries — remove the exemption`);
+  assert.ok(
+    codes.includes(code),
+    `ACTS_NOT_SCREENS names "${code}", which the matrix no longer carries — remove the exemption`
+  );
 }
 
 // 2. every entry has a branch
@@ -96,13 +106,17 @@ for (const code of Object.keys(ACTS_NOT_SCREENS)) {
 // one exception and matches a regex on the path instead.
 const unrendered = entries
   .filter((e) => e.segment !== "")
-  .filter((e) => !shell.includes(`section === "${e.segment}"`) && !new RegExp(`dashboard\\\\/${e.segment}`).test(shell))
+  .filter(
+    (e) =>
+      !shell.includes(`section === "${e.segment}"`) &&
+      !new RegExp(`dashboard\\\\/${e.segment}`).test(shell)
+  )
   .map((e) => e.id);
 assert.deepEqual(
   unrendered,
   [],
   `بنود تنقّل بلا فرعٍ يرسمها: ${unrendered.join(", ")}\n\n` +
-    `A link that no branch renders lands on the denial card — the defect from the other side. Add the branch beside its siblings.`,
+    `A link that no branch renders lands on the denial card — the defect from the other side. Add the branch beside its siblings.`
 );
 
 // 2b. the STORE staff shell, same rule — ق-178 closed D-84, where store_manager
@@ -110,28 +124,56 @@ assert.deepEqual(
 // same defect from the other side, so both lists are held to it.
 const storeNav = read("client/src/config/navigation.ts");
 const storeShell = read("client/src/pages/StaffDashboard.tsx");
-const storeBlock = storeNav.slice(storeNav.indexOf("export const staffNavEntries"), storeNav.indexOf("];", storeNav.indexOf("export const staffNavEntries")));
-const storeEntries = Array.from(storeBlock.matchAll(/\{\s*id:\s*"([^"]+)".*?segment:\s*"([^"]*)"/gs), (m) => ({ id: m[1], segment: m[2] }));
-assert.ok(storeEntries.length >= 8, `expected the staff navigation entries, read ${storeEntries.length}`);
+const storeBlock = storeNav.slice(
+  storeNav.indexOf("export const staffNavEntries"),
+  storeNav.indexOf("];", storeNav.indexOf("export const staffNavEntries"))
+);
+const storeEntries = Array.from(
+  storeBlock.matchAll(/\{\s*id:\s*"([^"]+)".*?segment:\s*"([^"]*)"/gs),
+  (m) => ({ id: m[1], segment: m[2] })
+);
+assert.ok(
+  storeEntries.length >= 8,
+  `expected the staff navigation entries, read ${storeEntries.length}`
+);
 const storeUnrendered = storeEntries
   .filter((e) => e.segment !== "")
-  .filter((e) => !storeShell.includes(`section === "${e.segment}"`) && !new RegExp(`dashboard\\\\/${e.segment}`).test(storeShell))
+  .filter(
+    (e) =>
+      !storeShell.includes(`section === "${e.segment}"`) &&
+      !new RegExp(`dashboard\\\\/${e.segment}`).test(storeShell)
+  )
   .map((e) => e.id);
-assert.deepEqual(storeUnrendered, [], `بنود في تنقّل موظّف المتجر بلا فرعٍ يرسمها: ${storeUnrendered.join(", ")} — a link that lands on the denial card.`);
+assert.deepEqual(
+  storeUnrendered,
+  [],
+  `بنود في تنقّل موظّف المتجر بلا فرعٍ يرسمها: ${storeUnrendered.join(", ")} — a link that lands on the denial card.`
+);
 
 // 3. every `can("…")` the shell checks is a code the matrix knows
 const checked = Array.from(shell.matchAll(/can\("([^"]+)"\)/g), (m) => m[1]);
 const unknown = [...new Set(checked)].filter((code) => !codes.includes(code));
-assert.deepEqual(unknown, [], `الصدفة تفحص رموزاً لا تعرفها المصفوفة: ${unknown.join(", ")} — a typo here hides a screen from everyone`);
+assert.deepEqual(
+  unknown,
+  [],
+  `الصدفة تفحص رموزاً لا تعرفها المصفوفة: ${unknown.join(", ")} — a typo here hides a screen from everyone`
+);
 
-console.log(JSON.stringify({
-  suite: "platform-nav",
-  status: "passed",
-  summary: {
-    codes: codes.length,
-    entries: entries.length,
-    screens: codes.filter((c) => navPermissions.has(c)),
-    acts: Object.keys(ACTS_NOT_SCREENS),
-    guarantee: "every platform permission opens a screen, every entry has a branch, every check names a real code",
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "platform-nav",
+      status: "passed",
+      summary: {
+        codes: codes.length,
+        entries: entries.length,
+        screens: codes.filter((c) => navPermissions.has(c)),
+        acts: Object.keys(ACTS_NOT_SCREENS),
+        guarantee:
+          "every platform permission opens a screen, every entry has a branch, every check names a real code",
+      },
+    },
+    null,
+    2
+  )
+);

@@ -48,19 +48,42 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   // A huge tickMs so the interval never fires on its own — every tick here is
   // driven by hand, which is the only way to assert scheduling without sleeping
   // through real periods.
-  const scheduler = startJobScheduler([
-    { name: "often", everyMs: 0, run: async () => { runs.often += 1; } },
-    { name: "rare", everyMs: 60 * 60 * 1000, run: async () => { runs.rare += 1; } },
-  ], 60 * 60 * 1000);
+  const scheduler = startJobScheduler(
+    [
+      {
+        name: "often",
+        everyMs: 0,
+        run: async () => {
+          runs.often += 1;
+        },
+      },
+      {
+        name: "rare",
+        everyMs: 60 * 60 * 1000,
+        run: async () => {
+          runs.rare += 1;
+        },
+      },
+    ],
+    60 * 60 * 1000
+  );
 
   // 2. THE CONSTRUCTOR ALREADY RAN ONE TICK — a deploy must not mean a tick of nothing.
   await sleep(20);
   assert.equal(runs.often, 1, "the first tick must run at startup, not one tick later");
-  assert.equal(runs.rare, 1, "a job that has never run is due on its first tick, whatever its period");
+  assert.equal(
+    runs.rare,
+    1,
+    "a job that has never run is due on its first tick, whatever its period"
+  );
 
   await scheduler.tickNow();
   assert.equal(runs.often, 2, "a zero-period job runs on every tick");
-  assert.equal(runs.rare, 1, "an hourly job must NOT run again on the next tick — its period, not the tick's");
+  assert.equal(
+    runs.rare,
+    1,
+    "an hourly job must NOT run again on the next tick — its period, not the tick's"
+  );
 
   await scheduler.tickNow();
   assert.equal(runs.often, 3);
@@ -74,13 +97,39 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // ============================================================
 {
   const ran = [];
-  const scheduler = startJobScheduler([
-    { name: "before", everyMs: 0, run: async () => { ran.push("before"); } },
-    { name: "explodes", everyMs: 0, run: async () => { ran.push("explodes"); throw new Error("job failed on purpose"); } },
-    { name: "after", everyMs: 0, run: async () => { ran.push("after"); } },
-  ], 60 * 60 * 1000);
+  const scheduler = startJobScheduler(
+    [
+      {
+        name: "before",
+        everyMs: 0,
+        run: async () => {
+          ran.push("before");
+        },
+      },
+      {
+        name: "explodes",
+        everyMs: 0,
+        run: async () => {
+          ran.push("explodes");
+          throw new Error("job failed on purpose");
+        },
+      },
+      {
+        name: "after",
+        everyMs: 0,
+        run: async () => {
+          ran.push("after");
+        },
+      },
+    ],
+    60 * 60 * 1000
+  );
   await sleep(20);
-  assert.deepEqual(ran, ["before", "explodes", "after"], "a sibling's failure must not cost the jobs after it their turn");
+  assert.deepEqual(
+    ran,
+    ["before", "explodes", "after"],
+    "a sibling's failure must not cost the jobs after it their turn"
+  );
   scheduler.stop();
   summary.failureIsolated = "the job after the thrower still ran";
 }
@@ -91,10 +140,22 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 {
   let started = 0;
   let release;
-  const held = new Promise((resolve) => { release = resolve; });
-  const scheduler = startJobScheduler([
-    { name: "slow", everyMs: 0, run: async () => { started += 1; await held; } },
-  ], 60 * 60 * 1000);
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+  const scheduler = startJobScheduler(
+    [
+      {
+        name: "slow",
+        everyMs: 0,
+        run: async () => {
+          started += 1;
+          await held;
+        },
+      },
+    ],
+    60 * 60 * 1000
+  );
   await sleep(20);
   assert.equal(started, 1, "the startup tick began the slow job");
   // A second tick while the first is still inside the job must not start it again.
@@ -127,7 +188,11 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     fastMs: 20,
     idleMaxMs: 320,
     fastWindowMs: 100,
-    runPass: async () => { passes += 1; stamps.push(Date.now()); return mode === "busy" ? busy : empty; },
+    runPass: async () => {
+      passes += 1;
+      stamps.push(Date.now());
+      return mode === "busy" ? busy : empty;
+    },
   });
 
   // RATES, not counts. The two windows are different lengths on purpose — a
@@ -136,7 +201,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const BUSY_MS = 200;
   await sleep(BUSY_MS);
   const whileBusy = passes;
-  assert.ok(whileBusy >= 4, `a draining queue must be polled fast (got ${whileBusy} passes in ${BUSY_MS}ms at 20ms)`);
+  assert.ok(
+    whileBusy >= 4,
+    `a draining queue must be polled fast (got ${whileBusy} passes in ${BUSY_MS}ms at 20ms)`
+  );
   const busyRate = whileBusy / BUSY_MS;
 
   // The moment it finds nothing, the wait must start doubling: 20 → 40 → 80 → …
@@ -146,10 +214,19 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   await sleep(IDLE_MS);
   const whileIdle = passes - atIdle;
   const idleRate = whileIdle / IDLE_MS;
-  assert.ok(idleRate < busyRate / 2, `an idle loop must ask at less than half a busy one's rate (busy ${busyRate.toFixed(3)}/ms, idle ${idleRate.toFixed(3)}/ms)`);
+  assert.ok(
+    idleRate < busyRate / 2,
+    `an idle loop must ask at less than half a busy one's rate (busy ${busyRate.toFixed(3)}/ms, idle ${idleRate.toFixed(3)}/ms)`
+  );
   // And the gap must genuinely be widening rather than merely being slower once.
-  const gaps = stamps.slice(-4).map((at, index, all) => (index === 0 ? 0 : at - all[index - 1])).slice(1);
-  assert.ok(gaps[gaps.length - 1] > gaps[0], `the wait must keep growing while the queue stays empty (gaps ${gaps.join("ms, ")}ms)`);
+  const gaps = stamps
+    .slice(-4)
+    .map((at, index, all) => (index === 0 ? 0 : at - all[index - 1]))
+    .slice(1);
+  assert.ok(
+    gaps[gaps.length - 1] > gaps[0],
+    `the wait must keep growing while the queue stays empty (gaps ${gaps.join("ms, ")}ms)`
+  );
   summary.backoff = `busy ${(busyRate * 1000).toFixed(1)}/s · idle ${(idleRate * 1000).toFixed(1)}/s · last gaps ${gaps.join("/")}ms`;
 
   // ============================================================
@@ -161,11 +238,17 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   worker.wake();
   await sleep(90);
   const afterWake = passes - beforeWake;
-  assert.ok(afterWake >= 2, `wake() must return the loop to the fast interval (got ${afterWake} passes in 90ms)`);
+  assert.ok(
+    afterWake >= 2,
+    `wake() must return the loop to the fast interval (got ${afterWake} passes in 90ms)`
+  );
   // And the FIRST pass after the signal must arrive promptly — the shopper's
   // confirmation is the reason this mechanism exists at all.
   const firstAfter = stamps.find((at) => at >= wokeAt);
-  assert.ok(firstAfter !== undefined && firstAfter - wokeAt < 60, `the first pass after a signal must be prompt (waited ${firstAfter - wokeAt}ms)`);
+  assert.ok(
+    firstAfter !== undefined && firstAfter - wokeAt < 60,
+    `the first pass after a signal must be prompt (waited ${firstAfter - wokeAt}ms)`
+  );
   worker.stop();
   const afterStop = passes;
   await sleep(80);
@@ -180,19 +263,33 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // can fail an order is worse than no nudge at all.
 {
   let called = 0;
-  setOutboxSignalSink(() => { called += 1; });
+  setOutboxSignalSink(() => {
+    called += 1;
+  });
   signalOutboxWork();
   assert.equal(called, 1, "a registered sink receives the signal");
 
-  setOutboxSignalSink(() => { throw new Error("channel is gone"); });
-  assert.doesNotThrow(() => signalOutboxWork(), "a dead channel must never throw into the enqueueing transaction");
+  setOutboxSignalSink(() => {
+    throw new Error("channel is gone");
+  });
+  assert.doesNotThrow(
+    () => signalOutboxWork(),
+    "a dead channel must never throw into the enqueueing transaction"
+  );
 
   setOutboxSignalSink(null);
-  assert.doesNotThrow(() => signalOutboxWork(), "no sink at all — tests, CI, a worker-less run — is a no-op");
+  assert.doesNotThrow(
+    () => signalOutboxWork(),
+    "no sink at all — tests, CI, a worker-less run — is a no-op"
+  );
 
   assert.equal(isOutboxSignalMessage(OUTBOX_SIGNAL_MESSAGE), true);
   for (const other of ["", "codiq", { t: "codiq:outbox" }, null, undefined, 0]) {
-    assert.equal(isOutboxSignalMessage(other), false, `«${String(other)}» is not the signal — an IPC channel is an API`);
+    assert.equal(
+      isOutboxSignalMessage(other),
+      false,
+      `«${String(other)}» is not the signal — an IPC channel is an API`
+    );
   }
   summary.signal = "delivered, swallows a dead channel, no-ops with no sink, 6 impostors rejected";
 }

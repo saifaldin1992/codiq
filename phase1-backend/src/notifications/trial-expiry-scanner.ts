@@ -56,12 +56,17 @@ export interface TrialExpiryResult {
 export async function expireLapsedTrials(now = new Date()): Promise<TrialExpiryResult> {
   const result: TrialExpiryResult = { expired: 0, movedToFree: 0 };
 
-  const freePlan = await prisma.plan.findUnique({ where: { code: DEFAULT_PLAN_CODE }, select: { id: true, isActive: true } });
+  const freePlan = await prisma.plan.findUnique({
+    where: { code: DEFAULT_PLAN_CODE },
+    select: { id: true, isActive: true },
+  });
   if (!freePlan?.isActive) {
     // Refusing to act is right: with no plan to land on, "expiring" the trial
     // would leave the merchant with no active subscription at all — the exact
     // outcome this job exists to prevent.
-    logger.error("the free plan is missing or archived; no trial will be expired this pass", { job: "trial-expiry" });
+    logger.error("the free plan is missing or archived; no trial will be expired this pass", {
+      job: "trial-expiry",
+    });
     return result;
   }
 
@@ -89,7 +94,11 @@ export async function expireLapsedTrials(now = new Date()): Promise<TrialExpiryR
           // paid plan by hand between the read above and this write, and that
           // decision must win over an expiry the job noticed first.
           const stillUncovered = await tx.merchantSubscription.findFirst({
-            where: { merchantId: subscription.merchantId, status: "active", OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+            where: {
+              merchantId: subscription.merchantId,
+              status: "active",
+              OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+            },
             select: { id: true },
           });
           if (stillUncovered) return;
@@ -101,7 +110,11 @@ export async function expireLapsedTrials(now = new Date()): Promise<TrialExpiryR
       } catch (error) {
         // One merchant's failure must not stop the pass: the others are equally
         // one query away from a dead dashboard.
-        logger.error("job.row_failed", { job: "trial-expiry", merchantId: subscription.merchantId, err: error });
+        logger.error("job.row_failed", {
+          job: "trial-expiry",
+          merchantId: subscription.merchantId,
+          err: error,
+        });
       }
     }
 
@@ -166,7 +179,10 @@ export async function remindEndingTrials(now = new Date()): Promise<TrialReminde
   for (const subscription of ending) {
     const recipient = subscription.merchant.email;
     if (!recipient || !subscription.endsAt) continue;
-    const daysLeft = Math.max(1, Math.ceil((subscription.endsAt.valueOf() - now.valueOf()) / 86_400_000));
+    const daysLeft = Math.max(
+      1,
+      Math.ceil((subscription.endsAt.valueOf() - now.valueOf()) / 86_400_000)
+    );
     try {
       await prisma.notificationOutbox.create({
         data: {
@@ -191,7 +207,11 @@ export async function remindEndingTrials(now = new Date()): Promise<TrialReminde
       // The unique index IS the once-only rule; hitting it means an earlier pass
       // already told him, which is the outcome we want and not an error.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") continue;
-      logger.error("job.row_failed", { job: "trial-expiry", subscriptionId: subscription.id, err: error });
+      logger.error("job.row_failed", {
+        job: "trial-expiry",
+        subscriptionId: subscription.id,
+        err: error,
+      });
     }
   }
 

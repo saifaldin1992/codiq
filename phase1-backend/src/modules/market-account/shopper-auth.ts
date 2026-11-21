@@ -13,7 +13,9 @@ import { touchSession } from "../../services/session.service.js";
 import { config } from "../../config.js";
 
 /** `__Host-` wherever cookies are Secure: bound to this exact host and path, never set by a subdomain. */
-export const SHOPPER_COOKIE = config.cookieSecure ? "__Host-codiq_shopper_session" : "codiq_shopper_session";
+export const SHOPPER_COOKIE = config.cookieSecure
+  ? "__Host-codiq_shopper_session"
+  : "codiq_shopper_session";
 
 export function shopperToken(request: Request): string | null {
   const header = request.header("authorization");
@@ -24,20 +26,33 @@ export function shopperToken(request: Request): string | null {
 
 export async function requireShopper(request: Request) {
   const token = shopperToken(request);
-  if (!token) throw new HttpError(401, "SHOPPER_SESSION_REQUIRED", "سجّل الدخول برقم هاتفك للمتابعة.");
+  if (!token)
+    throw new HttpError(401, "SHOPPER_SESSION_REQUIRED", "سجّل الدخول برقم هاتفك للمتابعة.");
   const claims = await verifyTypedSession(token, "shopper");
   const shopper = await prisma.shopper.findUnique({ where: { id: claims.subjectId } });
-  if (!shopper?.isActive) throw new HttpError(401, "SHOPPER_SESSION_REQUIRED", "سجّل الدخول برقم هاتفك للمتابعة.");
+  if (!shopper?.isActive)
+    throw new HttpError(401, "SHOPPER_SESSION_REQUIRED", "سجّل الدخول برقم هاتفك للمتابعة.");
   touchSession(claims, request);
   return { shopper, claims };
 }
 
 export function setShopperCookie(response: Response, token: string) {
-  response.cookie(SHOPPER_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: config.cookieSecure, path: "/", maxAge: SHOPPER_SESSION_LIFETIME_SECONDS * 1000 });
+  response.cookie(SHOPPER_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: config.cookieSecure,
+    path: "/",
+    maxAge: SHOPPER_SESSION_LIFETIME_SECONDS * 1000,
+  });
 }
 
 export function clearShopperCookie(response: Response) {
-  response.clearCookie(SHOPPER_COOKIE, { httpOnly: true, sameSite: "lax", secure: config.cookieSecure, path: "/" });
+  response.clearCookie(SHOPPER_COOKIE, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: config.cookieSecure,
+    path: "/",
+  });
 }
 
 /** The signed-in shopper when there is one; `null` for a visitor or a stale session. Never throws for that. */

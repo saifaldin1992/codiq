@@ -22,7 +22,10 @@ import { LIST_LIMIT_MAX, parseListLimit } from "../../services/list-page.js";
  * `limit` — absent, empty, or an integer inside the shared window. Anything
  * else is `400 INVALID_LIMIT`, never a silent clamp.
  */
-export const listLimitSchema = z.unknown().optional().transform((value) => parseListLimit(value));
+export const listLimitSchema = z
+  .unknown()
+  .optional()
+  .transform((value) => parseListLimit(value));
 
 /**
  * `cursor` — shape only. The cursor's MEANING (version, list kind, ordering
@@ -33,7 +36,7 @@ export const listLimitSchema = z.unknown().optional().transform((value) => parse
  */
 export const listCursorSchema = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-  z.string().max(512, "مؤشر الصفحة غير صالح — أعِد فتح القائمة من بدايتها.").optional(),
+  z.string().max(512, "مؤشر الصفحة غير صالح — أعِد فتح القائمة من بدايتها.").optional()
 );
 
 /** The two parameters every list route accepts, and nothing else. */

@@ -20,7 +20,12 @@ export const reviewUpsertSchema = z.object({
   rating: z.number().int().min(REVIEW_RATING_MIN).max(REVIEW_RATING_MAX),
   // Trimmed then emptied-to-undefined, so "   " and "" mean what they meant when
   // this was hand-rolled: no body, not a body of spaces.
-  body: z.string().trim().max(REVIEW_BODY_MAX).optional().transform((value) => (value ? value : undefined)),
+  body: z
+    .string()
+    .trim()
+    .max(REVIEW_BODY_MAX)
+    .optional()
+    .transform((value) => (value ? value : undefined)),
 });
 export type ReviewUpsert = z.infer<typeof reviewUpsertSchema>;
 

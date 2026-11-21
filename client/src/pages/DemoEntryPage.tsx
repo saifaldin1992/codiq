@@ -23,13 +23,20 @@ export default function DemoEntryPage() {
   useEffect(() => {
     if (demo !== true || started.current) return;
     started.current = true;
-    fetch("/api/public/demo-login", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: "{}" })
+    fetch("/api/public/demo-login", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    })
       .then(async (response) => {
         const payload = await response.json().catch(() => null);
         if (!response.ok) throw new Error(payload?.error?.message ?? "تعذّر بدء الجولة التجريبية.");
         navigate(payload.redirectTo);
       })
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "تعذّر بدء الجولة التجريبية."));
+      .catch((cause) =>
+        setError(cause instanceof Error ? cause.message : "تعذّر بدء الجولة التجريبية.")
+      );
   }, [demo, navigate]);
 
   const notDemo = demo === false;
@@ -37,14 +44,20 @@ export default function DemoEntryPage() {
     <main dir="rtl" className="grid min-h-screen place-items-center bg-[var(--codiq-canvas)] p-5">
       <div className="w-full max-w-md rounded-[28px] bg-[var(--codiq-surface)] p-8 text-center shadow-[0_16px_44px_rgba(31,55,98,0.08)]">
         <BrandMark className="mx-auto h-12 w-12 rounded-2xl shadow-[0_8px_18px_rgba(30,111,219,0.22)]" />
-        <h1 className="mt-4 text-2xl font-bold text-[var(--codiq-text)]">الجولة التجريبية في Codiq</h1>
+        <h1 className="mt-4 text-2xl font-bold text-[var(--codiq-text)]">
+          الجولة التجريبية في Codiq
+        </h1>
         {notDemo || error ? (
           <>
             <p className="mt-3 flex items-center justify-center gap-2 text-sm leading-6 text-[var(--codiq-danger)]">
               <TriangleAlert className="h-4 w-4 shrink-0" strokeWidth={1.9} />
               {notDemo ? "هذه ليست بيئة النسخة التجريبية." : error}
             </p>
-            <button type="button" onClick={() => navigate("/")} className="mt-6 w-full rounded-xl bg-[var(--codiq-accent)] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--codiq-accent-hover)]">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="mt-6 w-full rounded-xl bg-[var(--codiq-accent)] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--codiq-accent-hover)]"
+            >
               العودة إلى الصفحة الرئيسية
             </button>
           </>

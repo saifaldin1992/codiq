@@ -7,7 +7,12 @@
  * readable failure list.
  */
 import { describe, expect, it } from "vitest";
-import { ALLOWLIST, findDeletedLeaks, formatViolations, staleAllowlistKeys } from "./helpers/deleted-leak-guard.js";
+import {
+  ALLOWLIST,
+  findDeletedLeaks,
+  formatViolations,
+  staleAllowlistKeys,
+} from "./helpers/deleted-leak-guard.js";
 
 describe("PG-2 soft-delete leak guard", () => {
   it("finds no unfiltered read of a trashed row in phase1-backend/src", () => {
@@ -17,12 +22,18 @@ describe("PG-2 soft-delete leak guard", () => {
 
   it("requires a written reason on every allowlist entry", () => {
     for (const [key, reason] of Object.entries(ALLOWLIST)) {
-      expect(reason.trim().length, `allowlist entry ${key} needs a real reason`).toBeGreaterThanOrEqual(20);
+      expect(
+        reason.trim().length,
+        `allowlist entry ${key} needs a real reason`
+      ).toBeGreaterThanOrEqual(20);
     }
   });
 
   it("carries no stale allowlist entry", () => {
     const stale = staleAllowlistKeys();
-    expect(stale, `these allowlist entries silence nothing any more and must be deleted:\n  ${stale.join("\n  ")}`).toEqual([]);
+    expect(
+      stale,
+      `these allowlist entries silence nothing any more and must be deleted:\n  ${stale.join("\n  ")}`
+    ).toEqual([]);
   });
 });

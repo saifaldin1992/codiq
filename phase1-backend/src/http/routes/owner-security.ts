@@ -20,35 +20,47 @@ import {
 import { changeOwnerEmail, ownerAccount } from "../../services/owner-account.service.js";
 
 export function registerOwnerSecurityRoutes(app: Express) {
-  app.get("/platform/security/totp", asyncRoute(async (request, response) => {
-    const claims = await requirePlatformOwner(request);
-    response.status(200).json({ totp: await totpStatus(claims.subjectId) });
-  }));
+  app.get(
+    "/platform/security/totp",
+    asyncRoute(async (request, response) => {
+      const claims = await requirePlatformOwner(request);
+      response.status(200).json({ totp: await totpStatus(claims.subjectId) });
+    })
+  );
 
-  app.post("/platform/security/totp/begin", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const claims = await requirePlatformOwner(request);
-    // The secret is returned in the clear here on purpose: it is the thing the
-    // authenticator app must receive, and there is no other way to deliver it.
-    // It stays useless without the password that reached this route.
-    response.status(200).json(await beginTotpEnrolment(claims.subjectId));
-  }));
+  app.post(
+    "/platform/security/totp/begin",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const claims = await requirePlatformOwner(request);
+      // The secret is returned in the clear here on purpose: it is the thing the
+      // authenticator app must receive, and there is no other way to deliver it.
+      // It stays useless without the password that reached this route.
+      response.status(200).json(await beginTotpEnrolment(claims.subjectId));
+    })
+  );
 
-  app.post("/platform/security/totp/confirm", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const claims = await requirePlatformOwner(request);
-    const { code } = parseOrThrow(secondFactorSchema, request.body ?? {});
-    // The ONLY time the recovery codes are ever readable.
-    response.status(200).json(await confirmTotpEnrolment(claims.subjectId, code));
-  }));
+  app.post(
+    "/platform/security/totp/confirm",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const claims = await requirePlatformOwner(request);
+      const { code } = parseOrThrow(secondFactorSchema, request.body ?? {});
+      // The ONLY time the recovery codes are ever readable.
+      response.status(200).json(await confirmTotpEnrolment(claims.subjectId, code));
+    })
+  );
 
-  app.post("/platform/security/totp/disable", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const claims = await requirePlatformOwner(request);
-    const { password } = parseOrThrow(disableTotpSchema, request.body ?? {});
-    await disableTotp(claims.subjectId, password);
-    response.status(204).end();
-  }));
+  app.post(
+    "/platform/security/totp/disable",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const claims = await requirePlatformOwner(request);
+      const { password } = parseOrThrow(disableTotpSchema, request.body ?? {});
+      await disableTotp(claims.subjectId, password);
+      response.status(204).end();
+    })
+  );
 
   /**
    * PC-1 — the owner's own sign-in email.
@@ -63,17 +75,23 @@ export function registerOwnerSecurityRoutes(app: Express) {
    * The 409 for an address already claimed by another identity is not written
    * here — the database trigger raises it and `http/errors.ts` already maps it.
    */
-  app.get("/platform/security/account", asyncRoute(async (request, response) => {
-    const claims = await requirePlatformOwner(request);
-    response.status(200).json({ account: await ownerAccount(claims.subjectId) });
-  }));
+  app.get(
+    "/platform/security/account",
+    asyncRoute(async (request, response) => {
+      const claims = await requirePlatformOwner(request);
+      response.status(200).json({ account: await ownerAccount(claims.subjectId) });
+    })
+  );
 
-  app.post("/platform/security/email", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const claims = await requirePlatformOwner(request);
-    const body = parseOrThrow(changeOwnerEmailSchema, request.body ?? {});
-    // The session is NOT revoked and no other session is ended — see the head of
-    // owner-account.service.ts. He keeps working on the screen he is looking at.
-    response.status(200).json(await changeOwnerEmail(claims.subjectId, body));
-  }));
+  app.post(
+    "/platform/security/email",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const claims = await requirePlatformOwner(request);
+      const body = parseOrThrow(changeOwnerEmailSchema, request.body ?? {});
+      // The session is NOT revoked and no other session is ended — see the head of
+      // owner-account.service.ts. He keeps working on the screen he is looking at.
+      response.status(200).json(await changeOwnerEmail(claims.subjectId, body));
+    })
+  );
 }

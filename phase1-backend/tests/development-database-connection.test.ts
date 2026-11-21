@@ -8,7 +8,9 @@ describe("development database connection guard", () => {
 
     const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
     try {
-      const result = await prisma.$queryRawUnsafe<Array<{ database_name: string }>>("SELECT current_database() AS database_name");
+      const result = await prisma.$queryRawUnsafe<Array<{ database_name: string }>>(
+        "SELECT current_database() AS database_name"
+      );
       expect(result).toHaveLength(1);
       expect(result[0]?.database_name).toBeTruthy();
     } finally {
@@ -18,13 +20,16 @@ describe("development database connection guard", () => {
 
   it("rejects a masked URL on the configured production host before marker-based acceptance", () => {
     const productionUrl = process.env.CODIQ_POSTGRES_URL;
-    expect(productionUrl, "CODIQ_POSTGRES_URL must be available to test production-host rejection").toBeTruthy();
+    expect(
+      productionUrl,
+      "CODIQ_POSTGRES_URL must be available to test production-host rejection"
+    ).toBeTruthy();
 
     const productionHost = new URL(productionUrl!).hostname;
     const maskedProductionUrl = `postgresql://redacted@${productionHost}/redacted?application_name=codiq_development`;
 
     expect(() => assertSafeTestDatabaseUrl(maskedProductionUrl, productionUrl)).toThrow(
-      "the requested test host matches the configured production host",
+      "the requested test host matches the configured production host"
     );
   });
 });

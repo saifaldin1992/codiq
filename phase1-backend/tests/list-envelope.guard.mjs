@@ -44,7 +44,9 @@ import { routeFileLabel, routeSourceFiles } from "../source-layout.mjs";
 
 const BACKEND = fileURLToPath(new URL("../src", import.meta.url));
 const ROUTES = path.join(BACKEND, "http", "routes");
-const LEGACY = JSON.parse(readFileSync(new URL("./list-envelope.legacy.json", import.meta.url), "utf8"));
+const LEGACY = JSON.parse(
+  readFileSync(new URL("./list-envelope.legacy.json", import.meta.url), "utf8")
+);
 
 const MIN_REASON = 20;
 /** Reading rows. `$queryRaw` covers the raw-SQL lists the ORM never sees. */
@@ -96,20 +98,32 @@ function walk(dir) {
  * Collisions concatenate: detection must never lose a hit to a shared name.
  */
 function indexFunctions(source, into) {
-  const declaration = /(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)|(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?=[<(]|function\b)/g;
+  const declaration =
+    /(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)|(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?=[<(]|function\b)/g;
   let match;
   while ((match = declaration.exec(source))) {
     const name = match[1] ?? match[2];
     let i = declaration.lastIndex;
-    const skipSpace = () => { while (i < source.length && /\s/.test(source[i])) i += 1; };
+    const skipSpace = () => {
+      while (i < source.length && /\s/.test(source[i])) i += 1;
+    };
     skipSpace();
-    if (source.startsWith("function", i)) { i += "function".length; skipSpace(); }
+    if (source.startsWith("function", i)) {
+      i += "function".length;
+      skipSpace();
+    }
     // Optional type parameters.
     if (source[i] === "<") {
       let angle = 0;
       for (; i < source.length; i += 1) {
         if (source[i] === "<") angle += 1;
-        else if (source[i] === ">") { angle -= 1; if (angle === 0) { i += 1; break; } }
+        else if (source[i] === ">") {
+          angle -= 1;
+          if (angle === 0) {
+            i += 1;
+            break;
+          }
+        }
       }
       skipSpace();
     }
@@ -117,7 +131,13 @@ function indexFunctions(source, into) {
     let parens = 0;
     for (; i < source.length; i += 1) {
       if (source[i] === "(") parens += 1;
-      else if (source[i] === ")") { parens -= 1; if (parens === 0) { i += 1; break; } }
+      else if (source[i] === ")") {
+        parens -= 1;
+        if (parens === 0) {
+          i += 1;
+          break;
+        }
+      }
     }
     // The return type may itself carry braces inside angle brackets.
     let angle = 0;
@@ -126,8 +146,12 @@ function indexFunctions(source, into) {
       const char = source[i];
       if (char === "<") angle += 1;
       else if (char === ">") angle = Math.max(0, angle - 1);
-      else if (char === ";" && angle === 0) break;           // a declaration, no body
-      else if (char === "{" && angle === 0) { open = i; break; }
+      else if (char === ";" && angle === 0)
+        break; // a declaration, no body
+      else if (char === "{" && angle === 0) {
+        open = i;
+        break;
+      }
     }
     if (open === -1) continue;
     let depth = 0;
@@ -139,14 +163,19 @@ function indexFunctions(source, into) {
         if (depth === 0) break;
       }
     }
-    into.set(name, (into.get(name) ?? "") + "\n" + source.slice(open, Math.min(end + 1, source.length)));
+    into.set(
+      name,
+      (into.get(name) ?? "") + "\n" + source.slice(open, Math.min(end + 1, source.length))
+    );
   }
 }
 
 const bodies = new Map();
-for (const file of walk(path.join(BACKEND, "services"))) indexFunctions(readFileSync(file, "utf8"), bodies);
+for (const file of walk(path.join(BACKEND, "services")))
+  indexFunctions(readFileSync(file, "utf8"), bodies);
 for (const file of routeSourceFiles()) indexFunctions(readFileSync(file, "utf8"), bodies);
-for (const file of walk(path.join(BACKEND, "modules"))) indexFunctions(readFileSync(file, "utf8"), bodies);
+for (const file of walk(path.join(BACKEND, "modules")))
+  indexFunctions(readFileSync(file, "utf8"), bodies);
 // The soft-delete audit/trash lists and the notification log live beside the
 // services; nothing else outside `services/` produces a collection today.
 
@@ -181,7 +210,8 @@ const GATES_NOT_PRODUCERS = new Set(["assertCapabilityAvailable", "resolveAvaila
 function producerText(handler) {
   let text = handler;
   const called = new Set();
-  for (const match of handler.matchAll(/\b([a-zA-Z_$][\w$]*)\s*\(/g)) if (!GATES_NOT_PRODUCERS.has(match[1])) called.add(match[1]);
+  for (const match of handler.matchAll(/\b([a-zA-Z_$][\w$]*)\s*\(/g))
+    if (!GATES_NOT_PRODUCERS.has(match[1])) called.add(match[1]);
   for (const name of called) {
     const body = bodies.get(name);
     if (body) text += "\n" + body;
@@ -192,7 +222,8 @@ function producerText(handler) {
   for (const name of called) {
     const body = bodies.get(name);
     if (!body) continue;
-    for (const match of body.matchAll(/\b([a-zA-Z_$][\w$]*)\s*\(/g)) if (!called.has(match[1])) secondHop.add(match[1]);
+    for (const match of body.matchAll(/\b([a-zA-Z_$][\w$]*)\s*\(/g))
+      if (!called.has(match[1])) secondHop.add(match[1]);
   }
   for (const name of secondHop) {
     const body = bodies.get(name);
@@ -231,7 +262,9 @@ for (const full of routeSourceFiles()) {
       // list route. If a `.findMany(` only ever appeared inside a comment the
       // route was never a producer; if it appeared in both, this cannot fire.
       if (READS_ROWS.test(rawText)) {
-        failures.push(`${entry} — GET ${match[2]} reads rows only inside a COMMENT. Detection would have been driven by prose; write the guard a real signal.`);
+        failures.push(
+          `${entry} — GET ${match[2]} reads rows only inside a COMMENT. Detection would have been driven by prose; write the guard a real signal.`
+        );
       }
       continue;
     }
@@ -241,12 +274,16 @@ for (const full of routeSourceFiles()) {
       seenUnpaginated.add(route);
       const allowed = allowanceFor(entry, "unpaginated", route);
       if (!allowed) {
-        failures.push(`${entry} — ${route} returns a collection with no nextCursor.\n`
-          + `    Thread a cursor through services/list-page.ts (readListCursor + keysetWhere + pageOf),\n`
-          + `    or — if this list is genuinely bounded by its domain — add it to\n`
-          + `    tests/list-envelope.legacy.json under "unpaginated" with a written reason.`);
+        failures.push(
+          `${entry} — ${route} returns a collection with no nextCursor.\n` +
+            `    Thread a cursor through services/list-page.ts (readListCursor + keysetWhere + pageOf),\n` +
+            `    or — if this list is genuinely bounded by its domain — add it to\n` +
+            `    tests/list-envelope.legacy.json under "unpaginated" with a written reason.`
+        );
       } else if (typeof allowed.reason !== "string" || allowed.reason.trim().length < MIN_REASON) {
-        failures.push(`${entry} — ${route} has an allowlist entry with no real reason (${MIN_REASON}+ characters required).`);
+        failures.push(
+          `${entry} — ${route} has an allowlist entry with no real reason (${MIN_REASON}+ characters required).`
+        );
       }
       continue;
     }
@@ -256,11 +293,15 @@ for (const full of routeSourceFiles()) {
       seenHandRolled.add(route);
       const allowed = allowanceFor(entry, "handRolledCursor", route);
       if (!allowed) {
-        failures.push(`${entry} — ${route} mints nextCursor without services/list-page.ts.\n`
-          + `    One cursor dialect: base64url(JSON) with a version and a list kind, from encodeListCursor.\n`
-          + `    A second dialect is how the third one arrived.`);
+        failures.push(
+          `${entry} — ${route} mints nextCursor without services/list-page.ts.\n` +
+            `    One cursor dialect: base64url(JSON) with a version and a list kind, from encodeListCursor.\n` +
+            `    A second dialect is how the third one arrived.`
+        );
       } else if (typeof allowed.reason !== "string" || allowed.reason.trim().length < MIN_REASON) {
-        failures.push(`${entry} — ${route} has an allowlist entry with no real reason (${MIN_REASON}+ characters required).`);
+        failures.push(
+          `${entry} — ${route} has an allowlist entry with no real reason (${MIN_REASON}+ characters required).`
+        );
       }
     }
   }
@@ -285,16 +326,27 @@ for (const full of routeSourceFiles()) {
     seenMissingSlug.add(route);
     const allowed = allowanceFor(entry, "missingStoreSlug", route);
     if (!allowed) {
-      failures.push(`${entry} — ${route} is a store-scoped list whose envelope does not carry storeSlug.\n`
-        + `    One envelope: { <resource>: T[], nextCursor, storeSlug, …facets }.`);
+      failures.push(
+        `${entry} — ${route} is a store-scoped list whose envelope does not carry storeSlug.\n` +
+          `    One envelope: { <resource>: T[], nextCursor, storeSlug, …facets }.`
+      );
     } else if (typeof allowed.reason !== "string" || allowed.reason.trim().length < MIN_REASON) {
-      failures.push(`${entry} — ${route} has an allowlist entry with no real reason (${MIN_REASON}+ characters required).`);
+      failures.push(
+        `${entry} — ${route} has an allowlist entry with no real reason (${MIN_REASON}+ characters required).`
+      );
     }
   }
 
-  for (const [bucket, seen] of [["unpaginated", seenUnpaginated], ["handRolledCursor", seenHandRolled], ["missingStoreSlug", seenMissingSlug]]) {
+  for (const [bucket, seen] of [
+    ["unpaginated", seenUnpaginated],
+    ["handRolledCursor", seenHandRolled],
+    ["missingStoreSlug", seenMissingSlug],
+  ]) {
     for (const allowed of LEGACY[entry]?.[bucket] ?? []) {
-      if (!seen.has(allowed.route)) stale.push(`${entry} → ${bucket} → ${allowed.route} is no longer detected — delete the entry.`);
+      if (!seen.has(allowed.route))
+        stale.push(
+          `${entry} → ${bucket} → ${allowed.route} is no longer detected — delete the entry.`
+        );
     }
   }
 }
@@ -310,4 +362,6 @@ if (failures.length) {
   process.exit(1);
 }
 if (stale.length) process.exit(1);
-console.log(`list:guard ok — ${unpaginated} allowlisted unpaginated list route(s), ${handRolled} allowlisted hand-rolled cursor(s), ${missingSlug} allowlisted store-scoped list(s) with no storeSlug echo. Every number may only fall.`);
+console.log(
+  `list:guard ok — ${unpaginated} allowlisted unpaginated list route(s), ${handRolled} allowlisted hand-rolled cursor(s), ${missingSlug} allowlisted store-scoped list(s) with no storeSlug echo. Every number may only fall.`
+);

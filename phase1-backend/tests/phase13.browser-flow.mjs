@@ -18,21 +18,46 @@ const screenshots = process.env.CODIQ_TEST_ARTIFACTS_DIR ?? "/home/ubuntu/webdev
 fs.mkdirSync(screenshots, { recursive: true });
 
 async function api(path, init = {}) {
-  const response = await fetch(`${base}/api${path}`, { ...init, headers: { "content-type": "application/json", ...(init.headers ?? {}) } });
+  const response = await fetch(`${base}/api${path}`, {
+    ...init,
+    headers: { "content-type": "application/json", ...(init.headers ?? {}) },
+  });
   const payload = await response.json();
-  if (!response.ok) throw new Error(`${path} failed with ${response.status}: ${JSON.stringify(payload)}`);
+  if (!response.ok)
+    throw new Error(`${path} failed with ${response.status}: ${JSON.stringify(payload)}`);
   return { payload, cookie: response.headers.get("set-cookie")?.split(";")[0] };
 }
 
-const executablePath = process.env.CODIQ_CHROMIUM_PATH ?? (process.platform === "linux" ? "/usr/bin/chromium" : undefined);
+const executablePath =
+  process.env.CODIQ_CHROMIUM_PATH ??
+  (process.platform === "linux" ? "/usr/bin/chromium" : undefined);
 const browser = await chromium.launch({ executablePath, headless: true });
 try {
-  const ownerRegistration = await api("/auth/platform/register", { method: "POST", body: JSON.stringify({ email: ownerEmail, password, displayName: "مالك اختبار المرحلة 13" }) });
-  if (!ownerRegistration.payload.account?.id) throw new Error("Owner registration did not return an account.");
-  const ownerLogin = await api("/auth/platform/login", { method: "POST", body: JSON.stringify({ email: ownerEmail, password }) });
-  const provisioned = await api("/platform/merchants/manual", { method: "POST", headers: { cookie: ownerLogin.cookie }, body: JSON.stringify({ ownerName: "صاحب المتجر", phone: merchantPhone, businessName: "تاجر اختبار المرحلة 13", email: merchantEmail, temporaryPassword: password, firstStoreName }) });
+  const ownerRegistration = await api("/auth/platform/register", {
+    method: "POST",
+    body: JSON.stringify({ email: ownerEmail, password, displayName: "مالك اختبار المرحلة 13" }),
+  });
+  if (!ownerRegistration.payload.account?.id)
+    throw new Error("Owner registration did not return an account.");
+  const ownerLogin = await api("/auth/platform/login", {
+    method: "POST",
+    body: JSON.stringify({ email: ownerEmail, password }),
+  });
+  const provisioned = await api("/platform/merchants/manual", {
+    method: "POST",
+    headers: { cookie: ownerLogin.cookie },
+    body: JSON.stringify({
+      ownerName: "صاحب المتجر",
+      phone: merchantPhone,
+      businessName: "تاجر اختبار المرحلة 13",
+      email: merchantEmail,
+      temporaryPassword: password,
+      firstStoreName,
+    }),
+  });
   const firstStoreSlug = provisioned.payload.store?.slug;
-  if (!firstStoreSlug) throw new Error("Manual provisioning did not return the initial store slug.");
+  if (!firstStoreSlug)
+    throw new Error("Manual provisioning did not return the initial store slug.");
   // ق-218/ق-226: a hand-provisioned merchant replaces the provisioner's password
   // before any merchant surface opens (the gate itself is proven in `phase6:test`
   // and through the UI in `phase6:browser`). This suite shares one `password`
@@ -51,24 +76,38 @@ try {
   await desktop.getByRole("button", { name: "إنشاء متجر جديد" }).click();
   await desktop.locator('input[name="storeName"]').fill(secondStoreName);
   await desktop.locator('input[name="storeSlug"]').fill(secondStoreSlug);
-  const createResponse = desktop.waitForResponse((response) => response.url().endsWith("/api/merchant/stores") && response.request().method() === "POST");
+  const createResponse = desktop.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/merchant/stores") && response.request().method() === "POST"
+  );
   await desktop.getByRole("button", { name: "إنشاء المتجر", exact: true }).click();
-  if ((await createResponse).status() !== 201) throw new Error("Store creation did not return 201.");
+  if ((await createResponse).status() !== 201)
+    throw new Error("Store creation did not return 201.");
   await desktop.waitForURL(`**/merchant/stores/${secondStoreSlug}/dashboard`);
-  await desktop.screenshot({ path: `${screenshots}/phase13-store-switcher-desktop.png`, fullPage: true });
+  await desktop.screenshot({
+    path: `${screenshots}/phase13-store-switcher-desktop.png`,
+    fullPage: true,
+  });
 
   await desktop.getByRole("button", { name: "فتح مبدّل المتاجر" }).click();
   const desktopSwitchOption = desktop.locator(`[data-store-switch-option="${firstStoreSlug}"]`);
   await desktopSwitchOption.waitFor({ state: "visible" });
   const [switchResponse] = await Promise.all([
-    desktop.waitForResponse((response) => response.url().endsWith("/api/merchant/stores/switch") && response.request().method() === "POST"),
+    desktop.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/merchant/stores/switch") &&
+        response.request().method() === "POST"
+    ),
     desktopSwitchOption.click(),
   ]);
   if (switchResponse.status() !== 200) throw new Error("Store switch did not return 200.");
   await desktop.waitForURL(`**/merchant/stores/${firstStoreSlug}/dashboard`);
 
   const mobileState = await desktopContext.storageState();
-  const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, storageState: mobileState });
+  const mobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    storageState: mobileState,
+  });
   const mobile = await mobileContext.newPage();
   await mobile.goto(`${base}/merchant/stores/${firstStoreSlug}/dashboard`);
   await mobile.getByRole("button", { name: "فتح القائمة" }).click();
@@ -77,13 +116,22 @@ try {
   await mobileSwitchOption.waitFor({ state: "visible" });
   await mobileSwitchOption.click();
   await mobile.waitForURL(`**/merchant/stores/${secondStoreSlug}/dashboard`);
-  await mobile.screenshot({ path: `${screenshots}/phase13-store-switcher-mobile.png`, fullPage: true });
+  await mobile.screenshot({
+    path: `${screenshots}/phase13-store-switcher-mobile.png`,
+    fullPage: true,
+  });
 
-  console.log(JSON.stringify({
-    phase: 13,
-    desktop: { createdStore: secondStoreSlug, switchedBackTo: firstStoreSlug },
-    mobile: { switchedTo: secondStoreSlug, width: 390 },
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        phase: 13,
+        desktop: { createdStore: secondStoreSlug, switchedBackTo: firstStoreSlug },
+        mobile: { switchedTo: secondStoreSlug, width: 390 },
+      },
+      null,
+      2
+    )
+  );
   await mobileContext.close();
   await desktopContext.close();
 } finally {

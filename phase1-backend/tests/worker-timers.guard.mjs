@@ -63,8 +63,13 @@ for (const file of files) {
   // teaches people to stop writing the comment.
   const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
   if (!/\bsetInterval\s*\(/.test(code)) continue;
-  if (key in ALLOWLIST) { seenAllowed.add(key); continue; }
-  violations.push(`${key} — holds a repeating timer. Register a job with the scheduler (ق-239) instead; nine of these kept Neon awake around the clock.`);
+  if (key in ALLOWLIST) {
+    seenAllowed.add(key);
+    continue;
+  }
+  violations.push(
+    `${key} — holds a repeating timer. Register a job with the scheduler (ق-239) instead; nine of these kept Neon awake around the clock.`
+  );
 }
 
 // An allowlist nobody prunes stops meaning anything: an entry that silences
@@ -80,12 +85,18 @@ if (violations.length) {
   process.exit(1);
 }
 
-console.log(JSON.stringify({
-  suite: "worker-timers",
-  status: "passed",
-  summary: {
-    filesScanned: files.length,
-    repeatingTimers: seenAllowed.size,
-    where: [...seenAllowed],
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "worker-timers",
+      status: "passed",
+      summary: {
+        filesScanned: files.length,
+        repeatingTimers: seenAllowed.size,
+        where: [...seenAllowed],
+      },
+    },
+    null,
+    2
+  )
+);

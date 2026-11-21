@@ -34,7 +34,10 @@ import { COUPON_KINDS } from "../../services/coupon.service.js";
  * because there is a second rule.
  */
 const couponInteger = (min: number, max: number) =>
-  z.preprocess((value) => (typeof value === "number" ? value : Number(value)), z.number().int().min(min).max(max));
+  z.preprocess(
+    (value) => (typeof value === "number" ? value : Number(value)),
+    z.number().int().min(min).max(max)
+  );
 
 /**
  * A cap the merchant can CLEAR. `optionalPositiveInteger` reads `null` and `""`
@@ -43,14 +46,25 @@ const couponInteger = (min: number, max: number) =>
  * Turning it into `undefined` here would make «امسح الحد» silently do nothing.
  */
 const optionalCouponCap = z
-  .preprocess((value) => (value === "" ? null : value), z.union([z.null(), couponInteger(1, 1_000_000_000)]))
+  .preprocess(
+    (value) => (value === "" ? null : value),
+    z.union([z.null(), couponInteger(1, 1_000_000_000)])
+  )
   .optional();
 
 /** `optionalDate`: absent, null and "" all mean «no date»; anything else must parse. */
 const optionalCouponDate = z
   .preprocess(
     (value) => (value === "" ? null : value),
-    z.union([z.null(), z.string().refine((value) => !Number.isNaN(new Date(value).valueOf()), "التاريخ يجب أن يكون بصيغة ISO.")]),
+    z.union([
+      z.null(),
+      z
+        .string()
+        .refine(
+          (value) => !Number.isNaN(new Date(value).valueOf()),
+          "التاريخ يجب أن يكون بصيغة ISO."
+        ),
+    ])
   )
   .optional();
 

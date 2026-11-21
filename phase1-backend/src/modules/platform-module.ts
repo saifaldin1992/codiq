@@ -24,7 +24,17 @@
 import type { Express } from "express";
 import type { DomainEventBus } from "../events/domain-events.js";
 
-export type ModuleDomain = "identity" | "storefront" | "catalog" | "orders" | "pos" | "finance" | "marketing" | "team" | "platform" | "operations";
+export type ModuleDomain =
+  | "identity"
+  | "storefront"
+  | "catalog"
+  | "orders"
+  | "pos"
+  | "finance"
+  | "marketing"
+  | "team"
+  | "platform"
+  | "operations";
 
 export interface PlatformModule {
   /** Stable kebab-case id; also the folder name for a non-core module. */
@@ -39,6 +49,7 @@ export interface PlatformModule {
 }
 
 export function defineModule(module: PlatformModule): PlatformModule {
-  if (!/^[a-z][a-z0-9-]*$/.test(module.id)) throw new Error(`module id must be kebab-case: ${module.id}`);
+  if (!/^[a-z][a-z0-9-]*$/.test(module.id))
+    throw new Error(`module id must be kebab-case: ${module.id}`);
   return module;
 }

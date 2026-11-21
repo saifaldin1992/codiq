@@ -16,11 +16,24 @@ const navigation = read("client/src/config/navigation.ts");
 const screens = read("client/src/dashboard/merchant-screens.tsx");
 const dashboard = read("client/src/pages/MerchantDashboard.tsx");
 
-const merchantNav = navigation.slice(navigation.indexOf("export const merchantNavGroups"), navigation.indexOf("];", navigation.indexOf("export const merchantNavGroups")));
-const implemented = [...merchantNav.matchAll(/path:\s*"([^"]+)",\s*status:\s*"implemented"/g)].map((m) => m[1]);
-const screenPaths = new Set([...screens.matchAll(/^\s+"(\/merchant\/dashboard[^"]*)": /gm)].map((m) => m[1]));
-const productModes = new Set([...dashboard.matchAll(/resolvedLocation === "(\/merchant\/dashboard\/products[^"]*)"/g)].map((m) => m[1]));
-const orderScreens = new Set(["delivery", "settlements", "reports", "returns"].map((s) => `/merchant/dashboard/orders/${s}`));
+const merchantNav = navigation.slice(
+  navigation.indexOf("export const merchantNavGroups"),
+  navigation.indexOf("];", navigation.indexOf("export const merchantNavGroups"))
+);
+const implemented = [...merchantNav.matchAll(/path:\s*"([^"]+)",\s*status:\s*"implemented"/g)].map(
+  (m) => m[1]
+);
+const screenPaths = new Set(
+  [...screens.matchAll(/^\s+"(\/merchant\/dashboard[^"]*)": /gm)].map((m) => m[1])
+);
+const productModes = new Set(
+  [...dashboard.matchAll(/resolvedLocation === "(\/merchant\/dashboard\/products[^"]*)"/g)].map(
+    (m) => m[1]
+  )
+);
+const orderScreens = new Set(
+  ["delivery", "settlements", "reports", "returns"].map((s) => `/merchant/dashboard/orders/${s}`)
+);
 
 const unresolved = implemented.filter((path) => {
   if (screenPaths.has(path) || productModes.has(path)) return false;
@@ -29,6 +42,19 @@ const unresolved = implemented.filter((path) => {
   if (path === "/merchant/dashboard/products") return false; // product list mode
   return true;
 });
-assert.deepEqual(unresolved, [], `implemented menu entries with no screen — add them to client/src/dashboard/merchant-screens.tsx:\n  ${unresolved.join("\n  ")}`);
-assert.ok(implemented.length > 20 && screenPaths.size > 20, "the detector found the menu and the screen table");
-console.log(JSON.stringify({ suite: "merchant-screens", status: "passed", summary: { implementedEntries: implemented.length, screenTable: screenPaths.size } }));
+assert.deepEqual(
+  unresolved,
+  [],
+  `implemented menu entries with no screen — add them to client/src/dashboard/merchant-screens.tsx:\n  ${unresolved.join("\n  ")}`
+);
+assert.ok(
+  implemented.length > 20 && screenPaths.size > 20,
+  "the detector found the menu and the screen table"
+);
+console.log(
+  JSON.stringify({
+    suite: "merchant-screens",
+    status: "passed",
+    summary: { implementedEntries: implemented.length, screenTable: screenPaths.size },
+  })
+);

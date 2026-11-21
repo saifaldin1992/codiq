@@ -61,7 +61,12 @@ export async function fetchPlatformContact(): Promise<PlatformContact | null> {
     if (!response.ok) return null;
     const body = await response.json();
     const contact = body?.contact;
-    if (typeof contact?.email !== "string" || typeof contact?.phone !== "string" || typeof contact?.whatsapp !== "string") return null;
+    if (
+      typeof contact?.email !== "string" ||
+      typeof contact?.phone !== "string" ||
+      typeof contact?.whatsapp !== "string"
+    )
+      return null;
     return { email: contact.email, phone: contact.phone, whatsapp: contact.whatsapp };
   } catch {
     return null;

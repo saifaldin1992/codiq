@@ -32,18 +32,30 @@ const fail = (message) => {
 };
 
 if (!existsSync(manifestPath)) {
-  fail(`dist/public/.vite/manifest.json not found — \`build.manifest: true\` must stay set in vite.config.ts (looked at ${manifestPath})`);
+  fail(
+    `dist/public/.vite/manifest.json not found — \`build.manifest: true\` must stay set in vite.config.ts (looked at ${manifestPath})`
+  );
 }
 if (!existsSync(swPath)) {
-  fail("dist/public/sw.js not found — client/public/sw.js should be copied verbatim by the Vite build");
+  fail(
+    "dist/public/sw.js not found — client/public/sw.js should be copied verbatim by the Vite build"
+  );
 }
 
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
 const entryKey = Object.keys(manifest).find((key) => manifest[key].isEntry);
-if (!entryKey) fail("no isEntry chunk in the Vite manifest — the build layout changed; update this script deliberately.");
-const tillKey = Object.keys(manifest).find((key) => key.replace(/\\/g, "/").endsWith("pages/TillPage.tsx"));
-if (!tillKey) fail("no TillPage.tsx chunk in the Vite manifest — the till moved or lost its lazy split; update this script deliberately.");
+if (!entryKey)
+  fail(
+    "no isEntry chunk in the Vite manifest — the build layout changed; update this script deliberately."
+  );
+const tillKey = Object.keys(manifest).find((key) =>
+  key.replace(/\\/g, "/").endsWith("pages/TillPage.tsx")
+);
+if (!tillKey)
+  fail(
+    "no TillPage.tsx chunk in the Vite manifest — the till moved or lost its lazy split; update this script deliberately."
+  );
 
 // Static import closure only: `imports`, never `dynamicImports`.
 const collectClosure = (startKeys) => {
@@ -70,7 +82,9 @@ for (const key of collectClosure([tillKey])) {
   if (key === entryKey) continue; // shared code pulls the entry into the closure; its dynamicImports ARE the lazy routes
   const dynamic = manifest[key].dynamicImports ?? [];
   if (dynamic.length > 0) {
-    fail(`«${key}» inside the till closure declares dynamic imports (${dynamic.join(", ")}) — precache them or make them static before shipping; skipWaiting is unsafe otherwise`);
+    fail(
+      `«${key}» inside the till closure declares dynamic imports (${dynamic.join(", ")}) — precache them or make them static before shipping; skipWaiting is unsafe otherwise`
+    );
   }
 }
 
@@ -84,14 +98,17 @@ const unique = urls.filter((url, index) => urls.indexOf(url) === index).sort();
 
 for (const url of unique) {
   if (url === "/index.html") continue;
-  if (!existsSync(join(publicDir, url.slice(1)))) fail(`precache URL ${url} does not exist in dist/public — manifest and output disagree`);
+  if (!existsSync(join(publicDir, url.slice(1))))
+    fail(`precache URL ${url} does not exist in dist/public — manifest and output disagree`);
 }
 
 const buildHash = createHash("sha256").update(unique.join("\n")).digest("hex").slice(0, 16);
 
 const sw = readFileSync(swPath, "utf8");
 if (sw.indexOf("self.__PRECACHE__ = []") === -1) {
-  fail("placeholder `self.__PRECACHE__ = []` not found in dist/public/sw.js — already rewritten (run a full `pnpm build`), or client/public/sw.js drifted");
+  fail(
+    "placeholder `self.__PRECACHE__ = []` not found in dist/public/sw.js — already rewritten (run a full `pnpm build`), or client/public/sw.js drifted"
+  );
 }
 if (sw.indexOf("__BUILD_HASH__") === -1) {
   fail("placeholder `__BUILD_HASH__` not found in dist/public/sw.js — client/public/sw.js drifted");
@@ -109,4 +126,6 @@ const privateViteDir = join(root, "dist", ".vite");
 rmSync(privateViteDir, { recursive: true, force: true });
 renameSync(join(publicDir, ".vite"), privateViteDir);
 
-console.log(`sw manifest OK — ${unique.length} precache URLs, build ${buildHash}:\n  ${unique.join("\n  ")}`);
+console.log(
+  `sw manifest OK — ${unique.length} precache URLs, build ${buildHash}:\n  ${unique.join("\n  ")}`
+);

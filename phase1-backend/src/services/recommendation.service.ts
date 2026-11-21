@@ -29,7 +29,12 @@
 import { prisma } from "../db/prisma.js";
 import { categoryFilterIds } from "./storefront.service.js";
 
-export interface RelatedProduct { productId: string; name: string; priceIqd: number; imageId: string | null }
+export interface RelatedProduct {
+  productId: string;
+  name: string;
+  priceIqd: number;
+  imageId: string | null;
+}
 
 /**
  * ق-200 «عناصر قد تعجبك» — same-category siblings, newest first.
@@ -42,23 +47,45 @@ export interface RelatedProduct { productId: string; name: string; priceIqd: num
  * the catalog filter does; nothing unbuyable is offered, for the same reason
  * as above.
  */
-export async function relatedByCategory(storeId: string, productId: string, options: { limit?: number } = {}): Promise<{ related: RelatedProduct[] }> {
+export async function relatedByCategory(
+  storeId: string,
+  productId: string,
+  options: { limit?: number } = {}
+): Promise<{ related: RelatedProduct[] }> {
   const limit = Math.min(Math.max(options.limit ?? 4, 1), 12);
   // A trashed product has no siblings to offer — the PG-2 leak rule applies to reads, not only to lists.
-  const product = await prisma.product.findFirst({ where: { id: productId, storeId, deletedAt: null }, select: { categoryId: true } });
+  const product = await prisma.product.findFirst({
+    where: { id: productId, storeId, deletedAt: null },
+    select: { categoryId: true },
+  });
   if (!product?.categoryId) return { related: [] };
   const categoryIds = await categoryFilterIds(storeId, product.categoryId);
   const rows = await prisma.product.findMany({
     where: {
-      storeId, isActive: true, deletedAt: null, id: { not: productId },
+      storeId,
+      isActive: true,
+      deletedAt: null,
+      id: { not: productId },
       categoryId: { in: categoryIds },
       variants: { some: { isActive: true, deletedAt: null, stockQuantity: { gt: 0 } } },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit,
-    select: { id: true, name: true, priceIqd: true, images: { select: { id: true }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], take: 1 } },
+    select: {
+      id: true,
+      name: true,
+      priceIqd: true,
+      images: { select: { id: true }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], take: 1 },
+    },
   });
-  return { related: rows.map((row) => ({ productId: row.id, name: row.name, priceIqd: row.priceIqd, imageId: row.images[0]?.id ?? null })) };
+  return {
+    related: rows.map((row) => ({
+      productId: row.id,
+      name: row.name,
+      priceIqd: row.priceIqd,
+      imageId: row.images[0]?.id ?? null,
+    })),
+  };
 }
 
 /** Below this many separate orders, a pairing is a coincidence, not a habit. */
@@ -79,11 +106,19 @@ export interface Recommendation {
 export async function boughtTogether(
   storeId: string,
   productId: string,
-  options: { limit?: number } = {},
+  options: { limit?: number } = {}
 ): Promise<{ minOrdersTogether: number; recommendations: Recommendation[] }> {
   const limit = Math.min(Math.max(options.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
 
-  const rows = await prisma.$queryRaw<Array<{ product_id: string; name: string; price_iqd: number; orders_together: bigint; image_id: string | null }>>`
+  const rows = await prisma.$queryRaw<
+    Array<{
+      product_id: string;
+      name: string;
+      price_iqd: number;
+      orders_together: bigint;
+      image_id: string | null;
+    }>
+  >`
     SELECT other.product_id                AS product_id,
            MAX(p.name)                     AS name,
            MAX(p.price_iqd)                AS price_iqd,

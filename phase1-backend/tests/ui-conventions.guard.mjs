@@ -39,11 +39,13 @@ export function findRawPasswordFields() {
   for (const file of sourceFiles(CLIENT)) {
     const relativePath = relative(repoRoot, file).replace(/\\/g, "/");
     if (relativePath === OWNER_OF_THE_ATTRIBUTE) continue;
-    readFileSync(file, "utf8").split(/\r?\n/).forEach((line, index) => {
-      if (/type\s*=\s*["']password["']/.test(line) || /type:\s*["']password["']/.test(line)) {
-        violations.push({ file: relativePath, line: index + 1, text: line.trim().slice(0, 140) });
-      }
-    });
+    readFileSync(file, "utf8")
+      .split(/\r?\n/)
+      .forEach((line, index) => {
+        if (/type\s*=\s*["']password["']/.test(line) || /type:\s*["']password["']/.test(line)) {
+          violations.push({ file: relativePath, line: index + 1, text: line.trim().slice(0, 140) });
+        }
+      });
   }
   return violations;
 }
@@ -52,10 +54,16 @@ const violations = findRawPasswordFields();
 if (violations.length) {
   console.error(
     `P27-10 (ق-98): ${violations.length} password field(s) bypass <PasswordInput>. ` +
-    `Use it instead so the reveal toggle is there by construction:\n` +
-    violations.map((v) => `  ${v.file}:${v.line} — ${v.text}`).join("\n"),
+      `Use it instead so the reveal toggle is there by construction:\n` +
+      violations.map((v) => `  ${v.file}:${v.line} — ${v.text}`).join("\n")
   );
   process.exitCode = 1;
 } else {
-  console.log(JSON.stringify({ suite: "ui-conventions", status: "passed", summary: { rawPasswordFields: 0 } }, null, 2));
+  console.log(
+    JSON.stringify(
+      { suite: "ui-conventions", status: "passed", summary: { rawPasswordFields: 0 } },
+      null,
+      2
+    )
+  );
 }

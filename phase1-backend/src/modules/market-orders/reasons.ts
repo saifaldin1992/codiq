@@ -42,8 +42,12 @@ export type ReturnReasonCode = (typeof RETURN_REASONS)[number]["code"];
 export type RatingTagCode = (typeof RATING_TAGS)[number]["code"];
 export type DeliveryStageCode = (typeof DELIVERY_STAGES)[number]["code"];
 
-export function labelOf(list: readonly { code: string; label: string }[], code: string | null | undefined): string | null {
-  return code ? list.find((entry) => entry.code === code)?.label ?? null : null;
+export function labelOf(
+  list: readonly { code: string; label: string }[],
+  code: string | null | undefined
+): string | null {
+  return code ? (list.find((entry) => entry.code === code)?.label ?? null) : null;
 }
 
-export const codesOf = <T extends readonly { code: string }[]>(list: T) => list.map((entry) => entry.code) as unknown as [T[number]["code"], ...T[number]["code"][]];
+export const codesOf = <T extends readonly { code: string }[]>(list: T) =>
+  list.map((entry) => entry.code) as unknown as [T[number]["code"], ...T[number]["code"][]];

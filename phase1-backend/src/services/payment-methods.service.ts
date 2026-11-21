@@ -41,16 +41,58 @@ export interface PaymentMethodDefinition {
 }
 
 export const PAYMENT_METHOD_CATALOG: readonly PaymentMethodDefinition[] = [
-  { code: "cod", displayName: "الدفع عند الاستلام", kind: "cod", available: true, hint: "يدفع الزبون نقداً للمندوب عند التسليم." },
-  { code: "zaincash", displayName: "زين كاش", kind: "manual_transfer", available: true, hint: "يحوّل الزبون المبلغ إلى محفظتك قبل التسليم، وتؤكد الدفع من صفحة الطلب." },
-  { code: "asiahawala", displayName: "آسيا حوالة", kind: "manual_transfer", available: true, hint: "يحوّل الزبون المبلغ إلى محفظتك قبل التسليم، وتؤكد الدفع من صفحة الطلب." },
-  { code: "fib", displayName: "FIB — المصرف العراقي الأول", kind: "manual_transfer", available: true, hint: "يحوّل الزبون المبلغ إلى حسابك قبل التسليم، وتؤكد الدفع من صفحة الطلب." },
-  { code: "qicard", displayName: "كي كارد", kind: "gateway", available: false, unavailableReason: "بوابة الدفع تُربط في المرحلة 25أ.", hint: "" },
-  { code: "card", displayName: "فيزا / ماستركارد", kind: "gateway", available: false, unavailableReason: "بوابة الدفع تُربط في المرحلة 25أ.", hint: "" },
+  {
+    code: "cod",
+    displayName: "الدفع عند الاستلام",
+    kind: "cod",
+    available: true,
+    hint: "يدفع الزبون نقداً للمندوب عند التسليم.",
+  },
+  {
+    code: "zaincash",
+    displayName: "زين كاش",
+    kind: "manual_transfer",
+    available: true,
+    hint: "يحوّل الزبون المبلغ إلى محفظتك قبل التسليم، وتؤكد الدفع من صفحة الطلب.",
+  },
+  {
+    code: "asiahawala",
+    displayName: "آسيا حوالة",
+    kind: "manual_transfer",
+    available: true,
+    hint: "يحوّل الزبون المبلغ إلى محفظتك قبل التسليم، وتؤكد الدفع من صفحة الطلب.",
+  },
+  {
+    code: "fib",
+    displayName: "FIB — المصرف العراقي الأول",
+    kind: "manual_transfer",
+    available: true,
+    hint: "يحوّل الزبون المبلغ إلى حسابك قبل التسليم، وتؤكد الدفع من صفحة الطلب.",
+  },
+  {
+    code: "qicard",
+    displayName: "كي كارد",
+    kind: "gateway",
+    available: false,
+    unavailableReason: "بوابة الدفع تُربط في المرحلة 25أ.",
+    hint: "",
+  },
+  {
+    code: "card",
+    displayName: "فيزا / ماستركارد",
+    kind: "gateway",
+    available: false,
+    unavailableReason: "بوابة الدفع تُربط في المرحلة 25أ.",
+    hint: "",
+  },
 ];
 
 /** What a manual transfer needs the shopper to know. */
-export interface TransferConfiguration { walletNumber?: string; holderName?: string; instructions?: string }
+export interface TransferConfiguration {
+  walletNumber?: string;
+  holderName?: string;
+  instructions?: string;
+}
 
 export interface PaymentMethodView extends PaymentMethodDefinition {
   enabled: boolean;
@@ -67,12 +109,21 @@ function definition(code: string): PaymentMethodDefinition {
   return found;
 }
 
-function configurationOf(row: { configuration: unknown } | null | undefined): TransferConfiguration {
+function configurationOf(
+  row: { configuration: unknown } | null | undefined
+): TransferConfiguration {
   const raw = row?.configuration;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const record = raw as Record<string, unknown>;
-  const text = (key: string) => (typeof record[key] === "string" && (record[key] as string).trim() ? (record[key] as string).trim() : undefined);
-  return { walletNumber: text("walletNumber"), holderName: text("holderName"), instructions: text("instructions") };
+  const text = (key: string) =>
+    typeof record[key] === "string" && (record[key] as string).trim()
+      ? (record[key] as string).trim()
+      : undefined;
+  return {
+    walletNumber: text("walletNumber"),
+    holderName: text("holderName"),
+    instructions: text("instructions"),
+  };
 }
 
 type MethodRow = { code: string; isEnabled: boolean; configuration: unknown };
@@ -83,13 +134,24 @@ function isEnabled(code: string, rows: readonly MethodRow[]): boolean {
   return row ? row.isEnabled : code === "cod";
 }
 
-export async function listPaymentMethods(storeId: string): Promise<{ methods: PaymentMethodView[] }> {
-  const rows = await prisma.paymentMethod.findMany({ where: { storeId }, select: { code: true, isEnabled: true, configuration: true } });
+export async function listPaymentMethods(
+  storeId: string
+): Promise<{ methods: PaymentMethodView[] }> {
+  const rows = await prisma.paymentMethod.findMany({
+    where: { storeId },
+    select: { code: true, isEnabled: true, configuration: true },
+  });
   return {
     methods: PAYMENT_METHOD_CATALOG.map((entry) => {
       const row = rows.find((candidate) => candidate.code === entry.code);
       const configuration = configurationOf(row);
-      return { ...entry, enabled: isEnabled(entry.code, rows), walletNumber: configuration.walletNumber ?? null, holderName: configuration.holderName ?? null, instructions: configuration.instructions ?? null };
+      return {
+        ...entry,
+        enabled: isEnabled(entry.code, rows),
+        walletNumber: configuration.walletNumber ?? null,
+        holderName: configuration.holderName ?? null,
+        instructions: configuration.instructions ?? null,
+      };
     }),
   };
 }
@@ -97,31 +159,67 @@ export async function listPaymentMethods(storeId: string): Promise<{ methods: Pa
 export async function updatePaymentMethod(
   storeId: string,
   code: string,
-  input: { isEnabled?: boolean; walletNumber?: string | null; holderName?: string | null; instructions?: string | null },
+  input: {
+    isEnabled?: boolean;
+    walletNumber?: string | null;
+    holderName?: string | null;
+    instructions?: string | null;
+  }
 ): Promise<{ methods: PaymentMethodView[] }> {
   const entry = definition(code);
-  if (!entry.available) throw new HttpError(422, "PAYMENT_METHOD_UNAVAILABLE", entry.unavailableReason ?? "هذه الوسيلة غير متاحة بعد.");
-  const rows = await prisma.paymentMethod.findMany({ where: { storeId }, select: { code: true, isEnabled: true, configuration: true } });
+  if (!entry.available)
+    throw new HttpError(
+      422,
+      "PAYMENT_METHOD_UNAVAILABLE",
+      entry.unavailableReason ?? "هذه الوسيلة غير متاحة بعد."
+    );
+  const rows = await prisma.paymentMethod.findMany({
+    where: { storeId },
+    select: { code: true, isEnabled: true, configuration: true },
+  });
   const current = configurationOf(rows.find((row) => row.code === code));
-  const clear = (value: string | null | undefined, previous: string | undefined) => (value === undefined ? previous : value === null || value.trim() === "" ? undefined : value.trim());
+  const clear = (value: string | null | undefined, previous: string | undefined) =>
+    value === undefined
+      ? previous
+      : value === null || value.trim() === ""
+        ? undefined
+        : value.trim();
   const next: TransferConfiguration = {
     walletNumber: clear(input.walletNumber, current.walletNumber),
     holderName: clear(input.holderName, current.holderName),
     instructions: clear(input.instructions, current.instructions),
   };
   if (next.walletNumber !== undefined && !WALLET_NUMBER.test(next.walletNumber)) {
-    throw new HttpError(422, "INVALID_WALLET_NUMBER", "رقم المحفظة أو الحساب يجب أن يكون أرقاماً (6–30 خانة).");
+    throw new HttpError(
+      422,
+      "INVALID_WALLET_NUMBER",
+      "رقم المحفظة أو الحساب يجب أن يكون أرقاماً (6–30 خانة)."
+    );
   }
   const enabled = input.isEnabled ?? isEnabled(code, rows);
   if (entry.kind === "manual_transfer" && enabled && !next.walletNumber) {
-    throw new HttpError(422, "WALLET_NUMBER_REQUIRED", `اكتب رقم محفظتك على ${entry.displayName} قبل تفعيلها — الزبون يحتاجه ليحوّل.`);
+    throw new HttpError(
+      422,
+      "WALLET_NUMBER_REQUIRED",
+      `اكتب رقم محفظتك على ${entry.displayName} قبل تفعيلها — الزبون يحتاجه ليحوّل.`
+    );
   }
   // Rule 1: the last way to pay refuses to switch off.
   if (!enabled) {
-    const othersOn = PAYMENT_METHOD_CATALOG.some((candidate) => candidate.code !== code && candidate.available && isEnabled(candidate.code, rows));
-    if (!othersOn) throw new HttpError(422, "LAST_PAYMENT_METHOD", "لا يمكن إطفاء آخر وسيلة دفع — فعّل وسيلة أخرى أولاً.");
+    const othersOn = PAYMENT_METHOD_CATALOG.some(
+      (candidate) =>
+        candidate.code !== code && candidate.available && isEnabled(candidate.code, rows)
+    );
+    if (!othersOn)
+      throw new HttpError(
+        422,
+        "LAST_PAYMENT_METHOD",
+        "لا يمكن إطفاء آخر وسيلة دفع — فعّل وسيلة أخرى أولاً."
+      );
   }
-  const configuration = Object.fromEntries(Object.entries(next).filter(([, value]) => value !== undefined)) as Prisma.InputJsonObject;
+  const configuration = Object.fromEntries(
+    Object.entries(next).filter(([, value]) => value !== undefined)
+  ) as Prisma.InputJsonObject;
   await prisma.paymentMethod.upsert({
     where: { storeId_code: { storeId, code } },
     update: { isEnabled: enabled, configuration },
@@ -130,17 +228,35 @@ export async function updatePaymentMethod(
   return listPaymentMethods(storeId);
 }
 
-export interface EnabledPaymentMethod { code: string; displayName: string; kind: PaymentMethodKind; walletNumber?: string; holderName?: string; instructions?: string }
+export interface EnabledPaymentMethod {
+  code: string;
+  displayName: string;
+  kind: PaymentMethodKind;
+  walletNumber?: string;
+  holderName?: string;
+  instructions?: string;
+}
 
 /** The methods a shopper may pick — what the storefront's payload and the checkout both read. */
-export async function enabledPaymentMethods(client: Prisma.TransactionClient | typeof prisma, storeId: string): Promise<EnabledPaymentMethod[]> {
-  const rows = await client.paymentMethod.findMany({ where: { storeId }, select: { code: true, isEnabled: true, configuration: true } });
-  return PAYMENT_METHOD_CATALOG
-    .filter((entry) => entry.available && isEnabled(entry.code, rows))
-    .map((entry) => {
-      const configuration = configurationOf(rows.find((row) => row.code === entry.code));
-      return { code: entry.code, displayName: entry.displayName, kind: entry.kind, ...(entry.kind === "manual_transfer" ? configuration : {}) };
-    });
+export async function enabledPaymentMethods(
+  client: Prisma.TransactionClient | typeof prisma,
+  storeId: string
+): Promise<EnabledPaymentMethod[]> {
+  const rows = await client.paymentMethod.findMany({
+    where: { storeId },
+    select: { code: true, isEnabled: true, configuration: true },
+  });
+  return PAYMENT_METHOD_CATALOG.filter(
+    (entry) => entry.available && isEnabled(entry.code, rows)
+  ).map((entry) => {
+    const configuration = configurationOf(rows.find((row) => row.code === entry.code));
+    return {
+      code: entry.code,
+      displayName: entry.displayName,
+      kind: entry.kind,
+      ...(entry.kind === "manual_transfer" ? configuration : {}),
+    };
+  });
 }
 
 /** At checkout: the method he picked, if the store takes it — `undefined` means cash, as it always has. */
@@ -149,16 +265,34 @@ export async function enabledPaymentMethods(client: Prisma.TransactionClient | t
  * platform collects them through its providers — so only the market's checkout
  * may name them (`market` below); a storefront request naming one is refused.
  */
-export const MARKET_PAYMENT_METHODS = { market_card: { code: "market_card", displayName: "بطاقة إلكترونيّة", kind: "gateway" }, market_instalments: { code: "market_instalments", displayName: "أقساط", kind: "gateway" }, market_partner: { code: "market_partner", displayName: "التطبيق الشريك", kind: "gateway" } } as const;
+export const MARKET_PAYMENT_METHODS = {
+  market_card: { code: "market_card", displayName: "بطاقة إلكترونيّة", kind: "gateway" },
+  market_instalments: { code: "market_instalments", displayName: "أقساط", kind: "gateway" },
+  market_partner: { code: "market_partner", displayName: "التطبيق الشريك", kind: "gateway" },
+} as const;
 
-export async function paymentMethodForCheckout(client: Prisma.TransactionClient | typeof prisma, storeId: string, rawCode: unknown, market?: "card" | "instalments" | "partner"): Promise<EnabledPaymentMethod> {
+export async function paymentMethodForCheckout(
+  client: Prisma.TransactionClient | typeof prisma,
+  storeId: string,
+  rawCode: unknown,
+  market?: "card" | "instalments" | "partner"
+): Promise<EnabledPaymentMethod> {
   const code = rawCode === undefined || rawCode === null || rawCode === "" ? "cod" : rawCode;
-  if (typeof code !== "string") throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "وسيلة الدفع غير مدعومة.");
+  if (typeof code !== "string")
+    throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "وسيلة الدفع غير مدعومة.");
   if (code === "market_card" || code === "market_instalments" || code === "market_partner") {
-    if (market !== code.slice("market_".length)) throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "وسيلة الدفع غير مدعومة.");
+    if (market !== code.slice("market_".length))
+      throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "وسيلة الدفع غير مدعومة.");
     return { ...MARKET_PAYMENT_METHODS[code] };
   }
-  const method = (await enabledPaymentMethods(client, storeId)).find((entry) => entry.code === code);
-  if (!method) throw new HttpError(422, "PAYMENT_METHOD_NOT_SUPPORTED", "هذا المتجر لا يقبل وسيلة الدفع المختارة.");
+  const method = (await enabledPaymentMethods(client, storeId)).find(
+    (entry) => entry.code === code
+  );
+  if (!method)
+    throw new HttpError(
+      422,
+      "PAYMENT_METHOD_NOT_SUPPORTED",
+      "هذا المتجر لا يقبل وسيلة الدفع المختارة."
+    );
   return method;
 }

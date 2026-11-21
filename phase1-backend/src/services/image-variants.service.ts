@@ -70,7 +70,11 @@ async function loadSharp(): Promise<SharpFactory> {
     // this deployment cannot process images at all, which is an operator's
     // problem and needs to be visible as one.
     logger.error("image.sharp_unavailable", { component: "image-variants", err: error });
-    throw new HttpError(503, "IMAGE_PROCESSING_UNAVAILABLE", "تعذّرت معالجة الصور على الخادم حالياً. حاول بعد قليل.");
+    throw new HttpError(
+      503,
+      "IMAGE_PROCESSING_UNAVAILABLE",
+      "تعذّرت معالجة الصور على الخادم حالياً. حاول بعد قليل."
+    );
   }
 }
 
@@ -148,7 +152,11 @@ export async function renderProductImageVariants(source: Buffer): Promise<Render
   const sourceWidth = (turned ? meta.height : meta.width) ?? 0;
   const sourceHeight = (turned ? meta.width : meta.height) ?? 0;
   if (sourceWidth <= 0 || sourceHeight <= 0) {
-    throw new HttpError(422, "INVALID_PRODUCT_IMAGE", "تعذّرت قراءة أبعاد الصورة. جرّب صورةً أخرى.");
+    throw new HttpError(
+      422,
+      "INVALID_PRODUCT_IMAGE",
+      "تعذّرت قراءة أبعاد الصورة. جرّب صورةً أخرى."
+    );
   }
 
   // THE DECODE FAILS HERE, NOT ABOVE — and that cost a 500 before it was found.
@@ -176,7 +184,11 @@ export async function renderProductImageVariants(source: Buffer): Promise<Render
       variants.push({ variant, body, contentType: "image/webp", byteSize: body.byteLength });
     }
   } catch {
-    throw new HttpError(422, "INVALID_PRODUCT_IMAGE", "تعذّرت قراءة الصورة — قد يكون الملفّ ناقصاً. أعد رفعها.");
+    throw new HttpError(
+      422,
+      "INVALID_PRODUCT_IMAGE",
+      "تعذّرت قراءة الصورة — قد يكون الملفّ ناقصاً. أعد رفعها."
+    );
   }
 
   const fullWidth = Math.min(sourceWidth, IMAGE_VARIANTS.full.width);

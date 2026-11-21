@@ -43,7 +43,12 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 import { backupKeyring, decryptBackupStream } from "../src/backup/backup-envelope.js";
-import { backupClient, fetchBackup, listBackups, resolveBackupStorage } from "../src/backup/backup-storage.js";
+import {
+  backupClient,
+  fetchBackup,
+  listBackups,
+  resolveBackupStorage,
+} from "../src/backup/backup-storage.js";
 
 interface Options {
   key: string | null;
@@ -54,7 +59,13 @@ interface Options {
 }
 
 export function parseArguments(argv: readonly string[]): Options {
-  const options: Options = { key: null, fromFile: null, toFile: null, target: null, confirmOverwrite: null };
+  const options: Options = {
+    key: null,
+    fromFile: null,
+    toFile: null,
+    target: null,
+    confirmOverwrite: null,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     const value = argv[index + 1];
@@ -85,8 +96,10 @@ export function parseArguments(argv: readonly string[]): Options {
     else if (flag === "--confirm-overwrite") options.confirmOverwrite = take();
     else throw new Error(`[restore] unknown argument «${flag}».`);
   }
-  if (!options.key && !options.fromFile) throw new Error("[restore] give either --key <objectKey|latest> or --from-file <path>.");
-  if (options.key && options.fromFile) throw new Error("[restore] --key and --from-file are exclusive.");
+  if (!options.key && !options.fromFile)
+    throw new Error("[restore] give either --key <objectKey|latest> or --from-file <path>.");
+  if (options.key && options.fromFile)
+    throw new Error("[restore] --key and --from-file are exclusive.");
   return options;
 }
 
@@ -105,13 +118,17 @@ function connectionEnvironment(url: string): { env: NodeJS.ProcessEnv; database:
       PGUSER: decodeURIComponent(parsed.username),
       PGPASSWORD: decodeURIComponent(parsed.password),
       PGDATABASE: database,
-      PGSSLMODE: parsed.searchParams.get("sslmode") ?? (parsed.hostname === "localhost" ? "disable" : "require"),
+      PGSSLMODE:
+        parsed.searchParams.get("sslmode") ??
+        (parsed.hostname === "localhost" ? "disable" : "require"),
     },
   };
 }
 
 /** The ciphertext, on local disk, whatever it took to get it there. */
-async function obtainCiphertext(options: Options): Promise<{ file: string; cleanup: () => Promise<void>; source: string }> {
+async function obtainCiphertext(
+  options: Options
+): Promise<{ file: string; cleanup: () => Promise<void>; source: string }> {
   if (options.fromFile) {
     await stat(options.fromFile);
     return { file: options.fromFile, cleanup: async () => {}, source: options.fromFile };
@@ -122,7 +139,8 @@ async function obtainCiphertext(options: Options): Promise<{ file: string; clean
   let key = options.key as string;
   if (key === "latest") {
     const stored = await listBackups(client, storage);
-    if (!stored.length) throw new Error("[restore] the bucket holds no backups under the configured prefix.");
+    if (!stored.length)
+      throw new Error("[restore] the bucket holds no backups under the configured prefix.");
     key = stored[0]!.key; // listBackups sorts newest first
   }
 
@@ -137,7 +155,7 @@ async function obtainCiphertext(options: Options): Promise<{ file: string; clean
         yield chunk;
       }
     })(),
-    createWriteStream(file),
+    createWriteStream(file)
   );
 
   const actual = digest.digest("hex");
@@ -145,7 +163,7 @@ async function obtainCiphertext(options: Options): Promise<{ file: string; clean
     await rm(directory, { recursive: true, force: true });
     throw new Error(
       `[restore] «${key}» does not match the checksum recorded when it was written ` +
-        `(expected ${fetched.expectedSha256}, got ${actual}). The stored object has been altered or corrupted.`,
+        `(expected ${fetched.expectedSha256}, got ${actual}). The stored object has been altered or corrupted.`
     );
   }
   return { file, cleanup: () => rm(directory, { recursive: true, force: true }), source: key };
@@ -171,24 +189,36 @@ async function main(): Promise<void> {
       const { size } = await stat(options.toFile);
       console.log(
         JSON.stringify(
-          { restore: { status: "decrypted", source: obtained.source, into: options.toFile, plaintextBytes: size, sealedAt, sealedWith } },
+          {
+            restore: {
+              status: "decrypted",
+              source: obtained.source,
+              into: options.toFile,
+              plaintextBytes: size,
+              sealedAt,
+              sealedWith,
+            },
+          },
           null,
-          2,
-        ),
+          2
+        )
       );
       console.log("backup:restore OK");
       return;
     }
 
     const target = options.target ?? process.env.CODIQ_RESTORE_TARGET_URL ?? null;
-    if (!target) throw new Error("[restore] give --target <postgres url> (or --to-file to decrypt without restoring).");
+    if (!target)
+      throw new Error(
+        "[restore] give --target <postgres url> (or --to-file to decrypt without restoring)."
+      );
     const { env, database } = connectionEnvironment(target);
 
     if (options.confirmOverwrite !== database) {
       throw new Error(
         `[restore] refusing to write to «${database}» without --confirm-overwrite ${database}. ` +
           `pg_restore --clean DROPS the objects it replaces; naming the database out loud is the only thing ` +
-          `standing between a scratch restore and an overwritten production.`,
+          `standing between a scratch restore and an overwritten production.`
       );
     }
 
@@ -198,8 +228,17 @@ async function main(): Promise<void> {
     // without it pg_restore reports success having skipped whatever failed.
     const restore = spawn(
       "pg_restore",
-      ["--dbname", database, "--clean", "--if-exists", "--no-owner", "--no-acl", "--exit-on-error", "--single-transaction"],
-      { env, stdio: ["pipe", "inherit", "pipe"] },
+      [
+        "--dbname",
+        database,
+        "--clean",
+        "--if-exists",
+        "--no-owner",
+        "--no-acl",
+        "--exit-on-error",
+        "--single-transaction",
+      ],
+      { env, stdio: ["pipe", "inherit", "pipe"] }
     );
     let errors = "";
     restore.stderr.on("data", (chunk) => (errors += chunk));
@@ -211,7 +250,8 @@ async function main(): Promise<void> {
 
     await pipeline(plaintext(), restore.stdin);
     const code = await exited;
-    if (code !== 0) throw new Error(`[restore] pg_restore exited ${code}.\n${errors.trim().slice(-4000)}`);
+    if (code !== 0)
+      throw new Error(`[restore] pg_restore exited ${code}.\n${errors.trim().slice(-4000)}`);
 
     console.log(
       JSON.stringify(
@@ -226,8 +266,8 @@ async function main(): Promise<void> {
           },
         },
         null,
-        2,
-      ),
+        2
+      )
     );
     console.log("backup:restore OK");
   } finally {
@@ -245,7 +285,8 @@ async function main(): Promise<void> {
  * the same way; it is worse here, because there the accident creates a row and
  * here it destroys a database.
  */
-const invokedDirectly = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+const invokedDirectly =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (invokedDirectly) {
   main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error));

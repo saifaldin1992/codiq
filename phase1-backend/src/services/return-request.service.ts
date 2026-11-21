@@ -22,7 +22,13 @@
  */
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
 import type { StoreActor } from "../auth/staff-permissions.js";
 import { RETURN_REVERSAL_WINDOW_DAYS } from "./finance.service.js";
 import { transitionOrderStatus } from "./order-lifecycle.service.js";
@@ -52,7 +58,8 @@ function parseReason(raw: unknown): string {
     throw new HttpError(422, "RETURN_REASON_REQUIRED", "اكتب سبب الإرجاع — التاجر يحتاجه ليقرر.");
   }
   const reason = raw.trim();
-  if (reason.length > 1000) throw new HttpError(422, "INVALID_RETURN_REASON", "السبب يتجاوز 1000 حرف.");
+  if (reason.length > 1000)
+    throw new HttpError(422, "INVALID_RETURN_REASON", "السبب يتجاوز 1000 حرف.");
   return reason;
 }
 
@@ -61,7 +68,7 @@ export async function requestReturn(
   customerId: string,
   orderId: string,
   input: { reason: unknown },
-  now = new Date(),
+  now = new Date()
 ) {
   const reason = parseReason(input.reason);
 
@@ -76,17 +83,29 @@ export async function requestReturn(
   if (order.status !== "completed") {
     // You cannot return what you have not received. An order still in flight is
     // cancelled (PG-1) or refused at the door — not returned.
-    throw new HttpError(422, "ORDER_NOT_RETURNABLE", "الإرجاع متاح للطلبات المستلمة فقط. إن لم يصلك الطلب بعد، تواصل مع المتجر.");
+    throw new HttpError(
+      422,
+      "ORDER_NOT_RETURNABLE",
+      "الإرجاع متاح للطلبات المستلمة فقط. إن لم يصلك الطلب بعد، تواصل مع المتجر."
+    );
   }
 
   const deadline = await reversalDeadlineFor(storeId, order.id);
   if (!deadline) throw new HttpError(422, "ORDER_NOT_RETURNABLE", "لا يوجد قيد إتمام لهذا الطلب.");
   if (now > deadline) {
-    throw new HttpError(422, "RETURN_WINDOW_CLOSED", `مهلة الإرجاع (${RETURN_REVERSAL_WINDOW_DAYS} يوماً) انتهت لهذا الطلب. تواصل مع المتجر مباشرة.`);
+    throw new HttpError(
+      422,
+      "RETURN_WINDOW_CLOSED",
+      `مهلة الإرجاع (${RETURN_REVERSAL_WINDOW_DAYS} يوماً) انتهت لهذا الطلب. تواصل مع المتجر مباشرة.`
+    );
   }
 
-  const open = await prisma.returnRequest.findFirst({ where: { storeId, orderId: order.id, status: "requested" }, select: { id: true } });
-  if (open) throw new HttpError(409, "RETURN_ALREADY_REQUESTED", "لديك طلب إرجاع مفتوح لهذا الطلب.");
+  const open = await prisma.returnRequest.findFirst({
+    where: { storeId, orderId: order.id, status: "requested" },
+    select: { id: true },
+  });
+  if (open)
+    throw new HttpError(409, "RETURN_ALREADY_REQUESTED", "لديك طلب إرجاع مفتوح لهذا الطلب.");
 
   return prisma.returnRequest.create({
     data: { storeId, orderId: order.id, customerId, reason, reversalDeadline: deadline },
@@ -95,7 +114,11 @@ export async function requestReturn(
 }
 
 /** The shopper may withdraw while it is still open — never after an answer. */
-export async function withdrawReturnRequest(storeId: string, customerId: string, requestId: string) {
+export async function withdrawReturnRequest(
+  storeId: string,
+  customerId: string,
+  requestId: string
+) {
   const request = await prisma.returnRequest.findFirst({
     where: { id: requestId, storeId, customerId },
     select: { id: true, status: true },
@@ -115,7 +138,12 @@ export async function withdrawReturnRequest(storeId: string, customerId: string,
 const CUSTOMER_RETURNS_KIND = "storefront.account.returns";
 const STORE_RETURNS_KIND = "merchant.returns";
 
-export async function listCustomerReturnRequests(storeId: string, customerId: string, rawLimit?: unknown, rawCursor?: unknown) {
+export async function listCustomerReturnRequests(
+  storeId: string,
+  customerId: string,
+  rawLimit?: unknown,
+  rawCursor?: unknown
+) {
   const limit = parseListLimit(rawLimit, 100, PAGE_SIZE);
   const cursor = await readListCursor(CUSTOMER_RETURNS_KIND, rawCursor);
   const rows = await prisma.returnRequest.findMany({
@@ -123,12 +151,19 @@ export async function listCustomerReturnRequests(storeId: string, customerId: st
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     select: {
-      id: true, status: true, reason: true, decisionNote: true, decidedAt: true,
-      reversalDeadline: true, createdAt: true,
+      id: true,
+      status: true,
+      reason: true,
+      decisionNote: true,
+      decidedAt: true,
+      reversalDeadline: true,
+      createdAt: true,
       order: { select: { id: true, orderNumber: true, totalIqd: true } },
     },
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(CUSTOMER_RETURNS_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(CUSTOMER_RETURNS_KIND, last.createdAt, last.id)
+  );
   return { requests: page, nextCursor };
 }
 
@@ -149,13 +184,20 @@ export async function listStoreReturnRequests(storeId: string, query: Record<str
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: limit + 1,
     select: {
-      id: true, status: true, reason: true, decisionNote: true, decidedAt: true,
-      reversalDeadline: true, createdAt: true,
+      id: true,
+      status: true,
+      reason: true,
+      decisionNote: true,
+      decidedAt: true,
+      reversalDeadline: true,
+      createdAt: true,
       order: { select: { id: true, orderNumber: true, totalIqd: true, status: true } },
       customer: { select: { fullName: true, phone: true } },
     },
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(STORE_RETURNS_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(STORE_RETURNS_KIND, last.createdAt, last.id)
+  );
   return { requests: page, nextCursor };
 }
 
@@ -178,20 +220,32 @@ export async function decideReturnRequest(
   storeId: string,
   actor: StoreActor,
   requestId: string,
-  input: { approve: unknown; note?: unknown },
+  input: { approve: unknown; note?: unknown }
 ) {
-  if (typeof input.approve !== "boolean") throw new HttpError(422, "INVALID_INPUT", "approve يجب أن يكون true أو false.");
-  const note = typeof input.note === "string" && input.note.trim() ? input.note.trim().slice(0, 1000) : null;
+  if (typeof input.approve !== "boolean")
+    throw new HttpError(422, "INVALID_INPUT", "approve يجب أن يكون true أو false.");
+  const note =
+    typeof input.note === "string" && input.note.trim() ? input.note.trim().slice(0, 1000) : null;
   if (!input.approve && !note) {
-    throw new HttpError(422, "RETURN_REJECTION_NOTE_REQUIRED", "رفض طلب الإرجاع يحتاج سبباً — يراه الزبون.");
+    throw new HttpError(
+      422,
+      "RETURN_REJECTION_NOTE_REQUIRED",
+      "رفض طلب الإرجاع يحتاج سبباً — يراه الزبون."
+    );
   }
 
   const request = await prisma.returnRequest.findFirst({
     where: { id: requestId, storeId },
-    select: { id: true, status: true, orderId: true, order: { select: { orderNumber: true, status: true, version: true } } },
+    select: {
+      id: true,
+      status: true,
+      orderId: true,
+      order: { select: { orderNumber: true, status: true, version: true } },
+    },
   });
   if (!request) throw new HttpError(404, "RESOURCE_NOT_FOUND", "طلب الإرجاع غير موجود.");
-  if (request.status !== "requested") throw new HttpError(409, "RETURN_ALREADY_DECIDED", "أُجيب على هذا الطلب مسبقاً.");
+  if (request.status !== "requested")
+    throw new HttpError(409, "RETURN_ALREADY_DECIDED", "أُجيب على هذا الطلب مسبقاً.");
 
   if (input.approve) {
     // The one path to the money. If the order has already been moved elsewhere,

@@ -2,7 +2,10 @@ export type DatabaseEnvironment = Record<string, string | undefined>;
 
 export function resolveCodiqDatabaseUrl(environment: DatabaseEnvironment = process.env): string {
   const url = environment.CODIQ_POSTGRES_URL ?? environment.DATABASE_URL;
-  if (!url) throw new Error("Missing required PostgreSQL connection string: CODIQ_POSTGRES_URL or DATABASE_URL");
+  if (!url)
+    throw new Error(
+      "Missing required PostgreSQL connection string: CODIQ_POSTGRES_URL or DATABASE_URL"
+    );
   if (!url.startsWith("postgresql://") && !url.startsWith("postgres://")) {
     throw new Error("Codiq requires a standard PostgreSQL connection string");
   }
@@ -36,7 +39,9 @@ export function resolveCodiqDatabaseUrl(environment: DatabaseEnvironment = proce
  * `-pooler` suffix, so the correction is mechanical and needs no new secret.
  * Anything that is not a Neon pooled host passes through untouched.
  */
-export function resolveCodiqMigrationDatabaseUrl(environment: DatabaseEnvironment = process.env): string {
+export function resolveCodiqMigrationDatabaseUrl(
+  environment: DatabaseEnvironment = process.env
+): string {
   const candidate = environment.CODIQ_POSTGRES_URL_UNPOOLED ?? resolveCodiqDatabaseUrl(environment);
   return withoutNeonPooler(candidate);
 }

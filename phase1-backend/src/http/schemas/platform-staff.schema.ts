@@ -33,6 +33,6 @@ export const platformStaffOverridesSchema = z.object({
     z.object({
       permissionCode: z.string(),
       effect: z.string(),
-    }),
+    })
   ),
 });

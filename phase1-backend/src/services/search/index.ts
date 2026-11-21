@@ -27,17 +27,30 @@ function selectEngine(): SearchEngine {
   if (!engine) {
     // Loud at startup rather than mysteriously empty at request time: a typo in
     // CODIQ_SEARCH_ENGINE would otherwise look exactly like «nothing matches».
-    throw new Error(`Unknown CODIQ_SEARCH_ENGINE «${config.searchEngine}». Known engines: ${Object.keys(ENGINES).join(", ")}.`);
+    throw new Error(
+      `Unknown CODIQ_SEARCH_ENGINE «${config.searchEngine}». Known engines: ${Object.keys(ENGINES).join(", ")}.`
+    );
   }
   return engine;
 }
 
 export const searchEngine: SearchEngine = selectEngine();
 
-export { explainSearch, marketProductMatch, normalizedSearchTerm } from "./postgres-trigram.engine.js";
+export {
+  explainSearch,
+  marketProductMatch,
+  normalizedSearchTerm,
+} from "./postgres-trigram.engine.js";
 export type { MarketProductMatch } from "./postgres-trigram.engine.js";
 export { compareHits, mergeSearchPages } from "./search.types.js";
-export type { PlatformSearchTarget, SearchEngine, SearchHit, SearchPage, SearchRequest, SearchTarget } from "./search.types.js";
+export type {
+  PlatformSearchTarget,
+  SearchEngine,
+  SearchHit,
+  SearchPage,
+  SearchRequest,
+  SearchTarget,
+} from "./search.types.js";
 
 /**
  * Hydration helper: reorders rows fetched by `id IN (…)` back into the engine's
@@ -45,7 +58,10 @@ export type { PlatformSearchTarget, SearchEngine, SearchHit, SearchPage, SearchR
  * would otherwise re-implement this map — usually by sorting on `createdAt` and
  * quietly throwing the ranking away.
  */
-export function inSearchOrder<T extends { id: string }>(hits: readonly { id: string }[], rows: readonly T[]): T[] {
+export function inSearchOrder<T extends { id: string }>(
+  hits: readonly { id: string }[],
+  rows: readonly T[]
+): T[] {
   const byId = new Map(rows.map((row) => [row.id, row]));
   const ordered: T[] = [];
   for (const hit of hits) {

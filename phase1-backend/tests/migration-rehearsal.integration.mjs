@@ -33,7 +33,16 @@
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,7 +57,9 @@ const SEED = path.join(HERE, "fixtures", "migration-rehearsal-seed.sql");
 const REHEARSAL_DB = "codiq_ci_rehearsal_test";
 
 const { assertSafeTestDatabaseUrl } = await import("./helpers/test-database-guard.ts");
-const baseUrl = assertSafeTestDatabaseUrl(process.env.CODIQ_TEST_DATABASE_URL ?? process.env.DATABASE_URL);
+const baseUrl = assertSafeTestDatabaseUrl(
+  process.env.CODIQ_TEST_DATABASE_URL ?? process.env.DATABASE_URL
+);
 
 function withDatabase(url, name) {
   const parsed = new URL(url);
@@ -63,15 +74,28 @@ function migrateDeploy(schemaPath) {
   const result = spawnSync(
     process.platform === "win32" ? "npx.cmd" : "npx",
     ["prisma", "migrate", "deploy", "--schema", schemaPath],
-    { cwd: ROOT, env: { ...process.env, DATABASE_URL: rehearsalUrl }, encoding: "utf8", shell: process.platform === "win32" },
+    {
+      cwd: ROOT,
+      env: { ...process.env, DATABASE_URL: rehearsalUrl },
+      encoding: "utf8",
+      shell: process.platform === "win32",
+    }
   );
   return { code: result.status ?? 1, output: `${result.stdout ?? ""}\n${result.stderr ?? ""}` };
 }
 
-const folders = readdirSync(MIGRATIONS).filter((entry) => statSync(path.join(MIGRATIONS, entry)).isDirectory()).sort();
-assert.ok(existsSync(RELEASED_MARKER), "prisma/migrations/RELEASED must name the last migration production has applied");
+const folders = readdirSync(MIGRATIONS)
+  .filter((entry) => statSync(path.join(MIGRATIONS, entry)).isDirectory())
+  .sort();
+assert.ok(
+  existsSync(RELEASED_MARKER),
+  "prisma/migrations/RELEASED must name the last migration production has applied"
+);
 const released = readFileSync(RELEASED_MARKER, "utf8").trim();
-assert.ok(folders.includes(released), `prisma/migrations/RELEASED names «${released}», which is not a migration folder`);
+assert.ok(
+  folders.includes(released),
+  `prisma/migrations/RELEASED names «${released}», which is not a migration folder`
+);
 const baseline = folders.filter((entry) => entry <= released);
 const unreleased = folders.filter((entry) => entry > released);
 
@@ -81,23 +105,41 @@ await admin.query(`DROP DATABASE IF EXISTS ${REHEARSAL_DB} WITH (FORCE)`);
 await admin.query(`CREATE DATABASE ${REHEARSAL_DB}`);
 
 const stage = mkdtempSync(path.join(tmpdir(), "codiq-rehearsal-"));
-const summary = { suite: "migration-rehearsal", released, baselineMigrations: baseline.length, rehearsed: unreleased.length };
+const summary = {
+  suite: "migration-rehearsal",
+  released,
+  baselineMigrations: baseline.length,
+  rehearsed: unreleased.length,
+};
 try {
   // 1. Production's schema, as Prisma itself would build it: the folder cut at RELEASED.
   const stagedMigrations = path.join(stage, "prisma", "migrations");
   mkdirSync(stagedMigrations, { recursive: true });
   cpSync(SCHEMA, path.join(stage, "prisma", "schema.prisma"));
-  for (const entry of baseline) cpSync(path.join(MIGRATIONS, entry), path.join(stagedMigrations, entry), { recursive: true });
+  for (const entry of baseline)
+    cpSync(path.join(MIGRATIONS, entry), path.join(stagedMigrations, entry), { recursive: true });
   const toBaseline = migrateDeploy(path.join(stage, "prisma", "schema.prisma"));
-  assert.equal(toBaseline.code, 0, `the released migrations must apply cleanly to an empty database:\n${toBaseline.output.slice(-2000)}`);
+  assert.equal(
+    toBaseline.code,
+    0,
+    `the released migrations must apply cleanly to an empty database:\n${toBaseline.output.slice(-2000)}`
+  );
 
   // 2. The rows production holds.
   const db = new Client({ connectionString: rehearsalUrl });
   await db.connect();
   try {
     await db.query(readFileSync(SEED, "utf8"));
-    const { rows: [{ n }] } = await db.query(`SELECT count(*)::int AS n FROM _prisma_migrations WHERE finished_at IS NOT NULL`);
-    assert.equal(n, baseline.length, "every released migration is recorded as applied before the seed");
+    const {
+      rows: [{ n }],
+    } = await db.query(
+      `SELECT count(*)::int AS n FROM _prisma_migrations WHERE finished_at IS NOT NULL`
+    );
+    assert.equal(
+      n,
+      baseline.length,
+      "every released migration is recorded as applied before the seed"
+    );
   } finally {
     await db.end();
   }
@@ -105,10 +147,13 @@ try {
   // 3. The unreleased migrations, over those rows — the deploy production will run.
   const onward = migrateDeploy(SCHEMA);
   if (onward.code !== 0) {
-    const failed = onward.output.match(/Migration name: (\S+)/)?.[1] ?? onward.output.match(/The `([^`]+)` migration/)?.[1] ?? "(see output)";
+    const failed =
+      onward.output.match(/Migration name: (\S+)/)?.[1] ??
+      onward.output.match(/The `([^`]+)` migration/)?.[1] ??
+      "(see output)";
     assert.fail(
       `unreleased migration «${failed}» does not survive production-shaped rows — it would fail the release exactly like this:\n` +
-        onward.output.slice(-2500),
+        onward.output.slice(-2500)
     );
   }
 
@@ -116,11 +161,25 @@ try {
   const after = new Client({ connectionString: rehearsalUrl });
   await after.connect();
   try {
-    const { rows: applied } = await after.query(`SELECT count(*)::int AS n FROM _prisma_migrations WHERE finished_at IS NOT NULL`);
-    assert.equal(applied[0].n, folders.length, "every migration in the folder is applied after the rehearsal");
-    const { rows: methods } = await after.query(`SELECT code, is_enabled FROM payment_methods ORDER BY code`);
-    assert.deepEqual(methods, [{ code: "cod", is_enabled: true }], "the store keeps exactly one enabled 'cod' payment row across every replayed migration");
-    const { rows: orders } = await after.query(`SELECT count(*)::int AS n FROM store_orders WHERE payment_method_code = 'cod'`);
+    const { rows: applied } = await after.query(
+      `SELECT count(*)::int AS n FROM _prisma_migrations WHERE finished_at IS NOT NULL`
+    );
+    assert.equal(
+      applied[0].n,
+      folders.length,
+      "every migration in the folder is applied after the rehearsal"
+    );
+    const { rows: methods } = await after.query(
+      `SELECT code, is_enabled FROM payment_methods ORDER BY code`
+    );
+    assert.deepEqual(
+      methods,
+      [{ code: "cod", is_enabled: true }],
+      "the store keeps exactly one enabled 'cod' payment row across every replayed migration"
+    );
+    const { rows: orders } = await after.query(
+      `SELECT count(*)::int AS n FROM store_orders WHERE payment_method_code = 'cod'`
+    );
     assert.equal(orders[0].n, 1, "the seeded order is still there, still 'cod'");
     summary.paymentMethodsAfter = methods;
   } finally {

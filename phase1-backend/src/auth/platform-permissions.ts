@@ -33,7 +33,11 @@ export const PLATFORM_PERMISSION_CODES = [
 
 export type PlatformPermissionCode = (typeof PLATFORM_PERMISSION_CODES)[number];
 
-export const PLATFORM_STAFF_ROLE_CODES = ["registrations_admin", "accountant", "supervisor"] as const;
+export const PLATFORM_STAFF_ROLE_CODES = [
+  "registrations_admin",
+  "accountant",
+  "supervisor",
+] as const;
 export type PlatformStaffRoleCode = (typeof PLATFORM_STAFF_ROLE_CODES)[number];
 
 /**
@@ -42,22 +46,44 @@ export type PlatformStaffRoleCode = (typeof PLATFORM_STAFF_ROLE_CODES)[number];
  * holds every code — but even he never holds what has NO code at all
  * (commission rates, plan archiving, the team itself, store verification).
  */
-export const PLATFORM_ROLE_MATRIX: Record<PlatformStaffRoleCode, readonly PlatformPermissionCode[]> = {
-  registrations_admin: ["overview.view", "registrations.approve", "merchants.manage", "orders.oversee"],
+export const PLATFORM_ROLE_MATRIX: Record<
+  PlatformStaffRoleCode,
+  readonly PlatformPermissionCode[]
+> = {
+  registrations_admin: [
+    "overview.view",
+    "registrations.approve",
+    "merchants.manage",
+    "orders.oversee",
+  ],
   accountant: ["overview.view", "finance.view", "finance.settle"],
   supervisor: PLATFORM_PERMISSION_CODES,
 };
 
 export function assertPlatformPermissionCode(value: unknown): PlatformPermissionCode {
-  if (typeof value !== "string" || !PLATFORM_PERMISSION_CODES.includes(value as PlatformPermissionCode)) {
-    throw new HttpError(422, "INVALID_PERMISSION_CODE", "رمز الصلاحية ليس ضمن مصفوفة صلاحيات المنصة المعتمدة.");
+  if (
+    typeof value !== "string" ||
+    !PLATFORM_PERMISSION_CODES.includes(value as PlatformPermissionCode)
+  ) {
+    throw new HttpError(
+      422,
+      "INVALID_PERMISSION_CODE",
+      "رمز الصلاحية ليس ضمن مصفوفة صلاحيات المنصة المعتمدة."
+    );
   }
   return value as PlatformPermissionCode;
 }
 
 export function assertPlatformStaffRoleCode(value: unknown): PlatformStaffRoleCode {
-  if (typeof value !== "string" || !PLATFORM_STAFF_ROLE_CODES.includes(value as PlatformStaffRoleCode)) {
-    throw new HttpError(422, "INVALID_PLATFORM_STAFF_ROLE", "أدوار طاقم المنصة هي: مشرف تسجيلات، محاسب، مشرف عام فقط.");
+  if (
+    typeof value !== "string" ||
+    !PLATFORM_STAFF_ROLE_CODES.includes(value as PlatformStaffRoleCode)
+  ) {
+    throw new HttpError(
+      422,
+      "INVALID_PLATFORM_STAFF_ROLE",
+      "أدوار طاقم المنصة هي: مشرف تسجيلات، محاسب، مشرف عام فقط."
+    );
   }
   return value as PlatformStaffRoleCode;
 }
@@ -65,7 +91,7 @@ export function assertPlatformStaffRoleCode(value: unknown): PlatformStaffRoleCo
 /** Role matrix + per-staff overrides. One override per code: allow grants, deny removes. */
 export function resolvePlatformPermissionSet(
   roleCode: string,
-  overrides: readonly { permissionCode: string; effect: string }[],
+  overrides: readonly { permissionCode: string; effect: string }[]
 ): Set<PlatformPermissionCode> {
   const base = PLATFORM_ROLE_MATRIX[roleCode as PlatformStaffRoleCode] ?? [];
   const granted = new Set<PlatformPermissionCode>(base);
@@ -106,7 +132,7 @@ export interface PlatformActorContext {
  */
 export async function requirePlatformStaff(
   request: Request,
-  options: { allowUnenrolled?: boolean } = {},
+  options: { allowUnenrolled?: boolean } = {}
 ): Promise<PlatformStaffContext> {
   const claims = await verifyTypedSession(bearerToken(request), "platform_staff");
   const row = await prisma.platformStaff.findFirst({
@@ -123,10 +149,18 @@ export async function requirePlatformStaff(
     },
   });
   if (!row || !row.isActive) {
-    throw new HttpError(401, "PLATFORM_ACCESS_REVOKED", "أُوقف حساب طاقم المنصة هذا ولم تعد الجلسة صالحة للاستخدام.");
+    throw new HttpError(
+      401,
+      "PLATFORM_ACCESS_REVOKED",
+      "أُوقف حساب طاقم المنصة هذا ولم تعد الجلسة صالحة للاستخدام."
+    );
   }
   if (row.totpEnabledAt === null && !options.allowUnenrolled) {
-    throw new HttpError(403, "SECOND_FACTOR_ENROLMENT_REQUIRED", "فعّل تطبيق المصادقة أولاً — الرمز الثنائي إلزامي لطاقم المنصة قبل الوصول لأي شاشة.");
+    throw new HttpError(
+      403,
+      "SECOND_FACTOR_ENROLMENT_REQUIRED",
+      "فعّل تطبيق المصادقة أولاً — الرمز الثنائي إلزامي لطاقم المنصة قبل الوصول لأي شاشة."
+    );
   }
   // Phase 19: records that this session was used, and from what browser, so
   // its owner can recognise it in his own list. Fire-and-forget by design.
@@ -147,19 +181,36 @@ export async function requirePlatformStaff(
  * row + resolver, never through client input; any other identity is refused at
  * the boundary.
  */
-export async function requirePlatformActor(request: Request, permission: PlatformPermissionCode): Promise<PlatformActorContext> {
+export async function requirePlatformActor(
+  request: Request,
+  permission: PlatformPermissionCode
+): Promise<PlatformActorContext> {
   const kind = readSessionClaims(bearerToken(request)).identityKind;
   if (kind === "platform_owner") {
     const claims = await requirePlatformOwner(request);
-    return { actor: { kind: "platform_owner", id: claims.subjectId }, permissions: new Set(PLATFORM_PERMISSION_CODES) };
+    return {
+      actor: { kind: "platform_owner", id: claims.subjectId },
+      permissions: new Set(PLATFORM_PERMISSION_CODES),
+    };
   }
   if (kind === "platform_staff") {
     const context = await requirePlatformStaff(request);
     if (!context.permissions.has(permission)) {
-      throw new HttpError(403, "PLATFORM_PERMISSION_DENIED", `هذا الحساب لا يحمل صلاحية ${permission}.`);
+      throw new HttpError(
+        403,
+        "PLATFORM_PERMISSION_DENIED",
+        `هذا الحساب لا يحمل صلاحية ${permission}.`
+      );
     }
-    return { actor: { kind: "platform_staff", id: context.staff.id }, permissions: context.permissions };
+    return {
+      actor: { kind: "platform_staff", id: context.staff.id },
+      permissions: context.permissions,
+    };
   }
   // PS-3: this door takes two kinds, so it names both rather than one.
-  throw new HttpError(403, "IDENTITY_BOUNDARY_DENIED", identityBoundaryMessage(kind, "مالك المنصة أو طاقم المنصة"));
+  throw new HttpError(
+    403,
+    "IDENTITY_BOUNDARY_DENIED",
+    identityBoundaryMessage(kind, "مالك المنصة أو طاقم المنصة")
+  );
 }

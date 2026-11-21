@@ -93,7 +93,7 @@ export function backupCronExpression(): string {
   if (hours <= 0 || hours >= 24 || 24 % hours !== 0) {
     throw new Error(
       `[backup-policy] intervalHours must divide 24 evenly to express as a cron; got ${hours}. ` +
-        `Change it to 1, 2, 3, 4, 6, 8 or 12, or teach this function a new shape.`,
+        `Change it to 1, 2, 3, 4, 6, 8 or 12, or teach this function a new shape.`
     );
   }
   return `0 */${hours} * * *`;

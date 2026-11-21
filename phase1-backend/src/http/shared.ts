@@ -8,7 +8,10 @@ import { verifyTypedSession } from "../auth/identity.js";
 import { assertMerchantOwnsHisPassword } from "../auth/staff-permissions.js";
 import type { IdentityKind } from "../auth/redirects.js";
 import { prisma } from "../db/prisma.js";
-import { consumeStorefrontRateLimit, refundStorefrontRateLimit } from "../services/storefront.service.js";
+import {
+  consumeStorefrontRateLimit,
+  refundStorefrontRateLimit,
+} from "../services/storefront.service.js";
 
 import { clientIp } from "./client-ip.js";
 import { WEB_SESSION_COOKIE, cookieValue, readWebSessionCookie } from "./session-cookie.js";
@@ -18,9 +21,11 @@ import { WEB_SESSION_COOKIE, cookieValue, readWebSessionCookie } from "./session
 // needs it too and cannot import this module (this one imports *it*).
 export { cookieValue };
 
-export const asyncRoute = (handler: (request: Request, response: Response) => Promise<void>) => (request: Request, response: Response, next: NextFunction) => {
-  handler(request, response).catch(next);
-};
+export const asyncRoute =
+  (handler: (request: Request, response: Response) => Promise<void>) =>
+  (request: Request, response: Response, next: NextFunction) => {
+    handler(request, response).catch(next);
+  };
 
 export function bearerToken(request: Request): string {
   const header = request.header("authorization");
@@ -30,9 +35,15 @@ export function bearerToken(request: Request): string {
   throw new HttpError(401, "MISSING_SESSION", "A session is required.");
 }
 
-export function customerCookieName(storeSlug: string) { return `codiq_customer_session_${storeSlug}`; }
-export function guestCartCookieName(storeSlug: string) { return `codiq_cart_${storeSlug}`; }
-export function storefrontCookiePath(storeSlug: string) { return `/api/store/${encodeURIComponent(storeSlug)}`; }
+export function customerCookieName(storeSlug: string) {
+  return `codiq_customer_session_${storeSlug}`;
+}
+export function guestCartCookieName(storeSlug: string) {
+  return `codiq_cart_${storeSlug}`;
+}
+export function storefrontCookiePath(storeSlug: string) {
+  return `/api/store/${encodeURIComponent(storeSlug)}`;
+}
 
 export function customerToken(request: Request): string {
   const header = request.header("authorization");
@@ -77,15 +88,37 @@ export function clearWebSession(response: Response) {
 }
 
 export function setCustomerSession(response: Response, storeSlug: string, accessToken: string) {
-  response.cookie(customerCookieName(storeSlug), accessToken, { httpOnly: true, sameSite: "lax", secure: config.cookieSecure, path: storefrontCookiePath(storeSlug), maxAge: 1000 * 60 * 60 * 8 });
+  response.cookie(customerCookieName(storeSlug), accessToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: config.cookieSecure,
+    path: storefrontCookiePath(storeSlug),
+    maxAge: 1000 * 60 * 60 * 8,
+  });
 }
 
-export function setGuestCartCookie(response: Response, storeSlug: string, token: string, expiresAt: Date | null | undefined) {
-  response.cookie(guestCartCookieName(storeSlug), token, { httpOnly: true, sameSite: "lax", secure: config.cookieSecure, path: storefrontCookiePath(storeSlug), maxAge: Math.max(0, (expiresAt?.valueOf() ?? Date.now() + 7 * 86400000) - Date.now()) });
+export function setGuestCartCookie(
+  response: Response,
+  storeSlug: string,
+  token: string,
+  expiresAt: Date | null | undefined
+) {
+  response.cookie(guestCartCookieName(storeSlug), token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: config.cookieSecure,
+    path: storefrontCookiePath(storeSlug),
+    maxAge: Math.max(0, (expiresAt?.valueOf() ?? Date.now() + 7 * 86400000) - Date.now()),
+  });
 }
 
 export function clearGuestCartCookie(response: Response, storeSlug: string) {
-  response.clearCookie(guestCartCookieName(storeSlug), { httpOnly: true, sameSite: "lax", secure: config.cookieSecure, path: storefrontCookiePath(storeSlug) });
+  response.clearCookie(guestCartCookieName(storeSlug), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: config.cookieSecure,
+    path: storefrontCookiePath(storeSlug),
+  });
 }
 
 /**
@@ -117,7 +150,11 @@ export function requireTrustedWriteOrigin(request: Request) {
     // subdomain, which on this platform is another merchant's storefront) — is
     // refused.
     if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") {
-      throw new HttpError(403, "CSRF_ORIGIN_DENIED", "This write request did not originate from the trusted store origin.");
+      throw new HttpError(
+        403,
+        "CSRF_ORIGIN_DENIED",
+        "This write request did not originate from the trusted store origin."
+      );
     }
     return;
   }
@@ -125,12 +162,26 @@ export function requireTrustedWriteOrigin(request: Request) {
   try {
     if (!host || new URL(origin).host !== host) throw new Error("mismatch");
   } catch {
-    throw new HttpError(403, "CSRF_ORIGIN_DENIED", "This write request did not originate from the trusted store origin.");
+    throw new HttpError(
+      403,
+      "CSRF_ORIGIN_DENIED",
+      "This write request did not originate from the trusted store origin."
+    );
   }
 }
 
-export async function limitStorefrontWrite(request: Request, scope: string, rawKey: string, limit: number) {
-  await consumeStorefrontRateLimit({ scope, rawKey: `${request.params.storeSlug}:${rawKey}`, limit, windowMs: 10 * 60 * 1000 });
+export async function limitStorefrontWrite(
+  request: Request,
+  scope: string,
+  rawKey: string,
+  limit: number
+) {
+  await consumeStorefrontRateLimit({
+    scope,
+    rawKey: `${request.params.storeSlug}:${rawKey}`,
+    limit,
+    windowMs: 10 * 60 * 1000,
+  });
 }
 
 /**
@@ -158,7 +209,7 @@ export async function limitStorefrontWriteWithAddressCeiling(
   scope: string,
   rawKey: string,
   limit: number,
-  addressLimit: number,
+  addressLimit: number
 ) {
   await limitStorefrontWrite(request, scope, rawKey, limit);
   await consumeStorefrontRateLimit({
@@ -182,9 +233,16 @@ export async function limitStorefrontWriteWithAddressCeiling(
  * the ceiling still stands against a flood, and give it back when the request
  * turns out to be the one the ceiling was never meant to count.
  */
-export async function refundStorefrontWriteWithAddressCeiling(request: Request, scope: string, rawKey: string) {
+export async function refundStorefrontWriteWithAddressCeiling(
+  request: Request,
+  scope: string,
+  rawKey: string
+) {
   await refundStorefrontRateLimit({ scope, rawKey: `${request.params.storeSlug}:${rawKey}` });
-  await refundStorefrontRateLimit({ scope: `${scope}_addr`, rawKey: `${request.params.storeSlug}:${clientIp(request)}` });
+  await refundStorefrontRateLimit({
+    scope: `${scope}_addr`,
+    rawKey: `${request.params.storeSlug}:${clientIp(request)}`,
+  });
 }
 
 /**
@@ -226,12 +284,23 @@ export const UPLOAD_ATTEMPT_LIMIT = 60;
  * call site. Returning a typed object rather than a literal is what lets the
  * six callers pass it straight to `limits`.
  */
-export function uploadLimits(limits: { fileSize: number; files: number }): NonNullable<MulterOptions["limits"]> & { fieldArrayIndexLimit: number; fieldNestingDepth: number } {
+export function uploadLimits(limits: {
+  fileSize: number;
+  files: number;
+}): NonNullable<MulterOptions["limits"]> & {
+  fieldArrayIndexLimit: number;
+  fieldNestingDepth: number;
+} {
   return { ...limits, fieldArrayIndexLimit: 0, fieldNestingDepth: 0 };
 }
 
 export async function limitUpload(scope: string, rawKey: string) {
-  await consumeStorefrontRateLimit({ scope, rawKey, limit: UPLOAD_ATTEMPT_LIMIT, windowMs: 10 * 60 * 1000 });
+  await consumeStorefrontRateLimit({
+    scope,
+    rawKey,
+    limit: UPLOAD_ATTEMPT_LIMIT,
+    windowMs: 10 * 60 * 1000,
+  });
 }
 
 /**
@@ -256,13 +325,20 @@ export async function limitUpload(scope: string, rawKey: string) {
  * it means neither layer can be deleted later on the assumption that the other
  * one covers it. Both reads are idempotent.
  */
-export function authenticatedUpload(authorize: (request: Request) => Promise<void>, upload: RequestHandler): RequestHandler {
+export function authenticatedUpload(
+  authorize: (request: Request) => Promise<void>,
+  upload: RequestHandler
+): RequestHandler {
   return (request, response, next) => {
     // `.catch(next)` after the `.then`, not a second argument to it: written as
     // `.then(run, next)` a synchronous throw from `upload` would reject a
     // promise nobody is holding, and the request would hang until the socket
     // timed out instead of answering. Same reason `asyncRoute` is shaped this way.
-    authorize(request).then(() => { upload(request, response, next); }).catch(next);
+    authorize(request)
+      .then(() => {
+        upload(request, response, next);
+      })
+      .catch(next);
   };
 }
 
@@ -283,7 +359,19 @@ export async function requirePlatformOwner(request: Request) {
 }
 
 export async function resolveStore(storeSlug: string) {
-  const store = await prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true, slug: true, merchantId: true, isActive: true, status: true, statusMessage: true, maintenanceUntil: true, merchant: { select: { isActive: true } } } });
+  const store = await prisma.store.findUnique({
+    where: { slug: storeSlug },
+    select: {
+      id: true,
+      slug: true,
+      merchantId: true,
+      isActive: true,
+      status: true,
+      statusMessage: true,
+      maintenanceUntil: true,
+      merchant: { select: { isActive: true } },
+    },
+  });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
   return store;
 }
@@ -292,14 +380,28 @@ export async function resolveStore(storeSlug: string) {
 // ق-249: a store in MAINTENANCE still exists — its shell must draw the message —
 // so the public config, logo and policy routes pass `allowMaintenance`; every
 // other shopper route answers 423 STORE_IN_MAINTENANCE with the merchant's words.
-export async function resolveStorefrontStore(storeSlug: string, options: { allowMaintenance?: boolean } = {}) {
+export async function resolveStorefrontStore(
+  storeSlug: string,
+  options: { allowMaintenance?: boolean } = {}
+) {
   const store = await resolveStore(storeSlug);
-  if (!store.isActive || !store.merchant.isActive) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+  if (!store.isActive || !store.merchant.isActive)
+    throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
   // ق-250: the clock decides — a scheduled window that began closes the shop; an «until» that passed reopens it.
   const state = await effectiveStoreState(store);
-  const effective = { ...store, status: state.status, statusMessage: state.message, maintenanceUntil: state.until };
+  const effective = {
+    ...store,
+    status: state.status,
+    statusMessage: state.message,
+    maintenanceUntil: state.until,
+  };
   if (effective.status === "maintenance" && !options.allowMaintenance) {
-    throw new HttpError(423, "STORE_IN_MAINTENANCE", effective.statusMessage?.trim() || "المتجر مغلق للصيانة.", { until: effective.maintenanceUntil?.toISOString() ?? null });
+    throw new HttpError(
+      423,
+      "STORE_IN_MAINTENANCE",
+      effective.statusMessage?.trim() || "المتجر مغلق للصيانة.",
+      { until: effective.maintenanceUntil?.toISOString() ?? null }
+    );
   }
   return effective;
 }
@@ -307,8 +409,23 @@ export async function resolveStorefrontStore(storeSlug: string, options: { allow
 export async function requireStorefrontCustomer(request: Request) {
   const claims = await verifyTypedSession(customerToken(request), "customer");
   const store = await resolveStorefrontStore(request.params.storeSlug);
-  const customer = await prisma.customer.findFirst({ where: { id: claims.subjectId, storeId: store.id, isActive: true }, select: { id: true, storeId: true, fullName: true, email: true, phoneNormalized: true, isGuest: true } });
-  if (!customer) throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This customer session does not belong to the requested store.");
+  const customer = await prisma.customer.findFirst({
+    where: { id: claims.subjectId, storeId: store.id, isActive: true },
+    select: {
+      id: true,
+      storeId: true,
+      fullName: true,
+      email: true,
+      phoneNormalized: true,
+      isGuest: true,
+    },
+  });
+  if (!customer)
+    throw new HttpError(
+      403,
+      "STORE_BOUNDARY_DENIED",
+      "This customer session does not belong to the requested store."
+    );
   return { claims, store, customer };
 }
 
@@ -324,7 +441,11 @@ export async function requireMerchantStore(request: Request) {
   await assertMerchantOwnsHisPassword(claims.subjectId);
   const store = await resolveStore(request.params.storeSlug);
   if (store.id !== claims.storeId || store.merchantId !== claims.subjectId) {
-    throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This merchant session is not authorized for the requested store.");
+    throw new HttpError(
+      403,
+      "STORE_BOUNDARY_DENIED",
+      "This merchant session is not authorized for the requested store."
+    );
   }
   if (!store.merchant.isActive) {
     throw new HttpError(403, "MERCHANT_DISABLED", "This merchant account is disabled.");
@@ -339,9 +460,15 @@ export const requireCustomerStoreAccess = asyncRoute(async (request, response) =
     select: { store: { select: { slug: true } } },
   });
   if (!customer || customer.store.slug !== request.params.storeSlug) {
-    throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This customer session does not belong to the requested store.");
+    throw new HttpError(
+      403,
+      "STORE_BOUNDARY_DENIED",
+      "This customer session does not belong to the requested store."
+    );
   }
-  response.status(200).json({ area: "customer", storeSlug: customer.store.slug, subjectId: claims.subjectId });
+  response
+    .status(200)
+    .json({ area: "customer", storeSlug: customer.store.slug, subjectId: claims.subjectId });
 });
 
 /**
@@ -361,5 +488,8 @@ export const requireCustomerStoreAccess = asyncRoute(async (request, response) =
  * viewer's own row, so it is deliberately not on this list.
  */
 export function cachePublicStorefront(response: Response, edgeSeconds = 60, browserSeconds = 15) {
-  response.setHeader("cache-control", `public, max-age=${browserSeconds}, s-maxage=${edgeSeconds}, stale-while-revalidate=300`);
+  response.setHeader(
+    "cache-control",
+    `public, max-age=${browserSeconds}, s-maxage=${edgeSeconds}, stale-while-revalidate=300`
+  );
 }

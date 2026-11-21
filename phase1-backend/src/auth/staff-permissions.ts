@@ -48,25 +48,42 @@ export type StaffRoleCode = (typeof STAFF_ROLE_CODES)[number];
 /** Owner-approved D14-04 matrix. store_manager holds every code; store_staff holds the operational four. */
 export const ROLE_PERMISSION_MATRIX: Record<StaffRoleCode, readonly PermissionCode[]> = {
   store_manager: PERMISSION_CODES,
-  store_staff: ["catalog.products.view", "inventory.update", "orders.view", "orders.update", "pos.sell"],
+  store_staff: [
+    "catalog.products.view",
+    "inventory.update",
+    "orders.view",
+    "orders.update",
+    "pos.sell",
+  ],
 };
 
 export function assertPermissionCode(value: unknown): PermissionCode {
   if (typeof value !== "string" || !PERMISSION_CODES.includes(value as PermissionCode)) {
-    throw new HttpError(422, "INVALID_PERMISSION_CODE", "The permission code is not part of the approved matrix.");
+    throw new HttpError(
+      422,
+      "INVALID_PERMISSION_CODE",
+      "The permission code is not part of the approved matrix."
+    );
   }
   return value as PermissionCode;
 }
 
 export function assertStaffRoleCode(value: unknown): StaffRoleCode {
   if (typeof value !== "string" || !STAFF_ROLE_CODES.includes(value as StaffRoleCode)) {
-    throw new HttpError(422, "INVALID_STAFF_ROLE", "Only store_manager and store_staff roles exist in this phase.");
+    throw new HttpError(
+      422,
+      "INVALID_STAFF_ROLE",
+      "Only store_manager and store_staff roles exist in this phase."
+    );
   }
   return value as StaffRoleCode;
 }
 
 /** Role matrix + per-membership overrides. One override per code: allow grants, deny removes. */
-export function resolvePermissionSet(roleCode: string, overrides: readonly { permissionCode: string; effect: string }[]): Set<PermissionCode> {
+export function resolvePermissionSet(
+  roleCode: string,
+  overrides: readonly { permissionCode: string; effect: string }[]
+): Set<PermissionCode> {
   const base = ROLE_PERMISSION_MATRIX[roleCode as StaffRoleCode] ?? [];
   const granted = new Set<PermissionCode>(base);
   for (const override of overrides) {
@@ -136,12 +153,25 @@ function bearerTokenFromRequest(request: Request): string {
  * state — the second argument is that same read, so the common path costs no
  * extra query.
  */
-export async function assertMerchantOwnsHisPassword(merchantId: string, provisionedAt?: Date | null) {
-  const flagged = provisionedAt !== undefined
-    ? provisionedAt
-    : (await prisma.merchant.findUnique({ where: { id: merchantId }, select: { passwordSetByProvisionerAt: true } }))?.passwordSetByProvisionerAt ?? null;
+export async function assertMerchantOwnsHisPassword(
+  merchantId: string,
+  provisionedAt?: Date | null
+) {
+  const flagged =
+    provisionedAt !== undefined
+      ? provisionedAt
+      : ((
+          await prisma.merchant.findUnique({
+            where: { id: merchantId },
+            select: { passwordSetByProvisionerAt: true },
+          })
+        )?.passwordSetByProvisionerAt ?? null);
   if (flagged) {
-    throw new HttpError(403, "PASSWORD_CHANGE_REQUIRED", "كلمة المرور الحالية اختارها من أنشأ حسابك. غيّرها من «الأمان» لتتابع — بعدها لا يعرفها غيرك.");
+    throw new HttpError(
+      403,
+      "PASSWORD_CHANGE_REQUIRED",
+      "كلمة المرور الحالية اختارها من أنشأ حسابك. غيّرها من «الأمان» لتتابع — بعدها لا يعرفها غيرك."
+    );
   }
 }
 
@@ -151,7 +181,16 @@ async function resolveStoreBySlug(storeSlug: string) {
   // comment on the merchant branch of `resolveStoreActor`.
   // ق-218 rides the SAME select rather than a second query: the guard already
   // reads the merchant row's live state on every store request.
-  const store = await prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true, slug: true, merchantId: true, isActive: true, merchant: { select: { isActive: true, passwordSetByProvisionerAt: true } } } });
+  const store = await prisma.store.findUnique({
+    where: { slug: storeSlug },
+    select: {
+      id: true,
+      slug: true,
+      merchantId: true,
+      isActive: true,
+      merchant: { select: { isActive: true, passwordSetByProvisionerAt: true } },
+    },
+  });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
   return store;
 }
@@ -165,30 +204,58 @@ async function resolveStoreBySlug(storeSlug: string) {
  * answer while the employee holds a merchant-chosen password — the session probe,
  * so the dashboard can load and send him to «الأمان». Every other surface refuses.
  */
-export async function requireStoreStaff(request: Request, options: { allowPasswordChangePending?: boolean } = {}): Promise<StoreStaffContext> {
+export async function requireStoreStaff(
+  request: Request,
+  options: { allowPasswordChangePending?: boolean } = {}
+): Promise<StoreStaffContext> {
   const claims = await verifyTypedSession(bearerTokenFromRequest(request), "staff");
   const store = await resolveStoreBySlug(request.params.storeSlug);
   if (store.id !== claims.storeId) {
-    throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This staff session is not authorized for the requested store.");
+    throw new HttpError(
+      403,
+      "STORE_BOUNDARY_DENIED",
+      "This staff session is not authorized for the requested store."
+    );
   }
   const membership = await prisma.storeStaffMembership.findFirst({
     // PG-2: a removed membership must not resolve permissions on ANY request.
-    where: { id: claims.membershipId!, staffId: claims.subjectId, storeId: store.id, deletedAt: null },
+    where: {
+      id: claims.membershipId!,
+      staffId: claims.subjectId,
+      storeId: store.id,
+      deletedAt: null,
+    },
     select: {
       id: true,
       roleCode: true,
       isActive: true,
       permissionVersion: true,
-      staff: { select: { id: true, email: true, displayName: true, isActive: true, passwordSetByProvisionerAt: true } },
+      staff: {
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          isActive: true,
+          passwordSetByProvisionerAt: true,
+        },
+      },
       permissionOverrides: { select: { permissionCode: true, effect: true } },
     },
   });
   if (!membership || !membership.isActive || !membership.staff.isActive) {
-    throw new HttpError(401, "STAFF_ACCESS_REVOKED", "This staff membership is disabled and the session is no longer usable.");
+    throw new HttpError(
+      401,
+      "STAFF_ACCESS_REVOKED",
+      "This staff membership is disabled and the session is no longer usable."
+    );
   }
   const mustChangePassword = Boolean(membership.staff.passwordSetByProvisionerAt);
   if (mustChangePassword && !options.allowPasswordChangePending) {
-    throw new HttpError(403, "PASSWORD_CHANGE_REQUIRED", "كلمة المرور الحالية اختارها التاجر عند إضافتك. غيّرها من «الأمان» لتتابع — بعدها لا يعرفها غيرك.");
+    throw new HttpError(
+      403,
+      "PASSWORD_CHANGE_REQUIRED",
+      "كلمة المرور الحالية اختارها التاجر عند إضافتك. غيّرها من «الأمان» لتتابع — بعدها لا يعرفها غيرك."
+    );
   }
   // ق-192: a staff member works FOR a merchant, so a disabled merchant revokes
   // his people too. Without this, disabling a merchant left every one of his
@@ -206,9 +273,17 @@ export async function requireStoreStaff(request: Request, options: { allowPasswo
   return {
     claims,
     store,
-    staff: { id: membership.staff.id, email: membership.staff.email, displayName: membership.staff.displayName },
+    staff: {
+      id: membership.staff.id,
+      email: membership.staff.email,
+      displayName: membership.staff.displayName,
+    },
     mustChangePassword,
-    membership: { id: membership.id, roleCode: membership.roleCode, permissionVersion: membership.permissionVersion },
+    membership: {
+      id: membership.id,
+      roleCode: membership.roleCode,
+      permissionVersion: membership.permissionVersion,
+    },
     permissions: resolvePermissionSet(membership.roleCode, membership.permissionOverrides),
   };
 }
@@ -218,7 +293,10 @@ export async function requireStoreStaff(request: Request, options: { allowPasswo
  * The merchant owner authorizes through store ownership exactly as before phase 14;
  * staff authorize through the live membership + resolver, never through client input.
  */
-export async function requireStoreActor(request: Request, permission: PermissionCode): Promise<StoreActorContext> {
+export async function requireStoreActor(
+  request: Request,
+  permission: PermissionCode
+): Promise<StoreActorContext> {
   return resolveStoreActor(request, [permission], "every");
 }
 
@@ -227,11 +305,18 @@ export async function requireStoreActor(request: Request, permission: Permission
  * The caller is then obliged to gate each part of its response on the matching
  * code through the returned `permissions` set — see the unified search route.
  */
-export async function requireStoreActorAny(request: Request, permissions: readonly PermissionCode[]): Promise<StoreActorContext> {
+export async function requireStoreActorAny(
+  request: Request,
+  permissions: readonly PermissionCode[]
+): Promise<StoreActorContext> {
   return resolveStoreActor(request, permissions, "some");
 }
 
-async function resolveStoreActor(request: Request, permissions: readonly PermissionCode[], mode: "every" | "some"): Promise<StoreActorContext> {
+async function resolveStoreActor(
+  request: Request,
+  permissions: readonly PermissionCode[],
+  mode: "every" | "some"
+): Promise<StoreActorContext> {
   const token = bearerTokenFromRequest(request);
   const kind = readSessionClaims(token).identityKind;
   if (kind === "merchant") {
@@ -241,7 +326,11 @@ async function resolveStoreActor(request: Request, permissions: readonly Permiss
     touchSession(claims, request);
     const store = await resolveStoreBySlug(request.params.storeSlug);
     if (store.id !== claims.storeId || store.merchantId !== claims.subjectId) {
-      throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This merchant session is not authorized for the requested store.");
+      throw new HttpError(
+        403,
+        "STORE_BOUNDARY_DENIED",
+        "This merchant session is not authorized for the requested store."
+      );
     }
     // ق-192 — the platform disabled him and he kept working for up to eight hours.
     //
@@ -261,20 +350,42 @@ async function resolveStoreActor(request: Request, permissions: readonly Permiss
     // ق-218, and for the same reason ق-192 put `isActive` here: THIS is the guard
     // almost every store route actually uses, so a rule that lives only in
     // `requireMerchantStore` is a rule most of the platform never asks about.
-    await assertMerchantOwnsHisPassword(claims.subjectId, store.merchant.passwordSetByProvisionerAt);
-    return { store, actor: { kind: "merchant", id: claims.subjectId }, permissions: new Set(PERMISSION_CODES) };
+    await assertMerchantOwnsHisPassword(
+      claims.subjectId,
+      store.merchant.passwordSetByProvisionerAt
+    );
+    return {
+      store,
+      actor: { kind: "merchant", id: claims.subjectId },
+      permissions: new Set(PERMISSION_CODES),
+    };
   }
   if (kind === "staff") {
     const context = await requireStoreStaff(request);
-    const satisfied = mode === "every" ? permissions.every((code) => context.permissions.has(code)) : permissions.some((code) => context.permissions.has(code));
+    const satisfied =
+      mode === "every"
+        ? permissions.every((code) => context.permissions.has(code))
+        : permissions.some((code) => context.permissions.has(code));
     if (!satisfied) {
       const missing = permissions.filter((code) => !context.permissions.has(code)).join(", ");
-      throw new HttpError(403, "STAFF_PERMISSION_DENIED", mode === "every"
-        ? `This staff membership lacks the ${missing} permission.`
-        : `This staff membership lacks every permission this endpoint can serve (${missing}).`);
+      throw new HttpError(
+        403,
+        "STAFF_PERMISSION_DENIED",
+        mode === "every"
+          ? `This staff membership lacks the ${missing} permission.`
+          : `This staff membership lacks every permission this endpoint can serve (${missing}).`
+      );
     }
-    return { store: context.store, actor: { kind: "staff", id: context.staff.id, membershipId: context.membership.id }, permissions: context.permissions };
+    return {
+      store: context.store,
+      actor: { kind: "staff", id: context.staff.id, membershipId: context.membership.id },
+      permissions: context.permissions,
+    };
   }
   // PS-3: a store surface takes the merchant himself or one of his staff.
-  throw new HttpError(403, "IDENTITY_BOUNDARY_DENIED", identityBoundaryMessage(kind, "تاجر أو موظّف متجر"));
+  throw new HttpError(
+    403,
+    "IDENTITY_BOUNDARY_DENIED",
+    identityBoundaryMessage(kind, "تاجر أو موظّف متجر")
+  );
 }

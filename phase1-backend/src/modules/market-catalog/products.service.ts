@@ -16,7 +16,12 @@ import { livePrices } from "../../services/live-price.js";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
-import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../../services/list-page.js";
+import {
+  decodeListCursor,
+  encodeListCursor,
+  pageOf,
+  parseListLimit,
+} from "../../services/list-page.js";
 import { marketProductMatch, type MarketProductMatch } from "../../services/search/index.js";
 import { toGovernorateKey } from "../../services/governorates.js";
 import { baghdadDay, recordVisit } from "../../services/store-traffic.service.js";
@@ -28,38 +33,78 @@ import type { MarketProductQuery, MarketProductSort } from "./schema.js";
 
 const LIMIT_MAX = 60;
 const SOLD_COLUMN: Record<string, Prisma.Sql> = {
-  day: Prisma.sql`s.sold_1d`, week: Prisma.sql`s.sold_7d`, month: Prisma.sql`s.sold_30d`, quarter: Prisma.sql`s.sold_90d`,
+  day: Prisma.sql`s.sold_1d`,
+  week: Prisma.sql`s.sold_7d`,
+  month: Prisma.sql`s.sold_30d`,
+  quarter: Prisma.sql`s.sold_90d`,
 };
 
 type Row = {
-  id: string; name: string; created_at: Date; compare_at_price_iqd: number | null; deal_percent: number | null; deal_ends_at: Date | null; condition: string; tags: string[];
-  is_preorder: boolean; preorder_release_on: Date | null; preorder_ships_by: Date | null; max_per_order: number | null;
-  store_id: string; store_slug: string; store_name: string; store_verified: boolean;
-  min_price: number; max_price: number; in_stock: boolean; low_stock: boolean; variant_count: number; image_id: string | null;
-  rating_avg: Prisma.Decimal | null; rating_count: number | null; sold_30d: number | null;
-  discount_percent: number; match_rank: number | null; sort_key: number;
+  id: string;
+  name: string;
+  created_at: Date;
+  compare_at_price_iqd: number | null;
+  deal_percent: number | null;
+  deal_ends_at: Date | null;
+  condition: string;
+  tags: string[];
+  is_preorder: boolean;
+  preorder_release_on: Date | null;
+  preorder_ships_by: Date | null;
+  max_per_order: number | null;
+  store_id: string;
+  store_slug: string;
+  store_name: string;
+  store_verified: boolean;
+  min_price: number;
+  max_price: number;
+  in_stock: boolean;
+  low_stock: boolean;
+  variant_count: number;
+  image_id: string | null;
+  rating_avg: Prisma.Decimal | null;
+  rating_count: number | null;
+  sold_30d: number | null;
+  discount_percent: number;
+  match_rank: number | null;
+  sort_key: number;
 };
 
-function sortKey(sort: MarketProductSort, period: string, match: MarketProductMatch | null): Prisma.Sql {
+function sortKey(
+  sort: MarketProductSort,
+  period: string,
+  match: MarketProductMatch | null
+): Prisma.Sql {
   switch (sort) {
     case "relevance":
       // Exact substring hits above every fuzzy hit, then closeness; without a query it is «recommended».
-      return match ? Prisma.sql`(CASE WHEN ${match.exact} THEN 1 ELSE 0 END + ${match.rank})::float8` : sortKey("recommended", period, null);
+      return match
+        ? Prisma.sql`(CASE WHEN ${match.exact} THEN 1 ELSE 0 END + ${match.rank})::float8`
+        : sortKey("recommended", period, null);
     case "recommended":
       // Selling and being looked at, a boosted store's products ahead.
       return Prisma.sql`(ln(1 + COALESCE(s.sold_30d, 0)) * 2 + ln(1 + COALESCE(s.views_30d, 0)) + CASE WHEN st.boosted_until > now() THEN 3 ELSE 0 END)::float8`;
-    case "newest": return Prisma.sql`extract(epoch FROM p.created_at)::float8`;
-    case "price_asc": return Prisma.sql`(-v.min_price)::float8`;
-    case "price_desc": return Prisma.sql`v.min_price::float8`;
-    case "rating": return Prisma.sql`(CASE WHEN COALESCE(s.rating_count, 0) > 0 THEN (s.rating_avg::float8 * s.rating_count + 20) / (s.rating_count + 5) ELSE 0 END)`;
-    case "best_selling": return Prisma.sql`COALESCE(${SOLD_COLUMN[period] ?? SOLD_COLUMN.month}, 0)::float8`;
-    case "trending": return Prisma.sql`COALESCE(s.views_7d, 0)::float8`;
-    case "discount": return Prisma.sql`(CASE WHEN ${COMPARE} > v.min_price THEN (${COMPARE} - v.min_price)::float8 / ${COMPARE} ELSE 0 END)`;
+    case "newest":
+      return Prisma.sql`extract(epoch FROM p.created_at)::float8`;
+    case "price_asc":
+      return Prisma.sql`(-v.min_price)::float8`;
+    case "price_desc":
+      return Prisma.sql`v.min_price::float8`;
+    case "rating":
+      return Prisma.sql`(CASE WHEN COALESCE(s.rating_count, 0) > 0 THEN (s.rating_avg::float8 * s.rating_count + 20) / (s.rating_count + 5) ELSE 0 END)`;
+    case "best_selling":
+      return Prisma.sql`COALESCE(${SOLD_COLUMN[period] ?? SOLD_COLUMN.month}, 0)::float8`;
+    case "trending":
+      return Prisma.sql`COALESCE(s.views_7d, 0)::float8`;
+    case "discount":
+      return Prisma.sql`(CASE WHEN ${COMPARE} > v.min_price THEN (${COMPARE} - v.min_price)::float8 / ${COMPARE} ELSE 0 END)`;
   }
 }
 
 const imageUrl = (storeSlug: string, productId: string, imageId: string | null) =>
-  imageId ? `/api/store/${encodeURIComponent(storeSlug)}/products/${encodeURIComponent(productId)}/images/${encodeURIComponent(imageId)}` : null;
+  imageId
+    ? `/api/store/${encodeURIComponent(storeSlug)}/products/${encodeURIComponent(productId)}/images/${encodeURIComponent(imageId)}`
+    : null;
 
 function cardOf(row: Row) {
   const rating = row.rating_avg === null ? null : Number(row.rating_avg);
@@ -72,9 +117,13 @@ function cardOf(row: Row) {
     imageUrl: imageUrl(row.store_slug, row.id, row.image_id),
     priceIqd: row.min_price,
     maxPriceIqd: row.max_price,
-    compareAtPriceIqd: row.compare_at_price_iqd !== null && row.compare_at_price_iqd > row.min_price ? row.compare_at_price_iqd : null,
+    compareAtPriceIqd:
+      row.compare_at_price_iqd !== null && row.compare_at_price_iqd > row.min_price
+        ? row.compare_at_price_iqd
+        : null,
     // Marketplace M8a: «عرض الساعة» — its percentage and when the price ends.
-    deal: row.deal_percent !== null ? { percentOff: row.deal_percent, endsAt: row.deal_ends_at } : null,
+    deal:
+      row.deal_percent !== null ? { percentOff: row.deal_percent, endsAt: row.deal_ends_at } : null,
     discountPercent: row.discount_percent,
     rating,
     ratingCount: count,
@@ -88,7 +137,8 @@ function cardOf(row: Row) {
     condition: row.condition,
     tags: row.tags,
     // «مطابقة البحث X%»: only when there was a query.
-    matchPercent: row.match_rank === null ? null : Math.round(Math.min(1, Number(row.match_rank)) * 100),
+    matchPercent:
+      row.match_rank === null ? null : Math.round(Math.min(1, Number(row.match_rank)) * 100),
     createdAt: row.created_at,
   };
 }
@@ -151,20 +201,25 @@ export async function listMarketProducts(query: MarketProductQuery) {
   const kind = `market-products.${sort}${sort === "best_selling" ? `.${query.period}` : ""}`;
   const cursor = decodeListCursor(kind, query.cursor);
   const cursorValue = cursor ? Number(cursor.value) : null;
-  if (cursor && !Number.isFinite(cursorValue)) throw new HttpError(400, "INVALID_CURSOR", "مؤشّر الصفحة غير صالح.");
+  if (cursor && !Number.isFinite(cursorValue))
+    throw new HttpError(400, "INVALID_CURSOR", "مؤشّر الصفحة غير صالح.");
 
   const key = sortKey(sort, query.period, match);
   const where: Prisma.Sql[] = [VISIBLE];
   if (match) where.push(match.where);
   if (query.category) {
     const { ids } = await categoryWithDescendants(query.category);
-    where.push(Prisma.sql`COALESCE(p.market_category_id, pc.market_category_id) = ANY(${ids}::int[])`);
+    where.push(
+      Prisma.sql`COALESCE(p.market_category_id, pc.market_category_id) = ANY(${ids}::int[])`
+    );
   }
   if (query.store) where.push(Prisma.sql`st.slug = ${query.store}`);
   if (query.deliverTo) {
     const governorate = toGovernorateKey(query.deliverTo);
     if (!governorate) throw new HttpError(422, "UNKNOWN_GOVERNORATE", "المحافظة غير معروفة.");
-    where.push(Prisma.sql`EXISTS (SELECT 1 FROM delivery_rates dr WHERE dr.store_id = st.id AND dr.governorate = ${governorate} AND dr.is_enabled)`);
+    where.push(
+      Prisma.sql`EXISTS (SELECT 1 FROM delivery_rates dr WHERE dr.store_id = st.id AND dr.governorate = ${governorate} AND dr.is_enabled)`
+    );
   }
   if (query.minPrice !== undefined) where.push(Prisma.sql`v.min_price >= ${query.minPrice}`);
   if (query.maxPrice !== undefined) where.push(Prisma.sql`v.min_price <= ${query.maxPrice}`);
@@ -173,7 +228,10 @@ export async function listMarketProducts(query: MarketProductQuery) {
   if (query.discount === "50") where.push(Prisma.sql`${DISCOUNT} >= 50`);
   if (query.rating === "3") where.push(Prisma.sql`s.rating_avg >= 3`);
   // «ممتاز»: high stars WITH enough reviews to mean it.
-  if (query.rating === "excellent") where.push(Prisma.sql`s.rating_count >= 5 AND (s.rating_avg::float8 * s.rating_count + 20) / (s.rating_count + 5) >= 4.5`);
+  if (query.rating === "excellent")
+    where.push(
+      Prisma.sql`s.rating_count >= 5 AND (s.rating_avg::float8 * s.rating_count + 20) / (s.rating_count + 5) >= 4.5`
+    );
   if (query.condition) where.push(Prisma.sql`p.condition = ${query.condition}`);
   if (query.tag) where.push(Prisma.sql`${query.tag} = ANY(p.tags)`);
   if (query.preorder) where.push(Prisma.sql`p.is_preorder`);
@@ -187,7 +245,9 @@ export async function listMarketProducts(query: MarketProductQuery) {
          AND (mc.starts_at IS NULL OR mc.starts_at <= now()) AND (mc.ends_at IS NULL OR mc.ends_at > now()))`);
   }
   if (query.mall) {
-    where.push(Prisma.sql`EXISTS (SELECT 1 FROM market_mall_stores ms JOIN market_malls mm ON mm.id = ms.mall_id WHERE ms.store_id = st.id AND mm.slug = ${query.mall} AND mm.is_active)`);
+    where.push(
+      Prisma.sql`EXISTS (SELECT 1 FROM market_mall_stores ms JOIN market_malls mm ON mm.id = ms.mall_id WHERE ms.store_id = st.id AND mm.slug = ${query.mall} AND mm.is_active)`
+    );
   }
   if (query.ids) where.push(Prisma.sql`p.id = ANY(${query.ids}::uuid[])`);
   if (query.relatedTo) {
@@ -211,40 +271,78 @@ export async function listMarketProducts(query: MarketProductQuery) {
   // Awaited (one small upsert) so the count is never lost to a racing response;
   // a failure to count never fails the search.
   if (match && !cursor) await recordSearch(match.normalized).catch(() => undefined);
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(kind, last.sort_key, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(kind, last.sort_key, last.id)
+  );
   return { products: page.map(cardOf), nextCursor, sort };
 }
 
 const SPEC_SHAPE = (value: unknown): { name: string; value: string }[] =>
-  Array.isArray(value) ? value.filter((row): row is { name: string; value: string } => typeof row?.name === "string" && typeof row?.value === "string") : [];
+  Array.isArray(value)
+    ? value.filter(
+        (row): row is { name: string; value: string } =>
+          typeof row?.name === "string" && typeof row?.value === "string"
+      )
+    : [];
 const dateOnly = (value: Date | null) => (value ? value.toISOString().slice(0, 10) : null);
 
 /** One product's market page. 404 unless its store is in the market and the product is live. */
 export async function marketProductPage(productId: string, options: { countView: boolean }) {
-  if (!/^[0-9a-f-]{36}$/i.test(productId)) throw new HttpError(404, "PRODUCT_NOT_FOUND", "هذا المنتج غير موجود.");
+  if (!/^[0-9a-f-]{36}$/i.test(productId))
+    throw new HttpError(404, "PRODUCT_NOT_FOUND", "هذا المنتج غير موجود.");
   const [row] = await prisma.$queryRaw<Row[]>`
     ${selectCard(null, Prisma.sql`0::float8`)}
     ${BASE_FROM}
     WHERE ${VISIBLE} AND p.id = ${productId}::uuid
     LIMIT 1`;
-  if (!row) throw new HttpError(404, "PRODUCT_NOT_FOUND", "يبدو أنّ المتجر أزال هذا المنتج أو أوقف بيعه مؤقتاً.");
+  if (!row)
+    throw new HttpError(
+      404,
+      "PRODUCT_NOT_FOUND",
+      "يبدو أنّ المتجر أزال هذا المنتج أو أوقف بيعه مؤقتاً."
+    );
   const [product, store] = await Promise.all([
     prisma.product.findUniqueOrThrow({
       where: { id: row.id },
       select: {
-        description: true, specs: true, requiresPrescription: true, instalmentsEligible: true, instalmentsCashPrice: true,
+        description: true,
+        specs: true,
+        requiresPrescription: true,
+        instalmentsEligible: true,
+        instalmentsCashPrice: true,
         marketCategory: { select: { slug: true, nameAr: true } },
         category: { select: { marketCategory: { select: { slug: true, nameAr: true } } } },
         images: { select: { id: true }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], take: 12 },
-        variants: { where: { isActive: true, deletedAt: null }, select: { id: true, name: true, priceIqd: true, stockQuantity: true, isDefault: true, options: true }, orderBy: [{ isDefault: "desc" }, { position: "asc" }, { createdAt: "asc" }] },
-        addons: { where: { isActive: true }, select: { id: true, name: true, priceIqd: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+        variants: {
+          where: { isActive: true, deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            priceIqd: true,
+            stockQuantity: true,
+            isDefault: true,
+            options: true,
+          },
+          orderBy: [{ isDefault: "desc" }, { position: "asc" }, { createdAt: "asc" }],
+        },
+        addons: {
+          where: { isActive: true },
+          select: { id: true, name: true, priceIqd: true },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        },
       },
     }),
     listedStoreTenant(row.store_slug),
   ]);
-  if (options.countView) void recordVisit(store.id, { day: baghdadDay(), newVisitor: false, productId: row.id }).catch(() => undefined);
+  if (options.countView)
+    void recordVisit(store.id, { day: baghdadDay(), newVisitor: false, productId: row.id }).catch(
+      () => undefined
+    );
   const category = product.marketCategory ?? product.category?.marketCategory ?? null;
-  const livePriceBy = await livePrices(prisma, product.variants.map((variant) => variant.id));
+  const livePriceBy = await livePrices(
+    prisma,
+    product.variants.map((variant) => variant.id)
+  );
   return {
     product: {
       ...cardOf(row),
@@ -253,9 +351,22 @@ export async function marketProductPage(productId: string, options: { countView:
       requiresPrescription: product.requiresPrescription,
       category: category ? { slug: category.slug, name: category.nameAr } : null,
       images: product.images.map((image) => imageUrl(row.store_slug, row.id, image.id) as string),
-      variants: product.variants.map((variant) => ({ id: variant.id, name: variant.name, isDefault: variant.isDefault, priceIqd: livePriceBy.get(variant.id) ?? variant.priceIqd, listPriceIqd: (livePriceBy.get(variant.id) ?? variant.priceIqd) < variant.priceIqd ? variant.priceIqd : null, options: variant.options, isAvailable: variant.stockQuantity > 0 })),
+      variants: product.variants.map((variant) => ({
+        id: variant.id,
+        name: variant.name,
+        isDefault: variant.isDefault,
+        priceIqd: livePriceBy.get(variant.id) ?? variant.priceIqd,
+        listPriceIqd:
+          (livePriceBy.get(variant.id) ?? variant.priceIqd) < variant.priceIqd
+            ? variant.priceIqd
+            : null,
+        options: variant.options,
+        isAvailable: variant.stockQuantity > 0,
+      })),
       addons: product.addons,
-      preorder: row.is_preorder ? { releaseOn: dateOnly(row.preorder_release_on), shipsBy: dateOnly(row.preorder_ships_by) } : null,
+      preorder: row.is_preorder
+        ? { releaseOn: dateOnly(row.preorder_release_on), shipsBy: dateOnly(row.preorder_ships_by) }
+        : null,
       maxPerOrder: row.max_per_order,
       storefrontPath: `/store/${encodeURIComponent(row.store_slug)}/products/${encodeURIComponent(row.id)}`,
       // Marketplace M13a (E6): «أو من X د.ع شهرياً» beside the cash price, when a lender is on.

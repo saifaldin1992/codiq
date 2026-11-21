@@ -130,7 +130,12 @@ async function releaseOne(candidate: Candidate, now: Date): Promise<boolean> {
     // concurrent cancel that already flipped this row matches zero here, and
     // the movement — the only other write — never happens.
     const released = await tx.inventoryReservation.updateMany({
-      where: { id: candidate.id, storeId: candidate.storeId, status: "active", expiresAt: { lte: now } },
+      where: {
+        id: candidate.id,
+        storeId: candidate.storeId,
+        status: "active",
+        expiresAt: { lte: now },
+      },
       data: {
         status: "released",
         releaseReason: RESERVATION_EXPIRY_RELEASE_REASON,
@@ -159,7 +164,7 @@ async function releaseOne(candidate: Candidate, now: Date): Promise<boolean> {
  * exactly as they drive the trash purge and the abandoned-cart scanner.
  */
 export async function releaseExpiredReservations(
-  options: { now?: Date; batchSize?: number } = {},
+  options: { now?: Date; batchSize?: number } = {}
 ): Promise<ReservationExpiryResult> {
   const now = options.now ?? new Date();
   const batchSize = options.batchSize ?? RESERVATION_EXPIRY_BATCH_SIZE;
@@ -182,7 +187,11 @@ export async function releaseExpiredReservations(
         }
       } catch (error) {
         outcome.skipped += 1;
-        logger.error("job.row_failed", { job: "reservation-expiry", reservationId: candidate.id, err: error });
+        logger.error("job.row_failed", {
+          job: "reservation-expiry",
+          reservationId: candidate.id,
+          err: error,
+        });
       }
     }
     // A short batch means the backlog is drained. A full batch that released

@@ -122,23 +122,42 @@ const MODELS = readSchema();
  */
 function readMigrationIndexes() {
   const live = new Map();
-  const dirs = readdirSync(MIGRATIONS).filter((entry) => statSync(path.join(MIGRATIONS, entry)).isDirectory()).sort();
+  const dirs = readdirSync(MIGRATIONS)
+    .filter((entry) => statSync(path.join(MIGRATIONS, entry)).isDirectory())
+    .sort();
   for (const dir of dirs) {
     const file = path.join(MIGRATIONS, dir, "migration.sql");
     let sql;
-    try { sql = readFileSync(file, "utf8"); } catch { continue; }
+    try {
+      sql = readFileSync(file, "utf8");
+    } catch {
+      continue;
+    }
     // Strip `-- …` comments so a CREATE INDEX quoted inside a rationale block
     // never counts as one that runs.
-    const bare = sql.split("\n").filter((line) => !line.trim().startsWith("--")).join("\n");
-    const createRe = /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?"?(\w+)"?\s+ON\s+(?:public\.)?"?(\w+)"?\s*(?:USING\s+(\w+)\s*)?\(([^;]*?)\)\s*(WHERE\s[^;]*?)?;/gis;
+    const bare = sql
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("--"))
+      .join("\n");
+    const createRe =
+      /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?"?(\w+)"?\s+ON\s+(?:public\.)?"?(\w+)"?\s*(?:USING\s+(\w+)\s*)?\(([^;]*?)\)\s*(WHERE\s[^;]*?)?;/gis;
     let match;
     while ((match = createRe.exec(bare))) {
       const [, name, table, method, columnList, predicate] = match;
-      if (method && method.toLowerCase() !== "btree") { live.delete(name); continue; }
-      const columns = columnList.split(",").map((part) => part.trim().replace(/"/g, "").split(/\s+/)[0]).filter(Boolean);
+      if (method && method.toLowerCase() !== "btree") {
+        live.delete(name);
+        continue;
+      }
+      const columns = columnList
+        .split(",")
+        .map((part) => part.trim().replace(/"/g, "").split(/\s+/)[0])
+        .filter(Boolean);
       live.set(name, { name, table, columns, partial: Boolean(predicate), migration: dir });
     }
-    for (const drop of bare.matchAll(/DROP\s+INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+EXISTS\s+)?"?(\w+)"?/gis)) live.delete(drop[1]);
+    for (const drop of bare.matchAll(
+      /DROP\s+INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+EXISTS\s+)?"?(\w+)"?/gis
+    ))
+      live.delete(drop[1]);
   }
   return live;
 }
@@ -160,7 +179,9 @@ function walk(dir) {
 function enclosingFunction(source, offset) {
   const before = source.slice(0, offset).split("\n");
   for (let i = before.length - 1; i >= 0; i -= 1) {
-    const named = before[i].match(/^(?:export\s+)?(?:async\s+)?function\s+(\w+)|^(?:export\s+)?const\s+(\w+)\s*=/);
+    const named = before[i].match(
+      /^(?:export\s+)?(?:async\s+)?function\s+(\w+)|^(?:export\s+)?const\s+(\w+)\s*=/
+    );
     if (named) return named[1] ?? named[2];
   }
   return null;
@@ -176,7 +197,11 @@ function topLevelValue(objectText, key) {
     const char = objectText[i];
     if (char === "{" || char === "[" || char === "(") depth += 1;
     else if (char === "}" || char === "]" || char === ")") depth -= 1;
-    else if (depth === 1 && objectText.startsWith(`${key}:`, i) && !/[\w$]/.test(objectText[i - 1] ?? "")) {
+    else if (
+      depth === 1 &&
+      objectText.startsWith(`${key}:`, i) &&
+      !/[\w$]/.test(objectText[i - 1] ?? "")
+    ) {
       const after = objectText.slice(i + key.length + 1);
       const opener = after.match(/^\s*(\[|\{)/);
       if (opener) return balanced(after, after.indexOf(opener[1]), opener[1] === "[" ? "[]" : "{}");
@@ -192,7 +217,10 @@ function balanced(source, open, pair = "{}") {
   let depth = 0;
   for (let i = open; i < source.length; i += 1) {
     if (source[i] === pair[0]) depth += 1;
-    else if (source[i] === pair[1]) { depth -= 1; if (depth === 0) return source.slice(open, i + 1); }
+    else if (source[i] === pair[1]) {
+      depth -= 1;
+      if (depth === 0) return source.slice(open, i + 1);
+    }
   }
   return null;
 }
@@ -205,10 +233,18 @@ for (const file of walk(BACKEND)) {
   let match;
   while ((match = callRe.exec(source))) {
     // The declaration itself, not a call site.
-    if (/export function keysetWhere/.test(source.slice(Math.max(0, match.index - 40), match.index))) continue;
+    if (
+      /export function keysetWhere/.test(source.slice(Math.max(0, match.index - 40), match.index))
+    )
+      continue;
     const [, field, direction] = match;
     const fn = enclosingFunction(source, match.index);
-    if (!fn) { fail(`${rel} — a keysetWhere(...) call sits outside any named function; the ratchet cannot key it. Move it into one.`); continue; }
+    if (!fn) {
+      fail(
+        `${rel} — a keysetWhere(...) call sits outside any named function; the ratchet cannot key it. Move it into one.`
+      );
+      continue;
+    }
     // The ordering tuple that must agree with the keyset.
     //
     // It has to come from the findMany's OWN `orderBy`, at depth 1 of its
@@ -237,21 +273,28 @@ for (const file of walk(BACKEND)) {
     }
     let orderBy = null;
     if (!args) {
-      fail(`${rel} — ${fn}(): this keysetWhere(...) belongs to no .findMany( the ratchet can find. The ordering cannot be checked.`);
+      fail(
+        `${rel} — ${fn}(): this keysetWhere(...) belongs to no .findMany( the ratchet can find. The ordering cannot be checked.`
+      );
     } else {
       const raw = topLevelValue(args, "orderBy");
-      if (raw === null) fail(`${rel} — ${fn}(): the findMany carrying this keysetWhere has no orderBy of its own.`);
+      if (raw === null)
+        fail(`${rel} — ${fn}(): the findMany carrying this keysetWhere has no orderBy of its own.`);
       else if (raw.startsWith("[")) orderBy = raw;
       else {
         const bound = source.match(new RegExp(String.raw`const\s+${raw.trim()}\s*=\s*\[`));
         if (bound) orderBy = balanced(source, source.indexOf("[", bound.index), "[]");
-        if (!orderBy) fail(`${rel} — ${fn}(): orderBy is \`${raw.trim()}\`, which is neither an array literal nor a name bound to one in this file. Inline it so the ordering can be checked.`);
+        if (!orderBy)
+          fail(
+            `${rel} — ${fn}(): orderBy is \`${raw.trim()}\`, which is neither an array literal nor a name bound to one in this file. Inline it so the ordering can be checked.`
+          );
       }
     }
     sites.push({ key: `${rel}#${fn}`, rel, fn, field, direction, orderBy });
   }
 }
-if (sites.length === 0) fail("no keysetWhere(...) call sites found at all — the scan is broken, not the code.");
+if (sites.length === 0)
+  fail("no keysetWhere(...) call sites found at all — the scan is broken, not the code.");
 
 // ─────────────────────────────────────────────────────────── the registry
 const registry = JSON.parse(readFileSync(REGISTRY, "utf8"));
@@ -261,11 +304,13 @@ let unindexed = 0;
 for (const site of sites) {
   const row = rows.get(site.key);
   if (!row) {
-    fail(`${site.rel} — ${site.fn}() pages with keysetWhere("${site.field}", "${site.direction}") and has no row in tests/keyset-index.map.json.\n`
-      + `    Add one naming the composite index this page rides — (…tenant, ${site.field}, id) — after MEASURING it\n`
-      + `    with EXPLAIN (ANALYZE, BUFFERS) at a cursor half way down the list, the way\n`
-      + `    phase1-backend/tests/perf-index-evidence.mjs does. If an existing index already serves it, set\n`
-      + `    "index": null and put BOTH numbers in "reason".`);
+    fail(
+      `${site.rel} — ${site.fn}() pages with keysetWhere("${site.field}", "${site.direction}") and has no row in tests/keyset-index.map.json.\n` +
+        `    Add one naming the composite index this page rides — (…tenant, ${site.field}, id) — after MEASURING it\n` +
+        `    with EXPLAIN (ANALYZE, BUFFERS) at a cursor half way down the list, the way\n` +
+        `    phase1-backend/tests/perf-index-evidence.mjs does. If an existing index already serves it, set\n` +
+        `    "index": null and put BOTH numbers in "reason".`
+    );
     continue;
   }
   row.seen = true;
@@ -275,19 +320,35 @@ for (const site of sites) {
     // `as const` is a type annotation, not part of the ordering tuple.
     const flat = site.orderBy.replace(/as const/g, "").replace(/\s+/g, "");
     if (!flat.startsWith(`[{${site.field}:"${site.direction}"}`)) {
-      fail(`${site.rel} — ${site.fn}(): orderBy does not start with { ${site.field}: "${site.direction}" }, but keysetWhere does.\n    Got ${site.orderBy.replace(/\s+/g, " ")}. Pages built on two different orderings overlap or skip rows.`);
+      fail(
+        `${site.rel} — ${site.fn}(): orderBy does not start with { ${site.field}: "${site.direction}" }, but keysetWhere does.\n    Got ${site.orderBy.replace(/\s+/g, " ")}. Pages built on two different orderings overlap or skip rows.`
+      );
     }
     if (!flat.includes(`{id:"${site.direction}"}`)) {
-      fail(`${site.rel} — ${site.fn}(): the id tiebreaker in orderBy must run "${site.direction}", the same way as the keyset.\n    Got ${site.orderBy.replace(/\s+/g, " ")}.`);
+      fail(
+        `${site.rel} — ${site.fn}(): the id tiebreaker in orderBy must run "${site.direction}", the same way as the keyset.\n    Got ${site.orderBy.replace(/\s+/g, " ")}.`
+      );
     }
   }
 
   const model = MODELS.get(row.model);
-  if (!model) { fail(`tests/keyset-index.map.json — ${site.key} names model "${row.model}", which is not in schema.prisma.`); continue; }
+  if (!model) {
+    fail(
+      `tests/keyset-index.map.json — ${site.key} names model "${row.model}", which is not in schema.prisma.`
+    );
+    continue;
+  }
   const column = model.columns[site.field];
-  if (!column) { fail(`tests/keyset-index.map.json — ${site.key}: model ${row.model} has no field "${site.field}".`); continue; }
+  if (!column) {
+    fail(
+      `tests/keyset-index.map.json — ${site.key}: model ${row.model} has no field "${site.field}".`
+    );
+    continue;
+  }
   if (row.column !== column) {
-    fail(`tests/keyset-index.map.json — ${site.key} records column "${row.column}" but ${row.model}.${site.field} maps to "${column}".\n    The list changed its sort column; the index it needs changed with it.`);
+    fail(
+      `tests/keyset-index.map.json — ${site.key} records column "${row.column}" but ${row.model}.${site.field} maps to "${column}".\n    The list changed its sort column; the index it needs changed with it.`
+    );
     continue;
   }
 
@@ -316,43 +377,58 @@ for (const site of sites) {
    */
   const declaredPrecision = model.precision?.[site.field];
   if (declaredPrecision !== undefined && declaredPrecision !== 3) {
-    fail(`prisma/schema.prisma — ${row.model}.${site.field} is ordered by a keyset (${site.key}) but is declared `
-      + `${declaredPrecision === null ? "without an explicit @db.Timestamptz(n)" : `@db.Timestamptz(${declaredPrecision})`}.\n`
-      + `    A cursor carries milliseconds (Date.toISOString()); anything finer is stored and never named, so pages\n`
-      + `    drop rows silently. Add a migration «ALTER TABLE "${model.table}" ALTER COLUMN "${column}" TYPE timestamptz(3)»\n`
-      + `    and declare @db.Timestamptz(3) here. Do it while the table is small — narrowing the precision rewrites it.`);
+    fail(
+      `prisma/schema.prisma — ${row.model}.${site.field} is ordered by a keyset (${site.key}) but is declared ` +
+        `${declaredPrecision === null ? "without an explicit @db.Timestamptz(n)" : `@db.Timestamptz(${declaredPrecision})`}.\n` +
+        `    A cursor carries milliseconds (Date.toISOString()); anything finer is stored and never named, so pages\n` +
+        `    drop rows silently. Add a migration «ALTER TABLE "${model.table}" ALTER COLUMN "${column}" TYPE timestamptz(3)»\n` +
+        `    and declare @db.Timestamptz(3) here. Do it while the table is small — narrowing the precision rewrites it.`
+    );
   }
 
   if (row.index === null) {
     unindexed += 1;
     if (typeof row.reason !== "string" || row.reason.trim().length < MIN_REASON) {
-      fail(`tests/keyset-index.map.json — ${site.key} claims no index is needed with no real reason (${MIN_REASON}+ characters, and it must carry the measured before/after).`);
+      fail(
+        `tests/keyset-index.map.json — ${site.key} claims no index is needed with no real reason (${MIN_REASON}+ characters, and it must carry the measured before/after).`
+      );
     } else if (!/\d/.test(row.reason)) {
-      fail(`tests/keyset-index.map.json — ${site.key} claims no index is needed but its reason carries no measurement.\n    «هذا أسرع» بلا قياس = رأي (OPERATING_GUIDE). Put the two numbers in it.`);
+      fail(
+        `tests/keyset-index.map.json — ${site.key} claims no index is needed but its reason carries no measurement.\n    «هذا أسرع» بلا قياس = رأي (OPERATING_GUIDE). Put the two numbers in it.`
+      );
     }
     continue;
   }
 
   const index = DDL.get(row.index);
   if (!index) {
-    fail(`${site.rel} — ${site.fn}() rides index "${row.index}", which NO migration in prisma/migrations creates (or a later one drops it).\n`
-      + `    A declaration in schema.prisma is not an index; only the DDL is. Add the CREATE INDEX to a migration.`);
+    fail(
+      `${site.rel} — ${site.fn}() rides index "${row.index}", which NO migration in prisma/migrations creates (or a later one drops it).\n` +
+        `    A declaration in schema.prisma is not an index; only the DDL is. Add the CREATE INDEX to a migration.`
+    );
     continue;
   }
   if (index.table !== model.table) {
-    fail(`tests/keyset-index.map.json — ${site.key} names "${row.index}", which is on "${index.table}", not on ${row.model}'s table "${model.table}".`);
+    fail(
+      `tests/keyset-index.map.json — ${site.key} names "${row.index}", which is on "${index.table}", not on ${row.model}'s table "${model.table}".`
+    );
     continue;
   }
   const tail = index.columns.slice(-2);
   if (tail[0] !== column || tail[1] !== "id") {
-    fail(`${site.rel} — ${site.fn}() orders by (${column}, id) but "${row.index}" is (${index.columns.join(", ")}).\n`
-      + `    A keyset page rides an index that ENDS in (${column}, id): anything after them cannot be walked in order,\n`
-      + `    and stopping before id leaves the tiebreaker to a sort.`);
+    fail(
+      `${site.rel} — ${site.fn}() orders by (${column}, id) but "${row.index}" is (${index.columns.join(", ")}).\n` +
+        `    A keyset page rides an index that ENDS in (${column}, id): anything after them cannot be walked in order,\n` +
+        `    and stopping before id leaves the tiebreaker to a sort.`
+    );
   }
 }
 
 for (const row of registry.lists) {
-  if (!row.seen) stale.push(`${row.key} is in tests/keyset-index.map.json but no keysetWhere(...) call site matches it — delete the row.`);
+  if (!row.seen)
+    stale.push(
+      `${row.key} is in tests/keyset-index.map.json but no keysetWhere(...) call site matches it — delete the row.`
+    );
 }
 
 // ────────────────────────────────── declared-but-never-created (the drift)
@@ -367,23 +443,31 @@ let drift = 0;
 for (const [name, model] of MODELS) {
   for (const declared of model.declared) {
     if (declared.kind !== "index") continue;
-    const columns = declared.fields.split(",").map((part) => part.trim().split("(")[0]).map((field) => model.columns[field] ?? field);
+    const columns = declared.fields
+      .split(",")
+      .map((part) => part.trim().split("(")[0])
+      .map((field) => model.columns[field] ?? field);
     const mapped = declared.map;
     const found = mapped
       ? DDL.get(mapped)
-      : [...DDL.values()].find((idx) => idx.table === model.table && idx.columns.join(",") === columns.join(","));
+      : [...DDL.values()].find(
+          (idx) => idx.table === model.table && idx.columns.join(",") === columns.join(",")
+        );
     if (found) continue;
     const label = `${name}.@@index([${declared.fields}])${mapped ? ` map:"${mapped}"` : ""}`;
     drift += 1;
     if (!driftAllowed.has(label)) {
-      fail(`prisma/schema.prisma — ${label} is declared but no migration creates it.\n`
-        + `    Either add the CREATE INDEX to a migration, or list it under "schemaOnlyIndexes" in\n`
-        + `    tests/keyset-index.map.json if it is genuinely created some other way.`);
+      fail(
+        `prisma/schema.prisma — ${label} is declared but no migration creates it.\n` +
+          `    Either add the CREATE INDEX to a migration, or list it under "schemaOnlyIndexes" in\n` +
+          `    tests/keyset-index.map.json if it is genuinely created some other way.`
+      );
     }
   }
 }
 for (const label of driftAllowed) {
-  if (!label.includes("@@index")) stale.push(`"schemaOnlyIndexes" entry ${label} is not an @@index label — it can never match.`);
+  if (!label.includes("@@index"))
+    stale.push(`"schemaOnlyIndexes" entry ${label} is not an @@index label — it can never match.`);
 }
 
 // ─────────────────────────────────────────────────────────────── verdict
@@ -399,8 +483,8 @@ if (failures.length) {
 }
 if (stale.length) process.exit(1);
 console.log(
-  `keyset:guard ok — ${sites.length} keyset list(s) across ${new Set(sites.map((s) => s.rel)).size} file(s); `
-  + `${DDL.size} b-tree index(es) read from prisma/migrations; `
-  + `${unindexed} list(s) allowlisted as needing no index of their own; ${drift} declared-but-uncreated index(es). `
-  + `The last two numbers may only fall.`,
+  `keyset:guard ok — ${sites.length} keyset list(s) across ${new Set(sites.map((s) => s.rel)).size} file(s); ` +
+    `${DDL.size} b-tree index(es) read from prisma/migrations; ` +
+    `${unindexed} list(s) allowlisted as needing no index of their own; ${drift} declared-but-uncreated index(es). ` +
+    `The last two numbers may only fall.`
 );

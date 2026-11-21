@@ -3,7 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { marketGet } from "./market-api";
 import type { MarketStoreCard, MarketStoresPage } from "./market-types";
 
-export function marketStoresUrl(params: Record<string, string | number | boolean | undefined | null>) {
+export function marketStoresUrl(
+  params: Record<string, string | number | boolean | undefined | null>
+) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === "" || value === false) continue;
@@ -20,14 +22,24 @@ export function useMarketStores(url: string | null) {
   const generation = useRef(0);
 
   useEffect(() => {
-    if (!url) { setStores(null); return; }
+    if (!url) {
+      setStores(null);
+      return;
+    }
     const mine = ++generation.current;
     const controller = new AbortController();
     setStores(null);
     setFailure(null);
     marketGet<MarketStoresPage>(url, { signal: controller.signal })
-      .then((page) => { if (mine === generation.current) { setStores(page.stores); setNextCursor(page.nextCursor); } })
-      .catch((error: Error) => { if (mine === generation.current && error.name !== "AbortError") setFailure(error.message); });
+      .then((page) => {
+        if (mine === generation.current) {
+          setStores(page.stores);
+          setNextCursor(page.nextCursor);
+        }
+      })
+      .catch((error: Error) => {
+        if (mine === generation.current && error.name !== "AbortError") setFailure(error.message);
+      });
     return () => controller.abort();
   }, [url]);
 
@@ -36,7 +48,9 @@ export function useMarketStores(url: string | null) {
     const mine = generation.current;
     setLoadingMore(true);
     try {
-      const page = await marketGet<MarketStoresPage>(`${url}&cursor=${encodeURIComponent(nextCursor)}`);
+      const page = await marketGet<MarketStoresPage>(
+        `${url}&cursor=${encodeURIComponent(nextCursor)}`
+      );
       if (mine !== generation.current) return;
       setStores((current) => [...(current ?? []), ...page.stores]);
       setNextCursor(page.nextCursor);

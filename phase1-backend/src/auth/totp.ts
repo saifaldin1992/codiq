@@ -120,7 +120,7 @@ export interface TotpCheck {
 export function verifyTotp(
   secretBase32: string,
   code: unknown,
-  options: { now?: Date; lastUsedStep?: number | null } = {},
+  options: { now?: Date; lastUsedStep?: number | null } = {}
 ): TotpCheck {
   if (typeof code !== "string") return { ok: false, step: null };
   const digits = code.replace(/\s+/g, "");
@@ -134,7 +134,12 @@ export function verifyTotp(
     const step = centre + drift;
     // A code from a step already used is refused even though it is arithmetically
     // valid — that is the point of remembering it.
-    if (options.lastUsedStep !== null && options.lastUsedStep !== undefined && step <= options.lastUsedStep) continue;
+    if (
+      options.lastUsedStep !== null &&
+      options.lastUsedStep !== undefined &&
+      step <= options.lastUsedStep
+    )
+      continue;
     const candidate = Buffer.from(totpForCounter(secret, step), "utf8");
     if (candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected)) {
       return { ok: true, step };

@@ -15,7 +15,13 @@
  * It reports counts and never a secret, so it is safe in a deploy log.
  */
 import { prisma } from "../src/db/prisma.js";
-import { isSealed, openSecret, sealSecret, secretBoxStatus, type SecretPurpose } from "../src/auth/secret-box.js";
+import {
+  isSealed,
+  openSecret,
+  sealSecret,
+  secretBoxStatus,
+  type SecretPurpose,
+} from "../src/auth/secret-box.js";
 
 /**
  * `--reseal` also rewrites rows that are ALREADY sealed, moving them onto the
@@ -50,7 +56,7 @@ async function sealColumn<Row extends { id: string }>(
   column: string,
   purpose: SecretPurpose,
   load: () => Promise<(Row & { secret: string | null })[]>,
-  save: (id: string, value: string) => Promise<unknown>,
+  save: (id: string, value: string) => Promise<unknown>
 ): Promise<Outcome> {
   const { keyId } = secretBoxStatus();
   const outcome: Outcome = { column, sealed: 0, resealed: 0, alreadySealed: 0, empty: 0 };
@@ -80,7 +86,9 @@ async function main() {
     // is the one case that exits quietly rather than failing — `phase1:db:migrate`
     // runs this script, and a developer with an empty database must still be
     // able to migrate. Every deployed environment has the key or never booted.
-    console.warn("[secrets:encrypt] CODIQ_ENCRYPTION_KEY is unset and NODE_ENV is development — no row touched. Sealing under the public development key would only look like encryption.");
+    console.warn(
+      "[secrets:encrypt] CODIQ_ENCRYPTION_KEY is unset and NODE_ENV is development — no row touched. Sealing under the public development key would only look like encryption."
+    );
     return;
   }
 
@@ -88,8 +96,14 @@ async function main() {
     await sealColumn(
       "platform_owners.totp_secret",
       "platform-owner-totp",
-      async () => (await prisma.platformOwner.findMany({ where: { totpSecret: { not: null } }, select: { id: true, totpSecret: true } })).map((row) => ({ id: row.id, secret: row.totpSecret })),
-      (id, totpSecret) => prisma.platformOwner.update({ where: { id }, data: { totpSecret } }),
+      async () =>
+        (
+          await prisma.platformOwner.findMany({
+            where: { totpSecret: { not: null } },
+            select: { id: true, totpSecret: true },
+          })
+        ).map((row) => ({ id: row.id, secret: row.totpSecret })),
+      (id, totpSecret) => prisma.platformOwner.update({ where: { id }, data: { totpSecret } })
     ),
     await sealColumn(
       "platform_staff.totp_secret",
@@ -99,14 +113,26 @@ async function main() {
       // and it is the account nobody is watching any more. PG-2's soft-delete
       // rule is about what a USER may see; this is about what a stolen backup
       // gives away.
-      async () => (await prisma.platformStaff.findMany({ where: { totpSecret: { not: null } }, select: { id: true, totpSecret: true } })).map((row) => ({ id: row.id, secret: row.totpSecret })),
-      (id, totpSecret) => prisma.platformStaff.update({ where: { id }, data: { totpSecret } }),
+      async () =>
+        (
+          await prisma.platformStaff.findMany({
+            where: { totpSecret: { not: null } },
+            select: { id: true, totpSecret: true },
+          })
+        ).map((row) => ({ id: row.id, secret: row.totpSecret })),
+      (id, totpSecret) => prisma.platformStaff.update({ where: { id }, data: { totpSecret } })
     ),
     await sealColumn(
       "notification_settings.api_key",
       "notification-api-key",
-      async () => (await prisma.notificationSettings.findMany({ where: { apiKey: { not: null } }, select: { id: true, apiKey: true } })).map((row) => ({ id: row.id, secret: row.apiKey })),
-      (id, apiKey) => prisma.notificationSettings.update({ where: { id }, data: { apiKey } }),
+      async () =>
+        (
+          await prisma.notificationSettings.findMany({
+            where: { apiKey: { not: null } },
+            select: { id: true, apiKey: true },
+          })
+        ).map((row) => ({ id: row.id, secret: row.apiKey })),
+      (id, apiKey) => prisma.notificationSettings.update({ where: { id }, data: { apiKey } })
     ),
   ];
 
@@ -123,8 +149,8 @@ async function main() {
         },
       },
       null,
-      2,
-    ),
+      2
+    )
   );
   const plaintextLeft = outcomes.reduce((total, outcome) => total + outcome.sealed, 0);
   console.log(`secrets:encrypt OK — ${plaintextLeft} secret(s) taken out of the clear`);

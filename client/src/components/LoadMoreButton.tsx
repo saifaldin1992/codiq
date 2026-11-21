@@ -48,7 +48,11 @@ export function LoadMoreButton({
         onClick={() => onLoad(cursor)}
         className={`rounded-xl ${TONE[tone]}`}
       >
-        {busy ? <LoaderCircle className="ml-2 h-4 w-4 animate-spin" /> : <RefreshCw className="ml-2 h-4 w-4" />}
+        {busy ? (
+          <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />
+        ) : (
+          <RefreshCw className="ml-2 h-4 w-4" />
+        )}
         تحميل المزيد
       </Button>
     </div>

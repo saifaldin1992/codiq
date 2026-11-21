@@ -16,7 +16,13 @@
 import type { Prisma } from "@prisma/client";
 import { HttpError } from "../../auth/auth.errors.js";
 import { prisma } from "../../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "../list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "../list-page.js";
 import type { StoreActor } from "../../auth/staff-permissions.js";
 import type { AuditAction, AuditEntityType } from "./constants.js";
 
@@ -38,22 +44,37 @@ export interface RecordAuditEventInput {
  * three identity tables plus `system` (the purge worker), which has no id at
  * all — the `store_audit_events_actor_pair` CHECK enforces exactly that pairing.
  */
-export async function actorLabelFor(client: Prisma.TransactionClient | typeof prisma, actor: AuditActor): Promise<string> {
+export async function actorLabelFor(
+  client: Prisma.TransactionClient | typeof prisma,
+  actor: AuditActor
+): Promise<string> {
   if (actor.kind === "system") return "النظام";
   if (actor.kind === "merchant") {
-    const merchant = await client.merchant.findUnique({ where: { id: actor.id }, select: { businessName: true, email: true } });
+    const merchant = await client.merchant.findUnique({
+      where: { id: actor.id },
+      select: { businessName: true, email: true },
+    });
     return merchant?.businessName || merchant?.email || "التاجر";
   }
   if (actor.kind === "platform_owner") {
-    const owner = await client.platformOwner.findUnique({ where: { id: actor.id }, select: { displayName: true, email: true } });
+    const owner = await client.platformOwner.findUnique({
+      where: { id: actor.id },
+      select: { displayName: true, email: true },
+    });
     return owner?.displayName || owner?.email || "إدارة المنصة";
   }
-  const staff = await client.staff.findUnique({ where: { id: actor.id }, select: { displayName: true, email: true } });
+  const staff = await client.staff.findUnique({
+    where: { id: actor.id },
+    select: { displayName: true, email: true },
+  });
   return staff?.displayName || staff?.email || "موظف";
 }
 
 /** Writes the event and returns its id — the value that becomes `deleted_event_id`. */
-export async function recordAuditEvent(tx: Prisma.TransactionClient, input: RecordAuditEventInput): Promise<string> {
+export async function recordAuditEvent(
+  tx: Prisma.TransactionClient,
+  input: RecordAuditEventInput
+): Promise<string> {
   const event = await tx.storeAuditEvent.create({
     data: {
       storeId: input.storeId,
@@ -94,7 +115,12 @@ const AUDIT_PAGE_MAX = 100;
 /** The cursor's list kind. One per list, so a cursor cannot cross lists. */
 const AUDIT_LOG_KIND = "merchant.audit-events";
 
-export async function listAuditEvents(storeId: string, rawLimit: unknown, rawCursor: unknown, rawEntityType?: unknown) {
+export async function listAuditEvents(
+  storeId: string,
+  rawLimit: unknown,
+  rawCursor: unknown,
+  rawEntityType?: unknown
+) {
   const limit = parseListLimit(rawLimit, AUDIT_PAGE_MAX);
   // 20-2: the cursor now CARRIES `(createdAt, id)` instead of being an event id
   // the server must read back, so the anchor round trip on every page is gone.
@@ -110,7 +136,10 @@ export async function listAuditEvents(storeId: string, rawLimit: unknown, rawCur
   // before this branch, resolved store-scoped exactly as the anchor read was.
   const cursor = await readListCursor(AUDIT_LOG_KIND, rawCursor, {
     legacy: async (id) => {
-      const row = await prisma.storeAuditEvent.findFirst({ where: { id, storeId }, select: { createdAt: true } });
+      const row = await prisma.storeAuditEvent.findFirst({
+        where: { id, storeId },
+        select: { createdAt: true },
+      });
       return row ? { value: row.createdAt } : null;
     },
   });
@@ -126,7 +155,9 @@ export async function listAuditEvents(storeId: string, rawLimit: unknown, rawCur
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(AUDIT_LOG_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(AUDIT_LOG_KIND, last.createdAt, last.id)
+  );
   const events: AuditEventView[] = page.map((row) => ({
     id: row.id,
     entityType: row.entityType,

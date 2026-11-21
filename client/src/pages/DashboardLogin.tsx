@@ -41,7 +41,8 @@ const KIND_COPY = {
   },
   staff: {
     title: "دخول موظف المتجر",
-    endpoint: (storeSlug: string) => `/api/auth/staff/stores/${encodeURIComponent(storeSlug)}/login`,
+    endpoint: (storeSlug: string) =>
+      `/api/auth/staff/stores/${encodeURIComponent(storeSlug)}/login`,
     needsStore: true,
     identityLabel: "البريد الإلكتروني",
     identityName: "email",
@@ -69,7 +70,8 @@ const KIND_COPY = {
  * map covers a code arriving with no message at all.
  */
 const FALLBACK_MESSAGES: Record<string, string> = {
-  INVALID_MERCHANT_CREDENTIALS: "بيانات الدخول غير صحيحة. تحقق من البريد أو رقم الهاتف وكلمة المرور.",
+  INVALID_MERCHANT_CREDENTIALS:
+    "بيانات الدخول غير صحيحة. تحقق من البريد أو رقم الهاتف وكلمة المرور.",
   INVALID_PLATFORM_OWNER_CREDENTIALS: "بيانات الدخول غير صحيحة.",
   INVALID_STAFF_CREDENTIALS: "بيانات الدخول غير صحيحة.",
   INVALID_PLATFORM_STAFF_CREDENTIALS: "بيانات الدخول غير صحيحة.",
@@ -91,7 +93,11 @@ const RESET_KIND = {
   platformStaff: "platform_staff",
 } as const;
 
-export default function DashboardLogin({ kind }: { kind: "platform" | "merchant" | "staff" | "platformStaff" }) {
+export default function DashboardLogin({
+  kind,
+}: {
+  kind: "platform" | "merchant" | "staff" | "platformStaff";
+}) {
   const [, navigate] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -128,7 +134,11 @@ export default function DashboardLogin({ kind }: { kind: "platform" | "merchant"
       if (!response.ok) {
         const code = payload?.error?.code as string | undefined;
         if (code === "SECOND_FACTOR_REQUIRED") setTotpRequired(true);
-        throw new Error(payload?.error?.message ?? (code ? FALLBACK_MESSAGES[code] : null) ?? "تعذّر تسجيل الدخول. أعد المحاولة.");
+        throw new Error(
+          payload?.error?.message ??
+            (code ? FALLBACK_MESSAGES[code] : null) ??
+            "تعذّر تسجيل الدخول. أعد المحاولة."
+        );
       }
       navigate(payload.redirectTo);
     } catch (cause) {
@@ -141,9 +151,14 @@ export default function DashboardLogin({ kind }: { kind: "platform" | "merchant"
   return (
     <main dir="rtl" className="grid min-h-screen place-items-center bg-[var(--codiq-canvas)] p-5">
       <div className="w-full max-w-md">
-        <form onSubmit={submit} className="rounded-[28px] bg-[var(--codiq-surface)] p-7 shadow-[0_16px_44px_rgba(31,55,98,0.08)] sm:p-9">
+        <form
+          onSubmit={submit}
+          className="rounded-[28px] bg-[var(--codiq-surface)] p-7 shadow-[0_16px_44px_rgba(31,55,98,0.08)] sm:p-9"
+        >
           <h1 className="text-2xl font-bold text-[var(--codiq-text)]">{copy.title}</h1>
-          <p className="mt-2 text-sm leading-6 text-[var(--codiq-text-muted)]">تُنشأ جلسة محمية تلقائياً بعد نجاح التحقق.</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--codiq-text-muted)]">
+            تُنشأ جلسة محمية تلقائياً بعد نجاح التحقق.
+          </p>
           <div className="mt-6 space-y-4">
             {copy.needsStore ? (
               <label className="block space-y-1.5 text-sm font-semibold text-[#44526A]">
@@ -153,8 +168,17 @@ export default function DashboardLogin({ kind }: { kind: "platform" | "merchant"
             ) : null}
             <label className="block space-y-1.5 text-sm font-semibold text-[#44526A]">
               <span>{copy.identityLabel}</span>
-              <Input name={copy.identityName} type={copy.identityType} required autoComplete="username" />
-              {copy.identityHint ? <span className="block text-[11px] font-normal text-[#8A97AC]">{copy.identityHint}</span> : null}
+              <Input
+                name={copy.identityName}
+                type={copy.identityType}
+                required
+                autoComplete="username"
+              />
+              {copy.identityHint ? (
+                <span className="block text-[11px] font-normal text-[#8A97AC]">
+                  {copy.identityHint}
+                </span>
+              ) : null}
             </label>
             {/* Deliberately NOT a wrapping <label>: the reveal toggle would be a
                 descendant, and a descendant aria-label folds into the label text
@@ -162,20 +186,44 @@ export default function DashboardLogin({ kind }: { kind: "platform" | "merchant"
                 كلمة المرور». htmlFor keeps the binding and the name clean. */}
             <div className="block space-y-1.5 text-sm font-semibold text-[#44526A]">
               <label htmlFor="dashboard-login-password">كلمة المرور</label>
-              <PasswordInput id="dashboard-login-password" name="password" required autoComplete="current-password" />
+              <PasswordInput
+                id="dashboard-login-password"
+                name="password"
+                required
+                autoComplete="current-password"
+              />
             </div>
             {totpRequired ? (
               <label className="block space-y-1.5 text-sm font-semibold text-[var(--codiq-text-secondary)]">
                 <span>رمز تطبيق المصادقة</span>
-                <Input data-testid="login-totp" name="totpCode" dir="ltr" inputMode="numeric" autoComplete="one-time-code" required autoFocus />
-                <span className="block text-[11px] font-normal text-[var(--codiq-text-muted)]">افتح تطبيق المصادقة على هاتفك وأدخل الرمز الظاهر الآن.</span>
+                <Input
+                  data-testid="login-totp"
+                  name="totpCode"
+                  dir="ltr"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  required
+                  autoFocus
+                />
+                <span className="block text-[11px] font-normal text-[var(--codiq-text-muted)]">
+                  افتح تطبيق المصادقة على هاتفك وأدخل الرمز الظاهر الآن.
+                </span>
               </label>
             ) : null}
           </div>
           {error ? (
-            <p role="alert" data-testid="login-error" className="mt-4 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--codiq-danger)]">{error}</p>
+            <p
+              role="alert"
+              data-testid="login-error"
+              className="mt-4 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--codiq-danger)]"
+            >
+              {error}
+            </p>
           ) : null}
-          <Button disabled={pending} className="mt-6 h-11 w-full rounded-xl bg-[var(--codiq-accent)] text-base text-white hover:bg-[var(--codiq-accent-hover)]">
+          <Button
+            disabled={pending}
+            className="mt-6 h-11 w-full rounded-xl bg-[var(--codiq-accent)] text-base text-white hover:bg-[var(--codiq-accent-hover)]"
+          >
             {pending ? "جارٍ التحقق…" : "تسجيل الدخول"}
           </Button>
           {/* PR-1: it has arrived. This link was withheld until the feature
@@ -190,7 +238,11 @@ export default function DashboardLogin({ kind }: { kind: "platform" | "merchant"
               thing to everyone is five places for one of them to start saying
               something different. */}
           <p className="mt-4 text-center text-sm">
-            <a href={`/forgot-password?kind=${RESET_KIND[kind]}`} data-testid="login-forgot-password" className="font-semibold text-[var(--codiq-accent)] hover:underline">
+            <a
+              href={`/forgot-password?kind=${RESET_KIND[kind]}`}
+              data-testid="login-forgot-password"
+              className="font-semibold text-[var(--codiq-accent)] hover:underline"
+            >
               هل نسيت كلمة السر؟
             </a>
           </p>

@@ -15,24 +15,57 @@ import { CircleAlert, LoaderCircle, ShieldCheck, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { storefrontApi } from "@/lib/storefront-api";
 
-type Review = { id: string; rating: number; body: string | null; hidden: boolean; author: string; createdAt: string; verifiedBuyer: boolean; mine: boolean };
-type Summary = { average: number | null; count: number; hiddenCount: number; distribution: Record<string, number> };
+type Review = {
+  id: string;
+  rating: number;
+  body: string | null;
+  hidden: boolean;
+  author: string;
+  createdAt: string;
+  verifiedBuyer: boolean;
+  mine: boolean;
+};
+type Summary = {
+  average: number | null;
+  count: number;
+  hiddenCount: number;
+  distribution: Record<string, number>;
+};
 
 const number = new Intl.NumberFormat("ar-IQ");
-const day = (value: string) => new Intl.DateTimeFormat("ar-IQ", { year: "numeric", month: "long", day: "numeric" }).format(new Date(value));
+const day = (value: string) =>
+  new Intl.DateTimeFormat("ar-IQ", { year: "numeric", month: "long", day: "numeric" }).format(
+    new Date(value)
+  );
 
 /** ق-200: exported — the product header and the home page's review rail draw the same stars. */
 export function Stars({ rating, label }: { rating: number; label?: string }) {
   return (
-    <span className="inline-flex items-center gap-0.5" role="img" aria-label={label ?? `${rating} من 5`}>
+    <span
+      className="inline-flex items-center gap-0.5"
+      role="img"
+      aria-label={label ?? `${rating} من 5`}
+    >
       {[1, 2, 3, 4, 5].map((star) => (
-        <Star key={star} aria-hidden="true" className={`h-4 w-4 ${star <= rating ? "fill-[var(--codiq-rating)] text-[var(--codiq-rating)]" : "text-[var(--codiq-rating-empty)]"}`} />
+        <Star
+          key={star}
+          aria-hidden="true"
+          className={`h-4 w-4 ${star <= rating ? "fill-[var(--codiq-rating)] text-[var(--codiq-rating)]" : "text-[var(--codiq-rating-empty)]"}`}
+        />
       ))}
     </span>
   );
 }
 
-export function ProductReviews({ slug, productId, signedIn }: { slug: string; productId: string; signedIn: boolean }) {
+export function ProductReviews({
+  slug,
+  productId,
+  signedIn,
+}: {
+  slug: string;
+  productId: string;
+  signedIn: boolean;
+}) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
@@ -69,7 +102,9 @@ export function ProductReviews({ slug, productId, signedIn }: { slug: string; pr
       setFailure(error instanceof Error ? error.message : "تعذر تحميل المراجعات.");
     }
   }, [slug, productId]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -90,12 +125,24 @@ export function ProductReviews({ slug, productId, signedIn }: { slug: string; pr
     }
   }
 
-  if (failure) return <p className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold text-[var(--codiq-danger)]"><CircleAlert className="h-4 w-4" /> {failure}</p>;
-  if (!summary) return <p className="text-sm text-[var(--storefront-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ تحميل المراجعات…</p>;
+  if (failure)
+    return (
+      <p className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold text-[var(--codiq-danger)]">
+        <CircleAlert className="h-4 w-4" /> {failure}
+      </p>
+    );
+  if (!summary)
+    return (
+      <p className="text-sm text-[var(--storefront-muted)]">
+        <LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ تحميل المراجعات…
+      </p>
+    );
 
   return (
     <section className="space-y-4" aria-labelledby="reviews-heading">
-      <h2 id="reviews-heading" className="text-lg font-black text-[var(--storefront-text)]">آراء المشترين</h2>
+      <h2 id="reviews-heading" className="text-lg font-black text-[var(--storefront-text)]">
+        آراء المشترين
+      </h2>
 
       {summary.count === 0 ? (
         <p className="rounded-2xl bg-[var(--storefront-surface)] px-4 py-5 text-sm text-[var(--storefront-muted)]">
@@ -104,18 +151,29 @@ export function ProductReviews({ slug, productId, signedIn }: { slug: string; pr
       ) : (
         <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-[var(--storefront-surface)] px-4 py-3.5">
           <div>
-            <p className="text-3xl font-black tabular-nums text-[var(--storefront-text)]">{number.format(summary.average ?? 0)}</p>
-            <Stars rating={Math.round(summary.average ?? 0)} label={`المعدل ${summary.average} من 5`} />
+            <p className="text-3xl font-black tabular-nums text-[var(--storefront-text)]">
+              {number.format(summary.average ?? 0)}
+            </p>
+            <Stars
+              rating={Math.round(summary.average ?? 0)}
+              label={`المعدل ${summary.average} من 5`}
+            />
           </div>
           <div className="min-w-[160px] flex-1 space-y-1">
             {[5, 4, 3, 2, 1].map((score) => {
               const count = summary.distribution[String(score)] ?? 0;
               const share = summary.count === 0 ? 0 : Math.round((count / summary.count) * 100);
               return (
-                <div key={score} className="flex items-center gap-2 text-[11px] text-[var(--storefront-muted)]">
+                <div
+                  key={score}
+                  className="flex items-center gap-2 text-[11px] text-[var(--storefront-muted)]"
+                >
                   <span className="w-3 tabular-nums">{score}</span>
                   <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--storefront-border)]">
-                    <span className="block h-full rounded-full bg-[var(--codiq-rating)]" style={{ width: `${share}%` }} />
+                    <span
+                      className="block h-full rounded-full bg-[var(--codiq-rating)]"
+                      style={{ width: `${share}%` }}
+                    />
                   </span>
                   <span className="w-6 tabular-nums">{number.format(count)}</span>
                 </div>
@@ -126,7 +184,12 @@ export function ProductReviews({ slug, productId, signedIn }: { slug: string; pr
             {number.format(summary.count)} مراجعة من مشترين موثّقين
             {/* Stated, never subtracted quietly: the score of a hidden review is
                 still inside the average above. */}
-            {summary.hiddenCount > 0 ? <> · أخفى التاجر نصّ {number.format(summary.hiddenCount)} منها، وتقييمها ما زال محسوباً</> : null}
+            {summary.hiddenCount > 0 ? (
+              <>
+                {" "}
+                · أخفى التاجر نصّ {number.format(summary.hiddenCount)} منها، وتقييمها ما زال محسوباً
+              </>
+            ) : null}
           </p>
         </div>
       )}
@@ -136,45 +199,96 @@ export function ProductReviews({ slug, productId, signedIn }: { slug: string; pr
           <li key={review.id} className="rounded-2xl bg-[var(--storefront-surface)] px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <Stars rating={review.rating} />
-              <span className="text-sm font-bold text-[var(--storefront-text)]">{review.author}</span>
+              <span className="text-sm font-bold text-[var(--storefront-text)]">
+                {review.author}
+              </span>
               {review.verifiedBuyer ? (
                 <span className="flex items-center gap-1 rounded-full bg-[var(--storefront-accent-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--storefront-accent)]">
                   <ShieldCheck className="h-3 w-3" aria-hidden="true" /> مشترٍ موثّق
                 </span>
               ) : null}
-              <span className="text-[11px] text-[var(--storefront-muted)]">{day(review.createdAt)}</span>
+              <span className="text-[11px] text-[var(--storefront-muted)]">
+                {day(review.createdAt)}
+              </span>
             </div>
             {review.mine ? (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {withdrawing === review.id ? (
                   <>
-                    <span className="text-[12px] text-[var(--storefront-muted)]">تُسحب مراجعتك ويبقى لك أن تكتب غيرها.</span>
-                    <Button type="button" size="sm" variant="outline" disabled={busy} data-testid="review-withdraw-confirm" className="h-8 rounded-lg text-[12px] font-bold text-[var(--codiq-danger)]" onClick={() => void withdraw(review.id)}>تأكيد السحب</Button>
-                    <Button type="button" size="sm" variant="ghost" className="h-8 rounded-lg text-[12px]" onClick={() => setWithdrawing(null)}>إبقاؤها</Button>
+                    <span className="text-[12px] text-[var(--storefront-muted)]">
+                      تُسحب مراجعتك ويبقى لك أن تكتب غيرها.
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      data-testid="review-withdraw-confirm"
+                      className="h-8 rounded-lg text-[12px] font-bold text-[var(--codiq-danger)]"
+                      onClick={() => void withdraw(review.id)}
+                    >
+                      تأكيد السحب
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 rounded-lg text-[12px]"
+                      onClick={() => setWithdrawing(null)}
+                    >
+                      إبقاؤها
+                    </Button>
                   </>
                 ) : (
-                  <Button type="button" size="sm" variant="ghost" disabled={busy} data-testid="review-withdraw" className="h-8 rounded-lg text-[12px] font-bold text-[var(--storefront-muted)]" onClick={() => setWithdrawing(review.id)}>سحب مراجعتي</Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy}
+                    data-testid="review-withdraw"
+                    className="h-8 rounded-lg text-[12px] font-bold text-[var(--storefront-muted)]"
+                    onClick={() => setWithdrawing(review.id)}
+                  >
+                    سحب مراجعتي
+                  </Button>
                 )}
               </div>
             ) : null}
             {review.hidden ? (
-              <p className="mt-1.5 text-[13px] italic text-[var(--storefront-muted)]">أخفى التاجر نصّ هذه المراجعة. تقييمها أعلاه ما زال محسوباً ضمن المعدل.</p>
+              <p className="mt-1.5 text-[13px] italic text-[var(--storefront-muted)]">
+                أخفى التاجر نصّ هذه المراجعة. تقييمها أعلاه ما زال محسوباً ضمن المعدل.
+              </p>
             ) : review.body ? (
-              <p className="mt-1.5 text-[13px] leading-6 text-[var(--storefront-text)]">{review.body}</p>
+              <p className="mt-1.5 text-[13px] leading-6 text-[var(--storefront-text)]">
+                {review.body}
+              </p>
             ) : null}
           </li>
         ))}
       </ul>
 
       {signedIn ? (
-        <form onSubmit={submit} className="space-y-2.5 rounded-2xl bg-[var(--storefront-surface)] px-4 py-3.5">
+        <form
+          onSubmit={submit}
+          className="space-y-2.5 rounded-2xl bg-[var(--storefront-surface)] px-4 py-3.5"
+        >
           <p className="text-sm font-bold text-[var(--storefront-text)]">اكتب رأيك</p>
           <fieldset className="flex items-center gap-1.5">
             <legend className="sr-only">تقييمك من 1 إلى 5</legend>
             {[1, 2, 3, 4, 5].map((star) => (
               <label key={star} className="cursor-pointer">
-                <input type="radio" name="rating" value={star} checked={rating === star} onChange={() => setRating(star)} className="sr-only" />
-                <Star aria-hidden="true" className={`h-6 w-6 ${star <= rating ? "fill-[var(--codiq-rating)] text-[var(--codiq-rating)]" : "text-[var(--codiq-rating-empty)]"}`} />
+                <input
+                  type="radio"
+                  name="rating"
+                  value={star}
+                  checked={rating === star}
+                  onChange={() => setRating(star)}
+                  className="sr-only"
+                />
+                <Star
+                  aria-hidden="true"
+                  className={`h-6 w-6 ${star <= rating ? "fill-[var(--codiq-rating)] text-[var(--codiq-rating)]" : "text-[var(--codiq-rating-empty)]"}`}
+                />
                 <span className="sr-only">{star} من 5</span>
               </label>
             ))}
@@ -187,11 +301,19 @@ export function ProductReviews({ slug, productId, signedIn }: { slug: string; pr
             placeholder="ما الذي أعجبك، وما الذي لم يعجبك؟"
             className="w-full rounded-xl border border-[var(--storefront-border)] bg-[var(--codiq-surface)] px-3 py-2 text-sm text-[var(--storefront-text)] outline-none focus:border-[var(--storefront-accent)]"
           />
-          {notice ? <p className="text-[13px] font-semibold text-[var(--storefront-accent)]">{notice}</p> : null}
-          <Button type="submit" disabled={busy} className="rounded-xl bg-[var(--storefront-accent)] hover:bg-[var(--storefront-accent-hover)]">
+          {notice ? (
+            <p className="text-[13px] font-semibold text-[var(--storefront-accent)]">{notice}</p>
+          ) : null}
+          <Button
+            type="submit"
+            disabled={busy}
+            className="rounded-xl bg-[var(--storefront-accent)] hover:bg-[var(--storefront-accent-hover)]"
+          >
             {busy ? <LoaderCircle className="ml-1 h-4 w-4 animate-spin" /> : null}إرسال
           </Button>
-          <p className="text-[11px] text-[var(--storefront-muted)]">تُقبل المراجعات من زبون استلم هذا المنتج فعلاً. هذا ما يجعل النجوم أعلاه تعني شيئاً.</p>
+          <p className="text-[11px] text-[var(--storefront-muted)]">
+            تُقبل المراجعات من زبون استلم هذا المنتج فعلاً. هذا ما يجعل النجوم أعلاه تعني شيئاً.
+          </p>
         </form>
       ) : (
         <p className="rounded-2xl bg-[var(--storefront-surface)] px-4 py-3 text-[13px] text-[var(--storefront-muted)]">

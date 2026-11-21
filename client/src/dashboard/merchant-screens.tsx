@@ -41,46 +41,113 @@ import { StoresManager } from "@/components/StoresManager";
 import { SubscriptionPanel } from "@/components/SubscriptionPanel";
 import { TrashBin } from "@/components/TrashBin";
 
-export type MerchantScreenContext = { storeSlug: string | undefined; navigate: (path: string) => void };
+export type MerchantScreenContext = {
+  storeSlug: string | undefined;
+  navigate: (path: string) => void;
+};
 export type MerchantScreen = (context: MerchantScreenContext) => ReactNode;
 
 export const MERCHANT_SCREENS: Readonly<Record<string, MerchantScreen>> = {
-  "/merchant/dashboard/settings/storefront": ({ storeSlug }) => <StorefrontSettingsPanel storeSlug={storeSlug} />,
-  "/merchant/dashboard/stores": ({ storeSlug, navigate }) => <StoresManager mode="list" storeSlug={storeSlug} navigate={navigate} />,
-  "/merchant/dashboard/stores/create": ({ storeSlug, navigate }) => <StoresManager mode="create" storeSlug={storeSlug} navigate={navigate} />,
-  "/merchant/dashboard/settings/config": ({ storeSlug }) => <MerchantConfigPanel storeSlug={storeSlug} />,
-  "/merchant/dashboard/settings/services": ({ storeSlug }) => <MerchantServicesPanel storeSlug={storeSlug} />,
-  "/merchant/dashboard/stores/manage": ({ storeSlug, navigate }) => <StoresManager mode="manage" storeSlug={storeSlug} navigate={navigate} />,
-  "/merchant/dashboard/settings/store": ({ storeSlug, navigate }) => <StoresManager mode="manage" storeSlug={storeSlug} navigate={navigate} />,
+  "/merchant/dashboard/settings/storefront": ({ storeSlug }) => (
+    <StorefrontSettingsPanel storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/stores": ({ storeSlug, navigate }) => (
+    <StoresManager mode="list" storeSlug={storeSlug} navigate={navigate} />
+  ),
+  "/merchant/dashboard/stores/create": ({ storeSlug, navigate }) => (
+    <StoresManager mode="create" storeSlug={storeSlug} navigate={navigate} />
+  ),
+  "/merchant/dashboard/settings/config": ({ storeSlug }) => (
+    <MerchantConfigPanel storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/settings/services": ({ storeSlug }) => (
+    <MerchantServicesPanel storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/stores/manage": ({ storeSlug, navigate }) => (
+    <StoresManager mode="manage" storeSlug={storeSlug} navigate={navigate} />
+  ),
+  "/merchant/dashboard/settings/store": ({ storeSlug, navigate }) => (
+    <StoresManager mode="manage" storeSlug={storeSlug} navigate={navigate} />
+  ),
   "/merchant/dashboard/stores/team": ({ storeSlug }) => <StoreTeamManager storeSlug={storeSlug} />,
   "/merchant/dashboard/customers": ({ storeSlug }) => <CustomersDirectory storeSlug={storeSlug} />,
-  "/merchant/dashboard/customers/abandoned-carts": ({ storeSlug }) => <AbandonedCartsPanel storeSlug={storeSlug} />,
-  "/merchant/dashboard/orders/reports": ({ storeSlug }) => <MerchantAnalytics storeSlug={storeSlug} />,
-  "/merchant/dashboard/marketing/reports": ({ storeSlug }) => <MerchantAnalytics storeSlug={storeSlug} showCoupons />,
-  "/merchant/dashboard/products/forecast": ({ storeSlug }) => <StockForecastPanel storeSlug={storeSlug ?? ""} />,
-  "/merchant/dashboard/marketing/monthly": ({ storeSlug }) => <MerchantMonthlyReport storeSlug={storeSlug ?? ""} />,
-  "/merchant/dashboard/orders/returns": ({ storeSlug }) => <ReturnsQueue storeSlug={storeSlug ?? ""} />,
-  "/merchant/dashboard/orders/support-tickets": ({ storeSlug }) => <SupportTicketsWorkspace kind="store" storeSlug={storeSlug} />,
-  "/merchant/dashboard/products/reviews": ({ storeSlug }) => <ReviewModeration storeSlug={storeSlug ?? ""} />,
-  "/merchant/dashboard/marketing/coupons": ({ storeSlug }) => <CouponsManager storeSlug={storeSlug} />,
-  "/merchant/dashboard/settings/payments": ({ storeSlug }) => <MerchantPaymentsPanel storeSlug={storeSlug} />,
-  "/merchant/dashboard/settings/integrations": ({ storeSlug }) => <MarketingIntegrationsPanel storeSlug={storeSlug} />,
-  "/merchant/dashboard/settings/notifications": ({ storeSlug }) => <NotificationCenter storeSlug={storeSlug} />,
-  "/merchant/dashboard/account/notifications": ({ storeSlug }) => <NotificationCenter storeSlug={storeSlug} />,
-  "/merchant/dashboard/settings/shipping": ({ storeSlug }) => <DeliveryRatesManager storeSlug={storeSlug} />,
-  "/merchant/dashboard/orders/delivery": ({ storeSlug }) => <DeliveryCenter storeSlug={storeSlug} />,
-  "/merchant/dashboard/settings/loyalty": ({ storeSlug }) => <LoyaltySettingsCard storeSlug={storeSlug} />,
-  "/merchant/dashboard/settings/market": ({ storeSlug }) => <MarketProfilePanel storeSlug={storeSlug} />,
-  "/merchant/dashboard/products/market": ({ storeSlug }) => <MarketCatalogPanel storeSlug={storeSlug} />,
-  "/merchant/dashboard/products/market-deals": ({ storeSlug }) => <MarketDealsPanel storeSlug={storeSlug} />,
-  "/merchant/dashboard/products/market-reels": ({ storeSlug }) => <MarketReelsPanel storeSlug={storeSlug} />,
+  "/merchant/dashboard/customers/abandoned-carts": ({ storeSlug }) => (
+    <AbandonedCartsPanel storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/orders/reports": ({ storeSlug }) => (
+    <MerchantAnalytics storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/marketing/reports": ({ storeSlug }) => (
+    <MerchantAnalytics storeSlug={storeSlug} showCoupons />
+  ),
+  "/merchant/dashboard/products/forecast": ({ storeSlug }) => (
+    <StockForecastPanel storeSlug={storeSlug ?? ""} />
+  ),
+  "/merchant/dashboard/marketing/monthly": ({ storeSlug }) => (
+    <MerchantMonthlyReport storeSlug={storeSlug ?? ""} />
+  ),
+  "/merchant/dashboard/orders/returns": ({ storeSlug }) => (
+    <ReturnsQueue storeSlug={storeSlug ?? ""} />
+  ),
+  "/merchant/dashboard/orders/support-tickets": ({ storeSlug }) => (
+    <SupportTicketsWorkspace kind="store" storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/products/reviews": ({ storeSlug }) => (
+    <ReviewModeration storeSlug={storeSlug ?? ""} />
+  ),
+  "/merchant/dashboard/marketing/coupons": ({ storeSlug }) => (
+    <CouponsManager storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/settings/payments": ({ storeSlug }) => (
+    <MerchantPaymentsPanel storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/settings/integrations": ({ storeSlug }) => (
+    <MarketingIntegrationsPanel storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/settings/notifications": ({ storeSlug }) => (
+    <NotificationCenter storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/account/notifications": ({ storeSlug }) => (
+    <NotificationCenter storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/settings/shipping": ({ storeSlug }) => (
+    <DeliveryRatesManager storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/orders/delivery": ({ storeSlug }) => (
+    <DeliveryCenter storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/settings/loyalty": ({ storeSlug }) => (
+    <LoyaltySettingsCard storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/settings/market": ({ storeSlug }) => (
+    <MarketProfilePanel storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/products/market": ({ storeSlug }) => (
+    <MarketCatalogPanel storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/products/market-deals": ({ storeSlug }) => (
+    <MarketDealsPanel storeSlug={storeSlug} />
+  ),
+  "/merchant/dashboard/products/market-reels": ({ storeSlug }) => (
+    <MarketReelsPanel storeSlug={storeSlug} />
+  ),
   "/merchant/dashboard/settings/pos": ({ storeSlug }) => <PosDevicesPanel storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/trash": ({ storeSlug }) => <TrashBin storeSlug={storeSlug} />,
   "/merchant/dashboard/settings/subscription": () => <SubscriptionPanel />,
   "/merchant/dashboard/orders/settlements": () => <MerchantFinancePanel />,
   "/merchant/dashboard/account/security": () => <AccountSecurityPanel view="password" />,
   "/merchant/dashboard/account/sessions-devices": () => <AccountSecurityPanel view="sessions" />,
-  "/merchant/dashboard/customers/add": ({ storeSlug }) => <div className="max-w-[760px] rounded-[26px] border border-[var(--codiq-surface)] bg-[var(--codiq-surface)] p-7 shadow-[0_16px_44px_rgba(31,55,98,0.055)] sm:p-9"><p className="mb-2 text-xs font-bold tracking-wide text-[var(--codiq-accent)]">إضافة يدوية مقيدة بالمتجر</p><h2 className="mb-5 text-xl font-bold text-[var(--codiq-text)]">إضافة عميل إلى المتجر الحالي</h2><ManualCustomerForm storeSlug={storeSlug} /></div>,
+  "/merchant/dashboard/customers/add": ({ storeSlug }) => (
+    <div className="max-w-[760px] rounded-[26px] border border-[var(--codiq-surface)] bg-[var(--codiq-surface)] p-7 shadow-[0_16px_44px_rgba(31,55,98,0.055)] sm:p-9">
+      <p className="mb-2 text-xs font-bold tracking-wide text-[var(--codiq-accent)]">
+        إضافة يدوية مقيدة بالمتجر
+      </p>
+      <h2 className="mb-5 text-xl font-bold text-[var(--codiq-text)]">
+        إضافة عميل إلى المتجر الحالي
+      </h2>
+      <ManualCustomerForm storeSlug={storeSlug} />
+    </div>
+  ),
 };
 
 /** The screen for a canonical dashboard path, or null when the path has no screen of its own. */

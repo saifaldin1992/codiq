@@ -70,24 +70,63 @@ function sameHash(stored: string, candidate: string) {
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
-export async function issueOtp(input: { phone: string; purpose: OtpPurpose; shopperId: string | null; ip: string }) {
+export async function issueOtp(input: {
+  phone: string;
+  purpose: OtpPurpose;
+  shopperId: string | null;
+  ip: string;
+}) {
   const sender = provider();
-  if (!sender) throw new HttpError(503, "OTP_PROVIDER_NOT_CONFIGURED", "إرسال رمز التحقق غير مفعّل بعد. حاول لاحقاً.");
-  await consumeStorefrontRateLimit({ scope: "market_otp_ip", rawKey: input.ip, limit: 20, windowMs: 60 * 60 * 1000 });
-  await consumeStorefrontRateLimit({ scope: "market_otp_phone", rawKey: input.phone, limit: 5, windowMs: 60 * 60 * 1000 });
-  const last = await prisma.shopperOtpChallenge.findFirst({ where: { phoneNormalized: input.phone, purpose: input.purpose }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
+  if (!sender)
+    throw new HttpError(
+      503,
+      "OTP_PROVIDER_NOT_CONFIGURED",
+      "إرسال رمز التحقق غير مفعّل بعد. حاول لاحقاً."
+    );
+  await consumeStorefrontRateLimit({
+    scope: "market_otp_ip",
+    rawKey: input.ip,
+    limit: 20,
+    windowMs: 60 * 60 * 1000,
+  });
+  await consumeStorefrontRateLimit({
+    scope: "market_otp_phone",
+    rawKey: input.phone,
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+  const last = await prisma.shopperOtpChallenge.findFirst({
+    where: { phoneNormalized: input.phone, purpose: input.purpose },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
   if (last && Date.now() - last.createdAt.getTime() < OTP_RESEND_AFTER_MS) {
     const wait = Math.ceil((OTP_RESEND_AFTER_MS - (Date.now() - last.createdAt.getTime())) / 1000);
-    throw new HttpError(429, "OTP_TOO_SOON", `انتظر ${wait} ثانية قبل طلب رمز جديد.`, { retryAfterSeconds: wait });
+    throw new HttpError(429, "OTP_TOO_SOON", `انتظر ${wait} ثانية قبل طلب رمز جديد.`, {
+      retryAfterSeconds: wait,
+    });
   }
   const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
   const id = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + OTP_TTL_MS);
-  await prisma.shopperOtpChallenge.create({ data: { id, phoneNormalized: input.phone, purpose: input.purpose, shopperId: input.shopperId, codeHash: hashCode(id, code, OTP_KEYS.signing), expiresAt } });
+  await prisma.shopperOtpChallenge.create({
+    data: {
+      id,
+      phoneNormalized: input.phone,
+      purpose: input.purpose,
+      shopperId: input.shopperId,
+      codeHash: hashCode(id, code, OTP_KEYS.signing),
+      expiresAt,
+    },
+  });
   try {
     await sender.send(input.phone, code, input.purpose);
   } catch (error) {
-    logger.error("otp.delivery_failed", { provider: sender.name, purpose: input.purpose, err: error });
+    logger.error("otp.delivery_failed", {
+      provider: sender.name,
+      purpose: input.purpose,
+      err: error,
+    });
     throw new HttpError(502, "OTP_DELIVERY_FAILED", "تعذّر إرسال رمز التحقق، حاول مرة أخرى.");
   }
   return { challengeId: id, expiresAt, resendAfterSeconds: OTP_RESEND_AFTER_MS / 1000 };
@@ -98,23 +137,54 @@ export async function issueOtp(input: { phone: string; purpose: OtpPurpose; shop
  * left), expired, used, or out of tries — each a different code a screen can
  * word, none of which says whether the phone has an account.
  */
-export async function consumeOtp(input: { challengeId: string; code: string; purpose: OtpPurpose; shopperId: string | null }): Promise<string> {
-  if (!/^[0-9a-f-]{36}$/i.test(input.challengeId)) throw new HttpError(422, "OTP_INVALID", "رمز التحقق غير صحيح.");
+export async function consumeOtp(input: {
+  challengeId: string;
+  code: string;
+  purpose: OtpPurpose;
+  shopperId: string | null;
+}): Promise<string> {
+  if (!/^[0-9a-f-]{36}$/i.test(input.challengeId))
+    throw new HttpError(422, "OTP_INVALID", "رمز التحقق غير صحيح.");
   // The try is spent first, atomically, and only while tries remain.
-  const spent = await prisma.$queryRaw<Array<{ phone_normalized: string; code_hash: string; attempts: number; expires_at: Date; consumed_at: Date | null; purpose: string; shopper_id: string | null }>>`
+  const spent = await prisma.$queryRaw<
+    Array<{
+      phone_normalized: string;
+      code_hash: string;
+      attempts: number;
+      expires_at: Date;
+      consumed_at: Date | null;
+      purpose: string;
+      shopper_id: string | null;
+    }>
+  >`
     UPDATE shopper_otp_challenges SET attempts = attempts + 1
      WHERE id = ${input.challengeId}::uuid AND attempts < ${OTP_MAX_ATTEMPTS} AND consumed_at IS NULL
      RETURNING phone_normalized, code_hash, attempts, expires_at, consumed_at, purpose, shopper_id`;
   const row = spent[0];
-  if (!row) throw new HttpError(429, "OTP_EXHAUSTED", "انتهت محاولات هذا الرمز. اطلب رمزاً جديداً.");
-  if (row.purpose !== input.purpose || row.shopper_id !== input.shopperId) throw new HttpError(422, "OTP_INVALID", "رمز التحقق غير صحيح.");
-  if (row.expires_at.getTime() <= Date.now()) throw new HttpError(422, "OTP_EXPIRED", "انتهت صلاحية الرمز. اطلب رمزاً جديداً.");
-  const matches = OTP_KEYS.verifying.some((key) => sameHash(row.code_hash, hashCode(input.challengeId, input.code, key)));
+  if (!row)
+    throw new HttpError(429, "OTP_EXHAUSTED", "انتهت محاولات هذا الرمز. اطلب رمزاً جديداً.");
+  if (row.purpose !== input.purpose || row.shopper_id !== input.shopperId)
+    throw new HttpError(422, "OTP_INVALID", "رمز التحقق غير صحيح.");
+  if (row.expires_at.getTime() <= Date.now())
+    throw new HttpError(422, "OTP_EXPIRED", "انتهت صلاحية الرمز. اطلب رمزاً جديداً.");
+  const matches = OTP_KEYS.verifying.some((key) =>
+    sameHash(row.code_hash, hashCode(input.challengeId, input.code, key))
+  );
   if (!matches) {
     const left = OTP_MAX_ATTEMPTS - row.attempts;
-    throw new HttpError(422, "OTP_INVALID", left > 0 ? `رمز التحقق غير صحيح. باقي ${left} محاولات.` : "رمز التحقق غير صحيح. اطلب رمزاً جديداً.", { attemptsLeft: left });
+    throw new HttpError(
+      422,
+      "OTP_INVALID",
+      left > 0
+        ? `رمز التحقق غير صحيح. باقي ${left} محاولات.`
+        : "رمز التحقق غير صحيح. اطلب رمزاً جديداً.",
+      { attemptsLeft: left }
+    );
   }
-  const consumed = await prisma.shopperOtpChallenge.updateMany({ where: { id: input.challengeId, consumedAt: null }, data: { consumedAt: new Date() } });
+  const consumed = await prisma.shopperOtpChallenge.updateMany({
+    where: { id: input.challengeId, consumedAt: null },
+    data: { consumedAt: new Date() },
+  });
   if (consumed.count !== 1) throw new HttpError(422, "OTP_INVALID", "استُخدم هذا الرمز من قبل.");
   return row.phone_normalized;
 }

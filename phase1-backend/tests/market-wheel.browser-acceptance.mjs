@@ -29,22 +29,44 @@ await prisma.marketWheel.updateMany({ data: { isOpen: false } });
 const codes = [];
 const web = spawn("node", ["dist/index.js"], {
   cwd: process.cwd(),
-  env: { ...process.env, NODE_ENV: "production", PORT: String(port), DATABASE_URL: dbUrl, CODIQ_POSTGRES_URL: dbUrl, CODIQ_PUBLIC_BASE_URL: base, CODIQ_NOTIFICATIONS_WORKER: "off", CODIQ_OTP_PROVIDER: "insecure-log", CODIQ_ALLOW_OWNER_REGISTRATION: "true" },
+  env: {
+    ...process.env,
+    NODE_ENV: "production",
+    PORT: String(port),
+    DATABASE_URL: dbUrl,
+    CODIQ_POSTGRES_URL: dbUrl,
+    CODIQ_PUBLIC_BASE_URL: base,
+    CODIQ_NOTIFICATIONS_WORKER: "off",
+    CODIQ_OTP_PROVIDER: "insecure-log",
+    CODIQ_ALLOW_OWNER_REGISTRATION: "true",
+  },
   stdio: ["ignore", "pipe", "inherit"],
 });
 web.stdout.on("data", (chunk) => {
   for (const line of String(chunk).split("\n")) {
     if (!line.includes("otp.code_logged_not_sent")) continue;
-    try { codes.push(JSON.parse(line).ctx.code); } catch { /* not JSON */ }
+    try {
+      codes.push(JSON.parse(line).ctx.code);
+    } catch {
+      /* not JSON */
+    }
   }
 });
 async function nextCode() {
-  for (let attempt = 0; attempt < 50; attempt += 1) { if (codes.length) return codes.pop(); await new Promise((resolve) => setTimeout(resolve, 100)); }
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    if (codes.length) return codes.pop();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
   throw new Error("no code logged");
 }
 async function waitFor(url) {
   for (let attempt = 0; attempt < 150; attempt += 1) {
-    try { const response = await fetch(url); if (response.status < 500) return; } catch { /* not up yet */ }
+    try {
+      const response = await fetch(url);
+      if (response.status < 500) return;
+    } catch {
+      /* not up yet */
+    }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`Timed out waiting for ${url}`);
@@ -57,10 +79,24 @@ try {
   await waitFor(`${base}/api/health`);
   const ownerEmail = `${runId}.owner@codiq.test`;
   const ownerPassword = "OwnerPass123!Strong";
-  assert.ok([200, 201].includes((await fetch(`${base}/api/auth/platform/register`, { method: "POST", headers: { "content-type": "application/json", origin: base }, body: JSON.stringify({ email: ownerEmail, password: ownerPassword, displayName: "مالك" }) })).status));
-  browser = await chromium.launch(process.env.CODIQ_CHROMIUM_PATH ? { executablePath: process.env.CODIQ_CHROMIUM_PATH } : {});
+  assert.ok(
+    [200, 201].includes(
+      (
+        await fetch(`${base}/api/auth/platform/register`, {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: base },
+          body: JSON.stringify({ email: ownerEmail, password: ownerPassword, displayName: "مالك" }),
+        })
+      ).status
+    )
+  );
+  browser = await chromium.launch(
+    process.env.CODIQ_CHROMIUM_PATH ? { executablePath: process.env.CODIQ_CHROMIUM_PATH } : {}
+  );
   const errors = [];
-  const owner = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+  const owner = await (
+    await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  ).newPage();
   owner.on("pageerror", (error) => errors.push(`owner: ${error}`));
   await owner.goto(`${base}/platform/login`);
   await owner.locator('input[name="email"]').fill(ownerEmail);
@@ -84,7 +120,9 @@ try {
   await addPrize("حظّ أوفر", "nothing", 0);
   await addPrize("٥٠ نقطة", "points", 100, { stock: 10, points: 50 });
   await owner.getByTestId("wheel-toggle").click();
-  await owner.waitForFunction(() => /تسكير العجلة/.test(document.querySelector('[data-testid="wheel-toggle"]')?.textContent ?? ""));
+  await owner.waitForFunction(() =>
+    /تسكير العجلة/.test(document.querySelector('[data-testid="wheel-toggle"]')?.textContent ?? "")
+  );
   summary.ownerSetup = true;
 
   const page = await (await browser.newContext({ ...devices["iPhone 13"] })).newPage();
@@ -107,24 +145,40 @@ try {
   summary.spun = true;
 
   await page.getByTestId("market-wheel-claim-link").click();
-  const win = await prisma.wheelWin.findFirstOrThrow({ where: { wheelId }, orderBy: { createdAt: "desc" } });
+  const win = await prisma.wheelWin.findFirstOrThrow({
+    where: { wheelId },
+    orderBy: { createdAt: "desc" },
+  });
   await page.getByTestId(`market-wheel-claim-${win.id}`).click();
-  await page.waitForFunction((id) => /استلمتها/.test(document.querySelector(`[data-testid="market-wheel-win-status-${id}"]`)?.textContent ?? ""), win.id);
+  await page.waitForFunction(
+    (id) =>
+      /استلمتها/.test(
+        document.querySelector(`[data-testid="market-wheel-win-status-${id}"]`)?.textContent ?? ""
+      ),
+    win.id
+  );
   await page.getByTestId("market-wheel-tab-board").click();
   await page.getByTestId("market-wheel-my-rank").waitFor();
   assert.match(await page.getByTestId("market-wheel-my-rank").innerText(), /مركزك/);
   summary.claimedAndRanked = true;
 
   await owner.getByTestId("wheel-toggle").click();
-  await owner.waitForFunction(() => /فتح العجلة/.test(document.querySelector('[data-testid="wheel-toggle"]')?.textContent ?? ""));
+  await owner.waitForFunction(() =>
+    /فتح العجلة/.test(document.querySelector('[data-testid="wheel-toggle"]')?.textContent ?? "")
+  );
   await page.goto(`${base}/market/wheel`);
   await page.getByTestId("market-wheel-closed").waitFor();
   summary.closed = true;
 
   assert.deepEqual(errors, [], "no script errors");
-  console.log(JSON.stringify({ suite: "market-wheel-browser", status: "passed", summary }, null, 2));
+  console.log(
+    JSON.stringify({ suite: "market-wheel-browser", status: "passed", summary }, null, 2)
+  );
 } finally {
-  if (wheelId) await prisma.marketWheel.updateMany({ where: { id: wheelId }, data: { isOpen: false } }).catch(() => undefined);
+  if (wheelId)
+    await prisma.marketWheel
+      .updateMany({ where: { id: wheelId }, data: { isOpen: false } })
+      .catch(() => undefined);
   await browser?.close();
   await killTree(web);
   await prisma.$disconnect();

@@ -31,12 +31,27 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { normalizeOptionalEmail, normalizePhone } from "../auth/identity.js";
-import { checkout, mergeGuestCartIntoCustomer, priorSucceededCheckout } from "./storefront.service.js";
+import {
+  checkout,
+  mergeGuestCartIntoCustomer,
+  priorSucceededCheckout,
+} from "./storefront.service.js";
 import { guestCheckoutAllowed } from "./storefront-config.service.js";
 
-export interface GuestIdentityInput { fullName?: unknown; phone?: unknown; email?: unknown }
+export interface GuestIdentityInput {
+  fullName?: unknown;
+  phone?: unknown;
+  email?: unknown;
+}
 
-const GUEST_SELECT = { id: true, storeId: true, fullName: true, email: true, phoneNormalized: true, isGuest: true } as const;
+const GUEST_SELECT = {
+  id: true,
+  storeId: true,
+  fullName: true,
+  email: true,
+  phoneNormalized: true,
+  isGuest: true,
+} as const;
 export type GuestCustomer = Prisma.CustomerGetPayload<{ select: typeof GUEST_SELECT }>;
 
 /**
@@ -64,31 +79,74 @@ export type GuestCustomer = Prisma.CustomerGetPayload<{ select: typeof GUEST_SEL
  * door that proves something: the password he set from his own first order
  * (`setGuestPassword`), or password recovery by the email the row already holds.
  */
-export async function guestCustomerFor(storeId: string, input: GuestIdentityInput): Promise<{ customer: GuestCustomer; created: boolean }> {
-  if (!(await guestCheckoutAllowed(storeId))) throw new HttpError(422, "GUEST_CHECKOUT_DISABLED", "هذا المتجر يطلب تسجيل الدخول لإتمام الطلب.");
-  if (typeof input.fullName !== "string" || input.fullName.trim().length < 2) throw new HttpError(422, "INVALID_FULL_NAME", "اكتب اسمك الكامل.");
+export async function guestCustomerFor(
+  storeId: string,
+  input: GuestIdentityInput
+): Promise<{ customer: GuestCustomer; created: boolean }> {
+  if (!(await guestCheckoutAllowed(storeId)))
+    throw new HttpError(
+      422,
+      "GUEST_CHECKOUT_DISABLED",
+      "هذا المتجر يطلب تسجيل الدخول لإتمام الطلب."
+    );
+  if (typeof input.fullName !== "string" || input.fullName.trim().length < 2)
+    throw new HttpError(422, "INVALID_FULL_NAME", "اكتب اسمك الكامل.");
   const fullName = input.fullName.trim().slice(0, 120);
   const phoneNormalized = normalizePhone(input.phone);
   const phone = typeof input.phone === "string" ? input.phone.trim() : null;
   const email = normalizeOptionalEmail(input.email);
 
-  const existing = await prisma.customer.findFirst({ where: { storeId, phoneNormalized }, select: { id: true, isGuest: true, isActive: true, passwordHash: true } });
+  const existing = await prisma.customer.findFirst({
+    where: { storeId, phoneNormalized },
+    select: { id: true, isGuest: true, isActive: true, passwordHash: true },
+  });
   // A row with a password is an account whatever its flag says: password
   // recovery (PR-1) writes the hash and, by its own rule, nothing else.
-  if (existing && (!existing.isGuest || existing.passwordHash)) throw new HttpError(409, "CUSTOMER_ACCOUNT_EXISTS", "هذا الرقم مسجّل لدينا — سجّل الدخول لإتمام الطلب.");
-  if (existing && !existing.isActive) throw new HttpError(403, "CUSTOMER_DISABLED", "تعذر إتمام الطلب بهذا الرقم — تواصل مع المتجر.");
+  if (existing && (!existing.isGuest || existing.passwordHash))
+    throw new HttpError(
+      409,
+      "CUSTOMER_ACCOUNT_EXISTS",
+      "هذا الرقم مسجّل لدينا — سجّل الدخول لإتمام الطلب."
+    );
+  if (existing && !existing.isActive)
+    throw new HttpError(403, "CUSTOMER_DISABLED", "تعذر إتمام الطلب بهذا الرقم — تواصل مع المتجر.");
   try {
     if (existing) {
       // The row the courier already knows: the name typed today is the name he
       // reads. The email is NOT overwritten here any more — a stranger must not
       // be able to re-point a shopper's recovery address by typing his number.
-      return { customer: await prisma.customer.update({ where: { id: existing.id }, data: { fullName, phone }, select: GUEST_SELECT }), created: false };
+      return {
+        customer: await prisma.customer.update({
+          where: { id: existing.id },
+          data: { fullName, phone },
+          select: GUEST_SELECT,
+        }),
+        created: false,
+      };
     }
-    return { customer: await prisma.customer.create({ data: { storeId, fullName, phone, phoneNormalized, email, passwordHash: null, isGuest: true }, select: GUEST_SELECT }), created: true };
+    return {
+      customer: await prisma.customer.create({
+        data: {
+          storeId,
+          fullName,
+          phone,
+          phoneNormalized,
+          email,
+          passwordHash: null,
+          isGuest: true,
+        },
+        select: GUEST_SELECT,
+      }),
+      created: true,
+    };
   } catch (error) {
     // `customers_store_email_present_uq`: the email he typed is somebody's account here.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new HttpError(409, "EMAIL_TAKEN", "هذا البريد مستخدم لحساب آخر في هذا المتجر — اتركه فارغاً أو سجّل الدخول.");
+      throw new HttpError(
+        409,
+        "EMAIL_TAKEN",
+        "هذا البريد مستخدم لحساب آخر في هذا المتجر — اتركه فارغاً أو سجّل الدخول."
+      );
     }
     throw error;
   }
@@ -108,11 +166,17 @@ export interface GuestCheckoutInput {
  * `cartVersion` is the MERGED cart's: the version the client sent guarded a
  * cart the merge has just consumed, atomically, so the guard has been kept.
  */
-export async function guestCheckout(storeId: string, customer: GuestCustomer, guestToken: string | undefined, input: GuestCheckoutInput) {
+export async function guestCheckout(
+  storeId: string,
+  customer: GuestCustomer,
+  guestToken: string | undefined,
+  input: GuestCheckoutInput
+) {
   const prior = await priorSucceededCheckout(storeId, customer.id, input.idempotencyKey);
   if (prior) return { replayed: true as const, order: prior };
   const cart = await mergeGuestCartIntoCustomer(storeId, customer.id, guestToken);
-  if (cart.id === null || cart.items.length === 0) throw new HttpError(422, "CART_EMPTY", "سلتك فارغة.");
+  if (cart.id === null || cart.items.length === 0)
+    throw new HttpError(422, "CART_EMPTY", "سلتك فارغة.");
   return checkout(storeId, customer.id, {
     idempotencyKey: input.idempotencyKey,
     cartVersion: cart.version,

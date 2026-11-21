@@ -68,23 +68,48 @@ function maySeeSalesFigures(permissions: ReadonlySet<PermissionCode>): boolean {
   return permissions.has("orders.view");
 }
 
-export async function deletePreview(entityType: TrashEntityType, storeId: string, id: string, permissions: ReadonlySet<PermissionCode>): Promise<DeletePreview> {
+export async function deletePreview(
+  entityType: TrashEntityType,
+  storeId: string,
+  id: string,
+  permissions: ReadonlySet<PermissionCode>
+): Promise<DeletePreview> {
   if (entityType === "product") return productPreview(storeId, id, permissions);
   if (entityType === "product_category") return categoryPreview(storeId, id);
   if (entityType === "coupon") return couponPreview(storeId, id, permissions);
   return membershipPreview(storeId, id);
 }
 
-function shell(entityType: TrashEntityType, id: string, label: string, secondary: string | null, effects: DeletePreview["effects"]): DeletePreview {
+function shell(
+  entityType: TrashEntityType,
+  id: string,
+  label: string,
+  secondary: string | null,
+  effects: DeletePreview["effects"]
+): DeletePreview {
   return { entityType, id, label, secondary, retentionDays: TRASH_RETENTION_DAYS, effects };
 }
 
-async function productPreview(storeId: string, id: string, permissions: ReadonlySet<PermissionCode>): Promise<DeletePreview> {
+async function productPreview(
+  storeId: string,
+  id: string,
+  permissions: ReadonlySet<PermissionCode>
+): Promise<DeletePreview> {
   const product = await prisma.product.findFirst({
     where: { id, storeId, ...LIVE },
-    select: { id: true, name: true, sku: true, _count: { select: { images: true, variants: { where: { deletedAt: null } } } } },
+    select: {
+      id: true,
+      name: true,
+      sku: true,
+      _count: { select: { images: true, variants: { where: { deletedAt: null } } } },
+    },
   });
-  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in this store.");
+  if (!product)
+    throw new HttpError(
+      404,
+      "RESOURCE_NOT_FOUND",
+      "The requested product was not found in this store."
+    );
   // Four independent counts, all store-scoped. `inventoryMovements` is the one
   // the sheet promises to preserve; `orders` is what will later block the purge
   // and keep the row under the «محفوظ لسجلاتك» badge forever (ق-97).
@@ -102,13 +127,24 @@ async function productPreview(storeId: string, id: string, permissions: Readonly
   // the one the word «مباع» may stand on: telling a merchant whose only two
   // customers both cancelled that his shoe was «مباع في طلبان» is a sales claim
   // his own analytics screen contradicts on the next tab.
-  const [inventoryMovements, orders, soldOrders, liveCartItems, activeReservations] = await Promise.all([
-    prisma.inventoryMovement.count({ where: { productId: product.id, storeId } }),
-    prisma.storeOrder.count({ where: { storeId, items: { some: { productId: product.id } } } }),
-    prisma.storeOrder.count({ where: { storeId, status: { notIn: [...NON_CONSUMING_STATUSES] }, items: { some: { productId: product.id } } } }),
-    prisma.cartItem.count({ where: { productId: product.id, storeId, cart: { status: "active" } } }),
-    prisma.inventoryReservation.count({ where: { productId: product.id, storeId, status: "active" } }),
-  ]);
+  const [inventoryMovements, orders, soldOrders, liveCartItems, activeReservations] =
+    await Promise.all([
+      prisma.inventoryMovement.count({ where: { productId: product.id, storeId } }),
+      prisma.storeOrder.count({ where: { storeId, items: { some: { productId: product.id } } } }),
+      prisma.storeOrder.count({
+        where: {
+          storeId,
+          status: { notIn: [...NON_CONSUMING_STATUSES] },
+          items: { some: { productId: product.id } },
+        },
+      }),
+      prisma.cartItem.count({
+        where: { productId: product.id, storeId, cart: { status: "active" } },
+      }),
+      prisma.inventoryReservation.count({
+        where: { productId: product.id, storeId, status: "active" },
+      }),
+    ]);
   return shell("product", product.id, product.name, product.sku, {
     // The row's FATE — always shown, because the sheet promises it (ق-97).
     keptForRecords: orders > 0,
@@ -122,18 +158,41 @@ async function productPreview(storeId: string, id: string, permissions: Readonly
 }
 
 async function categoryPreview(storeId: string, id: string): Promise<DeletePreview> {
-  const category = await prisma.productCategory.findFirst({ where: { id, storeId, ...LIVE }, select: { id: true, name: true } });
-  if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in this store.");
+  const category = await prisma.productCategory.findFirst({
+    where: { id, storeId, ...LIVE },
+    select: { id: true, name: true },
+  });
+  if (!category)
+    throw new HttpError(
+      404,
+      "CATEGORY_NOT_FOUND",
+      "The requested category was not found in this store."
+    );
   const [liveProducts, liveChildren] = await Promise.all([
     prisma.product.count({ where: { categoryId: category.id, storeId, ...LIVE } }),
     prisma.productCategory.count({ where: { parentCategoryId: category.id, storeId, ...LIVE } }),
   ]);
-  return shell("product_category", category.id, category.name, null, { liveProducts, liveChildren });
+  return shell("product_category", category.id, category.name, null, {
+    liveProducts,
+    liveChildren,
+  });
 }
 
-async function couponPreview(storeId: string, id: string, permissions: ReadonlySet<PermissionCode>): Promise<DeletePreview> {
-  const coupon = await prisma.coupon.findFirst({ where: { id, storeId, ...LIVE }, select: { id: true, code: true, endsAt: true } });
-  if (!coupon) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested coupon was not found in this store.");
+async function couponPreview(
+  storeId: string,
+  id: string,
+  permissions: ReadonlySet<PermissionCode>
+): Promise<DeletePreview> {
+  const coupon = await prisma.coupon.findFirst({
+    where: { id, storeId, ...LIVE },
+    select: { id: true, code: true, endsAt: true },
+  });
+  if (!coupon)
+    throw new HttpError(
+      404,
+      "RESOURCE_NOT_FOUND",
+      "The requested coupon was not found in this store."
+    );
   const [redemptions, onOrders] = await Promise.all([
     prisma.couponRedemption.count({ where: { couponId: coupon.id, storeId } }),
     prisma.storeOrder.count({ where: { couponId: coupon.id, storeId } }),
@@ -156,13 +215,26 @@ async function membershipPreview(storeId: string, id: string): Promise<DeletePre
     where: { id, storeId, ...LIVE },
     select: { id: true, roleCode: true, staff: { select: { displayName: true, email: true } } },
   });
-  if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested team membership was not found in this store.");
+  if (!membership)
+    throw new HttpError(
+      404,
+      "RESOURCE_NOT_FOUND",
+      "The requested team membership was not found in this store."
+    );
   // ع-4: «open» means a session that would actually be ACCEPTED — identity.ts
   // requires expiresAt > now on every request. Counting only `revokedAt: null`
   // measured «times signed in since the last suspension», and because a staff
   // session lasts eight hours, nothing sweeps the expired ones and there is no
   // staff sign-out route at all, the number only ever grew. It told a merchant
   // dismissing someone at a tense moment that 180 doors were open when one was.
-  const openSessions = await prisma.staffSession.count({ where: { membershipId: membership.id, revokedAt: null, expiresAt: { gt: new Date() } } });
-  return shell("staff_membership", membership.id, membership.staff.displayName, membership.staff.email, { openSessions, roleCode: membership.roleCode });
+  const openSessions = await prisma.staffSession.count({
+    where: { membershipId: membership.id, revokedAt: null, expiresAt: { gt: new Date() } },
+  });
+  return shell(
+    "staff_membership",
+    membership.id,
+    membership.staff.displayName,
+    membership.staff.email,
+    { openSessions, roleCode: membership.roleCode }
+  );
 }

@@ -22,29 +22,36 @@ export function useReorder() {
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [inlineNotice, setInlineNotice] = useState<string | null>(null);
 
-  const reorder = useCallback(async (orderId: string) => {
-    if (pendingOrderId) return;
-    setPendingOrderId(orderId);
-    setInlineNotice(null);
-    try {
-      const result = await storefrontApi.reorder(slug, orderId);
-      setCart(result.cart);
-      // The server reports exactly how many lines landed — inferring it from a
-      // version delta misreads a stale local cart and the all-capped case.
-      const added = result.addedCount > 0;
-      const skippedNotice = reorderSkippedNotice(result.skipped);
-      if (added) {
-        setNotice(skippedNotice ? `أضفنا منتجات الطلب المتاحة إلى سلتك. ${skippedNotice}` : "أضفنا منتجات الطلب إلى سلتك.");
-        navigate(`/store/${slug}/cart`);
-        return;
+  const reorder = useCallback(
+    async (orderId: string) => {
+      if (pendingOrderId) return;
+      setPendingOrderId(orderId);
+      setInlineNotice(null);
+      try {
+        const result = await storefrontApi.reorder(slug, orderId);
+        setCart(result.cart);
+        // The server reports exactly how many lines landed — inferring it from a
+        // version delta misreads a stale local cart and the all-capped case.
+        const added = result.addedCount > 0;
+        const skippedNotice = reorderSkippedNotice(result.skipped);
+        if (added) {
+          setNotice(
+            skippedNotice
+              ? `أضفنا منتجات الطلب المتاحة إلى سلتك. ${skippedNotice}`
+              : "أضفنا منتجات الطلب إلى سلتك."
+          );
+          navigate(`/store/${slug}/cart`);
+          return;
+        }
+        setInlineNotice(skippedNotice || "لم تتغير سلتك.");
+      } catch (error) {
+        setInlineNotice(errorMessage(error));
+      } finally {
+        setPendingOrderId(null);
       }
-      setInlineNotice(skippedNotice || "لم تتغير سلتك.");
-    } catch (error) {
-      setInlineNotice(errorMessage(error));
-    } finally {
-      setPendingOrderId(null);
-    }
-  }, [cart, navigate, pendingOrderId, setCart, setNotice, slug]);
+    },
+    [cart, navigate, pendingOrderId, setCart, setNotice, slug]
+  );
 
   return { reorder, pendingOrderId, inlineNotice };
 }

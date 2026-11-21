@@ -14,7 +14,10 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 type Db = PrismaClient | Prisma.TransactionClient;
 
 /** variantId → the price it sells at now. Variants not found are absent. */
-export async function livePrices(db: Db, variantIds: readonly string[]): Promise<Map<string, number>> {
+export async function livePrices(
+  db: Db,
+  variantIds: readonly string[]
+): Promise<Map<string, number>> {
   const ids = Array.from(new Set(variantIds));
   if (!ids.length) return new Map();
   const rows = await db.$queryRaw<{ id: string; price: number }[]>(Prisma.sql`

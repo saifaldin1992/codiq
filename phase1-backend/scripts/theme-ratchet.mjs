@@ -68,29 +68,43 @@ const unlisted = [...actual.keys()].filter((file) => !(file in ledger));
 
 if (raised.length || unlisted.length) {
   if (raised.length) {
-    console.error(`theme:ratchet REFUSED — ${raised.length} file(s) grew, and the ledger is a ceiling that only falls:`);
+    console.error(
+      `theme:ratchet REFUSED — ${raised.length} file(s) grew, and the ledger is a ceiling that only falls:`
+    );
     raised.forEach((line) => console.error(`  ${line}`));
   }
   if (unlisted.length) {
-    console.error(`theme:ratchet REFUSED — ${unlisted.length} file(s) carry raw colour without being listed; that is a NEW violation for \`pnpm theme:guard\` to fail on, not a debt to enrol:`);
+    console.error(
+      `theme:ratchet REFUSED — ${unlisted.length} file(s) carry raw colour without being listed; that is a NEW violation for \`pnpm theme:guard\` to fail on, not a debt to enrol:`
+    );
     unlisted.forEach((file) => console.error(`  ${file} (${actual.get(file)})`));
   }
   process.exit(1);
 }
 
-const ordered = Object.fromEntries(Object.keys(next).sort().map((key) => [key, next[key]]));
+const ordered = Object.fromEntries(
+  Object.keys(next)
+    .sort()
+    .map((key) => [key, next[key]])
+);
 writeFileSync(LEDGER, `${JSON.stringify(ordered, null, 2)}\n`, "utf8");
 
 const remaining = Object.values(ordered).reduce((sum, n) => sum + n, 0);
-console.log(JSON.stringify({
-  suite: "theme-ratchet",
-  status: "updated",
-  summary: {
-    filesCleared: cleared.length,
-    cleared,
-    filesLowered: lowered.length,
-    lowered,
-    filesRemaining: Object.keys(ordered).length,
-    valuesRemaining: remaining,
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "theme-ratchet",
+      status: "updated",
+      summary: {
+        filesCleared: cleared.length,
+        cleared,
+        filesLowered: lowered.length,
+        lowered,
+        filesRemaining: Object.keys(ordered).length,
+        valuesRemaining: remaining,
+      },
+    },
+    null,
+    2
+  )
+);

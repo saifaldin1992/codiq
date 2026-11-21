@@ -29,17 +29,30 @@ const KINDS = ["platform_owner", "platform_staff", "merchant", "staff", "custome
 
 for (const kind of KINDS) {
   assert.ok(IDENTITY_LABELS[kind], `every identity kind is named: ${kind}`);
-  assert.ok(!/[A-Za-z_]/.test(IDENTITY_LABELS[kind]), `the label is Arabic, not the internal key: ${kind} -> ${IDENTITY_LABELS[kind]}`);
+  assert.ok(
+    !/[A-Za-z_]/.test(IDENTITY_LABELS[kind]),
+    `the label is Arabic, not the internal key: ${kind} -> ${IDENTITY_LABELS[kind]}`
+  );
 }
-assert.equal(Object.keys(IDENTITY_LABELS).length, KINDS.length, "no identity kind is missing a label, and none is invented");
+assert.equal(
+  Object.keys(IDENTITY_LABELS).length,
+  KINDS.length,
+  "no identity kind is missing a label, and none is invented"
+);
 
 // The case the owner actually hit: a merchant cookie at the owner's door.
 const message = identityBoundaryMessage("merchant", IDENTITY_LABELS.platform_owner);
 assert.ok(message.includes("تاجر"), "it says what he is signed in as");
 assert.ok(message.includes("مالك المنصة"), "it says what this area wants");
 assert.ok(message.includes("سجّل الخروج"), "it says what to do");
-assert.ok(message.includes("خفيّ"), "…and how to keep both sessions at once, which is the honest workaround while one cookie serves four identities");
-assert.ok(!/[A-Za-z]/.test(message.replace(/[\u200E\u200F\u2068\u2069]/g, "")), `Arabic only — ق-96: ${message}`);
+assert.ok(
+  message.includes("خفيّ"),
+  "…and how to keep both sessions at once, which is the honest workaround while one cookie serves four identities"
+);
+assert.ok(
+  !/[A-Za-z]/.test(message.replace(/[\u200E\u200F\u2068\u2069]/g, "")),
+  `Arabic only — ق-96: ${message}`
+);
 
 // Every kind produces a distinct, non-empty sentence — no fallthrough to undefined.
 const seen = new Set();
@@ -77,22 +90,40 @@ const handWritten = sources(SRC).filter((file) => !file.endsWith(GENERATED));
  * attribute it polices.
  */
 const OWNS_THE_MESSAGE = path.join("auth", "redirects.ts");
-const offenders = handWritten.filter((file) =>
-  !file.endsWith(OWNS_THE_MESSAGE) && readFileSync(file, "utf8").includes("not allowed in this area"),
+const offenders = handWritten.filter(
+  (file) =>
+    !file.endsWith(OWNS_THE_MESSAGE) &&
+    readFileSync(file, "utf8").includes("not allowed in this area")
 );
 assert.deepEqual(offenders, [], `the English dead end survives in: ${offenders.join(", ")}`);
 
-const throwSites = handWritten.filter((file) => readFileSync(file, "utf8").includes('"IDENTITY_BOUNDARY_DENIED"'));
-assert.ok(throwSites.length >= 3, `all three layers still throw this code — found ${throwSites.length}`);
+const throwSites = handWritten.filter((file) =>
+  readFileSync(file, "utf8").includes('"IDENTITY_BOUNDARY_DENIED"')
+);
+assert.ok(
+  throwSites.length >= 3,
+  `all three layers still throw this code — found ${throwSites.length}`
+);
 for (const file of throwSites) {
   assert.ok(
     readFileSync(file, "utf8").includes("identityBoundaryMessage("),
-    `${path.relative(SRC, file)} throws IDENTITY_BOUNDARY_DENIED without the shared message — that is how one layer drifts`,
+    `${path.relative(SRC, file)} throws IDENTITY_BOUNDARY_DENIED without the shared message — that is how one layer drifts`
   );
 }
 
-console.log(JSON.stringify({
-  suite: "identity-boundary",
-  status: "passed",
-  summary: { kinds: KINDS.length, throwSites: throwSites.length, englishDeadEnds: 0, example: message },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "identity-boundary",
+      status: "passed",
+      summary: {
+        kinds: KINDS.length,
+        throwSites: throwSites.length,
+        englishDeadEnds: 0,
+        example: message,
+      },
+    },
+    null,
+    2
+  )
+);

@@ -14,7 +14,10 @@
  */
 import { prisma } from "../db/prisma.js";
 import { HttpError } from "../auth/auth.errors.js";
-import { DEFAULT_OPERATIONAL_DAILY_CAP, DEFAULT_OPERATIONAL_RECIPIENT_DAILY_CAP } from "../notifications/messaging-compliance.service.js";
+import {
+  DEFAULT_OPERATIONAL_DAILY_CAP,
+  DEFAULT_OPERATIONAL_RECIPIENT_DAILY_CAP,
+} from "../notifications/messaging-compliance.service.js";
 
 /** PG-3's seed value — the column default in prisma/schema.prisma. */
 export const DEFAULT_MARKETING_DAILY_CAP = 200;
@@ -29,31 +32,50 @@ export function capsFromRow(row: Partial<MessagingCaps> | null | undefined): Mes
   return {
     marketingDailyCap: row?.marketingDailyCap ?? DEFAULT_MARKETING_DAILY_CAP,
     operationalDailyCap: row?.operationalDailyCap ?? DEFAULT_OPERATIONAL_DAILY_CAP,
-    operationalRecipientDailyCap: row?.operationalRecipientDailyCap ?? DEFAULT_OPERATIONAL_RECIPIENT_DAILY_CAP,
+    operationalRecipientDailyCap:
+      row?.operationalRecipientDailyCap ?? DEFAULT_OPERATIONAL_RECIPIENT_DAILY_CAP,
   };
 }
 
 async function storeBySlug(storeSlug: string) {
-  const store = await prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true, slug: true, name: true } });
+  const store = await prisma.store.findUnique({
+    where: { slug: storeSlug },
+    select: { id: true, slug: true, name: true },
+  });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   return store;
 }
 
-export async function storeMessagingCaps(storeSlug: string): Promise<{ store: { slug: string; name: string }; caps: MessagingCaps }> {
+export async function storeMessagingCaps(
+  storeSlug: string
+): Promise<{ store: { slug: string; name: string }; caps: MessagingCaps }> {
   const store = await storeBySlug(storeSlug);
   const row = await prisma.notificationSettings.findUnique({
     where: { storeId: store.id },
-    select: { marketingDailyCap: true, operationalDailyCap: true, operationalRecipientDailyCap: true },
+    select: {
+      marketingDailyCap: true,
+      operationalDailyCap: true,
+      operationalRecipientDailyCap: true,
+    },
   });
   return { store: { slug: store.slug, name: store.name }, caps: capsFromRow(row) };
 }
 
-export async function updateStoreMessagingCaps(storeSlug: string, input: Partial<MessagingCaps>): Promise<{ store: { slug: string; name: string }; caps: MessagingCaps }> {
+export async function updateStoreMessagingCaps(
+  storeSlug: string,
+  input: Partial<MessagingCaps>
+): Promise<{ store: { slug: string; name: string }; caps: MessagingCaps }> {
   const store = await storeBySlug(storeSlug);
   const data = {
-    ...(input.marketingDailyCap !== undefined ? { marketingDailyCap: input.marketingDailyCap } : {}),
-    ...(input.operationalDailyCap !== undefined ? { operationalDailyCap: input.operationalDailyCap } : {}),
-    ...(input.operationalRecipientDailyCap !== undefined ? { operationalRecipientDailyCap: input.operationalRecipientDailyCap } : {}),
+    ...(input.marketingDailyCap !== undefined
+      ? { marketingDailyCap: input.marketingDailyCap }
+      : {}),
+    ...(input.operationalDailyCap !== undefined
+      ? { operationalDailyCap: input.operationalDailyCap }
+      : {}),
+    ...(input.operationalRecipientDailyCap !== undefined
+      ? { operationalRecipientDailyCap: input.operationalRecipientDailyCap }
+      : {}),
   };
   // A store that never touched its notification settings has no row yet; the
   // ceilings are still real for it (the worker reads the defaults), so the
@@ -62,7 +84,11 @@ export async function updateStoreMessagingCaps(storeSlug: string, input: Partial
     where: { storeId: store.id },
     create: { storeId: store.id, ...data },
     update: data,
-    select: { marketingDailyCap: true, operationalDailyCap: true, operationalRecipientDailyCap: true },
+    select: {
+      marketingDailyCap: true,
+      operationalDailyCap: true,
+      operationalRecipientDailyCap: true,
+    },
   });
   return { store: { slug: store.slug, name: store.name }, caps: capsFromRow(row) };
 }

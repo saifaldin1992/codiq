@@ -59,4 +59,3 @@ export async function searchSuggestions(raw: string) {
   ]);
   return { products, stores, categories };
 }
-

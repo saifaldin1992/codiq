@@ -52,13 +52,18 @@ export const searchNeedleSchema = z
  */
 export const optionalSearchNeedleSchema = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-  searchNeedleSchema.optional(),
+  searchNeedleSchema.optional()
 );
 
 /** `limit`, with the platform's long-standing 1..100 window and a default of 25. */
 export const searchLimitSchema = z.preprocess(
   (value) => (value === undefined || value === "" ? undefined : Number(value)),
-  z.number({ error: "limit يجب أن يكون رقماً بين 1 و100." }).int("limit يجب أن يكون رقماً صحيحاً.").min(1, "limit يجب أن يكون 1 على الأقل.").max(100, "limit يجب ألا يتجاوز 100.").default(25),
+  z
+    .number({ error: "limit يجب أن يكون رقماً بين 1 و100." })
+    .int("limit يجب أن يكون رقماً صحيحاً.")
+    .min(1, "limit يجب أن يكون 1 على الأقل.")
+    .max(100, "limit يجب ألا يتجاوز 100.")
+    .default(25)
 );
 
 /**

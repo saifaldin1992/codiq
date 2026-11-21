@@ -91,15 +91,28 @@ for (const surface of SURFACES) {
 if (unreachable.length) {
   console.error(
     `PS-2: ${unreachable.length} route(s) on an owner's own account surface have NO caller in client/src. ` +
-    `A person cannot reach his own account settings, and nothing else in this repository would say so:\n` +
-    unreachable.map((entry) => `  ${entry.method} ${entry.url} — registered in ${entry.surface}`).join("\n") +
-    `\n\nBuild the screen, or add the path to EXEMPT with the reason it has no caller.`,
+      `A person cannot reach his own account settings, and nothing else in this repository would say so:\n` +
+      unreachable
+        .map((entry) => `  ${entry.method} ${entry.url} — registered in ${entry.surface}`)
+        .join("\n") +
+      `\n\nBuild the screen, or add the path to EXEMPT with the reason it has no caller.`
   );
   process.exitCode = 1;
 } else {
-  console.log(JSON.stringify({
-    suite: "owner-surface",
-    status: "passed",
-    summary: { surfaces: SURFACES.length, routesChecked: checked, unreachable: 0, exempt: EXEMPT.size },
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        suite: "owner-surface",
+        status: "passed",
+        summary: {
+          surfaces: SURFACES.length,
+          routesChecked: checked,
+          unreachable: 0,
+          exempt: EXEMPT.size,
+        },
+      },
+      null,
+      2
+    )
+  );
 }

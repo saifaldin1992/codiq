@@ -59,10 +59,14 @@ const LEDGER = fileURLToPath(new URL("../tests/theme-tokens.legacy.json", import
 const apply = process.argv.includes("--apply");
 const deltaIndex = process.argv.indexOf("--max-delta");
 const MAX_DELTA = deltaIndex === -1 ? 2 : Number(process.argv[deltaIndex + 1]);
-if (!Number.isFinite(MAX_DELTA) || MAX_DELTA <= 0) throw new Error("--max-delta needs a positive number");
+if (!Number.isFinite(MAX_DELTA) || MAX_DELTA <= 0)
+  throw new Error("--max-delta needs a positive number");
 
 /** sRGB → CIE-Lab, so the distance below is perceptual rather than arithmetic. */
-const linear = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+const linear = (v) => {
+  v /= 255;
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+};
 function lab(hex) {
   const r = linear(parseInt(hex.slice(1, 3), 16));
   const g = linear(parseInt(hex.slice(3, 5), 16));
@@ -77,7 +81,9 @@ function lab(hex) {
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
 const tokens = [];
-for (const match of readFileSync(CSS, "utf8").matchAll(/(--codiq-[a-z-]+):\s*(#[0-9A-Fa-f]{6})\b/g)) {
+for (const match of readFileSync(CSS, "utf8").matchAll(
+  /(--codiq-[a-z-]+):\s*(#[0-9A-Fa-f]{6})\b/g
+)) {
   tokens.push({ name: match[1], lab: lab(match[2].toUpperCase()) });
 }
 if (!tokens.length) throw new Error("no --codiq-* colour tokens found in index.css");
@@ -91,7 +97,10 @@ function resolve(hex) {
   let bestDistance = Infinity;
   for (const token of tokens) {
     const d = distance(target, token.lab);
-    if (d < bestDistance) { bestDistance = d; best = token; }
+    if (d < bestDistance) {
+      bestDistance = d;
+      best = token;
+    }
   }
   const answer = bestDistance <= MAX_DELTA ? { token: best.name, delta: bestDistance } : null;
   nearest.set(hex, answer);
@@ -116,7 +125,8 @@ function resolve(hex) {
  * The reverse — a light colour as a background, a dark colour as text — is the
  * ordinary case the tokens were designed for, and passes.
  */
-const FOREGROUND_UTILITY = /(?:^|[\s"'`:])(?:text|fill|stroke|placeholder|caret|decoration|accent|ring-offset)-$/;
+const FOREGROUND_UTILITY =
+  /(?:^|[\s"'`:])(?:text|fill|stroke|placeholder|caret|decoration|accent|ring-offset)-$/;
 const LIGHTNESS_CEILING = 85;
 const isLight = (hex) => lab(hex)[0] > LIGHTNESS_CEILING;
 
@@ -174,26 +184,36 @@ for (const relative of Object.keys(ledger)) {
 
   if (count > 0) {
     substituted += count;
-    perFile.push({ file: relative, substituted: count, remaining: (after.match(ANY_HEX) ?? []).length });
+    perFile.push({
+      file: relative,
+      substituted: count,
+      remaining: (after.match(ANY_HEX) ?? []).length,
+    });
     if (apply) writeFileSync(file, after, "utf8");
   }
 }
 
 perFile.sort((a, b) => b.substituted - a.substituted);
-console.log(JSON.stringify({
-  suite: "theme-collapse",
-  mode: apply ? "applied" : "dry-run",
-  maxDelta: MAX_DELTA,
-  summary: {
-    substituted,
-    filesTouched: perFile.length,
-    skipped: {
-      tooFarFromAnyToken: skippedDistance,
-      closeEnoughButUnsafeContext: skippedContext,
-      lightColourInForeground: skippedLightForeground,
+console.log(
+  JSON.stringify(
+    {
+      suite: "theme-collapse",
+      mode: apply ? "applied" : "dry-run",
+      maxDelta: MAX_DELTA,
+      summary: {
+        substituted,
+        filesTouched: perFile.length,
+        skipped: {
+          tooFarFromAnyToken: skippedDistance,
+          closeEnoughButUnsafeContext: skippedContext,
+          lightColourInForeground: skippedLightForeground,
+        },
+        tokensUsed: Object.fromEntries([...usedTokens].sort((a, b) => b[1] - a[1])),
+      },
+      files: perFile.slice(0, 20),
     },
-    tokensUsed: Object.fromEntries([...usedTokens].sort((a, b) => b[1] - a[1])),
-  },
-  files: perFile.slice(0, 20),
-}, null, 2));
+    null,
+    2
+  )
+);
 if (!apply) console.log("\nnothing was written. re-run with --apply.");

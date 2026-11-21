@@ -49,5 +49,9 @@ export default function StorefrontWrapper() {
   // CD-1a: the public «أين طلبي؟» page — inside the storefront shell, but it
   // needs no customer session of any kind.
   else if (/\/track$/.test(location)) page = <StorefrontTrackOrderPage />;
-  return <StorefrontProvider slug={storeSlug}><StorefrontShell>{page}</StorefrontShell></StorefrontProvider>;
+  return (
+    <StorefrontProvider slug={storeSlug}>
+      <StorefrontShell>{page}</StorefrontShell>
+    </StorefrontProvider>
+  );
 }

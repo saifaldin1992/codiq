@@ -13,8 +13,16 @@ let version = 0;
 const pending = { products: new Set<string>(), stores: new Set<string>() };
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-function changed() { version += 1; listeners.forEach((listener) => listener()); }
-function subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
+function changed() {
+  version += 1;
+  listeners.forEach((listener) => listener());
+}
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
 
 function flush() {
   flushTimer = null;
@@ -26,11 +34,15 @@ function flush() {
   const search = new URLSearchParams();
   if (productIds.length) search.set("products", productIds.join(","));
   if (storeSlugs.length) search.set("stores", storeSlugs.join(","));
-  void accountCall<{ products: string[]; stores: string[] }>(`/api/market/favourites/flags?${search.toString()}`).then((flags) => {
-    productIds.forEach((id) => products.set(id, flags.products.includes(id)));
-    storeSlugs.forEach((slug) => stores.set(slug, flags.stores.includes(slug)));
-    changed();
-  }).catch(() => undefined);
+  void accountCall<{ products: string[]; stores: string[] }>(
+    `/api/market/favourites/flags?${search.toString()}`
+  )
+    .then((flags) => {
+      productIds.forEach((id) => products.set(id, flags.products.includes(id)));
+      storeSlugs.forEach((slug) => stores.set(slug, flags.stores.includes(slug)));
+      changed();
+    })
+    .catch(() => undefined);
   if (pending.products.size || pending.stores.size) flushTimer = setTimeout(flush, 0);
 }
 
@@ -46,8 +58,16 @@ let owner: string | null = null;
 function useFlag(kind: "products" | "stores", key: string): boolean {
   const { shopper } = useShopper();
   // Another account (or none): the answers were his, not this one's.
-  if ((shopper?.id ?? null) !== owner) { owner = shopper?.id ?? null; products.clear(); stores.clear(); pending.products.clear(); pending.stores.clear(); }
-  useEffect(() => { if (shopper) want(kind, key); }, [shopper, kind, key]);
+  if ((shopper?.id ?? null) !== owner) {
+    owner = shopper?.id ?? null;
+    products.clear();
+    stores.clear();
+    pending.products.clear();
+    pending.stores.clear();
+  }
+  useEffect(() => {
+    if (shopper) want(kind, key);
+  }, [shopper, kind, key]);
   useSyncExternalStore(subscribe, () => version);
   return Boolean(shopper) && Boolean((kind === "products" ? products : stores).get(key));
 }
@@ -56,22 +76,31 @@ export const useIsFavourite = (productId: string) => useFlag("products", product
 export const useIsFollowing = (storeSlug: string) => useFlag("stores", storeSlug);
 
 export async function toggleFavourite(productId: string, on: boolean) {
-  products.set(productId, on); changed();
+  products.set(productId, on);
+  changed();
   try {
-    await accountCall(`/api/market/favourites/products/${encodeURIComponent(productId)}`, { method: on ? "PUT" : "DELETE" });
+    await accountCall(`/api/market/favourites/products/${encodeURIComponent(productId)}`, {
+      method: on ? "PUT" : "DELETE",
+    });
   } catch (error) {
-    products.set(productId, !on); changed();
+    products.set(productId, !on);
+    changed();
     throw error;
   }
 }
 
 export async function toggleFollow(storeSlug: string, on: boolean): Promise<number | null> {
-  stores.set(storeSlug, on); changed();
+  stores.set(storeSlug, on);
+  changed();
   try {
-    const result = await accountCall<{ followers: number }>(`/api/market/stores/${encodeURIComponent(storeSlug)}/follow`, { method: on ? "PUT" : "DELETE" });
+    const result = await accountCall<{ followers: number }>(
+      `/api/market/stores/${encodeURIComponent(storeSlug)}/follow`,
+      { method: on ? "PUT" : "DELETE" }
+    );
     return result.followers;
   } catch (error) {
-    stores.set(storeSlug, !on); changed();
+    stores.set(storeSlug, !on);
+    changed();
     throw error;
   }
 }

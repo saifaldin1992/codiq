@@ -43,39 +43,83 @@ const storefront = [
   "client/src/pages/StorefrontCheckoutPage.tsx",
   "client/src/pages/StorefrontCartPage.tsx",
   "client/src/pages/StorefrontPolicyPage.tsx",
-].map(read).join("\n");
+]
+  .map(read)
+  .join("\n");
 
 // 1. the merchant's schema keys — the `z.object({ … })` of updateStorefrontSettingsSchema.
-const schemaBlock = schema.slice(schema.indexOf("export const updateStorefrontSettingsSchema"), schema.indexOf(".refine(", schema.indexOf("export const updateStorefrontSettingsSchema")));
+const schemaBlock = schema.slice(
+  schema.indexOf("export const updateStorefrontSettingsSchema"),
+  schema.indexOf(".refine(", schema.indexOf("export const updateStorefrontSettingsSchema"))
+);
 const schemaKeys = [...schemaBlock.matchAll(/^\s{4}(\w+):/gm)].map((match) => match[1]);
-assert.ok(schemaKeys.length >= 15, `expected the merchant schema's keys, read ${schemaKeys.length}`);
+assert.ok(
+  schemaKeys.length >= 15,
+  `expected the merchant schema's keys, read ${schemaKeys.length}`
+);
 
 // 2. the map — merchant key → public key(s).
-const mapBlock = service.slice(service.indexOf("export const STOREFRONT_FIELDS"), service.indexOf("};", service.indexOf("export const STOREFRONT_FIELDS")));
-const mapped = new Map([...mapBlock.matchAll(/^\s{2}(\w+): \[([^\]]*)\]/gm)].map((match) => [match[1], [...match[2].matchAll(/"([^"]+)"/g)].map((entry) => entry[1])]));
+const mapBlock = service.slice(
+  service.indexOf("export const STOREFRONT_FIELDS"),
+  service.indexOf("};", service.indexOf("export const STOREFRONT_FIELDS"))
+);
+const mapped = new Map(
+  [...mapBlock.matchAll(/^\s{2}(\w+): \[([^\]]*)\]/gm)].map((match) => [
+    match[1],
+    [...match[2].matchAll(/"([^"]+)"/g)].map((entry) => entry[1]),
+  ])
+);
 assert.ok(mapped.size >= 15, `expected STOREFRONT_FIELDS, read ${mapped.size} entries`);
 
 const failures = [];
 for (const key of schemaKeys) {
-  if (!mapped.has(key)) failures.push(`«${key}» is in the merchant's schema and not in STOREFRONT_FIELDS — say which public key it becomes.`);
-  if (!panel.includes(key)) failures.push(`«${key}» is a field the server accepts and StorefrontSettingsPanel.tsx never sends — a promise, not a feature.`);
+  if (!mapped.has(key))
+    failures.push(
+      `«${key}» is in the merchant's schema and not in STOREFRONT_FIELDS — say which public key it becomes.`
+    );
+  if (!panel.includes(key))
+    failures.push(
+      `«${key}» is a field the server accepts and StorefrontSettingsPanel.tsx never sends — a promise, not a feature.`
+    );
 }
 for (const [key, publicKeys] of mapped) {
-  if (!schemaKeys.includes(key)) failures.push(`«${key}» is in STOREFRONT_FIELDS and not in the merchant's schema — the map describes a field that does not exist.`);
+  if (!schemaKeys.includes(key))
+    failures.push(
+      `«${key}» is in STOREFRONT_FIELDS and not in the merchant's schema — the map describes a field that does not exist.`
+    );
   for (const publicKey of publicKeys) {
     // The public payload names it as a key — `name:`, `announcement`, `contact`, `guestCheckout:`, `homeSections:`.
-    const emitted = new RegExp(`\\b${publicKey}\\b`).test(service.slice(service.indexOf("export async function publicStorefrontConfig")));
-    if (!emitted) failures.push(`«${key}» maps to «${publicKey}», which publicStorefrontConfig never emits.`);
+    const emitted = new RegExp(`\\b${publicKey}\\b`).test(
+      service.slice(service.indexOf("export async function publicStorefrontConfig"))
+    );
+    if (!emitted)
+      failures.push(`«${key}» maps to «${publicKey}», which publicStorefrontConfig never emits.`);
     // …and a storefront component reads it as `config.<key>` / `config?.<key>` / destructured.
-    const drawn = new RegExp(`config\\??\\.${publicKey}\\b|\\b${publicKey}\\b[^\\n]{0,60}config`).test(storefront);
-    if (!drawn) failures.push(`«${key}» maps to «${publicKey}», which no storefront component reads — a value that reaches no pixel.`);
+    const drawn = new RegExp(
+      `config\\??\\.${publicKey}\\b|\\b${publicKey}\\b[^\\n]{0,60}config`
+    ).test(storefront);
+    if (!drawn)
+      failures.push(
+        `«${key}» maps to «${publicKey}», which no storefront component reads — a value that reaches no pixel.`
+      );
   }
 }
 
 assert.deepEqual(failures, [], `«واجهة المتجر» has drifted:\n  · ${failures.join("\n  · ")}`);
 
-console.log(JSON.stringify({
-  suite: "storefront-config",
-  status: "passed",
-  summary: { merchantFields: schemaKeys.length, publicKeys: [...new Set([...mapped.values()].flat())].length, guarantee: "every merchant field has a screen that sends it, a public key that carries it, and a storefront component that draws it" },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "storefront-config",
+      status: "passed",
+      summary: {
+        merchantFields: schemaKeys.length,
+        publicKeys: [...new Set([...mapped.values()].flat())].length,
+        guarantee:
+          "every merchant field has a screen that sends it, a public key that carries it, and a storefront component that draws it",
+      },
+    },
+    null,
+    2
+  )
+);

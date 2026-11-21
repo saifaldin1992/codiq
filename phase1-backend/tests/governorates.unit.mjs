@@ -35,7 +35,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { GOVERNORATES, GOVERNORATE_KEYS, governorateLabel, toGovernorateKey } from "../src/services/governorates.ts";
+import {
+  GOVERNORATES,
+  GOVERNORATE_KEYS,
+  governorateLabel,
+  toGovernorateKey,
+} from "../src/services/governorates.ts";
 
 const summary = {};
 
@@ -43,8 +48,16 @@ const summary = {};
 // 1. Eighteen, each with an Arabic name, no duplicates.
 // ============================================================
 assert.equal(GOVERNORATES.length, 18, "Iraq has eighteen governorates");
-assert.equal(new Set(GOVERNORATE_KEYS).size, 18, "no key appears twice — a duplicate would seed two rates for one place");
-assert.equal(new Set(GOVERNORATES.map((g) => g.ar)).size, 18, "no Arabic name appears twice — a shopper must not see one place listed twice");
+assert.equal(
+  new Set(GOVERNORATE_KEYS).size,
+  18,
+  "no key appears twice — a duplicate would seed two rates for one place"
+);
+assert.equal(
+  new Set(GOVERNORATES.map((g) => g.ar)).size,
+  18,
+  "no Arabic name appears twice — a shopper must not see one place listed twice"
+);
 for (const { key, ar } of GOVERNORATES) {
   assert.ok(/^[A-Za-z -]+$/.test(key), `the stored key stays English — rows depend on it: ${key}`);
   assert.ok(!/[A-Za-z]/.test(ar), `the shopper-facing name is Arabic: ${ar}`);
@@ -56,7 +69,11 @@ summary.list = "18 governorates, unique keys, unique Arabic names";
 // ============================================================
 assert.equal(toGovernorateKey("بغداد"), "Baghdad", "the exact input that was refused on staging");
 assert.equal(toGovernorateKey("البصرة"), "Basra");
-assert.equal(toGovernorateKey("بصرة"), "Basra", "…and without the definite article, which people write as often");
+assert.equal(
+  toGovernorateKey("بصرة"),
+  "Basra",
+  "…and without the definite article, which people write as often"
+);
 assert.equal(toGovernorateKey("أربيل"), "Erbil");
 assert.equal(toGovernorateKey(" بغداد "), "Baghdad", "surrounding space is not a different city");
 summary.arabicResolves = "Arabic names, with or without the article, resolve to the stored key";
@@ -69,7 +86,8 @@ summary.arabicResolves = "Arabic names, with or without the article, resolve to 
 for (const key of GOVERNORATE_KEYS) {
   assert.equal(toGovernorateKey(key), key, `the stored key maps to itself: ${key}`);
 }
-summary.backwardCompatible = "every stored English key resolves to itself — no migration, no row changes meaning";
+summary.backwardCompatible =
+  "every stored English key resolves to itself — no migration, no row changes meaning";
 
 // ============================================================
 // 4. An unknown value is passed back as null, never guessed.
@@ -88,7 +106,11 @@ summary.neverGuesses = "an unrecognised value returns null rather than a nearest
 // 5. The label a shopper reads.
 // ============================================================
 assert.equal(governorateLabel("Baghdad"), "بغداد");
-assert.equal(governorateLabel("Nowhere"), "Nowhere", "an unknown key is shown as-is rather than blanked — a wrong label is worse than a raw one");
+assert.equal(
+  governorateLabel("Nowhere"),
+  "Nowhere",
+  "an unknown key is shown as-is rather than blanked — a wrong label is worse than a raw one"
+);
 summary.label = "English key in, Arabic name out; unknown keys pass through visibly";
 
 // ============================================================
@@ -97,11 +119,13 @@ summary.label = "English key in, Arabic name out; unknown keys pass through visi
 // The defect was born of a second private copy in the client. If a copy comes
 // back, this fails — and it fails naming the file, so nobody has to remember
 // that the two lists exist.
-const clientManager = fileURLToPath(new URL("../../client/src/components/DeliveryRatesManager.tsx", import.meta.url));
+const clientManager = fileURLToPath(
+  new URL("../../client/src/components/DeliveryRatesManager.tsx", import.meta.url)
+);
 const managerSource = readFileSync(clientManager, "utf8");
 assert.ok(
   !managerSource.includes("GOVERNORATE_LABELS"),
-  "DeliveryRatesManager must not carry its own governorate table again — that private copy is what let the two sides disagree",
+  "DeliveryRatesManager must not carry its own governorate table again — that private copy is what let the two sides disagree"
 );
 
 // THE MIRROR IS COMPARED, NOT TRUSTED. The client cannot import the server
@@ -114,14 +138,29 @@ const mirror = await import("../../client/src/lib/governorates.ts");
 assert.deepEqual(
   mirror.GOVERNORATES.map((g) => [g.key, g.ar]),
   GOVERNORATES.map((g) => [g.key, g.ar]),
-  "the client mirror must match the server list exactly — same keys, same Arabic names, same order",
+  "the client mirror must match the server list exactly — same keys, same Arabic names, same order"
 );
-assert.equal(mirror.governorateLabel("Baghdad"), governorateLabel("Baghdad"), "and both sides must label a key identically");
-assert.equal(mirror.governorateLabel("Nowhere"), governorateLabel("Nowhere"), "…including an unknown key");
+assert.equal(
+  mirror.governorateLabel("Baghdad"),
+  governorateLabel("Baghdad"),
+  "and both sides must label a key identically"
+);
+assert.equal(
+  mirror.governorateLabel("Nowhere"),
+  governorateLabel("Nowhere"),
+  "…including an unknown key"
+);
 
-const bootstrap = readFileSync(fileURLToPath(new URL("../src/services/store-bootstrap.service.ts", import.meta.url)), "utf8");
+const bootstrap = readFileSync(
+  fileURLToPath(new URL("../src/services/store-bootstrap.service.ts", import.meta.url)),
+  "utf8"
+);
 assert.ok(bootstrap.includes("GOVERNORATE_KEYS"), "the seed must read the shared list");
-assert.ok(!/const IRAQI_GOVERNORATES\s*=\s*\[/.test(bootstrap), "…and must not keep a private array beside it");
-summary.oneList = "the seed reads the shared list; no private copy survives in the merchant screen or the bootstrap";
+assert.ok(
+  !/const IRAQI_GOVERNORATES\s*=\s*\[/.test(bootstrap),
+  "…and must not keep a private array beside it"
+);
+summary.oneList =
+  "the seed reads the shared list; no private copy survives in the merchant screen or the bootstrap";
 
 console.log(JSON.stringify({ suite: "governorates", status: "passed", summary }, null, 2));

@@ -42,26 +42,37 @@ import {
 
 export function registerPosRoutes(app: Express) {
   // ---- devices: pairing is management, listing is any till operator ----
-  app.post("/merchant/stores/:storeSlug/pos/devices", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const actor = await requireStoreActor(request, "settings.manage");
-    await assertCapabilityAvailable("pos.devices", actor.store);
-    const body = parseOrThrow(posDeviceSchema, request.body ?? {});
-    response.status(201).json(await createPosDevice(actor.store.id, body));
-  }));
+  app.post(
+    "/merchant/stores/:storeSlug/pos/devices",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const actor = await requireStoreActor(request, "settings.manage");
+      await assertCapabilityAvailable("pos.devices", actor.store);
+      const body = parseOrThrow(posDeviceSchema, request.body ?? {});
+      response.status(201).json(await createPosDevice(actor.store.id, body));
+    })
+  );
 
-  app.get("/merchant/stores/:storeSlug/pos/devices", asyncRoute(async (request, response) => {
-    const actor = await requireStoreActor(request, "pos.sell");
-    await assertCapabilityAvailable("pos.devices", actor.store);
-    response.status(200).json({ storeSlug: actor.store.slug, ...(await listPosDevices(actor.store.id)) });
-  }));
+  app.get(
+    "/merchant/stores/:storeSlug/pos/devices",
+    asyncRoute(async (request, response) => {
+      const actor = await requireStoreActor(request, "pos.sell");
+      await assertCapabilityAvailable("pos.devices", actor.store);
+      response
+        .status(200)
+        .json({ storeSlug: actor.store.slug, ...(await listPosDevices(actor.store.id)) });
+    })
+  );
 
-  app.post("/merchant/stores/:storeSlug/pos/devices/:deviceId/revoke", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const actor = await requireStoreActor(request, "settings.manage");
-    await revokePosDevice(actor.store.id, request.params.deviceId);
-    response.status(204).end();
-  }));
+  app.post(
+    "/merchant/stores/:storeSlug/pos/devices/:deviceId/revoke",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const actor = await requireStoreActor(request, "settings.manage");
+      await revokePosDevice(actor.store.id, request.params.deviceId);
+      response.status(204).end();
+    })
+  );
 
   // ---- PG-6 (ق-74): the till's ONLINE product search ----
   // Appended after the device routes; `pos/products` shares no pattern with
@@ -75,40 +86,65 @@ export function registerPosRoutes(app: Express) {
   // A NEW route, so it is schema-validated from the start (the rule
   // `validation-adoption.guard.mjs` states). It is a GET, so there is no write
   // to guard with `requireTrustedWriteOrigin`.
-  app.get("/merchant/stores/:storeSlug/pos/products", asyncRoute(async (request, response) => {
-    const actor = await requireStoreActor(request, "pos.sell");
-    await assertCapabilityAvailable("pos.sell", actor.store);
-    const { q, limit } = parseOrThrow(posProductSearchQuerySchema, { q: request.query.q, limit: request.query.limit });
-    response.status(200).json({ storeSlug: actor.store.slug, ...(await searchPosProducts(actor.store.id, q, limit)) });
-  }));
+  app.get(
+    "/merchant/stores/:storeSlug/pos/products",
+    asyncRoute(async (request, response) => {
+      const actor = await requireStoreActor(request, "pos.sell");
+      await assertCapabilityAvailable("pos.sell", actor.store);
+      const { q, limit } = parseOrThrow(posProductSearchQuerySchema, {
+        q: request.query.q,
+        limit: request.query.limit,
+      });
+      response
+        .status(200)
+        .json({
+          storeSlug: actor.store.slug,
+          ...(await searchPosProducts(actor.store.id, q, limit)),
+        });
+    })
+  );
 
   // ---- the sale ----
-  app.post("/merchant/stores/:storeSlug/pos/tickets", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const actor = await requireStoreActor(request, "pos.sell");
-    await assertCapabilityAvailable("pos.sell", actor.store);
-    const body = parseOrThrow(posTicketSchema, request.body ?? {});
-    const result = await ingestPosTicket(
-      actor.store.id,
-      { kind: actor.actor.kind === "merchant" ? "merchant" : "staff", id: actor.actor.id },
-      body,
-    );
-    // 200 for a replay, 201 for a fresh sale: the till can tell «سُجّلت» from
-    // «كانت مسجّلة أصلاً» without parsing anything.
-    response.status(result.replayed ? 200 : 201).json(result);
-  }));
+  app.post(
+    "/merchant/stores/:storeSlug/pos/tickets",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const actor = await requireStoreActor(request, "pos.sell");
+      await assertCapabilityAvailable("pos.sell", actor.store);
+      const body = parseOrThrow(posTicketSchema, request.body ?? {});
+      const result = await ingestPosTicket(
+        actor.store.id,
+        { kind: actor.actor.kind === "merchant" ? "merchant" : "staff", id: actor.actor.id },
+        body
+      );
+      // 200 for a replay, 201 for a fresh sale: the till can tell «سُجّلت» from
+      // «كانت مسجّلة أصلاً» without parsing anything.
+      response.status(result.replayed ? 200 : 201).json(result);
+    })
+  );
 
   // ---- shortfalls: the reconciliation queue ----
-  app.get("/merchant/stores/:storeSlug/pos/shortfalls", asyncRoute(async (request, response) => {
-    const actor = await requireStoreActor(request, "inventory.update");
-    const { limit, cursor } = parseOrThrow(paginationQuerySchema, request.query);
-    response.status(200).json({ storeSlug: actor.store.slug, ...(await listPosShortfalls(actor.store.id, limit, cursor)) });
-  }));
+  app.get(
+    "/merchant/stores/:storeSlug/pos/shortfalls",
+    asyncRoute(async (request, response) => {
+      const actor = await requireStoreActor(request, "inventory.update");
+      const { limit, cursor } = parseOrThrow(paginationQuerySchema, request.query);
+      response
+        .status(200)
+        .json({
+          storeSlug: actor.store.slug,
+          ...(await listPosShortfalls(actor.store.id, limit, cursor)),
+        });
+    })
+  );
 
-  app.post("/merchant/stores/:storeSlug/pos/shortfalls/:shortfallId/review", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const actor = await requireStoreActor(request, "inventory.update");
-    await reviewPosShortfall(actor.store.id, request.params.shortfallId);
-    response.status(204).end();
-  }));
+  app.post(
+    "/merchant/stores/:storeSlug/pos/shortfalls/:shortfallId/review",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const actor = await requireStoreActor(request, "inventory.update");
+      await reviewPosShortfall(actor.store.id, request.params.shortfallId);
+      response.status(204).end();
+    })
+  );
 }

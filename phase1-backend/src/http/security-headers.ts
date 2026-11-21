@@ -121,13 +121,16 @@ const PLATFORM_PREFIXES = ["/platform", "/merchant", "/staff"] as const;
  */
 export function normaliseSurfacePath(rawUrl: string): string {
   const pathname = rawUrl.split("?")[0]!.split("#")[0]!;
-  const withoutApi = pathname === "/api" ? "/" : pathname.startsWith("/api/") ? pathname.slice(4) : pathname;
+  const withoutApi =
+    pathname === "/api" ? "/" : pathname.startsWith("/api/") ? pathname.slice(4) : pathname;
   return withoutApi || "/";
 }
 
 export function surfaceForPath(rawUrl: string): SecuritySurface {
   const pathname = normaliseSurfacePath(rawUrl);
-  const platform = PLATFORM_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  const platform = PLATFORM_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
   return platform ? "platform" : "storefront";
 }
 
@@ -135,7 +138,9 @@ export function surfaceForPath(rawUrl: string): SecuritySurface {
  * The policy, as data, so the guard test asserts the same object the server
  * serves rather than a re-typed copy of it.
  */
-export function contentSecurityPolicyDirectives(surface: SecuritySurface): Record<string, string[]> {
+export function contentSecurityPolicyDirectives(
+  surface: SecuritySurface
+): Record<string, string[]> {
   const storefront = surface === "storefront";
   return {
     // A floor, so a directive nobody thought to name falls back to same-origin
@@ -196,7 +201,9 @@ export function contentSecurityPolicyDirectives(surface: SecuritySurface): Recor
 
     // `data:` for the inline SVG favicon in index.html; `blob:` for the canvas
     // the merchant's share card renders (client/src/components/ProductShareCard).
-    "img-src": storefront ? ["'self'", "data:", "blob:", ...PIXEL_BEACON_ORIGINS] : ["'self'", "data:", "blob:"],
+    "img-src": storefront
+      ? ["'self'", "data:", "blob:", ...PIXEL_BEACON_ORIGINS]
+      : ["'self'", "data:", "blob:"],
 
     // The font hosts are here for a reason that is easy to miss: the till's
     // service worker REVALIDATES the Google Fonts stylesheet and files with
@@ -274,9 +281,13 @@ function platformHostFromEnv(): string | null {
 }
 
 /** Exported for the guard: the HSTS value a response to `host` carries. */
-export function hstsValueFor(host: string | undefined, platformHost: string | null = platformHostFromEnv()): string {
+export function hstsValueFor(
+  host: string | undefined,
+  platformHost: string | null = platformHostFromEnv()
+): string {
   const name = (host ?? "").split(":")[0]!.toLowerCase();
-  if (platformHost && (name === platformHost || name.endsWith(`.${platformHost}`))) return HSTS_PLATFORM_VALUE;
+  if (platformHost && (name === platformHost || name.endsWith(`.${platformHost}`)))
+    return HSTS_PLATFORM_VALUE;
   return HSTS_VALUE;
 }
 
@@ -349,7 +360,8 @@ const HELMET_BY_SURFACE: Record<SecuritySurface, RequestHandler> = {
  */
 export function securityHeaders(): RequestHandler {
   return (request: Request, response: Response, next: NextFunction) => {
-    if (isHttps(request)) response.setHeader("Strict-Transport-Security", hstsValueFor(request.hostname));
+    if (isHttps(request))
+      response.setHeader("Strict-Transport-Security", hstsValueFor(request.hostname));
     HELMET_BY_SURFACE[surfaceForPath(request.originalUrl || request.url)](request, response, next);
   };
 }

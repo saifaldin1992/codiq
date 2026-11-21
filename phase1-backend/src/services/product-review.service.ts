@@ -75,10 +75,12 @@ function parseRating(raw: unknown): number {
 
 function parseBody(raw: unknown): string | null {
   if (raw === undefined || raw === null || raw === "") return null;
-  if (typeof raw !== "string") throw new HttpError(422, "INVALID_REVIEW_BODY", "نص المراجعة يجب أن يكون نصاً.");
+  if (typeof raw !== "string")
+    throw new HttpError(422, "INVALID_REVIEW_BODY", "نص المراجعة يجب أن يكون نصاً.");
   const body = raw.trim();
   if (!body) return null;
-  if (body.length > REVIEW_BODY_MAX) throw new HttpError(422, "INVALID_REVIEW_BODY", "نص المراجعة يتجاوز 2000 حرف.");
+  if (body.length > REVIEW_BODY_MAX)
+    throw new HttpError(422, "INVALID_REVIEW_BODY", "نص المراجعة يتجاوز 2000 حرف.");
   return body;
 }
 
@@ -88,7 +90,11 @@ function parseBody(raw: unknown): string | null {
  * and an arbitrary choice that can change between calls would make the same
  * review point at different orders on a retry.
  */
-async function entitlingOrder(storeId: string, customerId: string, productId: string): Promise<{ id: string } | null> {
+async function entitlingOrder(
+  storeId: string,
+  customerId: string,
+  productId: string
+): Promise<{ id: string } | null> {
   return prisma.storeOrder.findFirst({
     where: {
       storeId,
@@ -108,7 +114,9 @@ export async function reviewSummary(storeId: string, productId: string): Promise
       where: { storeId, productId, ...NOT_WITHDRAWN },
       _count: { _all: true },
     }),
-    prisma.productReview.count({ where: { storeId, productId, ...NOT_WITHDRAWN, hiddenAt: { not: null } } }),
+    prisma.productReview.count({
+      where: { storeId, productId, ...NOT_WITHDRAWN, hiddenAt: { not: null } },
+    }),
   ]);
   const distribution: Record<string, number> = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
   let total = 0;
@@ -134,7 +142,10 @@ const STORE_REVIEWS_KIND = "merchant.reviews";
 /** Resolves a pre-20-2 bare review id inside the store that is asking. */
 function legacyReviewCursor(storeId: string) {
   return async (id: string) => {
-    const row = await prisma.productReview.findFirst({ where: { id, storeId }, select: { createdAt: true } });
+    const row = await prisma.productReview.findFirst({
+      where: { id, storeId },
+      select: { createdAt: true },
+    });
     return row ? { value: row.createdAt } : null;
   };
 }
@@ -146,22 +157,38 @@ function legacyReviewCursor(storeId: string) {
  * screen can offer «سحب مراجعتي» on exactly one line. The id itself never
  * leaves the server: the payload carries a boolean, not who wrote what.
  */
-export async function listProductReviews(storeId: string, productId: string, query: Record<string, unknown>, viewerCustomerId: string | null = null) {
-  const cursor = await readListCursor(PRODUCT_REVIEWS_KIND, query.cursor, { legacy: legacyReviewCursor(storeId) });
+export async function listProductReviews(
+  storeId: string,
+  productId: string,
+  query: Record<string, unknown>,
+  viewerCustomerId: string | null = null
+) {
+  const cursor = await readListCursor(PRODUCT_REVIEWS_KIND, query.cursor, {
+    legacy: legacyReviewCursor(storeId),
+  });
 
   const rows = await prisma.productReview.findMany({
     where: {
-      storeId, productId, ...NOT_WITHDRAWN,
+      storeId,
+      productId,
+      ...NOT_WITHDRAWN,
       ...keysetWhere("createdAt", "desc", cursor),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: REVIEW_PAGE_SIZE + 1,
     select: {
-      id: true, rating: true, body: true, hiddenAt: true, createdAt: true, customerId: true,
+      id: true,
+      rating: true,
+      body: true,
+      hiddenAt: true,
+      createdAt: true,
+      customerId: true,
       customer: { select: { fullName: true } },
     },
   });
-  const { page, nextCursor } = pageOf(rows, REVIEW_PAGE_SIZE, (last) => encodeListCursor(PRODUCT_REVIEWS_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, REVIEW_PAGE_SIZE, (last) =>
+    encodeListCursor(PRODUCT_REVIEWS_KIND, last.createdAt, last.id)
+  );
 
   return {
     reviews: page.map((row) => ({
@@ -197,10 +224,24 @@ export async function listProductReviews(storeId: string, productId: string, que
 export async function publicStoreReviews(storeId: string, rawLimit: unknown) {
   const limit = Math.min(Math.max(Number(rawLimit) || 8, 1), 24);
   const rows = await prisma.productReview.findMany({
-    where: { storeId, ...NOT_WITHDRAWN, hiddenAt: null, body: { not: null }, rating: { gte: 4 }, product: { isActive: true, deletedAt: null } },
+    where: {
+      storeId,
+      ...NOT_WITHDRAWN,
+      hiddenAt: null,
+      body: { not: null },
+      rating: { gte: 4 },
+      product: { isActive: true, deletedAt: null },
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit,
-    select: { id: true, rating: true, body: true, createdAt: true, customer: { select: { fullName: true } }, product: { select: { id: true, name: true } } },
+    select: {
+      id: true,
+      rating: true,
+      body: true,
+      createdAt: true,
+      customer: { select: { fullName: true } },
+      product: { select: { id: true, name: true } },
+    },
   });
   return {
     reviews: rows.map((row) => ({
@@ -219,17 +260,24 @@ export async function upsertProductReview(
   storeId: string,
   customerId: string,
   productId: string,
-  input: { rating: number; body?: string },
+  input: { rating: number; body?: string }
 ) {
   const rating = parseRating(input.rating);
   const body = parseBody(input.body);
 
-  const product = await prisma.product.findFirst({ where: { id: productId, storeId, ...LIVE }, select: { id: true } });
+  const product = await prisma.product.findFirst({
+    where: { id: productId, storeId, ...LIVE },
+    select: { id: true },
+  });
   if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود.");
 
   const order = await entitlingOrder(storeId, customerId, productId);
   if (!order) {
-    throw new HttpError(403, "REVIEW_REQUIRES_PURCHASE", "لا يمكن تقييم منتج لم تشترِه وتستلمه. المراجعات هنا من مشترين فقط.");
+    throw new HttpError(
+      403,
+      "REVIEW_REQUIRES_PURCHASE",
+      "لا يمكن تقييم منتج لم تشترِه وتستلمه. المراجعات هنا من مشترين فقط."
+    );
   }
 
   const existing = await prisma.productReview.findFirst({
@@ -244,13 +292,27 @@ export async function upsertProductReview(
     return prisma.productReview.update({
       where: { id: existing.id },
       data: { rating, body },
-      select: { id: true, rating: true, body: true, hiddenAt: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        rating: true,
+        body: true,
+        hiddenAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
   }
 
   return prisma.productReview.create({
     data: { storeId, productId, customerId, orderId: order.id, rating, body },
-    select: { id: true, rating: true, body: true, hiddenAt: true, createdAt: true, updatedAt: true },
+    select: {
+      id: true,
+      rating: true,
+      body: true,
+      hiddenAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 }
 
@@ -260,9 +322,15 @@ export async function upsertProductReview(
  * not land in the merchant's trash bin as a row he may "restore".
  */
 export async function deleteOwnReview(storeId: string, customerId: string, reviewId: string) {
-  const review = await prisma.productReview.findFirst({ where: { id: reviewId, storeId, customerId, ...NOT_WITHDRAWN }, select: { id: true } });
+  const review = await prisma.productReview.findFirst({
+    where: { id: reviewId, storeId, customerId, ...NOT_WITHDRAWN },
+    select: { id: true },
+  });
   if (!review) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المراجعة غير موجودة.");
-  await prisma.productReview.update({ where: { id: review.id }, data: { withdrawnAt: new Date() } });
+  await prisma.productReview.update({
+    where: { id: review.id },
+    data: { withdrawnAt: new Date() },
+  });
 }
 
 /**
@@ -273,9 +341,10 @@ export async function setReviewHidden(
   storeId: string,
   actor: StoreActor,
   reviewId: string,
-  input: { hidden: boolean; reason?: string },
+  input: { hidden: boolean; reason?: string }
 ) {
-  if (typeof input.hidden !== "boolean") throw new HttpError(422, "INVALID_INPUT", "hidden يجب أن يكون true أو false.");
+  if (typeof input.hidden !== "boolean")
+    throw new HttpError(422, "INVALID_INPUT", "hidden يجب أن يكون true أو false.");
   const review = await prisma.productReview.findFirst({
     where: { id: reviewId, storeId, ...NOT_WITHDRAWN },
     select: { id: true, rating: true, hiddenAt: true, product: { select: { name: true } } },
@@ -285,16 +354,23 @@ export async function setReviewHidden(
   let reason: string | null = null;
   if (input.hidden) {
     if (typeof input.reason !== "string" || !input.reason.trim()) {
-      throw new HttpError(422, "REVIEW_HIDE_REASON_REQUIRED", "إخفاء مراجعة يحتاج سبباً مكتوباً — يُسجَّل ويطّلع عليه المالك.");
+      throw new HttpError(
+        422,
+        "REVIEW_HIDE_REASON_REQUIRED",
+        "إخفاء مراجعة يحتاج سبباً مكتوباً — يُسجَّل ويطّلع عليه المالك."
+      );
     }
     reason = input.reason.trim();
-    if (reason.length > REVIEW_HIDE_REASON_MAX) throw new HttpError(422, "INVALID_INPUT", "السبب يتجاوز 500 حرف.");
+    if (reason.length > REVIEW_HIDE_REASON_MAX)
+      throw new HttpError(422, "INVALID_INPUT", "السبب يتجاوز 500 حرف.");
   }
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.productReview.update({
       where: { id: review.id },
-      data: input.hidden ? { hiddenAt: new Date(), hiddenReason: reason } : { hiddenAt: null, hiddenReason: null },
+      data: input.hidden
+        ? { hiddenAt: new Date(), hiddenReason: reason }
+        : { hiddenAt: null, hiddenReason: null },
       select: { id: true, rating: true, hiddenAt: true, hiddenReason: true },
     });
     // The trail is the counterweight to the power. A merchant who hides only
@@ -315,24 +391,34 @@ export async function setReviewHidden(
 
 /** The merchant's queue: his store's reviews, newest first, text and all. */
 export async function listStoreReviews(storeId: string, query: Record<string, unknown>) {
-  const cursor = await readListCursor(STORE_REVIEWS_KIND, query.cursor, { legacy: legacyReviewCursor(storeId) });
+  const cursor = await readListCursor(STORE_REVIEWS_KIND, query.cursor, {
+    legacy: legacyReviewCursor(storeId),
+  });
   const onlyHidden = query.hidden === "true";
 
   const rows = await prisma.productReview.findMany({
     where: {
-      storeId, ...NOT_WITHDRAWN,
+      storeId,
+      ...NOT_WITHDRAWN,
       ...(onlyHidden ? { hiddenAt: { not: null } } : {}),
       ...keysetWhere("createdAt", "desc", cursor),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: REVIEW_PAGE_SIZE + 1,
     select: {
-      id: true, rating: true, body: true, hiddenAt: true, hiddenReason: true, createdAt: true,
+      id: true,
+      rating: true,
+      body: true,
+      hiddenAt: true,
+      hiddenReason: true,
+      createdAt: true,
       product: { select: { id: true, name: true } },
       customer: { select: { fullName: true } },
       orderId: true,
     },
   });
-  const { page, nextCursor } = pageOf(rows, REVIEW_PAGE_SIZE, (last) => encodeListCursor(STORE_REVIEWS_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, REVIEW_PAGE_SIZE, (last) =>
+    encodeListCursor(STORE_REVIEWS_KIND, last.createdAt, last.id)
+  );
   return { reviews: page, nextCursor };
 }

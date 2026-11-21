@@ -29,7 +29,11 @@ import { toE164 } from "../auth/identity.js";
 import { prisma } from "../db/prisma.js";
 import { publicUrl } from "../notifications/messaging-compliance.service.js";
 
-export const WHATSAPP_TEMPLATE_KEYS = ["orderCreated", "courierDispatched", "orderCompleted"] as const;
+export const WHATSAPP_TEMPLATE_KEYS = [
+  "orderCreated",
+  "courierDispatched",
+  "orderCompleted",
+] as const;
 export type WhatsappTemplateKey = (typeof WHATSAPP_TEMPLATE_KEYS)[number];
 
 /** camelCase in JSON/API ↔ snake_case in the DB CHECK, mapped here like the rest of the house. */
@@ -39,7 +43,7 @@ const TEMPLATE_DB_KEYS: Record<WhatsappTemplateKey, string> = {
   orderCompleted: "order_completed",
 };
 const TEMPLATE_KEY_FROM_DB = Object.fromEntries(
-  Object.entries(TEMPLATE_DB_KEYS).map(([camel, snake]) => [snake, camel]),
+  Object.entries(TEMPLATE_DB_KEYS).map(([camel, snake]) => [snake, camel])
 ) as Record<string, WhatsappTemplateKey>;
 
 export const WHATSAPP_TEMPLATE_LABELS: Record<WhatsappTemplateKey, string> = {
@@ -62,20 +66,30 @@ const TEMPLATE_DEFAULTS: Record<WhatsappTemplateKey, string> = {
 };
 
 /** The five variables a template may use — anything else in a saved template is a 422. */
-const TEMPLATE_VARIABLES = ["اسم_الزبون", "رقم_الطلب", "اسم_المتجر", "المبلغ", "رابط_التتبع"] as const;
+const TEMPLATE_VARIABLES = [
+  "اسم_الزبون",
+  "رقم_الطلب",
+  "اسم_المتجر",
+  "المبلغ",
+  "رابط_التتبع",
+] as const;
 
 export const WHATSAPP_TEMPLATE_MAX_LENGTH = 1000;
 
 const money = new Intl.NumberFormat("ar-IQ", { maximumFractionDigits: 0 });
 
 /** Tolerant read with code defaults — the courierDispatch idiom. */
-export function normalizeWhatsappTemplates(configuration: unknown): Record<WhatsappTemplateKey, string> {
+export function normalizeWhatsappTemplates(
+  configuration: unknown
+): Record<WhatsappTemplateKey, string> {
   const block =
     configuration && typeof configuration === "object" && !Array.isArray(configuration)
       ? (configuration as Record<string, unknown>).whatsappTemplates
       : undefined;
   const stored =
-    block && typeof block === "object" && !Array.isArray(block) ? (block as Record<string, unknown>) : {};
+    block && typeof block === "object" && !Array.isArray(block)
+      ? (block as Record<string, unknown>)
+      : {};
   const templates = {} as Record<WhatsappTemplateKey, string>;
   for (const key of WHATSAPP_TEMPLATE_KEYS) {
     const value = stored[key];
@@ -100,11 +114,16 @@ export function validateWhatsappTemplatesInput(raw: unknown): Record<string, str
       throw new HttpError(422, "INVALID_INPUT", `Unknown whatsappTemplates key: ${key}`);
     }
     const value = entries[key];
-    if (typeof value !== "string") throw new HttpError(422, "INVALID_INPUT", `${key} must be a string.`);
+    if (typeof value !== "string")
+      throw new HttpError(422, "INVALID_INPUT", `${key} must be a string.`);
     const trimmed = value.trim();
     if (!trimmed) continue; // revert-to-default
     if (trimmed.length > WHATSAPP_TEMPLATE_MAX_LENGTH) {
-      throw new HttpError(422, "INVALID_INPUT", `قالب واتساب يجب ألا يتجاوز ${WHATSAPP_TEMPLATE_MAX_LENGTH} حرف.`);
+      throw new HttpError(
+        422,
+        "INVALID_INPUT",
+        `قالب واتساب يجب ألا يتجاوز ${WHATSAPP_TEMPLATE_MAX_LENGTH} حرف.`
+      );
     }
     const tokenPattern = /\{\{([^{}]*)\}\}/g;
     let match: RegExpExecArray | null;
@@ -135,15 +154,20 @@ type RenderContext = {
 export function renderWhatsappTemplate(template: string, context: RenderContext): string {
   const trackingUrl = publicUrl(`/store/${encodeURIComponent(context.storeSlug)}/track`);
   const substitutions: Record<string, string> = {
-    "اسم_الزبون": context.customerName,
-    "رقم_الطلب": context.orderNumber,
-    "اسم_المتجر": context.storeName,
-    "المبلغ": `${money.format(context.totalIqd)} د.ع`,
-    "رابط_التتبع": trackingUrl ?? "",
+    اسم_الزبون: context.customerName,
+    رقم_الطلب: context.orderNumber,
+    اسم_المتجر: context.storeName,
+    المبلغ: `${money.format(context.totalIqd)} د.ع`,
+    رابط_التتبع: trackingUrl ?? "",
   };
   const lines = template.split("\n").flatMap((line) => {
     if (!trackingUrl && line.includes("{{رابط_التتبع}}")) return [];
-    return [line.replace(/\{\{([^{}]*)\}\}/g, (whole, name: string) => substitutions[name.trim()] ?? whole)];
+    return [
+      line.replace(
+        /\{\{([^{}]*)\}\}/g,
+        (whole, name: string) => substitutions[name.trim()] ?? whole
+      ),
+    ];
   });
   return lines.join("\n").trim();
 }
@@ -157,30 +181,61 @@ async function scopedOrder(storeId: string, orderId: string) {
   // from a missing one (the order-notes idiom).
   const order = await prisma.storeOrder.findFirst({
     where: { id: orderId, storeId },
-    select: { id: true, orderNumber: true, customerName: true, recipientPhone: true, totalIqd: true, status: true },
+    select: {
+      id: true,
+      orderNumber: true,
+      customerName: true,
+      recipientPhone: true,
+      totalIqd: true,
+      status: true,
+    },
   });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+  if (!order)
+    throw new HttpError(
+      404,
+      "RESOURCE_NOT_FOUND",
+      "The requested order was not found in this store."
+    );
   return order;
 }
 
 async function storeContext(storeId: string) {
-  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true, slug: true } });
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { name: true, slug: true },
+  });
   if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "Store not found.");
   return store;
 }
 
 /** One batched name read per kind — the withAuthorNames idiom from order notes. */
 async function withActorNames(
-  sends: Array<{ id: string; templateKey: string; actorKind: string; actorId: string; createdAt: Date }>,
+  sends: Array<{
+    id: string;
+    templateKey: string;
+    actorKind: string;
+    actorId: string;
+    createdAt: Date;
+  }>
 ) {
-  const merchantIds = Array.from(new Set(sends.filter((s) => s.actorKind === "merchant").map((s) => s.actorId)));
-  const staffIds = Array.from(new Set(sends.filter((s) => s.actorKind === "staff").map((s) => s.actorId)));
+  const merchantIds = Array.from(
+    new Set(sends.filter((s) => s.actorKind === "merchant").map((s) => s.actorId))
+  );
+  const staffIds = Array.from(
+    new Set(sends.filter((s) => s.actorKind === "staff").map((s) => s.actorId))
+  );
   const [merchants, staff] = await Promise.all([
     merchantIds.length
-      ? prisma.merchant.findMany({ where: { id: { in: merchantIds } }, select: { id: true, businessName: true } })
+      ? prisma.merchant.findMany({
+          where: { id: { in: merchantIds } },
+          select: { id: true, businessName: true },
+        })
       : Promise.resolve([]),
     staffIds.length
-      ? prisma.staff.findMany({ where: { id: { in: staffIds } }, select: { id: true, displayName: true } })
+      ? prisma.staff.findMany({
+          where: { id: { in: staffIds } },
+          select: { id: true, displayName: true },
+        })
       : Promise.resolve([]),
   ]);
   const names = new Map<string, string>();
@@ -202,10 +257,18 @@ async function withActorNames(
  */
 export async function whatsappPanelForOrder(storeId: string, orderId: string) {
   const [order, store] = await Promise.all([scopedOrder(storeId, orderId), storeContext(storeId)]);
-  const settings = await prisma.notificationSettings.findUnique({ where: { storeId }, select: { configuration: true } });
+  const settings = await prisma.notificationSettings.findUnique({
+    where: { storeId },
+    select: { configuration: true },
+  });
   const templates = normalizeWhatsappTemplates(settings?.configuration);
   const e164 = toE164(order.recipientPhone);
-  const reason = order.recipientPhone == null || order.recipientPhone.trim() === "" ? "no_phone" : e164 ? null : "invalid_phone";
+  const reason =
+    order.recipientPhone == null || order.recipientPhone.trim() === ""
+      ? "no_phone"
+      : e164
+        ? null
+        : "invalid_phone";
   const context: RenderContext = {
     customerName: order.customerName,
     orderNumber: order.orderNumber,
@@ -227,7 +290,12 @@ export async function whatsappPanelForOrder(storeId: string, orderId: string) {
     reason,
     templates: WHATSAPP_TEMPLATE_KEYS.map((key) => {
       const body = renderWhatsappTemplate(templates[key], context);
-      return { key, label: WHATSAPP_TEMPLATE_LABELS[key], body, waUrl: e164 ? waUrlFor(e164, body) : null };
+      return {
+        key,
+        label: WHATSAPP_TEMPLATE_LABELS[key],
+        body,
+        waUrl: e164 ? waUrlFor(e164, body) : null,
+      };
     }),
     sends: await withActorNames(sends),
   };
@@ -242,19 +310,30 @@ export async function recordWhatsappSend(
   storeId: string,
   actor: { kind: "merchant" | "staff"; id: string },
   orderId: string,
-  body: Record<string, unknown>,
+  body: Record<string, unknown>
 ) {
   const key = body.templateKey;
   if (typeof key !== "string" || !WHATSAPP_TEMPLATE_KEYS.includes(key as WhatsappTemplateKey)) {
-    throw new HttpError(422, "INVALID_INPUT", "templateKey must be one of the known WhatsApp templates.");
+    throw new HttpError(
+      422,
+      "INVALID_INPUT",
+      "templateKey must be one of the known WhatsApp templates."
+    );
   }
   const templateKey = key as WhatsappTemplateKey;
   const [order, store] = await Promise.all([scopedOrder(storeId, orderId), storeContext(storeId)]);
   const e164 = toE164(order.recipientPhone);
   if (!e164) {
-    throw new HttpError(422, "WHATSAPP_NO_RECIPIENT_PHONE", "لا يوجد رقم هاتف صالح لهذا الطلب، فلا رسالة يمكن إرسالها.");
+    throw new HttpError(
+      422,
+      "WHATSAPP_NO_RECIPIENT_PHONE",
+      "لا يوجد رقم هاتف صالح لهذا الطلب، فلا رسالة يمكن إرسالها."
+    );
   }
-  const settings = await prisma.notificationSettings.findUnique({ where: { storeId }, select: { configuration: true } });
+  const settings = await prisma.notificationSettings.findUnique({
+    where: { storeId },
+    select: { configuration: true },
+  });
   const templates = normalizeWhatsappTemplates(settings?.configuration);
   const rendered = renderWhatsappTemplate(templates[templateKey], {
     customerName: order.customerName,

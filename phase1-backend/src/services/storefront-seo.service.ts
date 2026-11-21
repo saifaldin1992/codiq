@@ -23,7 +23,10 @@ const LIVE = { deletedAt: null, isActive: true } as const;
 
 /** Escapes a value for insertion into an HTML attribute or a text node. */
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
+  return value.replace(
+    /[&<>"']/g,
+    (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!
+  );
 }
 
 /** JSON-LD is injected inside a <script> tag, so `<` must never survive. */
@@ -48,7 +51,10 @@ function truncate(text: string, max = 300): string {
  * Reads the metadata for a public storefront path, or null when the path is not
  * a storefront page (which is most of them).
  */
-export async function storefrontSeoFor(pathname: string, origin: string): Promise<StorefrontSeo | null> {
+export async function storefrontSeoFor(
+  pathname: string,
+  origin: string
+): Promise<StorefrontSeo | null> {
   const store = /^\/store\/([^/?#]+)/.exec(pathname);
   if (!store) return null;
   const slug = decodeURIComponent(store[1]!);
@@ -71,14 +77,21 @@ export async function storefrontSeoFor(pathname: string, origin: string): Promis
     const productRow = await prisma.product.findFirst({
       where: { id: product[1]!, storeId: row.id, ...LIVE },
       select: {
-        id: true, name: true, description: true, sku: true, priceIqd: true, stockQuantity: true,
+        id: true,
+        name: true,
+        description: true,
+        sku: true,
+        priceIqd: true,
+        stockQuantity: true,
         images: { select: { id: true }, take: 1 },
         category: { select: { name: true } },
       },
     });
     if (productRow) {
       const productUrl = `${storeUrl}/products/${encodeURIComponent(productRow.id)}`;
-      const image = productRow.images[0] ? `${storeUrl}/products/${encodeURIComponent(productRow.id)}/images/${encodeURIComponent(productRow.images[0].id)}` : null;
+      const image = productRow.images[0]
+        ? `${storeUrl}/products/${encodeURIComponent(productRow.id)}/images/${encodeURIComponent(productRow.images[0].id)}`
+        : null;
       return {
         title: `${productRow.name} — ${row.name}`,
         description: truncate(productRow.description || `${productRow.name} من ${row.name}.`),
@@ -98,7 +111,10 @@ export async function storefrontSeoFor(pathname: string, origin: string): Promis
               priceCurrency: "IQD",
               price: productRow.priceIqd,
               // The real thing, from the real column — not a constant.
-              availability: productRow.stockQuantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+              availability:
+                productRow.stockQuantity > 0
+                  ? "https://schema.org/InStock"
+                  : "https://schema.org/OutOfStock",
               seller: { "@type": "Organization", name: row.name },
             },
             // NO aggregateRating: reviews are CD-2 and do not exist. An empty one
@@ -109,8 +125,22 @@ export async function storefrontSeoFor(pathname: string, origin: string): Promis
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: row.name, item: storeUrl },
-              ...(productRow.category ? [{ "@type": "ListItem", position: 2, name: productRow.category.name, item: storeUrl }] : []),
-              { "@type": "ListItem", position: productRow.category ? 3 : 2, name: productRow.name, item: productUrl },
+              ...(productRow.category
+                ? [
+                    {
+                      "@type": "ListItem",
+                      position: 2,
+                      name: productRow.category.name,
+                      item: storeUrl,
+                    },
+                  ]
+                : []),
+              {
+                "@type": "ListItem",
+                position: productRow.category ? 3 : 2,
+                name: productRow.name,
+                item: productUrl,
+              },
             ],
           },
         ],
@@ -123,13 +153,15 @@ export async function storefrontSeoFor(pathname: string, origin: string): Promis
     description: storeDescription,
     canonical: storeUrl,
     image: null,
-    jsonLd: [{
-      "@context": "https://schema.org",
-      "@type": "OnlineStore",
-      name: row.name,
-      description: storeDescription,
-      url: storeUrl,
-    }],
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "OnlineStore",
+        name: row.name,
+        description: storeDescription,
+        url: storeUrl,
+      },
+    ],
   };
 }
 
@@ -161,12 +193,30 @@ export function applySeoToShell(html: string, seo: StorefrontSeo): string {
    */
   let out = html
     .replace(/<title>[\s\S]*?<\/title>/, () => `<title>${title}</title>`)
-    .replace(/(<meta\s+name="description"\s+content=")[\s\S]*?(")/, (_m, open: string, close: string) => `${open}${description}${close}`)
-    .replace(/(<meta\s+property="og:title"\s*\n?\s*content=")[\s\S]*?(")/, (_m, open: string, close: string) => `${open}${title}${close}`)
-    .replace(/(<meta\s+property="og:description"\s*\n?\s*content=")[\s\S]*?(")/, (_m, open: string, close: string) => `${open}${description}${close}`)
-    .replace(/(<meta\s+property="og:url"\s+content=")[\s\S]*?(")/, (_m, open: string, close: string) => `${open}${canonical}${close}`)
-    .replace(/(<meta\s+name="twitter:title"\s*\n?\s*content=")[\s\S]*?(")/, (_m, open: string, close: string) => `${open}${title}${close}`)
-    .replace(/(<meta\s+name="twitter:description"\s*\n?\s*content=")[\s\S]*?(")/, (_m, open: string, close: string) => `${open}${description}${close}`)
+    .replace(
+      /(<meta\s+name="description"\s+content=")[\s\S]*?(")/,
+      (_m, open: string, close: string) => `${open}${description}${close}`
+    )
+    .replace(
+      /(<meta\s+property="og:title"\s*\n?\s*content=")[\s\S]*?(")/,
+      (_m, open: string, close: string) => `${open}${title}${close}`
+    )
+    .replace(
+      /(<meta\s+property="og:description"\s*\n?\s*content=")[\s\S]*?(")/,
+      (_m, open: string, close: string) => `${open}${description}${close}`
+    )
+    .replace(
+      /(<meta\s+property="og:url"\s+content=")[\s\S]*?(")/,
+      (_m, open: string, close: string) => `${open}${canonical}${close}`
+    )
+    .replace(
+      /(<meta\s+name="twitter:title"\s*\n?\s*content=")[\s\S]*?(")/,
+      (_m, open: string, close: string) => `${open}${title}${close}`
+    )
+    .replace(
+      /(<meta\s+name="twitter:description"\s*\n?\s*content=")[\s\S]*?(")/,
+      (_m, open: string, close: string) => `${open}${description}${close}`
+    )
     // The shell already ships a canonical for the landing page. It must be
     // REPLACED, never joined by a second one: a crawler that finds two canonical
     // links honours neither, which is worse than having none at all.
@@ -176,8 +226,16 @@ export function applySeoToShell(html: string, seo: StorefrontSeo): string {
   const extra = [
     // Only ADD one when the shell had none to replace.
     ...(alreadyCanonical ? [] : [`<link rel="canonical" href="${canonical}" />`]),
-    ...(seo.image ? [`<meta property="og:image" content="${escapeHtml(seo.image)}" />`, `<meta name="twitter:image" content="${escapeHtml(seo.image)}" />`, `<meta name="twitter:card" content="summary_large_image" />`] : []),
-    ...seo.jsonLd.map((block) => `<script type="application/ld+json">${escapeJsonLd(block)}</script>`),
+    ...(seo.image
+      ? [
+          `<meta property="og:image" content="${escapeHtml(seo.image)}" />`,
+          `<meta name="twitter:image" content="${escapeHtml(seo.image)}" />`,
+          `<meta name="twitter:card" content="summary_large_image" />`,
+        ]
+      : []),
+    ...seo.jsonLd.map(
+      (block) => `<script type="application/ld+json">${escapeJsonLd(block)}</script>`
+    ),
   ].join("\n    ");
 
   // A STRING pattern expands `$&`, `` $` `` and `$'` in the replacement exactly
@@ -208,23 +266,42 @@ export function robotsTxt(origin: string): string {
  * this one past the 50k-URL limit.
  */
 export async function sitemapXml(origin: string): Promise<string> {
-  const stores = await prisma.store.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true }, orderBy: { createdAt: "asc" }, take: 45_000 });
+  const stores = await prisma.store.findMany({
+    where: { isActive: true },
+    select: { slug: true, updatedAt: true },
+    orderBy: { createdAt: "asc" },
+    take: 45_000,
+  });
   const urls = [
     `<url><loc>${escapeHtml(origin)}/</loc></url>`,
-    ...stores.map((store) => `<url><loc>${escapeHtml(`${origin}/store/${encodeURIComponent(store.slug)}`)}</loc><lastmod>${store.updatedAt.toISOString()}</lastmod></url>`),
+    ...stores.map(
+      (store) =>
+        `<url><loc>${escapeHtml(`${origin}/store/${encodeURIComponent(store.slug)}`)}</loc><lastmod>${store.updatedAt.toISOString()}</lastmod></url>`
+    ),
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
 }
 
 /** A store's own products, so a catalogue is crawlable without a giant index. */
 export async function storeSitemapXml(slug: string, origin: string): Promise<string | null> {
-  const store = await prisma.store.findFirst({ where: { slug, isActive: true }, select: { id: true, slug: true } });
+  const store = await prisma.store.findFirst({
+    where: { slug, isActive: true },
+    select: { id: true, slug: true },
+  });
   if (!store) return null;
-  const products = await prisma.product.findMany({ where: { storeId: store.id, ...LIVE }, select: { id: true, updatedAt: true }, orderBy: { createdAt: "asc" }, take: 45_000 });
+  const products = await prisma.product.findMany({
+    where: { storeId: store.id, ...LIVE },
+    select: { id: true, updatedAt: true },
+    orderBy: { createdAt: "asc" },
+    take: 45_000,
+  });
   const storeUrl = `${origin}/store/${encodeURIComponent(store.slug)}`;
   const urls = [
     `<url><loc>${escapeHtml(storeUrl)}</loc></url>`,
-    ...products.map((product) => `<url><loc>${escapeHtml(`${storeUrl}/products/${encodeURIComponent(product.id)}`)}</loc><lastmod>${product.updatedAt.toISOString()}</lastmod></url>`),
+    ...products.map(
+      (product) =>
+        `<url><loc>${escapeHtml(`${storeUrl}/products/${encodeURIComponent(product.id)}`)}</loc><lastmod>${product.updatedAt.toISOString()}</lastmod></url>`
+    ),
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
 }

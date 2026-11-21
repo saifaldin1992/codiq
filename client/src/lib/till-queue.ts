@@ -92,7 +92,8 @@ function openTillDb(slug: string): Promise<IDBDatabase> {
     const open = indexedDB.open(`codiq-till:${slug}`, DB_VERSION);
     open.onupgradeneeded = () => {
       const db = open.result;
-      if (!db.objectStoreNames.contains("queue")) db.createObjectStore("queue", { keyPath: "ticketId" });
+      if (!db.objectStoreNames.contains("queue"))
+        db.createObjectStore("queue", { keyPath: "ticketId" });
       if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv");
     };
     open.onsuccess = () => resolve(open.result);
@@ -103,7 +104,8 @@ function openTillDb(slug: string): Promise<IDBDatabase> {
 
 function idbPut(db: IDBDatabase, store: string, value: unknown, key?: string): Promise<void> {
   const tx = db.transaction(store, "readwrite");
-  const request = key === undefined ? tx.objectStore(store).put(value) : tx.objectStore(store).put(value, key);
+  const request =
+    key === undefined ? tx.objectStore(store).put(value) : tx.objectStore(store).put(value, key);
   return requestPromise(request).then(() => undefined);
 }
 
@@ -133,14 +135,25 @@ function idbGetAll(db: IDBDatabase, store: string): Promise<unknown[]> {
 }
 
 function idbDelete(db: IDBDatabase, store: string, key: string): Promise<void> {
-  return requestPromise(db.transaction(store, "readwrite").objectStore(store).delete(key)).then(() => undefined);
+  return requestPromise(db.transaction(store, "readwrite").objectStore(store).delete(key)).then(
+    () => undefined
+  );
 }
 
 // -------------------------------------------------------------- classification
 
-const SESSION_CODES = ["MISSING_SESSION", "STAFF_ACCESS_REVOKED", "STAFF_PERMISSION_DENIED", "STORE_BOUNDARY_DENIED", "CSRF_ORIGIN_DENIED"];
+const SESSION_CODES = [
+  "MISSING_SESSION",
+  "STAFF_ACCESS_REVOKED",
+  "STAFF_PERMISSION_DENIED",
+  "STORE_BOUNDARY_DENIED",
+  "CSRF_ORIGIN_DENIED",
+];
 
-function classifyHttp(status: number, code: string): "session" | "revoked" | "gone" | "dead" | "retry" {
+function classifyHttp(
+  status: number,
+  code: string
+): "session" | "revoked" | "gone" | "dead" | "retry" {
   if (SESSION_CODES.indexOf(code) !== -1) return "session";
   if (code === "DEVICE_REVOKED") return "revoked";
   if (status === 404) return "gone";
@@ -156,11 +169,13 @@ function classifyHttp(status: number, code: string): "session" | "revoked" | "go
 function isQueueRecord(value: unknown): value is QueueRecord {
   if (typeof value !== "object" || value === null) return false;
   const record = value as QueueRecord;
-  return typeof record.ticketId === "string"
-    && typeof record.deviceId === "string"
-    && typeof record.payload === "string"
-    && (record.state === "pending" || record.state === "failed" || record.state === "confirmed")
-    && typeof record.createdAt === "number";
+  return (
+    typeof record.ticketId === "string" &&
+    typeof record.deviceId === "string" &&
+    typeof record.payload === "string" &&
+    (record.state === "pending" || record.state === "failed" || record.state === "confirmed") &&
+    typeof record.createdAt === "number"
+  );
 }
 
 // -------------------------------------------------------------------- engine
@@ -183,7 +198,15 @@ class TillQueue {
   constructor(slug: string) {
     this.slug = slug;
     this.url = `/api/merchant/stores/${encodeURIComponent(slug)}/pos/tickets`;
-    this.snapshot = { records: [], pending: 0, failed: 0, confirmed: 0, flushing: false, offline: false, halt: null };
+    this.snapshot = {
+      records: [],
+      pending: 0,
+      failed: 0,
+      confirmed: 0,
+      flushing: false,
+      offline: false,
+      halt: null,
+    };
     if (typeof window !== "undefined") {
       window.addEventListener("online", () => {
         this.resetBackoff();
@@ -242,7 +265,9 @@ class TillQueue {
    */
   async confirmEnqueue(record: QueueRecord): Promise<ConfirmOutcome> {
     await this.init();
-    const otherPending = this.records.filter((entry) => entry.ticketId !== record.ticketId && entry.state === "pending").length;
+    const otherPending = this.records.filter(
+      (entry) => entry.ticketId !== record.ticketId && entry.state === "pending"
+    ).length;
     const saved = await this.enqueue(record);
     if (!saved) return { kind: "unsaved" };
 
@@ -296,7 +321,8 @@ class TillQueue {
     // click waits a bounded moment, then hands the cashier the pending card.
     this.triggerFlush();
     const settled = await this.waitForSettle(record.ticketId, CONFIRM_WAIT_MS);
-    if (settled && settled.state === "confirmed" && settled.result) return { kind: "confirmed", result: settled.result };
+    if (settled && settled.state === "confirmed" && settled.result)
+      return { kind: "confirmed", result: settled.result };
     return { kind: "queued" };
   }
 
@@ -317,15 +343,20 @@ class TillQueue {
     try {
       await this.init();
       if (this.db) await idbPut(this.db, "kv", { products, fetchedAt: Date.now() }, "catalog");
-    } catch { /* convenience — the live catalog is still on screen */ }
+    } catch {
+      /* convenience — the live catalog is still on screen */
+    }
   }
 
   async loadCatalog<P>(): Promise<{ products: P[]; fetchedAt: number } | null> {
     try {
       await this.init();
       if (!this.db) return null;
-      const value = (await idbGet(this.db, "kv", "catalog")) as { products?: P[]; fetchedAt?: number } | undefined;
-      if (!value || !Array.isArray(value.products) || typeof value.fetchedAt !== "number") return null;
+      const value = (await idbGet(this.db, "kv", "catalog")) as
+        | { products?: P[]; fetchedAt?: number }
+        | undefined;
+      if (!value || !Array.isArray(value.products) || typeof value.fetchedAt !== "number")
+        return null;
       return { products: value.products, fetchedAt: value.fetchedAt };
     } catch {
       return null;
@@ -338,7 +369,10 @@ class TillQueue {
       await this.init();
       if (!this.db) return;
       const value = (await idbGet(this.db, "kv", "catalog")) as
-        | { products?: { variants?: { id: string; stockQuantity: number }[] }[]; fetchedAt?: number }
+        | {
+            products?: { variants?: { id: string; stockQuantity: number }[] }[];
+            fetchedAt?: number;
+          }
         | undefined;
       if (!value || !Array.isArray(value.products)) return;
       for (const product of value.products) {
@@ -352,14 +386,18 @@ class TillQueue {
         }
       }
       await idbPut(this.db, "kv", value, "catalog");
-    } catch { /* convenience */ }
+    } catch {
+      /* convenience */
+    }
   }
 
   async saveDevice<D>(device: D): Promise<void> {
     try {
       await this.init();
       if (this.db) await idbPut(this.db, "kv", device, "device");
-    } catch { /* convenience — pairing stays online-only on first boot */ }
+    } catch {
+      /* convenience — pairing stays online-only on first boot */
+    }
   }
 
   async loadDevice<D>(): Promise<D | null> {
@@ -492,12 +530,20 @@ class TillQueue {
       if (response.ok) {
         // HTTP 200 (replayed:true) and 201 are BOTH success — the replay path
         // exists precisely for a committed sale whose response was lost.
-        const body = payload as { order?: { orderNumber?: string }; replayed?: boolean; shortfalls?: QueueShortfall[] } | null;
+        const body = payload as {
+          order?: { orderNumber?: string };
+          replayed?: boolean;
+          shortfalls?: QueueShortfall[];
+        } | null;
         const orderNumber = body?.order?.orderNumber;
         if (typeof orderNumber !== "string") return { kind: "network" };
         return {
           kind: "success",
-          result: { orderNumber, replayed: body?.replayed === true, shortfalls: body?.shortfalls ?? [] },
+          result: {
+            orderNumber,
+            replayed: body?.replayed === true,
+            shortfalls: body?.shortfalls ?? [],
+          },
         };
       }
       if (response.status >= 500) return { kind: "network" };
@@ -506,7 +552,10 @@ class TillQueue {
         kind: "http",
         status: response.status,
         code: typeof error?.code === "string" ? error.code : "",
-        message: typeof error?.message === "string" && error.message ? error.message : "تعذر إتمام العملية.",
+        message:
+          typeof error?.message === "string" && error.message
+            ? error.message
+            : "تعذر إتمام العملية.",
       };
     } catch {
       // Abort (~4s) and TypeError both mean the server is unreachable — the
@@ -540,13 +589,17 @@ class TillQueue {
     // A lost state write is replay-safe (see module header) — never a banner.
     try {
       if (this.db) await idbPut(this.db, "queue", record);
-    } catch { /* replay-safe */ }
+    } catch {
+      /* replay-safe */
+    }
   }
 
   private async remove(ticketId: string): Promise<void> {
     try {
       if (this.db) await idbDelete(this.db, "queue", ticketId);
-    } catch { /* a ghost row only replays a refusal, never a sale */ }
+    } catch {
+      /* a ghost row only replays a refusal, never a sale */
+    }
     this.records = this.records.filter((entry) => entry.ticketId !== ticketId);
     this.emit();
   }
@@ -562,7 +615,9 @@ class TillQueue {
       excessIds.push(entry.ticketId);
       try {
         if (this.db) await idbDelete(this.db, "queue", entry.ticketId);
-      } catch { /* convenience */ }
+      } catch {
+        /* convenience */
+      }
     }
     this.records = this.records.filter((entry) => excessIds.indexOf(entry.ticketId) === -1);
   }

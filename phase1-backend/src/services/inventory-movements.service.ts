@@ -18,7 +18,13 @@
  * valid across the narrowing because the keyset is on time, not on position.
  */
 import { prisma } from "../db/prisma.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
 
 const INVENTORY_MOVEMENTS_KIND = "merchant.inventory.movements";
 
@@ -40,11 +46,12 @@ export async function listInventoryMovements(
   storeId: string,
   rawLimit: unknown,
   rawCursor: unknown,
-  rawProductId: unknown,
+  rawProductId: unknown
 ): Promise<{ movements: InventoryMovementRow[]; nextCursor: string | null }> {
   const limit = parseListLimit(rawLimit);
   const cursor = await readListCursor(INVENTORY_MOVEMENTS_KIND, rawCursor, {});
-  const productId = typeof rawProductId === "string" && rawProductId.trim() ? rawProductId.trim() : undefined;
+  const productId =
+    typeof rawProductId === "string" && rawProductId.trim() ? rawProductId.trim() : undefined;
 
   const rows = await prisma.inventoryMovement.findMany({
     where: {
@@ -55,11 +62,21 @@ export async function listInventoryMovements(
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     select: {
-      id: true, productId: true, variantId: true, delta: true, reason: true,
-      productName: true, productSku: true, variantName: true, variantSku: true, createdAt: true,
+      id: true,
+      productId: true,
+      variantId: true,
+      delta: true,
+      reason: true,
+      productName: true,
+      productSku: true,
+      variantName: true,
+      variantSku: true,
+      createdAt: true,
     },
   });
 
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(INVENTORY_MOVEMENTS_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(INVENTORY_MOVEMENTS_KIND, last.createdAt, last.id)
+  );
   return { movements: page, nextCursor };
 }

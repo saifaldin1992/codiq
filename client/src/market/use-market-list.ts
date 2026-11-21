@@ -10,13 +10,25 @@ export function useMarketList<T>(url: string | null, key: string) {
   const generation = useRef(0);
 
   useEffect(() => {
-    if (!url) { setItems(null); setNextCursor(null); return; }
+    if (!url) {
+      setItems(null);
+      setNextCursor(null);
+      return;
+    }
     const mine = ++generation.current;
     const controller = new AbortController();
-    setItems(null); setFailure(null);
+    setItems(null);
+    setFailure(null);
     marketGet<Record<string, unknown>>(url, { signal: controller.signal })
-      .then((page) => { if (mine === generation.current) { setItems((page[key] as T[]) ?? []); setNextCursor((page.nextCursor as string | null) ?? null); } })
-      .catch((error: Error) => { if (mine === generation.current && error.name !== "AbortError") setFailure(error.message); });
+      .then((page) => {
+        if (mine === generation.current) {
+          setItems((page[key] as T[]) ?? []);
+          setNextCursor((page.nextCursor as string | null) ?? null);
+        }
+      })
+      .catch((error: Error) => {
+        if (mine === generation.current && error.name !== "AbortError") setFailure(error.message);
+      });
     return () => controller.abort();
   }, [url, key]);
 
@@ -25,7 +37,9 @@ export function useMarketList<T>(url: string | null, key: string) {
     const mine = generation.current;
     setLoadingMore(true);
     try {
-      const page = await marketGet<Record<string, unknown>>(`${url}${url.includes("?") ? "&" : "?"}cursor=${encodeURIComponent(nextCursor)}`);
+      const page = await marketGet<Record<string, unknown>>(
+        `${url}${url.includes("?") ? "&" : "?"}cursor=${encodeURIComponent(nextCursor)}`
+      );
       if (mine !== generation.current) return;
       setItems((current) => [...(current ?? []), ...((page[key] as T[]) ?? [])]);
       setNextCursor((page.nextCursor as string | null) ?? null);

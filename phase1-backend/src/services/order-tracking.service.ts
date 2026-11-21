@@ -30,7 +30,15 @@ export const ORDER_TRACK_RATE_LIMIT = 10;
 export const ORDER_TRACK_IP_RATE_LIMIT = 60;
 
 /** The exact, complete public projection. Exported for the cd1 assertions. */
-export const ORDER_TRACKING_KEYS = ["orderNumber", "status", "statusTimeline", "itemCount", "totalIqd", "governorate", "createdAt"] as const;
+export const ORDER_TRACKING_KEYS = [
+  "orderNumber",
+  "status",
+  "statusTimeline",
+  "itemCount",
+  "totalIqd",
+  "governorate",
+  "createdAt",
+] as const;
 export const ORDER_TRACKING_TIMELINE_KEYS = ["toStatus", "createdAt"] as const;
 
 export interface OrderTrackingQuery {
@@ -77,7 +85,11 @@ export function orderTrackingQuery(body: Record<string, unknown>): OrderTracking
   const phoneNormalized = normalizeTrackingPhone(rawPhone);
   // An unparsable phone must NOT become the bucket key: it is attacker-chosen
   // free text, and every distinct value would leave a permanent row behind.
-  return { orderNumber: rawOrderNumber, phoneNormalized, rateLimitKey: `order_track:${phoneNormalized ?? "unparsed"}` };
+  return {
+    orderNumber: rawOrderNumber,
+    phoneNormalized,
+    rateLimitKey: `order_track:${phoneNormalized ?? "unparsed"}`,
+  };
 }
 
 function notFound(): never {
@@ -85,7 +97,10 @@ function notFound(): never {
   throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found.");
 }
 
-export async function trackPublicOrder(storeId: string, query: OrderTrackingQuery): Promise<OrderTrackingView> {
+export async function trackPublicOrder(
+  storeId: string,
+  query: OrderTrackingQuery
+): Promise<OrderTrackingView> {
   if (!query.phoneNormalized) notFound();
   const order = await prisma.storeOrder.findFirst({
     where: { storeId, orderNumber: query.orderNumber, recipientPhone: query.phoneNormalized },
@@ -105,7 +120,10 @@ export async function trackPublicOrder(storeId: string, query: OrderTrackingQuer
   return {
     orderNumber: order.orderNumber,
     status: order.status,
-    statusTimeline: order.statusEvents.map((event) => ({ toStatus: event.toStatus, createdAt: event.createdAt })),
+    statusTimeline: order.statusEvents.map((event) => ({
+      toStatus: event.toStatus,
+      createdAt: event.createdAt,
+    })),
     itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
     totalIqd: order.totalIqd,
     governorate: order.shippingGovernorate,

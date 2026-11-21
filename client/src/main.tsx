@@ -15,13 +15,25 @@ import "./index.css";
 window.addEventListener("vite:preloadError", (event) => {
   const key = "codiq:preload-reload";
   let reloaded = false;
-  try { reloaded = sessionStorage.getItem(key) === "1"; } catch { /* storage may be unavailable; reload once regardless */ }
+  try {
+    reloaded = sessionStorage.getItem(key) === "1";
+  } catch {
+    /* storage may be unavailable; reload once regardless */
+  }
   if (reloaded) return;
-  try { sessionStorage.setItem(key, "1"); } catch { /* ignore */ }
+  try {
+    sessionStorage.setItem(key, "1");
+  } catch {
+    /* ignore */
+  }
   event.preventDefault();
   window.location.reload();
 });
-try { sessionStorage.removeItem("codiq:preload-reload"); } catch { /* ignore */ }
+try {
+  sessionStorage.removeItem("codiq:preload-reload");
+} catch {
+  /* ignore */
+}
 
 createRoot(document.getElementById("root")!).render(<App />);
 
@@ -39,4 +51,3 @@ if (analyticsEndpoint && analyticsWebsiteId) {
   script.dataset.websiteId = analyticsWebsiteId;
   document.head.appendChild(script);
 }
-

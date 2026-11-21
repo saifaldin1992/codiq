@@ -70,18 +70,26 @@ const web = spawn("node", ["dist/index.js"], {
 
 const artifactsDir = process.env.CODIQ_TEST_ARTIFACTS_DIR ?? "/home/ubuntu/webdev-static-assets";
 fs.mkdirSync(artifactsDir, { recursive: true });
-const executablePath = process.env.CODIQ_CHROMIUM_PATH ?? (process.platform === "linux" ? "/usr/bin/chromium" : undefined);
+const executablePath =
+  process.env.CODIQ_CHROMIUM_PATH ??
+  (process.platform === "linux" ? "/usr/bin/chromium" : undefined);
 
 async function waitFor(url) {
   for (let attempt = 0; attempt < 150; attempt += 1) {
-    try { const response = await fetch(url); if (response.status < 500) return; } catch {}
+    try {
+      const response = await fetch(url);
+      if (response.status < 500) return;
+    } catch {}
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`Timed out waiting for ${url}`);
 }
 
 async function json(path, init = {}) {
-  const response = await fetch(`${base}${path}`, { ...init, headers: { "content-type": "application/json", origin: base, ...(init.headers ?? {}) } });
+  const response = await fetch(`${base}${path}`, {
+    ...init,
+    headers: { "content-type": "application/json", origin: base, ...(init.headers ?? {}) },
+  });
   return { response, body: await response.json().catch(() => null) };
 }
 
@@ -111,7 +119,9 @@ async function readMailedLink(recipient) {
   // ends and the assertion below reports the real count, so a genuine «no mail
   // was minted» defect fails exactly as loudly as before.
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const queued = await prisma.notificationOutbox.count({ where: { recipient, status: "pending" } });
+    const queued = await prisma.notificationOutbox.count({
+      where: { recipient, status: "pending" },
+    });
     if (queued > 0) break;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
@@ -128,25 +138,48 @@ async function readMailedLink(recipient) {
 // session-less by design — so ANY console error is a real defect.
 const consoleErrors = [];
 function armTripwire(page, tag) {
-  page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(`[${tag}] ${message.text()}`); });
-  page.on("pageerror", (error) => { consoleErrors.push(`[${tag}] pageerror: ${error.message}`); });
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(`[${tag}] ${message.text()}`);
+  });
+  page.on("pageerror", (error) => {
+    consoleErrors.push(`[${tag}] pageerror: ${error.message}`);
+  });
 }
 function assertConsoleClean(where) {
-  assert.equal(consoleErrors.length, 0, `page console must stay clean (${where}):\n${consoleErrors.join("\n")}`);
+  assert.equal(
+    consoleErrors.length,
+    0,
+    `page console must stay clean (${where}):\n${consoleErrors.join("\n")}`
+  );
 }
 
 const browser = await chromium.launch({ executablePath, headless: true });
 try {
   await waitFor(`${base}/api/health`);
-  await prisma.$executeRawUnsafe("TRUNCATE TABLE storefront_rate_limits, password_reset_tokens, notification_outbox, customer_sessions, customers, merchant_sessions, stores, merchants, platform_owner_sessions, platform_owners CASCADE");
+  await prisma.$executeRawUnsafe(
+    "TRUNCATE TABLE storefront_rate_limits, password_reset_tokens, notification_outbox, customer_sessions, customers, merchant_sessions, stores, merchants, platform_owner_sessions, platform_owners CASCADE"
+  );
 
   // ------------------------------------------------------------- fixtures
   const merchantEmail = `${runId}.merchant@codiq.test`;
   const oldPassword = "Pr1UiOldPass2026!";
   const newPassword = "Pr1UiFreshPass2026!";
-  const registered = await registerMerchantDirect({ email: merchantEmail, password: oldPassword, businessName: "متجر الاستعادة", ownerName: "سيف الدين", phone: `+9647${String(Date.now()).slice(-9)}` });
+  const registered = await registerMerchantDirect({
+    email: merchantEmail,
+    password: oldPassword,
+    businessName: "متجر الاستعادة",
+    ownerName: "سيف الدين",
+    phone: `+9647${String(Date.now()).slice(-9)}`,
+  });
   assert.equal(registered.response.status, 201, JSON.stringify(registered.body));
-  await prisma.store.create({ data: { merchantId: registered.body.account.id, name: "متجر الاستعادة", slug: `${runId}-store`, defaultSubdomain: `${runId}-store` } });
+  await prisma.store.create({
+    data: {
+      merchantId: registered.body.account.id,
+      name: "متجر الاستعادة",
+      slug: `${runId}-store`,
+      defaultSubdomain: `${runId}-store`,
+    },
+  });
 
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
@@ -180,7 +213,11 @@ try {
   await page.getByTestId("reset-request-submit").click();
   await page.getByTestId("reset-request-queued").waitFor();
   const knownText = (await page.getByTestId("reset-request-queued").innerText()).trim();
-  assert.match(knownText, /إن كان هذا البريد/, `the promise must be conditional, not a confirmation: ${knownText}`);
+  assert.match(
+    knownText,
+    /إن كان هذا البريد/,
+    `the promise must be conditional, not a confirmation: ${knownText}`
+  );
   await page.screenshot({ path: `${artifactsDir}/pr1-request-known.png`, fullPage: true });
 
   const mailedLink = await readMailedLink(merchantEmail);
@@ -190,12 +227,18 @@ try {
   await page.getByTestId("reset-request-submit").click();
   await page.getByTestId("reset-request-queued").waitFor();
   const unknownText = (await page.getByTestId("reset-request-queued").innerText()).trim();
-  assert.equal(unknownText, knownText, "PR-1: an address nobody registered must produce the SAME words on screen");
+  assert.equal(
+    unknownText,
+    knownText,
+    "PR-1: an address nobody registered must produce the SAME words on screen"
+  );
   await page.screenshot({ path: `${artifactsDir}/pr1-request-unknown.png`, fullPage: true });
 
   // …and nothing was minted for it. The screen says the same thing; the
   // database must not disagree with the screen.
-  const strays = await prisma.passwordResetToken.count({ where: { emailNormalized: `${runId}.nobody@codiq.test` } });
+  const strays = await prisma.passwordResetToken.count({
+    where: { emailNormalized: `${runId}.nobody@codiq.test` },
+  });
   assert.equal(strays, 0, "PR-1: the identical screen is backed by an identical absence of rows");
   assertConsoleClean("both requests answered identically");
 
@@ -210,8 +253,13 @@ try {
   // ق-28: no horizontal overflow on a phone. A recovery screen is reached from
   // a mail app on a phone more often than from a desk.
   await page.setViewportSize({ width: 390, height: 844 });
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  assert.ok(overflow <= 1, `PR-1: the reset screen must not scroll sideways at 390px (overflow ${overflow}px)`);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+  );
+  assert.ok(
+    overflow <= 1,
+    `PR-1: the reset screen must not scroll sideways at 390px (overflow ${overflow}px)`
+  );
   await page.screenshot({ path: `${artifactsDir}/pr1-reset-form-mobile.png`, fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });
 
@@ -220,8 +268,13 @@ try {
   await page.getByTestId("reset-consume-confirm").fill("something-else-entirely");
   await page.getByTestId("reset-consume-submit").click();
   await page.getByTestId("reset-consume-error").waitFor();
-  const stillLive = await prisma.passwordResetToken.findFirst({ where: { consumedAt: null, invalidatedAt: null } });
-  assert.ok(stillLive, "PR-1: a typo in the confirmation must not burn the link and leave him with nothing");
+  const stillLive = await prisma.passwordResetToken.findFirst({
+    where: { consumedAt: null, invalidatedAt: null },
+  });
+  assert.ok(
+    stillLive,
+    "PR-1: a typo in the confirmation must not burn the link and leave him with nothing"
+  );
 
   // ==========================================================================
   // 4. THE RESET SUCCEEDS AND DOES NOT SIGN HIM IN.
@@ -240,7 +293,11 @@ try {
   // `Secure` is set, and an equality check against the bare name would pass here
   // by matching NOTHING — an assertion of absence is the one kind that goes
   // quiet instead of failing when the name it names stops existing.
-  assert.equal(cookies.filter((cookie) => cookie.name.endsWith("codiq_session")).length, 0, "PR-1: no session cookie is issued by a reset — he is handed the door, not carried through it");
+  assert.equal(
+    cookies.filter((cookie) => cookie.name.endsWith("codiq_session")).length,
+    0,
+    "PR-1: no session cookie is issued by a reset — he is handed the door, not carried through it"
+  );
 
   await page.getByTestId("reset-consume-login").click();
   await page.waitForURL("**/merchant/login**");
@@ -269,19 +326,29 @@ try {
   armTripwire(secondPage, "replay");
   await secondPage.goto(mailedLink);
   await secondPage.getByTestId("reset-consume-dead").waitFor();
-  assert.equal(await secondPage.getByTestId("reset-consume-submit").count(), 0, "PR-1: a spent link offers no form at all");
+  assert.equal(
+    await secondPage.getByTestId("reset-consume-submit").count(),
+    0,
+    "PR-1: a spent link offers no form at all"
+  );
   await secondPage.getByTestId("reset-consume-restart").waitFor();
   await secondPage.screenshot({ path: `${artifactsDir}/pr1-link-spent.png`, fullPage: true });
   assertConsoleClean("a spent link is refused on screen");
 
-  console.log(JSON.stringify({
-    pr1Browser: {
-      linkOnLoginPage: true,
-      answerIdentical: true,
-      sessionIssuedByReset: false,
-      spentLinkShowsDeadScreen: true,
-    },
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        pr1Browser: {
+          linkOnLoginPage: true,
+          answerIdentical: true,
+          sessionIssuedByReset: false,
+          spentLinkShowsDeadScreen: true,
+        },
+      },
+      null,
+      2
+    )
+  );
   console.log("pr1-browser OK");
 } finally {
   await browser.close();

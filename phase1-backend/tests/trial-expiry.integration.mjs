@@ -33,7 +33,8 @@ import { registerMerchantDirect } from "./helpers/register-merchant.js";
 import { Client } from "pg";
 
 const testId = `trial-${Date.now()}`;
-process.env.SESSION_JWT_SECRET = process.env.SESSION_JWT_SECRET ?? "trial-test-secret-only-not-for-production";
+process.env.SESSION_JWT_SECRET =
+  process.env.SESSION_JWT_SECRET ?? "trial-test-secret-only-not-for-production";
 process.env.CODIQ_ALLOW_OWNER_REGISTRATION = "true";
 const { assertSafeTestDatabaseUrl } = await import("./helpers/test-database-guard.ts");
 const testDatabaseUrl = assertSafeTestDatabaseUrl(process.env.CODIQ_TEST_DATABASE_URL);
@@ -42,8 +43,17 @@ process.env.CODIQ_POSTGRES_URL = testDatabaseUrl;
 
 const { createApp } = await import("../src/http/app.ts");
 const { prisma } = await import("../src/db/prisma.ts");
-const { expireLapsedTrials, remindEndingTrials } = await import("../src/notifications/trial-expiry-scanner.ts");
-const { activePlanForMerchant, assignMerchantSubscription, merchantEntitlementsView, listMerchantsWithPlans, TRIAL_PLAN_CODE, TRIAL_DAYS } = await import("../src/services/entitlement.service.ts");
+const { expireLapsedTrials, remindEndingTrials } = await import(
+  "../src/notifications/trial-expiry-scanner.ts"
+);
+const {
+  activePlanForMerchant,
+  assignMerchantSubscription,
+  merchantEntitlementsView,
+  listMerchantsWithPlans,
+  TRIAL_PLAN_CODE,
+  TRIAL_DAYS,
+} = await import("../src/services/entitlement.service.ts");
 
 const sql = new Client({ connectionString: process.env.DATABASE_URL });
 await sql.connect();
@@ -74,7 +84,13 @@ try {
 
   const email = `${testId}@codiq.test`;
   const phone = `+9647${String(Date.now()).slice(-9)}`;
-  const registered = await registerMerchantDirect({ email, password: "TrialMerchantPass2026!", businessName: "متجر التجربة", ownerName: "سيف الدين", phone });
+  const registered = await registerMerchantDirect({
+    email,
+    password: "TrialMerchantPass2026!",
+    businessName: "متجر التجربة",
+    ownerName: "سيف الدين",
+    phone,
+  });
   assert.equal(registered.status, 201, JSON.stringify(registered.payload));
   const merchantId = registered.payload.account.id;
   const store = await prisma.store.create({
@@ -88,9 +104,20 @@ try {
     where: { merchantId, status: "active" },
     select: { id: true, endsAt: true, plan: { select: { code: true } } },
   });
-  assert.equal(granted.plan.code, TRIAL_PLAN_CODE, "ق-128: a new merchant starts on the trial plan, not free");
-  assert.equal(TRIAL_PLAN_CODE, "growth", "ق-128: …and the trial plan is growth — pro would halve the commission in his busiest month");
-  assert.ok(granted.endsAt, "ق-128: the trial carries an end date — a free month with no end is a free plan");
+  assert.equal(
+    granted.plan.code,
+    TRIAL_PLAN_CODE,
+    "ق-128: a new merchant starts on the trial plan, not free"
+  );
+  assert.equal(
+    TRIAL_PLAN_CODE,
+    "growth",
+    "ق-128: …and the trial plan is growth — pro would halve the commission in his busiest month"
+  );
+  assert.ok(
+    granted.endsAt,
+    "ق-128: the trial carries an end date — a free month with no end is a free plan"
+  );
   const days = Math.round((granted.endsAt.valueOf() - Date.now()) / 86_400_000);
   assert.ok(Math.abs(days - TRIAL_DAYS) <= 1, `ق-128: about a month (${days} days)`);
 
@@ -103,9 +130,19 @@ try {
   const viewDuring = await merchantEntitlementsView(merchantId);
   assert.equal(viewDuring.subscription.isTrial, true, "ق-181: the view names the trial");
   assert.ok(viewDuring.subscription.endsAt, "ق-181: …with its end date");
-  assert.ok(viewDuring.subscription.daysLeft >= TRIAL_DAYS - 1 && viewDuring.subscription.daysLeft <= TRIAL_DAYS, `ق-181: …and the days left (${viewDuring.subscription.daysLeft})`);
-  assert.equal(viewDuring.subscription.afterTrialPlanCode, "free", "ق-181: …and where he lands after it");
-  const listedDuring = (await listMerchantsWithPlans(100)).merchants.find((row) => row.id === merchantId);
+  assert.ok(
+    viewDuring.subscription.daysLeft >= TRIAL_DAYS - 1 &&
+      viewDuring.subscription.daysLeft <= TRIAL_DAYS,
+    `ق-181: …and the days left (${viewDuring.subscription.daysLeft})`
+  );
+  assert.equal(
+    viewDuring.subscription.afterTrialPlanCode,
+    "free",
+    "ق-181: …and where he lands after it"
+  );
+  const listedDuring = (await listMerchantsWithPlans(100)).merchants.find(
+    (row) => row.id === merchantId
+  );
   assert.equal(listedDuring?.isTrial, true, "ق-181: the owner sees who is on a free month");
   assert.ok(listedDuring?.subscriptionEndsAt, "…and when it ends");
 
@@ -128,15 +165,39 @@ try {
   assert.equal(reminded.due, 1, "ق-186: two days out, he is due");
   assert.equal(reminded.enqueued, 1, "ق-186: …and the message is enqueued");
 
-  const notice = await prisma.notificationOutbox.findFirstOrThrow({ where: { eventType: "trial.ending", recipient: email } });
-  assert.equal(notice.storeId, null, "ق-186: the trial belongs to the MERCHANT — a two-store merchant is told once, not twice");
-  assert.equal(notice.recipientKind, "account", "ق-186: an account message, so ق-184 gives it a reply path");
+  const notice = await prisma.notificationOutbox.findFirstOrThrow({
+    where: { eventType: "trial.ending", recipient: email },
+  });
+  assert.equal(
+    notice.storeId,
+    null,
+    "ق-186: the trial belongs to the MERCHANT — a two-store merchant is told once, not twice"
+  );
+  assert.equal(
+    notice.recipientKind,
+    "account",
+    "ق-186: an account message, so ق-184 gives it a reply path"
+  );
   assert.equal(notice.dedupeKey, `trial_ending:${granted.id}`);
   assert.equal(notice.payload.daysLeft, 2);
 
-  const repeats = await Promise.all([remindEndingTrials(), remindEndingTrials(), remindEndingTrials()]);
-  assert.deepEqual(repeats.map((pass) => pass.enqueued), [0, 0, 0], "ق-186: every later pass is a no-op — the once-only rule is the ق-185 index, not a flag this code remembers to set");
-  assert.equal(await prisma.notificationOutbox.count({ where: { eventType: "trial.ending", recipient: email } }), 1, "ق-186: exactly one reminder exists after four passes");
+  const repeats = await Promise.all([
+    remindEndingTrials(),
+    remindEndingTrials(),
+    remindEndingTrials(),
+  ]);
+  assert.deepEqual(
+    repeats.map((pass) => pass.enqueued),
+    [0, 0, 0],
+    "ق-186: every later pass is a no-op — the once-only rule is the ق-185 index, not a flag this code remembers to set"
+  );
+  assert.equal(
+    await prisma.notificationOutbox.count({
+      where: { eventType: "trial.ending", recipient: email },
+    }),
+    1,
+    "ق-186: exactly one reminder exists after four passes"
+  );
 
   // The rendered Arabic must not frighten him: the fear this message creates
   // («هل أخسر متجري؟») is worse than the fact, and a merchant who is frightened
@@ -174,15 +235,27 @@ try {
   // screens read to know who is on which plan, and a merchant the platform
   // treats as free while his row still says «growth» is a report that lies.
   const beforeSweep = await activePlanForMerchant(prisma, merchantId);
-  assert.equal(beforeSweep.code, "free", "ق-239: a lapsed trial resolves to free WITHOUT waiting for the sweeper");
+  assert.equal(
+    beforeSweep.code,
+    "free",
+    "ق-239: a lapsed trial resolves to free WITHOUT waiting for the sweeper"
+  );
 
   // And the row itself has not caught up yet — so the job has real work to do.
   const staleRow = await prisma.merchantSubscription.findUniqueOrThrow({
     where: { id: granted.id },
     select: { status: true, plan: { select: { code: true } } },
   });
-  assert.equal(staleRow.status, "active", "the lapsed row is still the active one until the job runs");
-  assert.equal(staleRow.plan.code, "growth", "…and still says growth — the record is what the sweeper fixes");
+  assert.equal(
+    staleRow.status,
+    "active",
+    "the lapsed row is still the active one until the job runs"
+  );
+  assert.equal(
+    staleRow.plan.code,
+    "growth",
+    "…and still says growth — the record is what the sweeper fixes"
+  );
 
   const first = await expireLapsedTrials();
   assert.ok(first.expired >= 1, `ق-128: the lapsed trial is found (${first.expired})`);
@@ -193,12 +266,22 @@ try {
   summary.landsOn = after.code;
 
   // 7. And nothing was suspended.
-  const storeAfter = await prisma.store.findUniqueOrThrow({ where: { id: store.id }, select: { isActive: true } });
-  assert.equal(storeAfter.isActive, true, "ق-128: the store stays ACTIVE — suspension would 404 shoppers with cash orders in flight");
+  const storeAfter = await prisma.store.findUniqueOrThrow({
+    where: { id: store.id },
+    select: { isActive: true },
+  });
+  assert.equal(
+    storeAfter.isActive,
+    true,
+    "ق-128: the store stays ACTIVE — suspension would 404 shoppers with cash orders in flight"
+  );
 
   // The trial row is closed rather than deleted, so «كان لديه شهر مجاني» stays
   // a fact somebody can look up.
-  const closed = await prisma.merchantSubscription.findUniqueOrThrow({ where: { id: granted.id }, select: { status: true } });
+  const closed = await prisma.merchantSubscription.findUniqueOrThrow({
+    where: { id: granted.id },
+    select: { status: true },
+  });
   assert.equal(closed.status, "expired", "ق-128: the trial is closed, not erased");
 
   // ============================================================
@@ -206,7 +289,9 @@ try {
   // ============================================================
   const second = await expireLapsedTrials();
   assert.equal(second.expired, 0, "ق-128: a second pass finds nothing left to do");
-  const activeRows = await prisma.merchantSubscription.count({ where: { merchantId, status: "active" } });
+  const activeRows = await prisma.merchantSubscription.count({
+    where: { merchantId, status: "active" },
+  });
   assert.equal(activeRows, 1, "ق-128: exactly ONE active subscription — never two free rows");
   summary.idempotent = true;
 
@@ -214,19 +299,22 @@ try {
   // 6. The owner's hand beats the job's clock.
   // ============================================================
   const other = await registerMerchantDirect({
-      email: `${testId}-b@codiq.test`,
-      password: "TrialMerchantPass2026!",
-      businessName: "متجر ثانٍ",
-      ownerName: "سيف الدين",
-      phone: `+9647${String(Date.now() + 7).slice(-9)}`,
-    });
+    email: `${testId}-b@codiq.test`,
+    password: "TrialMerchantPass2026!",
+    businessName: "متجر ثانٍ",
+    ownerName: "سيف الدين",
+    phone: `+9647${String(Date.now() + 7).slice(-9)}`,
+  });
   assert.equal(other.status, 201, JSON.stringify(other.payload));
   const secondMerchant = other.payload.account.id;
   const trialRow = await prisma.merchantSubscription.findFirstOrThrow({
     where: { merchantId: secondMerchant, status: "active" },
     select: { id: true },
   });
-  await prisma.merchantSubscription.update({ where: { id: trialRow.id }, data: { endsAt: new Date(Date.now() - 60_000) } });
+  await prisma.merchantSubscription.update({
+    where: { id: trialRow.id },
+    data: { endsAt: new Date(Date.now() - 60_000) },
+  });
   // The owner assigns a paid plan by hand through the REAL service, the way he
   // would for a merchant who paid — not by inserting a row. `UNIQUE(merchant_id)
   // WHERE status = 'active'` means there is only ever one active row, so the
@@ -237,8 +325,14 @@ try {
 
   await expireLapsedTrials();
   const decided = await activePlanForMerchant(prisma, secondMerchant);
-  assert.equal(decided.code, "pro", "ق-128: the owner's decision wins — the job must not demote a merchant he just upgraded");
-  const activeForSecond = await prisma.merchantSubscription.count({ where: { merchantId: secondMerchant, status: "active" } });
+  assert.equal(
+    decided.code,
+    "pro",
+    "ق-128: the owner's decision wins — the job must not demote a merchant he just upgraded"
+  );
+  const activeForSecond = await prisma.merchantSubscription.count({
+    where: { merchantId: secondMerchant, status: "active" },
+  });
   assert.equal(activeForSecond, 1, "ق-128: …and it did not add a free row on top of the paid one");
   summary.ownerAssignmentWins = true;
 

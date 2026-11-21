@@ -7,7 +7,12 @@
  */
 import { useCallback, useEffect, useState } from "react";
 
-export type MarketLocation = { governorateKey: string; governorateName: string; districtId: number | null; districtName: string | null };
+export type MarketLocation = {
+  governorateKey: string;
+  governorateName: string;
+  districtId: number | null;
+  districtName: string | null;
+};
 
 const STORAGE_KEY = "codiq.market.location";
 const CHANGE_EVENT = "codiq:market-location";
@@ -17,7 +22,8 @@ export function readMarketLocation(): MarketLocation | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<MarketLocation>;
-    if (typeof parsed.governorateKey !== "string" || typeof parsed.governorateName !== "string") return null;
+    if (typeof parsed.governorateKey !== "string" || typeof parsed.governorateName !== "string")
+      return null;
     return {
       governorateKey: parsed.governorateKey,
       governorateName: parsed.governorateName,
@@ -39,10 +45,14 @@ export function writeMarketLocation(location: MarketLocation | null) {
   window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: location }));
 }
 
-export function useMarketLocation(): [MarketLocation | null, (location: MarketLocation | null) => void] {
+export function useMarketLocation(): [
+  MarketLocation | null,
+  (location: MarketLocation | null) => void,
+] {
   const [location, setLocation] = useState<MarketLocation | null>(() => readMarketLocation());
   useEffect(() => {
-    const onChange = (event: Event) => setLocation((event as CustomEvent<MarketLocation | null>).detail ?? null);
+    const onChange = (event: Event) =>
+      setLocation((event as CustomEvent<MarketLocation | null>).detail ?? null);
     window.addEventListener(CHANGE_EVENT, onChange);
     return () => window.removeEventListener(CHANGE_EVENT, onChange);
   }, []);

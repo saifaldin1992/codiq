@@ -77,7 +77,8 @@ export function normalizePhone(value: unknown): string {
   // looking at a field the form just rejected, and «مطلوب» alone answers «what
   // is wrong» without answering «what do I type».
   const SHAPES = "بصيغة 07XXXXXXXXX أو \u200E+9647XXXXXXXXX";
-  if (typeof value !== "string") throw new HttpError(400, "INVALID_PHONE", `رقم الهاتف مطلوب — ${SHAPES}.`);
+  if (typeof value !== "string")
+    throw new HttpError(400, "INVALID_PHONE", `رقم الهاتف مطلوب — ${SHAPES}.`);
   const normalized = toE164(value);
   if (!normalized) throw new HttpError(400, "INVALID_PHONE", `اكتب رقم هاتفك ${SHAPES}.`);
   return normalized;
@@ -125,7 +126,11 @@ export const IRAQI_MOBILE_E164 = /^\+9647[0-9]{9}$/;
 export function normalizeIraqiMobile(value: unknown): string {
   const normalized = toE164(value);
   if (!normalized || !IRAQI_MOBILE_E164.test(normalized)) {
-    throw new HttpError(422, "INVALID_MERCHANT_PHONE", "رقم الهاتف يجب أن يكون رقم موبايل عراقياً بصيغة 07XXXXXXXXX أو \u200E+9647XXXXXXXXX.");
+    throw new HttpError(
+      422,
+      "INVALID_MERCHANT_PHONE",
+      "رقم الهاتف يجب أن يكون رقم موبايل عراقياً بصيغة 07XXXXXXXXX أو \u200E+9647XXXXXXXXX."
+    );
   }
   return normalized;
 }
@@ -183,7 +188,8 @@ export async function createPasswordHash(password: unknown): Promise<string> {
 
 export async function verifyPassword(password: unknown, passwordHash: string): Promise<boolean> {
   if (typeof password !== "string") return false;
-  if (passwordHash.startsWith(PASSWORD_HASH_V2)) return bcrypt.compare(passwordDigest(password), passwordHash.slice(PASSWORD_HASH_V2.length));
+  if (passwordHash.startsWith(PASSWORD_HASH_V2))
+    return bcrypt.compare(passwordDigest(password), passwordHash.slice(PASSWORD_HASH_V2.length));
   return bcrypt.compare(password, passwordHash);
 }
 
@@ -228,19 +234,39 @@ function sha256(value: string): string {
 /** Marketplace M4: thirty days. */
 export const SHOPPER_SESSION_LIFETIME_SECONDS = 60 * 60 * 24 * 30;
 
-export async function createTypedSession(identityKind: IdentityKind, subjectId: string, storeId?: string, membershipId?: string): Promise<string> {
+export async function createTypedSession(
+  identityKind: IdentityKind,
+  subjectId: string,
+  storeId?: string,
+  membershipId?: string
+): Promise<string> {
   if (identityKind === "merchant" && !storeId) {
-    throw new HttpError(500, "MISSING_MERCHANT_STORE_CONTEXT", "Merchant sessions must be bound to a store.");
+    throw new HttpError(
+      500,
+      "MISSING_MERCHANT_STORE_CONTEXT",
+      "Merchant sessions must be bound to a store."
+    );
   }
   if (identityKind === "staff" && (!storeId || !membershipId)) {
-    throw new HttpError(500, "MISSING_STAFF_MEMBERSHIP_CONTEXT", "Staff sessions must be bound to one store membership.");
+    throw new HttpError(
+      500,
+      "MISSING_STAFF_MEMBERSHIP_CONTEXT",
+      "Staff sessions must be bound to one store membership."
+    );
   }
   // A market shopper stays signed in on his phone for a month, as in any shopping
   // app; every dashboard identity keeps the short working-day session.
-  const lifetimeSeconds = identityKind === "shopper" ? SHOPPER_SESSION_LIFETIME_SECONDS : config.sessionLifetimeSeconds;
+  const lifetimeSeconds =
+    identityKind === "shopper" ? SHOPPER_SESSION_LIFETIME_SECONDS : config.sessionLifetimeSeconds;
   const expiresAt = new Date(Date.now() + lifetimeSeconds * 1000);
   const sessionId = crypto.randomUUID();
-  const claims: SessionClaims = { identityKind, subjectId, sessionId, ...(storeId ? { storeId } : {}), ...(membershipId ? { membershipId } : {}) };
+  const claims: SessionClaims = {
+    identityKind,
+    subjectId,
+    sessionId,
+    ...(storeId ? { storeId } : {}),
+    ...(membershipId ? { membershipId } : {}),
+  };
   // Signed with the CURRENT session key only — never with a key being retired.
   const accessToken = jwt.sign(claims, KEYS.session.signing, {
     algorithm: "HS256",
@@ -249,20 +275,59 @@ export async function createTypedSession(identityKind: IdentityKind, subjectId: 
   const tokenHash = sha256(accessToken);
 
   if (identityKind === "platform_owner") {
-    await prisma.platformOwnerSession.create({ data: { id: sessionId, platformOwnerId: subjectId, tokenHash, expiresAt, lastSeenAt: new Date() } });
+    await prisma.platformOwnerSession.create({
+      data: {
+        id: sessionId,
+        platformOwnerId: subjectId,
+        tokenHash,
+        expiresAt,
+        lastSeenAt: new Date(),
+      },
+    });
   } else if (identityKind === "merchant") {
-    await prisma.merchantSession.create({ data: { id: sessionId, merchantId: subjectId, storeId: storeId!, tokenHash, expiresAt, lastSeenAt: new Date() } });
+    await prisma.merchantSession.create({
+      data: {
+        id: sessionId,
+        merchantId: subjectId,
+        storeId: storeId!,
+        tokenHash,
+        expiresAt,
+        lastSeenAt: new Date(),
+      },
+    });
   } else if (identityKind === "staff") {
-    await prisma.staffSession.create({ data: { id: sessionId, staffId: subjectId, membershipId: membershipId!, storeId: storeId!, tokenHash, expiresAt, lastSeenAt: new Date() } });
+    await prisma.staffSession.create({
+      data: {
+        id: sessionId,
+        staffId: subjectId,
+        membershipId: membershipId!,
+        storeId: storeId!,
+        tokenHash,
+        expiresAt,
+        lastSeenAt: new Date(),
+      },
+    });
   } else if (identityKind === "platform_staff") {
     // 19-ب: EXPLICIT, never the else-branch — a platform-staff session stored
     // in customer_sessions would verify, "work", and cross the boundary.
-    await prisma.platformStaffSession.create({ data: { id: sessionId, platformStaffId: subjectId, tokenHash, expiresAt, lastSeenAt: new Date() } });
+    await prisma.platformStaffSession.create({
+      data: {
+        id: sessionId,
+        platformStaffId: subjectId,
+        tokenHash,
+        expiresAt,
+        lastSeenAt: new Date(),
+      },
+    });
   } else if (identityKind === "shopper") {
     // Marketplace M4: EXPLICIT for the same reason as platform staff above.
-    await prisma.shopperSession.create({ data: { id: sessionId, shopperId: subjectId, tokenHash, expiresAt, lastSeenAt: new Date() } });
+    await prisma.shopperSession.create({
+      data: { id: sessionId, shopperId: subjectId, tokenHash, expiresAt, lastSeenAt: new Date() },
+    });
   } else {
-    await prisma.customerSession.create({ data: { id: sessionId, customerId: subjectId, tokenHash, expiresAt, lastSeenAt: new Date() } });
+    await prisma.customerSession.create({
+      data: { id: sessionId, customerId: subjectId, tokenHash, expiresAt, lastSeenAt: new Date() },
+    });
   }
   // ASVS 5.0 V16.3.1: every successful authentication (sign-in, second factor,
   // store switch) ends here, so it is logged here — once, with ids only.
@@ -293,7 +358,12 @@ export function readSessionClaims(accessToken: string): SessionClaims {
     // an audit of a money path needs. Deliberately OUTSIDE the try: a throw in
     // bookkeeping must never be read as a failed signature and cost a valid
     // session its request.
-    setLogContext({ actorKind: claims.identityKind, actorId: claims.subjectId, storeId: claims.storeId, sessionId: claims.sessionId });
+    setLogContext({
+      actorKind: claims.identityKind,
+      actorId: claims.subjectId,
+      storeId: claims.storeId,
+      sessionId: claims.sessionId,
+    });
     return claims;
   }
   throw new HttpError(401, "INVALID_SESSION", "The session token is invalid or expired.");
@@ -313,12 +383,19 @@ export async function verifyAnySession(accessToken: string): Promise<SessionClai
   return verifyTypedSession(accessToken, claims.identityKind);
 }
 
-export async function verifyTypedSession(accessToken: string, expectedKind: IdentityKind): Promise<SessionClaims> {
+export async function verifyTypedSession(
+  accessToken: string,
+  expectedKind: IdentityKind
+): Promise<SessionClaims> {
   const claims = readSessionClaims(accessToken);
   if (claims.identityKind !== expectedKind) {
     // PS-3: names the session he holds and the one this area wants. See
     // `identityBoundaryMessage` for why the old English sentence was a dead end.
-    throw new HttpError(403, "IDENTITY_BOUNDARY_DENIED", identityBoundaryMessage(claims.identityKind, IDENTITY_LABELS[expectedKind]));
+    throw new HttpError(
+      403,
+      "IDENTITY_BOUNDARY_DENIED",
+      identityBoundaryMessage(claims.identityKind, IDENTITY_LABELS[expectedKind])
+    );
   }
   if (expectedKind === "merchant" && !claims.storeId) {
     throw new HttpError(401, "INVALID_SESSION", "The merchant session lacks a store context.");
@@ -331,18 +408,69 @@ export async function verifyTypedSession(accessToken: string, expectedKind: Iden
   const now = new Date();
   const isValid =
     expectedKind === "platform_owner"
-      ? await prisma.platformOwnerSession.findFirst({ where: { id: claims.sessionId, platformOwnerId: claims.subjectId, tokenHash, revokedAt: null, expiresAt: { gt: now } } })
+      ? await prisma.platformOwnerSession.findFirst({
+          where: {
+            id: claims.sessionId,
+            platformOwnerId: claims.subjectId,
+            tokenHash,
+            revokedAt: null,
+            expiresAt: { gt: now },
+          },
+        })
       : expectedKind === "merchant"
-        ? await prisma.merchantSession.findFirst({ where: { id: claims.sessionId, merchantId: claims.subjectId, storeId: claims.storeId!, tokenHash, revokedAt: null, expiresAt: { gt: now } } })
+        ? await prisma.merchantSession.findFirst({
+            where: {
+              id: claims.sessionId,
+              merchantId: claims.subjectId,
+              storeId: claims.storeId!,
+              tokenHash,
+              revokedAt: null,
+              expiresAt: { gt: now },
+            },
+          })
         : expectedKind === "staff"
-          ? await prisma.staffSession.findFirst({ where: { id: claims.sessionId, staffId: claims.subjectId, membershipId: claims.membershipId!, storeId: claims.storeId!, tokenHash, revokedAt: null, expiresAt: { gt: now } } })
-          // 19-ب: EXPLICIT — falling through to customer_sessions would answer
-          // "valid" for a row that does not exist in the right table.
-          : expectedKind === "platform_staff"
-            ? await prisma.platformStaffSession.findFirst({ where: { id: claims.sessionId, platformStaffId: claims.subjectId, tokenHash, revokedAt: null, expiresAt: { gt: now } } })
+          ? await prisma.staffSession.findFirst({
+              where: {
+                id: claims.sessionId,
+                staffId: claims.subjectId,
+                membershipId: claims.membershipId!,
+                storeId: claims.storeId!,
+                tokenHash,
+                revokedAt: null,
+                expiresAt: { gt: now },
+              },
+            })
+          : // 19-ب: EXPLICIT — falling through to customer_sessions would answer
+            // "valid" for a row that does not exist in the right table.
+            expectedKind === "platform_staff"
+            ? await prisma.platformStaffSession.findFirst({
+                where: {
+                  id: claims.sessionId,
+                  platformStaffId: claims.subjectId,
+                  tokenHash,
+                  revokedAt: null,
+                  expiresAt: { gt: now },
+                },
+              })
             : expectedKind === "shopper"
-              ? await prisma.shopperSession.findFirst({ where: { id: claims.sessionId, shopperId: claims.subjectId, tokenHash, revokedAt: null, expiresAt: { gt: now } } })
-              : await prisma.customerSession.findFirst({ where: { id: claims.sessionId, customerId: claims.subjectId, tokenHash, revokedAt: null, expiresAt: { gt: now } } });
+              ? await prisma.shopperSession.findFirst({
+                  where: {
+                    id: claims.sessionId,
+                    shopperId: claims.subjectId,
+                    tokenHash,
+                    revokedAt: null,
+                    expiresAt: { gt: now },
+                  },
+                })
+              : await prisma.customerSession.findFirst({
+                  where: {
+                    id: claims.sessionId,
+                    customerId: claims.subjectId,
+                    tokenHash,
+                    revokedAt: null,
+                    expiresAt: { gt: now },
+                  },
+                });
 
   if (!isValid) throw new HttpError(401, "INVALID_SESSION", "The session is no longer valid.");
   return claims;

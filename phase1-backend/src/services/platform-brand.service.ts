@@ -48,9 +48,19 @@ function s3Config() {
   const accessKeyId = process.env.PRODUCT_S3_ACCESS_KEY_ID;
   const secretAccessKey = process.env.PRODUCT_S3_SECRET_ACCESS_KEY;
   if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) {
-    throw new HttpError(503, "IMAGE_STORAGE_NOT_CONFIGURED", "تخزين الصور غير مهيأ على هذه البيئة.");
+    throw new HttpError(
+      503,
+      "IMAGE_STORAGE_NOT_CONFIGURED",
+      "تخزين الصور غير مهيأ على هذه البيئة."
+    );
   }
-  return { endpoint, bucket, accessKeyId, secretAccessKey, region: process.env.PRODUCT_S3_REGION ?? "us-east-1" };
+  return {
+    endpoint,
+    bucket,
+    accessKeyId,
+    secretAccessKey,
+    region: process.env.PRODUCT_S3_REGION ?? "us-east-1",
+  };
 }
 
 function client(config: ReturnType<typeof s3Config>) {
@@ -80,7 +90,12 @@ function looksLikeSvg(buffer: Buffer): boolean {
   return head.startsWith("<?xml") ? head.includes("<svg") : head.startsWith("<svg");
 }
 
-export function validatePlatformLogo(file: Express.Multer.File): { contentType: string; extension: string; width: number | null; height: number | null } {
+export function validatePlatformLogo(file: Express.Multer.File): {
+  contentType: string;
+  extension: string;
+  width: number | null;
+  height: number | null;
+} {
   if (!file?.buffer?.length || file.size > MAX_LOGO_BYTES) {
     throw new HttpError(422, "INVALID_PLATFORM_LOGO", "ارفع ملف شعار حجمه 2 ميغابايت أو أقل.");
   }
@@ -98,16 +113,25 @@ export function validatePlatformLogo(file: Express.Multer.File): { contentType: 
   }
   const dimensions = pngDimensions(file.buffer);
   if (!dimensions) {
-    throw new HttpError(422, "INVALID_PLATFORM_LOGO", "الشعار يجب أن يكون ملف PNG أو SVG. الصيغ الأخرى غير مقبولة.");
+    throw new HttpError(
+      422,
+      "INVALID_PLATFORM_LOGO",
+      "الشعار يجب أن يكون ملف PNG أو SVG. الصيغ الأخرى غير مقبولة."
+    );
   }
   if (dimensions.width < MIN_RASTER_EDGE || dimensions.height < MIN_RASTER_EDGE) {
     throw new HttpError(
       422,
       "PLATFORM_LOGO_TOO_SMALL",
-      `الشعار النقطي يجب أن يكون ${MIN_RASTER_EDGE}×${MIN_RASTER_EDGE} بكسل على الأقل — المرفوع ${dimensions.width}×${dimensions.height}. الأصغر يظهر باهتاً على الشاشات عالية الكثافة وفي الطباعة.`,
+      `الشعار النقطي يجب أن يكون ${MIN_RASTER_EDGE}×${MIN_RASTER_EDGE} بكسل على الأقل — المرفوع ${dimensions.width}×${dimensions.height}. الأصغر يظهر باهتاً على الشاشات عالية الكثافة وفي الطباعة.`
     );
   }
-  return { contentType: "image/png", extension: "png", width: dimensions.width, height: dimensions.height };
+  return {
+    contentType: "image/png",
+    extension: "png",
+    width: dimensions.width,
+    height: dimensions.height,
+  };
 }
 
 export async function readPlatformLogo(): Promise<PlatformLogo | null> {
@@ -123,21 +147,34 @@ export async function readPlatformLogo(): Promise<PlatformLogo | null> {
   }
 }
 
-export async function putPlatformLogo(actor: PlatformActor, file: Express.Multer.File, now: Date): Promise<PlatformLogo> {
+export async function putPlatformLogo(
+  actor: PlatformActor,
+  file: Express.Multer.File,
+  now: Date
+): Promise<PlatformLogo> {
   const detected = validatePlatformLogo(file);
   const config = s3Config();
   // The version IS the cache key. A fixed object key would leave browsers and
   // email clients showing the previous logo until their caches expired.
   const version = now.valueOf().toString(36);
   const objectKey = `platform/logo-${version}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({
-    Bucket: config.bucket,
-    Key: objectKey,
-    Body: file.buffer,
-    ContentType: detected.contentType,
-    ContentLength: file.size,
-  }));
-  const logo: PlatformLogo = { objectKey, contentType: detected.contentType, version, width: detected.width, height: detected.height, byteSize: file.size };
+  await client(config).send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+      Body: file.buffer,
+      ContentType: detected.contentType,
+      ContentLength: file.size,
+    })
+  );
+  const logo: PlatformLogo = {
+    objectKey,
+    contentType: detected.contentType,
+    version,
+    width: detected.width,
+    height: detected.height,
+    byteSize: file.size,
+  };
   // 19-ب: the S3 write stays outside the transaction (an orphaned object is
   // bytes, not a lie); the SETTING and its audit record commit together.
   await prisma.$transaction(async (tx) => {
@@ -175,7 +212,9 @@ export async function clearPlatformLogo(actor: PlatformActor): Promise<void> {
   });
 }
 
-export async function platformLogoBytes(objectKey: string): Promise<{ body: Uint8Array; contentType: string }> {
+export async function platformLogoBytes(
+  objectKey: string
+): Promise<{ body: Uint8Array; contentType: string }> {
   const logo = await readPlatformLogo();
   // Only the CURRENT logo object is servable. Without this the endpoint would
   // read any key an attacker could name inside the bucket.
@@ -183,7 +222,9 @@ export async function platformLogoBytes(objectKey: string): Promise<{ body: Uint
     throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested logo was not found.");
   }
   const config = s3Config();
-  const object = await client(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }));
+  const object = await client(config).send(
+    new GetObjectCommand({ Bucket: config.bucket, Key: objectKey })
+  );
   if (!object.Body || !("transformToByteArray" in object.Body)) {
     throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested logo could not be read.");
   }

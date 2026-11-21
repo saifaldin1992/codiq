@@ -51,10 +51,12 @@ function requiredText(max: number) {
  * service's own normalization decides what is stored.
  */
 function optionalText(max: number) {
-  return z.union([
-    z.string().refine((value) => value.trim().length <= max, `الحد الأقصى ${max} حرفاً.`),
-    z.null(),
-  ]).optional();
+  return z
+    .union([
+      z.string().refine((value) => value.trim().length <= max, `الحد الأقصى ${max} حرفاً.`),
+      z.null(),
+    ])
+    .optional();
 }
 
 /** `nonNegativeInteger`: `Number(value)`, then integer and at least zero. */

@@ -14,7 +14,8 @@ import { useEffect, useState } from "react";
 import { FlaskConical, X } from "lucide-react";
 
 const DISMISS_KEY = "codiq_demo_banner_dismissed";
-export const DEMO_BANNER_TEXT = "نسخة تجريبية من Codiq — البيانات تُعاد كل ليلة، ولا تُرسل رسائل حقيقية";
+export const DEMO_BANNER_TEXT =
+  "نسخة تجريبية من Codiq — البيانات تُعاد كل ليلة، ولا تُرسل رسائل حقيقية";
 
 /** Module-level cache: the shells mount three banners across a session; ask once. */
 let demoStatusPromise: Promise<boolean> | null = null;
@@ -32,14 +33,22 @@ export function useDemoMode(): boolean | null {
   const [demo, setDemo] = useState<boolean | null>(null);
   useEffect(() => {
     let active = true;
-    void fetchDemoStatus().then((value) => { if (active) setDemo(value); });
-    return () => { active = false; };
+    void fetchDemoStatus().then((value) => {
+      if (active) setDemo(value);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
   return demo;
 }
 
 function sessionDismissed(): boolean {
-  try { return window.sessionStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
+  try {
+    return window.sessionStorage.getItem(DISMISS_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function DemoBanner() {
@@ -47,7 +56,12 @@ export function DemoBanner() {
   const [dismissed, setDismissed] = useState(() => sessionDismissed());
   if (demo !== true || dismissed) return null;
   return (
-    <div dir="rtl" role="status" data-testid="demo-banner" className="flex items-center justify-between gap-3 border-b border-[#D9E6FA] bg-[var(--codiq-accent-soft)] px-4 py-2 text-[#1B4E96] sm:px-6">
+    <div
+      dir="rtl"
+      role="status"
+      data-testid="demo-banner"
+      className="flex items-center justify-between gap-3 border-b border-[#D9E6FA] bg-[var(--codiq-accent-soft)] px-4 py-2 text-[#1B4E96] sm:px-6"
+    >
       <p className="flex min-w-0 items-center gap-2 text-[12.5px] font-semibold leading-5">
         <FlaskConical className="h-4 w-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
         <span className="truncate sm:whitespace-normal">{DEMO_BANNER_TEXT}</span>
@@ -57,7 +71,11 @@ export function DemoBanner() {
         aria-label="إخفاء إشعار النسخة التجريبية"
         onClick={() => {
           setDismissed(true);
-          try { window.sessionStorage.setItem(DISMISS_KEY, "1"); } catch { /* private mode: hide for this render only */ }
+          try {
+            window.sessionStorage.setItem(DISMISS_KEY, "1");
+          } catch {
+            /* private mode: hide for this render only */
+          }
         }}
         className="shrink-0 rounded-lg p-1 text-[#4A79C4] transition-colors hover:bg-white/70 hover:text-[#1B4E96]"
       >

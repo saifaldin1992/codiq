@@ -38,7 +38,8 @@ const KIND_COPY = {
 type DashboardKind = keyof typeof KIND_COPY;
 
 function requestedKind(): DashboardKind {
-  const raw = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("kind");
+  const raw =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("kind");
   // Defaults to the merchant, and that is a decision rather than an accident:
   // he is the identity this feature was launch-blocking for, and the only one
   // who reaches this page without being handed the link by someone else.
@@ -52,7 +53,10 @@ export default function PasswordResetRequest() {
   const { storeSlug } = useParams<{ storeSlug?: string }>();
   const kind = requestedKind();
   const copy = storeSlug
-    ? { title: "استعادة كلمة السر", loginPath: `/store/${encodeURIComponent(storeSlug)}/account/login` }
+    ? {
+        title: "استعادة كلمة السر",
+        loginPath: `/store/${encodeURIComponent(storeSlug)}/account/login`,
+      }
     : KIND_COPY[kind];
 
   const [pending, setPending] = useState(false);
@@ -80,7 +84,9 @@ export default function PasswordResetRequest() {
       }
       setOutcome(payload?.delivery === "unavailable" ? "unavailable" : "queued");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "تعذّر إرسال الطلب. أعد المحاولة بعد قليل.");
+      setError(
+        cause instanceof Error ? cause.message : "تعذّر إرسال الطلب. أعد المحاولة بعد قليل."
+      );
     } finally {
       setPending(false);
     }
@@ -105,19 +111,37 @@ export default function PasswordResetRequest() {
                   the same for every address. */}
               {storeSlug ? (
                 <p className="mt-2 text-[12px] leading-5 text-[var(--codiq-text-muted)]">
-                  إن لم تكن قد سجّلت بريداً إلكترونياً في هذا المتجر، تواصل مع المتجر لاستعادة حسابك.
+                  إن لم تكن قد سجّلت بريداً إلكترونياً في هذا المتجر، تواصل مع المتجر لاستعادة
+                  حسابك.
                 </p>
               ) : null}
               <div className="mt-6">
                 <label className="block space-y-1.5 text-sm font-semibold text-[var(--codiq-text-secondary)]">
                   <span>البريد الإلكتروني</span>
-                  <Input data-testid="reset-request-email" name="email" type="email" required autoComplete="email" autoFocus />
+                  <Input
+                    data-testid="reset-request-email"
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    autoFocus
+                  />
                 </label>
               </div>
               {error ? (
-                <p role="alert" data-testid="reset-request-error" className="mt-4 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--codiq-danger)]">{error}</p>
+                <p
+                  role="alert"
+                  data-testid="reset-request-error"
+                  className="mt-4 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--codiq-danger)]"
+                >
+                  {error}
+                </p>
               ) : null}
-              <Button disabled={pending} data-testid="reset-request-submit" className="mt-6 h-11 w-full rounded-xl bg-[var(--codiq-accent)] text-base text-[var(--codiq-surface)] hover:bg-[var(--codiq-accent-hover)]">
+              <Button
+                disabled={pending}
+                data-testid="reset-request-submit"
+                className="mt-6 h-11 w-full rounded-xl bg-[var(--codiq-accent)] text-base text-[var(--codiq-surface)] hover:bg-[var(--codiq-accent-hover)]"
+              >
                 {pending ? "جارٍ الإرسال…" : "أرسل رابط الاستعادة"}
               </Button>
             </form>
@@ -130,7 +154,8 @@ export default function PasswordResetRequest() {
                 إن كان هذا البريد مسجّلاً لدينا، فسيصلك رابط لاختيار كلمة سر جديدة خلال دقائق.
               </p>
               <p className="text-sm leading-6 text-[var(--codiq-text-muted)]">
-                الرابط صالح لمدة 45 دقيقة ولمرة واحدة فقط، وعند استخدامه تُنهى كل الجلسات المفتوحة على حسابك.
+                الرابط صالح لمدة 45 دقيقة ولمرة واحدة فقط، وعند استخدامه تُنهى كل الجلسات المفتوحة
+                على حسابك.
               </p>
               <p className="text-sm leading-6 text-[var(--codiq-text-muted)]">
                 لم تجد الرسالة؟ تحقق من مجلد الرسائل غير المرغوب فيها قبل أن تطلب رابطاً جديداً.
@@ -151,11 +176,20 @@ export default function PasswordResetRequest() {
           )}
 
           <p className="mt-7 text-center text-sm text-[var(--codiq-text-muted)]">
-            <Link href={copy.loginPath} data-testid="reset-request-back" className="font-bold text-[var(--codiq-accent)] hover:underline">العودة إلى تسجيل الدخول</Link>
+            <Link
+              href={copy.loginPath}
+              data-testid="reset-request-back"
+              className="font-bold text-[var(--codiq-accent)] hover:underline"
+            >
+              العودة إلى تسجيل الدخول
+            </Link>
           </p>
         </div>
         {/* ق-138 lockup rules: mark before word (dir=ltr), wordmark «Codiq». */}
-        <div dir="ltr" className="mt-6 flex items-center justify-center gap-2 text-[var(--codiq-text-muted)]">
+        <div
+          dir="ltr"
+          className="mt-6 flex items-center justify-center gap-2 text-[var(--codiq-text-muted)]"
+        >
           <BrandMark className="h-5 w-5" />
           <span className="text-[13px] font-semibold">Codiq</span>
         </div>

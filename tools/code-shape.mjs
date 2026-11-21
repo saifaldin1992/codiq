@@ -45,8 +45,8 @@ function* files(dir) {
 function measure(path) {
   const text = readFileSync(path, "utf8");
   const lines = text.split("\n");
-  const longLines = lines.filter(line => line.length > LIMITS.line).length;
-  const size = lines.filter(line => line.trim()).length;
+  const longLines = lines.filter((line) => line.length > LIMITS.line).length;
+  const size = lines.filter((line) => line.trim()).length;
   const isUi = path.startsWith("client/");
   const fileLimit = isUi ? LIMITS.uiFile : LIMITS.backendFile;
   const source = ts.createSourceFile(
@@ -57,7 +57,7 @@ function measure(path) {
     path.endsWith("x") ? ts.ScriptKind.TSX : undefined
   );
   let longFunctions = 0;
-  const visit = node => {
+  const visit = (node) => {
     if (ts.isFunctionLike(node) && "body" in node && node.body) {
       const start = source.getLineAndCharacterOfPosition(node.body.getStart(source)).line;
       const end = source.getLineAndCharacterOfPosition(node.body.getEnd()).line;
@@ -79,7 +79,7 @@ for (const root of ROOTS) {
       now[path] = { longLines: m.longLines, oversize: m.oversize, longFunctions: m.longFunctions };
   }
 }
-const totals = table =>
+const totals = (table) =>
   Object.values(table).reduce(
     (sum, row) => ({
       longLines: sum.longLines + row.longLines,

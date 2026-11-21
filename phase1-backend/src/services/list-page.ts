@@ -81,7 +81,10 @@ function invalidCursor(code: string): HttpError {
  */
 export function encodeListCursor(kind: string, value: Date | string | number, id: string): string {
   const serialised = value instanceof Date ? value.toISOString() : String(value);
-  return Buffer.from(JSON.stringify({ v: CURSOR_VERSION, k: kind, c: serialised, i: id }), "utf8").toString("base64url");
+  return Buffer.from(
+    JSON.stringify({ v: CURSOR_VERSION, k: kind, c: serialised, i: id }),
+    "utf8"
+  ).toString("base64url");
 }
 
 /**
@@ -93,7 +96,11 @@ export function encodeListCursor(kind: string, value: Date | string | number, id
  * stable code. Never a 500: the red team found `?cursor=abc` producing a bare
  * INTERNAL_ERROR through an unmapped Prisma P2023, and that must not come back.
  */
-export function decodeListCursor(kind: string, raw: unknown, code = "INVALID_CURSOR"): ListCursor | undefined {
+export function decodeListCursor(
+  kind: string,
+  raw: unknown,
+  code = "INVALID_CURSOR"
+): ListCursor | undefined {
   if (raw === undefined || raw === null || raw === "") return undefined;
   if (typeof raw !== "string" || raw.length > MAX_CURSOR_LENGTH) throw invalidCursor(code);
   let decoded: unknown;
@@ -105,7 +112,8 @@ export function decodeListCursor(kind: string, raw: unknown, code = "INVALID_CUR
   const record = decoded as { v?: unknown; k?: unknown; c?: unknown; i?: unknown } | null;
   if (!record || typeof record !== "object") throw invalidCursor(code);
   if (record.v !== CURSOR_VERSION || record.k !== kind) throw invalidCursor(code);
-  if (typeof record.c !== "string" || typeof record.i !== "string" || !UUID_PATTERN.test(record.i)) throw invalidCursor(code);
+  if (typeof record.c !== "string" || typeof record.i !== "string" || !UUID_PATTERN.test(record.i))
+    throw invalidCursor(code);
   return { value: record.c, id: record.i };
 }
 
@@ -136,13 +144,18 @@ export async function readListCursor(
      */
     legacyEncoded?: (raw: string) => { value: Date | string | number; id: string } | undefined;
     code?: string;
-  } = {},
+  } = {}
 ): Promise<ListCursor | undefined> {
   const code = options.code ?? "INVALID_CURSOR";
   if (raw === undefined || raw === null || raw === "") return undefined;
   if (options.legacy && typeof raw === "string" && UUID_PATTERN.test(raw)) {
     const row = await options.legacy(raw);
-    if (!row) throw new HttpError(404, "RESOURCE_NOT_FOUND", "مؤشر الصفحة لم يعد موجوداً — أعِد فتح القائمة من بدايتها.");
+    if (!row)
+      throw new HttpError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "مؤشر الصفحة لم يعد موجوداً — أعِد فتح القائمة من بدايتها."
+      );
     const value = row.value instanceof Date ? row.value.toISOString() : String(row.value);
     return { value, id: raw };
   }
@@ -150,7 +163,10 @@ export async function readListCursor(
     const decoded = options.legacyEncoded(raw);
     if (decoded) {
       if (!UUID_PATTERN.test(decoded.id)) throw invalidCursor(code);
-      return { value: decoded.value instanceof Date ? decoded.value.toISOString() : String(decoded.value), id: decoded.id };
+      return {
+        value: decoded.value instanceof Date ? decoded.value.toISOString() : String(decoded.value),
+        id: decoded.id,
+      };
     }
   }
   return decodeListCursor(kind, raw, code);
@@ -207,11 +223,17 @@ export function keysetWhere(
   field: string,
   direction: "asc" | "desc",
   cursor: ListCursor | undefined,
-  parse: "date" | "text" | "number" = "date",
+  parse: "date" | "text" | "number" = "date"
 ): Record<string, unknown> {
   if (!cursor) return {};
-  const value = parse === "date" ? new Date(cursor.value) : parse === "number" ? Number(cursor.value) : cursor.value;
-  if (parse === "date" && Number.isNaN((value as Date).valueOf())) throw invalidCursor("INVALID_CURSOR");
+  const value =
+    parse === "date"
+      ? new Date(cursor.value)
+      : parse === "number"
+        ? Number(cursor.value)
+        : cursor.value;
+  if (parse === "date" && Number.isNaN((value as Date).valueOf()))
+    throw invalidCursor("INVALID_CURSOR");
   if (parse === "number" && Number.isNaN(value as number)) throw invalidCursor("INVALID_CURSOR");
   const beyond = direction === "desc" ? "lt" : "gt";
   const upTo = direction === "desc" ? "lte" : "gte";
@@ -233,7 +255,11 @@ export function keysetWhere(
  * Reading one extra row is how «is there a page 2» is answered without a second
  * COUNT over the same predicate — the house pattern since the first keyset list.
  */
-export function pageOf<T>(rows: readonly T[], limit: number, mint: (last: T) => string): { page: T[]; nextCursor: string | null } {
+export function pageOf<T>(
+  rows: readonly T[],
+  limit: number,
+  mint: (last: T) => string
+): { page: T[]; nextCursor: string | null } {
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : [...rows];
   const last = page[page.length - 1];
@@ -249,7 +275,11 @@ export function pageOf<T>(rows: readonly T[], limit: number, mint: (last: T) => 
  * is row 500 produces a list that skips four hundred rows and blames the server.
  * Rejecting says which value was wrong, once, in one code.
  */
-export function parseListLimit(value: unknown, max = LIST_LIMIT_MAX, fallback = LIST_LIMIT_DEFAULT): number {
+export function parseListLimit(
+  value: unknown,
+  max = LIST_LIMIT_MAX,
+  fallback = LIST_LIMIT_DEFAULT
+): number {
   if (value === undefined || value === null || value === "") return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > max) {

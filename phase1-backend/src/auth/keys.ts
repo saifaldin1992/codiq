@@ -64,7 +64,13 @@ const SALT = Buffer.from("codiq/phase19/key-derivation", "utf8");
 
 function derive(root: string, purpose: KeyPurpose): Buffer {
   return Buffer.from(
-    crypto.hkdfSync("sha256", Buffer.from(root, "utf8"), SALT, Buffer.from(`codiq:${purpose}`, "utf8"), KEY_BYTES),
+    crypto.hkdfSync(
+      "sha256",
+      Buffer.from(root, "utf8"),
+      SALT,
+      Buffer.from(`codiq:${purpose}`, "utf8"),
+      KEY_BYTES
+    )
   );
 }
 

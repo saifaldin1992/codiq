@@ -65,7 +65,7 @@ export interface GracefulShutdownOptions {
 export function installGracefulShutdown(
   server: Server,
   stopOutboxWorker: () => void,
-  options: GracefulShutdownOptions = {},
+  options: GracefulShutdownOptions = {}
 ) {
   const graceMs = options.graceMs ?? shutdownGraceMsFromEnv();
   const exit = options.exit ?? ((code: number) => process.exit(code));
@@ -86,7 +86,10 @@ export function installGracefulShutdown(
         exit(0);
       };
       if (!options.beforeExit) return finish();
-      options.beforeExit().catch((drainError) => logger.warn("shutdown.drain_failed", { signal, err: drainError })).finally(finish);
+      options
+        .beforeExit()
+        .catch((drainError) => logger.warn("shutdown.drain_failed", { signal, err: drainError }))
+        .finally(finish);
     });
     server.closeIdleConnections();
     const deadline = setTimeout(() => {

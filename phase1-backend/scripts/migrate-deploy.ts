@@ -24,7 +24,11 @@ import { spawn } from "node:child_process";
 import pg from "pg";
 import { databaseHost, resolveCodiqMigrationDatabaseUrl } from "../src/db/database-url.js";
 
-const requested = process.env.CODIQ_POSTGRES_URL_UNPOOLED ?? process.env.CODIQ_POSTGRES_URL ?? process.env.DATABASE_URL ?? "";
+const requested =
+  process.env.CODIQ_POSTGRES_URL_UNPOOLED ??
+  process.env.CODIQ_POSTGRES_URL ??
+  process.env.DATABASE_URL ??
+  "";
 const resolved = resolveCodiqMigrationDatabaseUrl();
 const before = databaseHost(requested);
 const after = databaseHost(resolved);
@@ -33,7 +37,7 @@ if (before !== after) {
   console.log(
     `[migrate] the configured connection was POOLED (${before}); migrations will use ${after} instead.\n` +
       `[migrate] prisma takes a session-level advisory lock, and a transaction pooler does not keep a migration on one backend — ` +
-      `that is the P1002 timeout. Fix the variable at its source when convenient; this rewrite is a floor, not a substitute.`,
+      `that is the P1002 timeout. Fix the variable at its source when convenient; this rewrite is a floor, not a substitute.`
   );
 } else {
   console.log(`[migrate] direct connection: ${after}`);
@@ -57,13 +61,21 @@ async function preflightExtensionSchemas(url: string) {
   const parsed = new URL(url);
   const pinned = parsed.searchParams.get("schema");
   if (!pinned) return;
-  for (const key of ["schema", "pgbouncer", "connection_limit", "pool_timeout", "connect_timeout", "statement_cache_size"]) parsed.searchParams.delete(key);
+  for (const key of [
+    "schema",
+    "pgbouncer",
+    "connection_limit",
+    "pool_timeout",
+    "connect_timeout",
+    "statement_cache_size",
+  ])
+    parsed.searchParams.delete(key);
   const client = new pg.Client({ connectionString: parsed.toString() });
   try {
     await client.connect();
     const { rows } = await client.query<{ extname: string; schema: string }>(
       "SELECT e.extname, n.nspname AS schema FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace WHERE e.extname = ANY($1)",
-      [EXTENSIONS_WE_USE],
+      [EXTENSIONS_WE_USE]
     );
     const elsewhere = rows.filter((row) => row.schema !== pinned);
     if (elsewhere.length) {
@@ -71,13 +83,15 @@ async function preflightExtensionSchemas(url: string) {
         `[migrate] ${elsewhere.map((row) => `${row.extname} is installed in schema "${row.schema}"`).join(", ")}, ` +
           `but the url pins search_path to "${pinned}" (?schema=${pinned}), so its operators are invisible to the migrations.\n` +
           `[migrate] Fix: remove "schema=${pinned}" from the database url (Supabase keeps "extensions" on the role's search_path), ` +
-          `or move the extension: ALTER EXTENSION <name> SET SCHEMA ${pinned};`,
+          `or move the extension: ALTER EXTENSION <name> SET SCHEMA ${pinned};`
       );
       process.exit(1);
     }
   } catch (error) {
     // A preflight that cannot connect must not mask prisma's own, better, connection error.
-    console.warn(`[migrate] extension preflight skipped: ${error instanceof Error ? error.message : String(error)}`);
+    console.warn(
+      `[migrate] extension preflight skipped: ${error instanceof Error ? error.message : String(error)}`
+    );
   } finally {
     await client.end().catch(() => undefined);
   }
@@ -91,12 +105,18 @@ const child = spawn(
   // which is what `npx.cmd` is on Windows. The arguments are fixed strings,
   // so the shell adds no surface here — it only lets the owner run this on
   // his own machine.
-  { stdio: "inherit", env: { ...process.env, DATABASE_URL: resolved }, shell: process.platform === "win32" },
+  {
+    stdio: "inherit",
+    env: { ...process.env, DATABASE_URL: resolved },
+    shell: process.platform === "win32",
+  }
 );
 child.on("close", (code) => {
   process.exit(code ?? 1);
 });
 child.on("error", (error) => {
-  console.error(`[migrate] could not start prisma: ${error instanceof Error ? error.message : String(error)}`);
+  console.error(
+    `[migrate] could not start prisma: ${error instanceof Error ? error.message : String(error)}`
+  );
   process.exit(1);
 });

@@ -166,7 +166,10 @@ function extentFrom(source, openParenIndex) {
 function skipString(source, start) {
   const quote = source[start];
   for (let i = start + 1; i < source.length; i += 1) {
-    if (source[i] === "\\") { i += 1; continue; }
+    if (source[i] === "\\") {
+      i += 1;
+      continue;
+    }
     // A template literal's `${ … }` may contain anything, brackets included.
     if (quote === "`" && source[i] === "$" && source[i + 1] === "{") {
       let depth = 1;
@@ -174,7 +177,8 @@ function skipString(source, start) {
       for (; i < source.length && depth > 0; i += 1) {
         if (source[i] === "{") depth += 1;
         else if (source[i] === "}") depth -= 1;
-        else if (source[i] === '"' || source[i] === "'" || source[i] === "`") i = skipString(source, i);
+        else if (source[i] === '"' || source[i] === "'" || source[i] === "`")
+          i = skipString(source, i);
       }
       i -= 1;
       continue;
@@ -186,8 +190,17 @@ function skipString(source, start) {
 
 function skipRegex(source, start) {
   for (let i = start + 1; i < source.length; i += 1) {
-    if (source[i] === "\\") { i += 1; continue; }
-    if (source[i] === "[") { while (i < source.length && source[i] !== "]") { if (source[i] === "\\") i += 1; i += 1; } continue; }
+    if (source[i] === "\\") {
+      i += 1;
+      continue;
+    }
+    if (source[i] === "[") {
+      while (i < source.length && source[i] !== "]") {
+        if (source[i] === "\\") i += 1;
+        i += 1;
+      }
+      continue;
+    }
     if (source[i] === "/") return i;
     if (source[i] === "\n") throw new Error("unterminated regex literal");
   }
@@ -210,16 +223,38 @@ function topLevelArguments(extent) {
   let start = 1;
   for (let i = 0; i < extent.length; i += 1) {
     const char = extent[i];
-    if (char === '"' || char === "'" || char === "`") { i = skipString(extent, i); continue; }
-    if (char === "/" && extent[i + 1] === "/") { const end = extent.indexOf("\n", i); if (end === -1) break; i = end; continue; }
-    if (char === "/" && extent[i + 1] === "*") { const end = extent.indexOf("*/", i + 2); if (end === -1) break; i = end + 1; continue; }
-    if (char === "(" || char === "[" || char === "{") { depth += 1; continue; }
-    if (char === ")" || char === "]" || char === "}") {
-      depth -= 1;
-      if (depth === 0) { args.push(extent.slice(start, i)); break; }
+    if (char === '"' || char === "'" || char === "`") {
+      i = skipString(extent, i);
       continue;
     }
-    if (char === "," && depth === 1) { args.push(extent.slice(start, i)); start = i + 1; }
+    if (char === "/" && extent[i + 1] === "/") {
+      const end = extent.indexOf("\n", i);
+      if (end === -1) break;
+      i = end;
+      continue;
+    }
+    if (char === "/" && extent[i + 1] === "*") {
+      const end = extent.indexOf("*/", i + 2);
+      if (end === -1) break;
+      i = end + 1;
+      continue;
+    }
+    if (char === "(" || char === "[" || char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char === ")" || char === "]" || char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        args.push(extent.slice(start, i));
+        break;
+      }
+      continue;
+    }
+    if (char === "," && depth === 1) {
+      args.push(extent.slice(start, i));
+      start = i + 1;
+    }
   }
   return args.map((argument) => argument.trim());
 }
@@ -258,19 +293,31 @@ function routeRegistrations(source) {
  * miss the single offender it existed to catch.
  */
 function indexFunctions(source, into) {
-  const declaration = /(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)|(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?=[<(]|function\b)/g;
+  const declaration =
+    /(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)|(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?=[<(]|function\b)/g;
   let match;
   while ((match = declaration.exec(source))) {
     const name = match[1] ?? match[2];
     let i = declaration.lastIndex;
-    const skipSpace = () => { while (i < source.length && /\s/.test(source[i])) i += 1; };
+    const skipSpace = () => {
+      while (i < source.length && /\s/.test(source[i])) i += 1;
+    };
     skipSpace();
-    if (source.startsWith("function", i)) { i += "function".length; skipSpace(); }
+    if (source.startsWith("function", i)) {
+      i += "function".length;
+      skipSpace();
+    }
     if (source[i] === "<") {
       let angle = 0;
       for (; i < source.length; i += 1) {
         if (source[i] === "<") angle += 1;
-        else if (source[i] === ">") { angle -= 1; if (angle === 0) { i += 1; break; } }
+        else if (source[i] === ">") {
+          angle -= 1;
+          if (angle === 0) {
+            i += 1;
+            break;
+          }
+        }
       }
       skipSpace();
     }
@@ -278,7 +325,13 @@ function indexFunctions(source, into) {
     let parens = 0;
     for (; i < source.length; i += 1) {
       if (source[i] === "(") parens += 1;
-      else if (source[i] === ")") { parens -= 1; if (parens === 0) { i += 1; break; } }
+      else if (source[i] === ")") {
+        parens -= 1;
+        if (parens === 0) {
+          i += 1;
+          break;
+        }
+      }
     }
     let angle = 0;
     let open = -1;
@@ -287,16 +340,25 @@ function indexFunctions(source, into) {
       if (char === "<") angle += 1;
       else if (char === ">") angle = Math.max(0, angle - 1);
       else if (char === ";" && angle === 0) break;
-      else if (char === "{" && angle === 0) { open = i; break; }
+      else if (char === "{" && angle === 0) {
+        open = i;
+        break;
+      }
     }
     if (open === -1) continue;
     let depth = 0;
     let end = open;
     for (; end < source.length; end += 1) {
       if (source[end] === "{") depth += 1;
-      else if (source[end] === "}") { depth -= 1; if (depth === 0) break; }
+      else if (source[end] === "}") {
+        depth -= 1;
+        if (depth === 0) break;
+      }
     }
-    into.set(name, (into.get(name) ?? "") + "\n" + source.slice(open, Math.min(end + 1, source.length)));
+    into.set(
+      name,
+      (into.get(name) ?? "") + "\n" + source.slice(open, Math.min(end + 1, source.length))
+    );
   }
 }
 
@@ -322,14 +384,43 @@ function indexConstInitializers(source, into) {
     let i = start;
     for (; i < source.length; i += 1) {
       const char = source[i];
-      if (char === '"' || char === "'" || char === "`") { i = skipString(source, i); continue; }
-      if (char === "/" && source[i + 1] === "/") { const end = source.indexOf("\n", i); if (end === -1) { i = source.length; break; } i = end; continue; }
-      if (char === "/" && source[i + 1] === "*") { const end = source.indexOf("*/", i + 2); if (end === -1) { i = source.length; break; } i = end + 1; continue; }
-      if (char === "(" || char === "[" || char === "{") { depth += 1; continue; }
-      if (char === ")" || char === "]" || char === "}") { depth -= 1; if (depth < 0) break; continue; }
+      if (char === '"' || char === "'" || char === "`") {
+        i = skipString(source, i);
+        continue;
+      }
+      if (char === "/" && source[i + 1] === "/") {
+        const end = source.indexOf("\n", i);
+        if (end === -1) {
+          i = source.length;
+          break;
+        }
+        i = end;
+        continue;
+      }
+      if (char === "/" && source[i + 1] === "*") {
+        const end = source.indexOf("*/", i + 2);
+        if (end === -1) {
+          i = source.length;
+          break;
+        }
+        i = end + 1;
+        continue;
+      }
+      if (char === "(" || char === "[" || char === "{") {
+        depth += 1;
+        continue;
+      }
+      if (char === ")" || char === "]" || char === "}") {
+        depth -= 1;
+        if (depth < 0) break;
+        continue;
+      }
       if (depth === 0 && (char === ";" || char === "\n")) break;
     }
-    into.set(name, (into.get(name) ?? "") + "\n" + source.slice(start, Math.min(i + 1, source.length)));
+    into.set(
+      name,
+      (into.get(name) ?? "") + "\n" + source.slice(start, Math.min(i + 1, source.length))
+    );
     declaration.lastIndex = Math.min(i + 1, source.length);
   }
 }
@@ -373,8 +464,13 @@ function identityOf(body) {
   // `verifyTypedSession(bearerToken(request), "customer")`, and a `[^)]*` that
   // stopped at the first `)` read the kind as absent and reported a
   // customer-only route as «any signed-in identity».
-  for (const match of body.matchAll(/\bverifyTypedSession\s*\((?:[^()]|\([^()]*\))*?,\s*"([a-z_]+)"\s*\)/g)) kinds.add(match[1]);
-  for (const match of body.matchAll(/\brequire(?:StoreActor|StoreActorAny|PlatformActor)\s*\(\s*request\s*,\s*(\[[^\]]*\]|"[^"]+")/g)) {
+  for (const match of body.matchAll(
+    /\bverifyTypedSession\s*\((?:[^()]|\([^()]*\))*?,\s*"([a-z_]+)"\s*\)/g
+  ))
+    kinds.add(match[1]);
+  for (const match of body.matchAll(
+    /\brequire(?:StoreActor|StoreActorAny|PlatformActor)\s*\(\s*request\s*,\s*(\[[^\]]*\]|"[^"]+")/g
+  )) {
     for (const code of match[1].matchAll(/"([^"]+)"/g)) permissions.add(code[1]);
   }
   // A route that reads a session token with no typed guard still needs ONE — it
@@ -412,7 +508,10 @@ function buildErrorCatalogue() {
     // The message is read as SOURCE text, so decode the escapes JavaScript would:
     // a direction mark written visibly as \u200E (lint: no hidden bidi characters
     // in source) must reach the document as the character, not as six letters.
-    if (message && !message.includes("${")) existing.messages.add(message.replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))));
+    if (message && !message.includes("${"))
+      existing.messages.add(
+        message.replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+      );
     catalogue.set(code, existing);
   };
   for (const file of allTsFiles(SRC)) {
@@ -424,12 +523,17 @@ function buildErrorCatalogue() {
     // most common refusal on the platform, referenced by seventy-nine
     // operations in this very document — out of the code enum entirely.
     // Completeness of the CODES is the contract; the messages are a bonus.
-    for (const match of source.matchAll(/new HttpError\(\s*(\d{3})\s*,\s*"([A-Z0-9_]+)"/g)) record(match[2], match[1], "");
-    for (const match of source.matchAll(/new HttpError\(\s*(\d{3})\s*,\s*"([A-Z0-9_]+)"\s*,\s*(["'`])((?:\\.|(?!\3)[^\\])*)\3/g)) {
+    for (const match of source.matchAll(/new HttpError\(\s*(\d{3})\s*,\s*"([A-Z0-9_]+)"/g))
+      record(match[2], match[1], "");
+    for (const match of source.matchAll(
+      /new HttpError\(\s*(\d{3})\s*,\s*"([A-Z0-9_]+)"\s*,\s*(["'`])((?:\\.|(?!\3)[^\\])*)\3/g
+    )) {
       record(match[2], match[1], match[4]);
     }
     // `classifyError` writes its answers as object literals, not as throws.
-    for (const match of source.matchAll(/status:\s*(\d{3})\s*,\s*error:\s*\{\s*code:\s*"([A-Z0-9_]+)"\s*,\s*message:\s*(["'])((?:\\.|(?!\3)[^\\])*)\3/g)) {
+    for (const match of source.matchAll(
+      /status:\s*(\d{3})\s*,\s*error:\s*\{\s*code:\s*"([A-Z0-9_]+)"\s*,\s*message:\s*(["'])((?:\\.|(?!\3)[^\\])*)\3/g
+    )) {
       record(match[2], match[1], match[4]);
     }
     // A route that writes its refusal by hand instead of throwing. Exactly one
@@ -437,11 +541,14 @@ function buildErrorCatalogue() {
     // absent from the catalogue and from its own operation's 422 until this
     // line existed: the document listed the five codes the route THROWS and
     // omitted the one it actually answers with in the ordinary failure.
-    for (const match of source.matchAll(/response\s*\.\s*status\s*\(\s*(\d{3})\s*\)\s*\.\s*json\s*\(\s*\{\s*error:\s*\{\s*code:\s*"([A-Z0-9_]+)"\s*,\s*message:\s*(["'`])((?:\\.|(?!\3)[^\\])*)\3/g)) {
+    for (const match of source.matchAll(
+      /response\s*\.\s*status\s*\(\s*(\d{3})\s*\)\s*\.\s*json\s*\(\s*\{\s*error:\s*\{\s*code:\s*"([A-Z0-9_]+)"\s*,\s*message:\s*(["'`])((?:\\.|(?!\3)[^\\])*)\3/g
+    )) {
       record(match[2], match[1], match[4]);
     }
     // The soft-delete FK table names its codes in rows rather than at a throw.
-    for (const match of source.matchAll(/code:\s*"([A-Z0-9_]+)"\s*,\s*status:\s*(\d{3})/g)) record(match[1], match[2], "");
+    for (const match of source.matchAll(/code:\s*"([A-Z0-9_]+)"\s*,\s*status:\s*(\d{3})/g))
+      record(match[1], match[2], "");
   }
   return catalogue;
 }
@@ -483,7 +590,8 @@ function allTsFiles(dir) {
  * so two modules' `schema.ts` never collide.
  */
 function schemaQualifier(file) {
-  if (path.dirname(file) === CORE_SCHEMAS_DIR) return path.basename(file).replace(/\.schema\.ts$|\.ts$/, "");
+  if (path.dirname(file) === CORE_SCHEMAS_DIR)
+    return path.basename(file).replace(/\.schema\.ts$|\.ts$/, "");
   // Dotted, never slashed: the name becomes a `#/components/schemas/<name>` JSON
   // pointer, where «/» would be read as a path step and the $ref would not resolve.
   return path.relative(SRC, file).replace(/\\/g, "/").replace(/\.ts$/, "").replace(/\//g, ".");
@@ -547,7 +655,8 @@ function toJsonSchema(schema, name) {
 // 6. Reading one route's metadata.
 // ---------------------------------------------------------------------------
 
-const BODY_SCHEMA = /parseOrThrow\(\s*([A-Za-z_$][\w$]*)\s*,\s*(?:request\.body|body)|validateBody\(\s*([A-Za-z_$][\w$]*)\s*\)/g;
+const BODY_SCHEMA =
+  /parseOrThrow\(\s*([A-Za-z_$][\w$]*)\s*,\s*(?:request\.body|body)|validateBody\(\s*([A-Za-z_$][\w$]*)\s*\)/g;
 /**
  * The third alternative is not decoration. `catalog.ts` validates its search
  * parameter as `parseOrThrow(catalogProductSearchQuerySchema, { q: request.query.q })`
@@ -556,7 +665,8 @@ const BODY_SCHEMA = /parseOrThrow\(\s*([A-Za-z_$][\w$]*)\s*,\s*(?:request\.body|
  * `request.query` and documented), it loses its SCHEMA, and the document would
  * quietly downgrade a validated, bounded input to «a string, apparently».
  */
-const QUERY_SCHEMA = /parseOrThrow\(\s*([A-Za-z_$][\w$]*)\s*,\s*(?:request\.query|query)|validateQuery\(\s*([A-Za-z_$][\w$]*)\s*\)|parseOrThrow\(\s*([A-Za-z_$][\w$]*)\s*,\s*\{[^{}]*request\.query/g;
+const QUERY_SCHEMA =
+  /parseOrThrow\(\s*([A-Za-z_$][\w$]*)\s*,\s*(?:request\.query|query)|validateQuery\(\s*([A-Za-z_$][\w$]*)\s*\)|parseOrThrow\(\s*([A-Za-z_$][\w$]*)\s*,\s*\{[^{}]*request\.query/g;
 const READS_ROWS = /\.findMany\s*\(|\.groupBy\s*\(|\$queryRaw|\$queryRawUnsafe/;
 const HOUSE_CURSOR = /encodeListCursor|pageOf\s*\(/;
 const RATE_LIMITED = /consumeStorefrontRateLimit|limitStorefrontWrite|limitUpload/;
@@ -569,7 +679,8 @@ function reachableText(body, bodies) {
   // A handler passed as a BARE IDENTIFIER is never «called» in this text. Only
   // whole-argument identifiers count — an identifier lifted out of a comment or
   // an expression would attach another route's door to this one.
-  for (const argument of topLevelArguments(body)) if (/^[A-Za-z_$][\w$]*$/.test(argument)) called.add(argument);
+  for (const argument of topLevelArguments(body))
+    if (/^[A-Za-z_$][\w$]*$/.test(argument)) called.add(argument);
   for (const name of called) {
     const found = bodies.get(name);
     if (found) text += "\n" + found;
@@ -578,7 +689,8 @@ function reachableText(body, bodies) {
   for (const name of called) {
     const found = bodies.get(name);
     if (!found) continue;
-    for (const match of found.matchAll(/\b([a-zA-Z_$][\w$]*)\s*\(/g)) if (!called.has(match[1])) secondHop.add(match[1]);
+    for (const match of found.matchAll(/\b([a-zA-Z_$][\w$]*)\s*\(/g))
+      if (!called.has(match[1])) secondHop.add(match[1]);
   }
   for (const name of secondHop) {
     const found = bodies.get(name);
@@ -597,7 +709,9 @@ function reachableText(body, bodies) {
  */
 function responsesFrom(body) {
   const found = new Map();
-  for (const match of body.matchAll(/response\s*\.\s*status\s*\(\s*(\d{3})\s*\)\s*\.\s*json\s*\(/g)) {
+  for (const match of body.matchAll(
+    /response\s*\.\s*status\s*\(\s*(\d{3})\s*\)\s*\.\s*json\s*\(/g
+  )) {
     const status = Number(match[1]);
     const argumentStart = match.index + match[0].length;
     let cursor = argumentStart;
@@ -608,7 +722,9 @@ function responsesFrom(body) {
     else if (keys && existing) for (const key of keys) existing.add(key);
   }
   // `response.sendStatus(204)` and the image streams answer without `.json(`.
-  for (const match of body.matchAll(/response\s*\.\s*status\s*\(\s*(\d{3})\s*\)\s*\.\s*(?:send|end|type)\s*\(/g)) {
+  for (const match of body.matchAll(
+    /response\s*\.\s*status\s*\(\s*(\d{3})\s*\)\s*\.\s*(?:send|end|type)\s*\(/g
+  )) {
     if (!found.has(Number(match[1]))) found.set(Number(match[1]), null);
   }
   return found;
@@ -619,20 +735,48 @@ function topLevelKeys(source, openBraceIndex) {
   let depth = 0;
   for (let i = openBraceIndex; i < source.length; i += 1) {
     const char = source[i];
-    if (char === '"' || char === "'" || char === "`") { i = skipString(source, i); continue; }
-    if (char === "/" && source[i + 1] === "/") { const end = source.indexOf("\n", i); if (end === -1) break; i = end; continue; }
-    if (char === "/" && source[i + 1] === "*") { const end = source.indexOf("*/", i + 2); if (end === -1) break; i = end + 1; continue; }
-    if (char === "{" || char === "[" || char === "(") { depth += 1; continue; }
-    if (char === "}" || char === "]" || char === ")") { depth -= 1; if (depth === 0) break; continue; }
+    if (char === '"' || char === "'" || char === "`") {
+      i = skipString(source, i);
+      continue;
+    }
+    if (char === "/" && source[i + 1] === "/") {
+      const end = source.indexOf("\n", i);
+      if (end === -1) break;
+      i = end;
+      continue;
+    }
+    if (char === "/" && source[i + 1] === "*") {
+      const end = source.indexOf("*/", i + 2);
+      if (end === -1) break;
+      i = end + 1;
+      continue;
+    }
+    if (char === "{" || char === "[" || char === "(") {
+      depth += 1;
+      continue;
+    }
+    if (char === "}" || char === "]" || char === ")") {
+      depth -= 1;
+      if (depth === 0) break;
+      continue;
+    }
     if (depth !== 1) continue;
     const rest = source.slice(i);
     const key = /^([A-Za-z_$][\w$]*)\s*:/.exec(rest);
-    if (key) { keys.add(key[1]); i += key[0].length - 1; continue; }
+    if (key) {
+      keys.add(key[1]);
+      i += key[0].length - 1;
+      continue;
+    }
     // `{ ...page }` — the keys are wherever `page` came from. The identifier is
     // recorded so the caller can follow it one hop; if it cannot, the document
     // says the shape is not fully derivable rather than claiming it is.
     const spread = /^\.\.\.\s*(?:await\s+)?([A-Za-z_$][\w$]*)/.exec(rest);
-    if (spread) { keys.add(`…${spread[1]}`); i += spread[0].length - 1; continue; }
+    if (spread) {
+      keys.add(`…${spread[1]}`);
+      i += spread[0].length - 1;
+      continue;
+    }
     if (rest.startsWith("...")) keys.add("…spread");
   }
   return keys;
@@ -650,7 +794,9 @@ function topLevelKeys(source, openBraceIndex) {
  * to the document but can never make the document claim a key is guaranteed.
  */
 function resolveSpread(name, routeBody, bodies) {
-  const binding = new RegExp(`\\b(?:const|let)\\s+${name}\\s*=\\s*(?:await\\s+)?([A-Za-z_$][\\w$]*)\\s*\\(`).exec(routeBody);
+  const binding = new RegExp(
+    `\\b(?:const|let)\\s+${name}\\s*=\\s*(?:await\\s+)?([A-Za-z_$][\\w$]*)\\s*\\(`
+  ).exec(routeBody);
   const producer = bodies.get(binding?.[1] ?? name);
   if (!producer) return null;
   const keys = new Set();
@@ -681,11 +827,13 @@ function resolveSpread(name, routeBody, bodies) {
  */
 const HAND_WRITTEN_ERROR_BODIES = {
   "POST /merchant/stores/:storeSlug/catalog/import/products": {
-    reason: "20-2 debt: the CSV import answers 422 with `validation` as a sibling of `error`, not inside it. Normalising it would change the wire shape the import screen already reads.",
+    reason:
+      "20-2 debt: the CSV import answers 422 with `validation` as a sibling of `error`, not inside it. Normalising it would change the wire shape the import screen already reads.",
     extraProperties: {
       validation: {
         type: "object",
-        description: "معاينة الاستيراد المرفوض: عدد الصفوف، الجديد منها، والأخطاء صفاً صفاً. مفتاح شقيق لـ `error` — وهو استثناء موثَّق، لا قاعدة.",
+        description:
+          "معاينة الاستيراد المرفوض: عدد الصفوف، الجديد منها، والأخطاء صفاً صفاً. مفتاح شقيق لـ `error` — وهو استثناء موثَّق، لا قاعدة.",
         properties: {
           totalRows: { type: "integer" },
           newProducts: { type: "integer" },
@@ -710,14 +858,24 @@ function expressPathToOpenApi(expressPath) {
 }
 
 function pathParametersOf(expressPath) {
-  return [...expressPath.matchAll(/:([A-Za-z_$][\w$]*)(\([^)]*\))?/g)].map((match) => ({ name: match[1], pattern: match[2] }));
+  return [...expressPath.matchAll(/:([A-Za-z_$][\w$]*)(\([^)]*\))?/g)].map((match) => ({
+    name: match[1],
+    pattern: match[2],
+  }));
 }
 
 function operationIdOf(method, expressPath) {
-  const segments = expressPath.split("/").filter(Boolean).map((segment) =>
-    segment.startsWith(":") ? `By${segment.slice(1)[0].toUpperCase()}${segment.slice(2)}` : segment.replace(/[^A-Za-z0-9]+(.)?/g, (_all, next) => (next ? next.toUpperCase() : "")),
-  );
-  const joined = segments.map((segment, index) => (index === 0 ? segment : segment[0].toUpperCase() + segment.slice(1))).join("");
+  const segments = expressPath
+    .split("/")
+    .filter(Boolean)
+    .map((segment) =>
+      segment.startsWith(":")
+        ? `By${segment.slice(1)[0].toUpperCase()}${segment.slice(2)}`
+        : segment.replace(/[^A-Za-z0-9]+(.)?/g, (_all, next) => (next ? next.toUpperCase() : ""))
+    );
+  const joined = segments
+    .map((segment, index) => (index === 0 ? segment : segment[0].toUpperCase() + segment.slice(1)))
+    .join("");
   return `${method.toLowerCase()}${joined[0].toUpperCase()}${joined.slice(1)}`;
 }
 
@@ -726,7 +884,10 @@ export async function buildOpenApiDocument() {
   const { createApp } = await import(new URL(`file://${APP_FILE.replace(/\\/g, "/")}`).href);
   const app = createApp();
   const router = app._router ?? app.router;
-  if (!router?.stack) throw new Error("could not read the Express routing table — the introspection this generator depends on has moved");
+  if (!router?.stack)
+    throw new Error(
+      "could not read the Express routing table — the introspection this generator depends on has moved"
+    );
   const runtime = new Set();
   for (const layer of router.stack) {
     if (!layer.route) continue;
@@ -759,12 +920,20 @@ export async function buildOpenApiDocument() {
   for (const file of sourceFiles) {
     const source = readFileSync(file, "utf8");
     // A module's routes are tagged by the module id, not «routes».
-    const tag = file.includes(`${path.sep}modules${path.sep}`) ? path.basename(path.dirname(file)) : path.basename(file, ".ts");
+    const tag = file.includes(`${path.sep}modules${path.sep}`)
+      ? path.basename(path.dirname(file))
+      : path.basename(file, ".ts");
     const schemaImports = schemaImportsOf(source, file);
     for (const registration of routeRegistrations(source)) {
       const key = `${registration.method} ${registration.expressPath}`;
-      if (staticRoutes.has(key)) throw new Error(`two registrations of ${key} — Express would silently use the first`);
-      staticRoutes.set(key, { ...registration, schemaImports, tag: file === APP_FILE ? "service" : tag, file: path.relative(REPO, file).replace(/\\/g, "/") });
+      if (staticRoutes.has(key))
+        throw new Error(`two registrations of ${key} — Express would silently use the first`);
+      staticRoutes.set(key, {
+        ...registration,
+        schemaImports,
+        tag: file === APP_FILE ? "service" : tag,
+        file: path.relative(REPO, file).replace(/\\/g, "/"),
+      });
     }
   }
 
@@ -785,8 +954,12 @@ export async function buildOpenApiDocument() {
     const bodySchemaLocal = firstCapture(route.body, BODY_SCHEMA);
     const querySchemaLocal = firstCapture(route.body, QUERY_SCHEMA);
     // Through the route file's own import, never by bare name — see loadSchemaModules.
-    const bodySchemaName = bodySchemaLocal ? route.schemaImports.get(bodySchemaLocal) ?? bodySchemaLocal : undefined;
-    const querySchemaName = querySchemaLocal ? route.schemaImports.get(querySchemaLocal) ?? querySchemaLocal : undefined;
+    const bodySchemaName = bodySchemaLocal
+      ? (route.schemaImports.get(bodySchemaLocal) ?? bodySchemaLocal)
+      : undefined;
+    const querySchemaName = querySchemaLocal
+      ? (route.schemaImports.get(querySchemaLocal) ?? querySchemaLocal)
+      : undefined;
     const isList = READS_ROWS.test(reachable) && reachable.includes("nextCursor");
     const usesHouseCursor = isList && HOUSE_CURSOR.test(reachable);
     const rateLimited = RATE_LIMITED.test(reachable);
@@ -799,7 +972,10 @@ export async function buildOpenApiDocument() {
       const found = schemas.get(name);
       // A schema the route names but no schema module exports is a broken
       // reading, not a route without validation. Fail rather than under-report.
-      if (!found) throw new Error(`${key} validates with «${name}», which no module in src/http/schemas exports`);
+      if (!found)
+        throw new Error(
+          `${key} validates with «${name}», which no module in src/http/schemas exports`
+        );
       if (!usedSchemas.has(name)) usedSchemas.set(name, toJsonSchema(found, name));
     }
 
@@ -807,9 +983,26 @@ export async function buildOpenApiDocument() {
       operationId: operationIdOf(route.method, route.expressPath),
       tags: [route.tag],
       summary: `${route.method} ${openApiPath}`,
-      description: describeOperation({ identity, rateLimited, isList, usesHouseCursor, multipart, route }),
+      description: describeOperation({
+        identity,
+        rateLimited,
+        isList,
+        usesHouseCursor,
+        multipart,
+        route,
+      }),
       parameters: buildParameters(route, querySchemaName, usedSchemas, isList),
-      responses: buildResponses({ key, responses, isList, identity, bodySchemaName, rateLimited, reachable, routeBody: route.body, bodies }),
+      responses: buildResponses({
+        key,
+        responses,
+        isList,
+        identity,
+        bodySchemaName,
+        rateLimited,
+        reachable,
+        routeBody: route.body,
+        bodies,
+      }),
       "x-codiq-identity": identity.kinds.length ? identity.kinds : ["public"],
       "x-codiq-source": route.file,
     };
@@ -825,12 +1018,25 @@ export async function buildOpenApiDocument() {
     if (bodySchemaName) {
       operation.requestBody = {
         required: true,
-        content: { "application/json": { schema: { $ref: `#/components/schemas/${bodySchemaName}` } } },
+        content: {
+          "application/json": { schema: { $ref: `#/components/schemas/${bodySchemaName}` } },
+        },
       };
     } else if (multipart) {
       operation.requestBody = {
         required: true,
-        content: { "multipart/form-data": { schema: { type: "object", properties: { file: { type: "string", format: "binary" }, files: { type: "array", items: { type: "string", format: "binary" } } }, description: "رفع متعدد الأجزاء عبر multer — الحقل والسقف مذكوران في وصف العملية." } } },
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              properties: {
+                file: { type: "string", format: "binary" },
+                files: { type: "array", items: { type: "string", format: "binary" } },
+              },
+              description: "رفع متعدد الأجزاء عبر multer — الحقل والسقف مذكوران في وصف العملية.",
+            },
+          },
+        },
       };
     }
 
@@ -838,7 +1044,12 @@ export async function buildOpenApiDocument() {
     // المرحلة 20-4: the public storefront is NOT versioned. Stated per path item
     // rather than in prose, so a generated client cannot get it wrong.
     if (isStorefrontPath(route.expressPath)) {
-      paths[openApiPath].servers = [{ url: "/api", description: "المسار الوحيد لواجهة المتجر العام — غير مُصدَّرة بنسخة عمداً." }];
+      paths[openApiPath].servers = [
+        {
+          url: "/api",
+          description: "المسار الوحيد لواجهة المتجر العام — غير مُصدَّرة بنسخة عمداً.",
+        },
+      ];
     }
     paths[openApiPath][route.method.toLowerCase()] = operation;
   }
@@ -856,8 +1067,16 @@ export async function buildOpenApiDocument() {
       license: { name: "MIT" },
     },
     servers: [
-      { url: "/api/v1", description: "البادئة المُصدَّرة بنسخة — استخدمها لكل تكامل جديد. لا تشمل واجهة المتجر العام." },
-      { url: "/api", description: "البادئة الأصلية. باقية بلا موعد إزالة، وهي المسار الوحيد لواجهة المتجر العام (\u200E/api/store/*\u200E)." },
+      {
+        url: "/api/v1",
+        description:
+          "البادئة المُصدَّرة بنسخة — استخدمها لكل تكامل جديد. لا تشمل واجهة المتجر العام.",
+      },
+      {
+        url: "/api",
+        description:
+          "البادئة الأصلية. باقية بلا موعد إزالة، وهي المسار الوحيد لواجهة المتجر العام (\u200E/api/store/*\u200E).",
+      },
     ],
     tags: [...tags].sort().map((name) => ({ name })),
     security: [],
@@ -868,13 +1087,41 @@ export async function buildOpenApiDocument() {
         // ووثيقةٌ تتغيّر بحسب من ولّدها يكسر الحارس الذي يوازنها بالمودعة. هذا
         // هو اسم المنصّة المنشورة؛ التطوير المحلّي على http وحده يستعمل الاسم
         // العاري `codiq_session`.
-        sessionCookie: { type: "apiKey", in: "cookie", name: "__Host-codiq_session", description: "جلسة لوحة التحكم. المسار `/` — تُرسَل إلى البادئتين معاً. بادئة `__Host-` تمنع أيّ نطاقٍ فرعيّ من كتابتها." },
-        bearerSession: { type: "http", scheme: "bearer", description: "نفس رمز الجلسة في ترويسة Authorization. تُقبل حيثما تُقبل الكعكة." },
-        customerCookie: { type: "apiKey", in: "cookie", name: "codiq_customer_session_{storeSlug}", description: "جلسة زبون المتجر. مقصورة على المسار `/api/store/{storeSlug}` — ولهذا لا تُصدَّر واجهة المتجر بنسخة." },
+        sessionCookie: {
+          type: "apiKey",
+          in: "cookie",
+          name: "__Host-codiq_session",
+          description:
+            "جلسة لوحة التحكم. المسار `/` — تُرسَل إلى البادئتين معاً. بادئة `__Host-` تمنع أيّ نطاقٍ فرعيّ من كتابتها.",
+        },
+        bearerSession: {
+          type: "http",
+          scheme: "bearer",
+          description: "نفس رمز الجلسة في ترويسة Authorization. تُقبل حيثما تُقبل الكعكة.",
+        },
+        customerCookie: {
+          type: "apiKey",
+          in: "cookie",
+          name: "codiq_customer_session_{storeSlug}",
+          description:
+            "جلسة زبون المتجر. مقصورة على المسار `/api/store/{storeSlug}` — ولهذا لا تُصدَّر واجهة المتجر بنسخة.",
+        },
       },
       parameters: {
-        ListLimit: { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 100, default: 25 }, description: "حجم الصفحة. خارج النطاق ⇒ `400 INVALID_LIMIT` — لا قصٌّ صامت." },
-        ListCursor: { name: "cursor", in: "query", required: false, schema: { type: "string", maxLength: 512 }, description: "مؤشر معتم من `nextCursor` في الصفحة السابقة. مؤشر قائمة أخرى ⇒ `400`." },
+        ListLimit: {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+          description: "حجم الصفحة. خارج النطاق ⇒ `400 INVALID_LIMIT` — لا قصٌّ صامت.",
+        },
+        ListCursor: {
+          name: "cursor",
+          in: "query",
+          required: false,
+          schema: { type: "string", maxLength: 512 },
+          description: "مؤشر معتم من `nextCursor` في الصفحة السابقة. مؤشر قائمة أخرى ⇒ `400`.",
+        },
       },
       schemas: {
         ErrorEnvelope: errorEnvelopeSchema(errorCatalogue),
@@ -886,14 +1133,23 @@ export async function buildOpenApiDocument() {
     },
     paths,
     "x-codiq-error-catalogue": Object.fromEntries(
-      [...errorCatalogue.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([code, entry]) => [code, {
-        statuses: [...entry.statuses].sort((a, b) => a - b),
-        messages: [...entry.messages].filter(Boolean).sort(),
-      }]),
+      [...errorCatalogue.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([code, entry]) => [
+          code,
+          {
+            statuses: [...entry.statuses].sort((a, b) => a - b),
+            messages: [...entry.messages].filter(Boolean).sort(),
+          },
+        ])
     ),
     "x-codiq-generated": {
       by: "phase1-backend/scripts/generate-openapi.mjs",
-      from: ["the Express routing table of createApp()", "the zod schemas in src/http/schemas", "every new HttpError(...) throw site in src"],
+      from: [
+        "the Express routing table of createApp()",
+        "the zod schemas in src/http/schemas",
+        "every new HttpError(...) throw site in src",
+      ],
       // TWO NUMBERS, because they are not the same number and one of them alone
       // would be quietly wrong. The routing table of an ordinary environment
       // does not carry the flag-gated demo route, but the document describes it
@@ -930,7 +1186,9 @@ function isStorefrontPath(expressPath) {
  */
 function crossCheck(runtime, staticRoutes) {
   const missingFromScan = [...runtime].filter((key) => !staticRoutes.has(key)).sort();
-  const missingFromRouter = [...staticRoutes.keys()].filter((key) => !runtime.has(key) && !CONDITIONAL_ROUTES[key]).sort();
+  const missingFromRouter = [...staticRoutes.keys()]
+    .filter((key) => !runtime.has(key) && !CONDITIONAL_ROUTES[key])
+    .sort();
   // An entry that silences nothing is a stale entry, and an allowlist nobody
   // prunes stops meaning anything — the same rule `csrf-origin.guard.mjs` and
   // `list-envelope.guard.mjs` apply to theirs.
@@ -940,20 +1198,35 @@ function crossCheck(runtime, staticRoutes) {
   if (!missingFromScan.length && !missingFromRouter.length && !staleConditional.length) return;
   const lines = [];
   if (staleConditional.length) {
-    lines.push(`${staleConditional.length} CONDITIONAL_ROUTES entry/entries no longer describe a conditional route:`);
-    for (const key of staleConditional) lines.push(`    · ${key} — ${runtime.has(key) ? "the router registers it unconditionally now" : "no longer in the sources"}. Delete the entry.`);
+    lines.push(
+      `${staleConditional.length} CONDITIONAL_ROUTES entry/entries no longer describe a conditional route:`
+    );
+    for (const key of staleConditional)
+      lines.push(
+        `    · ${key} — ${runtime.has(key) ? "the router registers it unconditionally now" : "no longer in the sources"}. Delete the entry.`
+      );
   }
   if (missingFromScan.length) {
-    lines.push(`${missingFromScan.length} route(s) the Express router registers and the source scan did not see:`);
+    lines.push(
+      `${missingFromScan.length} route(s) the Express router registers and the source scan did not see:`
+    );
     for (const key of missingFromScan) lines.push(`    · ${key}`);
-    lines.push("  The scan is what supplies auth, schemas and errors; a route it cannot see would be documented as a bare path or not at all.");
+    lines.push(
+      "  The scan is what supplies auth, schemas and errors; a route it cannot see would be documented as a bare path or not at all."
+    );
   }
   if (missingFromRouter.length) {
-    lines.push(`${missingFromRouter.length} route(s) the source scan found that the router does NOT register:`);
+    lines.push(
+      `${missingFromRouter.length} route(s) the source scan found that the router does NOT register:`
+    );
     for (const key of missingFromRouter) lines.push(`    · ${key}`);
-    lines.push("  Registered behind a flag, dead, or misread. Documenting an endpoint that does not answer is the same lie in the other direction.");
+    lines.push(
+      "  Registered behind a flag, dead, or misread. Documenting an endpoint that does not answer is the same lie in the other direction."
+    );
   }
-  throw new Error(`the routing table and the source scan disagree — nothing was written.\n\n  ${lines.join("\n  ")}\n`);
+  throw new Error(
+    `the routing table and the source scan disagree — nothing was written.\n\n  ${lines.join("\n  ")}\n`
+  );
 }
 
 /**
@@ -972,18 +1245,28 @@ function crossCheck(runtime, staticRoutes) {
  */
 function checkHandWrittenErrorBodies(staticRoutes) {
   const HAND_WRITTEN = /response\s*\.\s*status\s*\(\s*[45]\d{2}\s*\)\s*\.\s*json\s*\(/;
-  const found = [...staticRoutes.entries()].filter(([, route]) => HAND_WRITTEN.test(route.body)).map(([key]) => key);
+  const found = [...staticRoutes.entries()]
+    .filter(([, route]) => HAND_WRITTEN.test(route.body))
+    .map(([key]) => key);
   const undeclared = found.filter((key) => !HAND_WRITTEN_ERROR_BODIES[key]).sort();
-  const stale = Object.keys(HAND_WRITTEN_ERROR_BODIES).filter((key) => !found.includes(key)).sort();
+  const stale = Object.keys(HAND_WRITTEN_ERROR_BODIES)
+    .filter((key) => !found.includes(key))
+    .sort();
   if (!undeclared.length && !stale.length) return;
   const lines = [];
   if (undeclared.length) {
-    lines.push(`${undeclared.length} route(s) write a 4xx/5xx body by hand instead of throwing an HttpError:`);
+    lines.push(
+      `${undeclared.length} route(s) write a 4xx/5xx body by hand instead of throwing an HttpError:`
+    );
     for (const key of undeclared) lines.push(`    · ${key}`);
-    lines.push("  Throw `new HttpError(status, CODE, message, details)` so the refusal rides the same envelope, correlation id and log line as every other failure — or, if the wire shape genuinely cannot change, add it to HAND_WRITTEN_ERROR_BODIES with its schema and a written reason so the document describes what it actually sends.");
+    lines.push(
+      "  Throw `new HttpError(status, CODE, message, details)` so the refusal rides the same envelope, correlation id and log line as every other failure — or, if the wire shape genuinely cannot change, add it to HAND_WRITTEN_ERROR_BODIES with its schema and a written reason so the document describes what it actually sends."
+    );
   }
   if (stale.length) {
-    lines.push(`${stale.length} HAND_WRITTEN_ERROR_BODIES entry/entries silence nothing any more — delete them:`);
+    lines.push(
+      `${stale.length} HAND_WRITTEN_ERROR_BODIES entry/entries silence nothing any more — delete them:`
+    );
     for (const key of stale) lines.push(`    · ${key}`);
   }
   throw new Error(`hand-written error bodies — nothing was written.\n\n  ${lines.join("\n  ")}\n`);
@@ -996,18 +1279,30 @@ function securityFor(kinds) {
 
 function describeOperation({ identity, rateLimited, isList, usesHouseCursor, multipart, route }) {
   const lines = [];
-  lines.push(identity.kinds.length
-    ? `**الباب**: ${identity.kinds.join(" أو ")}.`
-    : "**الباب**: مفتوح بلا جلسة.");
-  if (identity.permissions.length) lines.push(`**الصلاحية**: \`${identity.permissions.join("` و `")}\`.`);
+  lines.push(
+    identity.kinds.length
+      ? `**الباب**: ${identity.kinds.join(" أو ")}.`
+      : "**الباب**: مفتوح بلا جلسة."
+  );
+  if (identity.permissions.length)
+    lines.push(`**الصلاحية**: \`${identity.permissions.join("` و `")}\`.`);
   if (isList) {
-    lines.push(usesHouseCursor
-      ? "**قائمة**: تُجيب بمَغلَّف المرحلة 20-2 — `{ <resource>: T[], nextCursor, …facets }` مع مؤشر معتم واحد."
-      : "**قائمة**: تُجيب بمَغلَّف المرحلة 20-2، ومؤشرها لا يمرّ عبر `services/list-page.ts` (مُدرَجة في `list-envelope.legacy.json` بسبب مكتوب).");
+    lines.push(
+      usesHouseCursor
+        ? "**قائمة**: تُجيب بمَغلَّف المرحلة 20-2 — `{ <resource>: T[], nextCursor, …facets }` مع مؤشر معتم واحد."
+        : "**قائمة**: تُجيب بمَغلَّف المرحلة 20-2، ومؤشرها لا يمرّ عبر `services/list-page.ts` (مُدرَجة في `list-envelope.legacy.json` بسبب مكتوب)."
+    );
   }
-  if (rateLimited) lines.push("**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً.");
-  if (multipart) lines.push("**رفع**: `multipart/form-data` عبر multer، والتحقق من الهوية يسبق قراءة أول بايت.");
-  if (isStorefrontPath(route.expressPath)) lines.push("**غير مُصدَّرة بنسخة**: `/api` فقط. كعكة الزبون مقصورة على `/api/store/{storeSlug}`، فالبادئة المُصدَّرة تُبطلها.");
+  if (rateLimited)
+    lines.push(
+      "**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً."
+    );
+  if (multipart)
+    lines.push("**رفع**: `multipart/form-data` عبر multer، والتحقق من الهوية يسبق قراءة أول بايت.");
+  if (isStorefrontPath(route.expressPath))
+    lines.push(
+      "**غير مُصدَّرة بنسخة**: `/api` فقط. كعكة الزبون مقصورة على `/api/store/{storeSlug}`، فالبادئة المُصدَّرة تُبطلها."
+    );
   return lines.join("\n\n");
 }
 
@@ -1017,7 +1312,12 @@ function buildParameters(route, querySchemaName, usedSchemas, isList) {
     in: "path",
     required: true,
     schema: { type: "string" },
-    ...(pattern ? { description: `يلتقط بقية المسار (نمط Express \`${pattern}\`)، فقد يحتوي على \`/\` — وهو ما لا يمكن لقالب OpenAPI التعبير عنه.`, allowReserved: true } : {}),
+    ...(pattern
+      ? {
+          description: `يلتقط بقية المسار (نمط Express \`${pattern}\`)، فقد يحتوي على \`/\` — وهو ما لا يمكن لقالب OpenAPI التعبير عنه.`,
+          allowReserved: true,
+        }
+      : {}),
   }));
   const seen = new Set(parameters.map((parameter) => parameter.name));
   if (querySchemaName) {
@@ -1025,28 +1325,60 @@ function buildParameters(route, querySchemaName, usedSchemas, isList) {
     for (const [name, property] of Object.entries(schema?.properties ?? {})) {
       if (seen.has(name)) continue;
       seen.add(name);
-      parameters.push({ name, in: "query", required: (schema.required ?? []).includes(name), schema: property });
+      parameters.push({
+        name,
+        in: "query",
+        required: (schema.required ?? []).includes(name),
+        schema: property,
+      });
     }
   }
   // The pagination pair is read straight off `request.query` on the routes that
   // predate `list.schema.ts`. They are still real parameters, so they are still
   // documented — from the shared component, which is where their rules live.
   if (isList) {
-    if (!seen.has("limit")) { parameters.push({ $ref: "#/components/parameters/ListLimit" }); seen.add("limit"); }
-    if (!seen.has("cursor")) { parameters.push({ $ref: "#/components/parameters/ListCursor" }); seen.add("cursor"); }
+    if (!seen.has("limit")) {
+      parameters.push({ $ref: "#/components/parameters/ListLimit" });
+      seen.add("limit");
+    }
+    if (!seen.has("cursor")) {
+      parameters.push({ $ref: "#/components/parameters/ListCursor" });
+      seen.add("cursor");
+    }
   }
-  for (const match of route.body.matchAll(/request\.query(?:\.([A-Za-z_$][\w$]*)|\[\s*"([^"]+)"\s*\])/g)) {
+  for (const match of route.body.matchAll(
+    /request\.query(?:\.([A-Za-z_$][\w$]*)|\[\s*"([^"]+)"\s*\])/g
+  )) {
     const name = match[1] ?? match[2];
     if (!name || seen.has(name)) continue;
     seen.add(name);
-    parameters.push({ name, in: "query", required: false, schema: { type: "string" }, description: "يُقرأ من `request.query` مباشرة — لا مخطط zod يصفه بعد، فالنوع هنا هو ما يصل على السلك." });
+    parameters.push({
+      name,
+      in: "query",
+      required: false,
+      schema: { type: "string" },
+      description:
+        "يُقرأ من `request.query` مباشرة — لا مخطط zod يصفه بعد، فالنوع هنا هو ما يصل على السلك.",
+    });
   }
   return parameters;
 }
 
-function buildResponses({ key, responses, isList, identity, bodySchemaName, rateLimited, reachable, routeBody, bodies }) {
+function buildResponses({
+  key,
+  responses,
+  isList,
+  identity,
+  bodySchemaName,
+  rateLimited,
+  reachable,
+  routeBody,
+  bodies,
+}) {
   const out = {};
-  const successStatuses = [...responses.keys()].filter((status) => status < 400).sort((a, b) => a - b);
+  const successStatuses = [...responses.keys()]
+    .filter((status) => status < 400)
+    .sort((a, b) => a - b);
   for (const status of successStatuses.length ? successStatuses : [200]) {
     const rawKeys = responses.get(status);
     let keys = rawKeys;
@@ -1054,7 +1386,10 @@ function buildResponses({ key, responses, isList, identity, bodySchemaName, rate
     if (rawKeys) {
       keys = new Set();
       for (const key of rawKeys) {
-        if (!key.startsWith("…")) { keys.add(key); continue; }
+        if (!key.startsWith("…")) {
+          keys.add(key);
+          continue;
+        }
         const name = key.slice(1);
         const resolved = name === "spread" ? null : resolveSpread(name, routeBody, bodies);
         if (resolved) for (const inner of resolved) keys.add(inner);
@@ -1062,7 +1397,9 @@ function buildResponses({ key, responses, isList, identity, bodySchemaName, rate
       }
     }
     out[String(status)] = {
-      description: keys ? "استجابة ناجحة." : "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
+      description: keys
+        ? "استجابة ناجحة."
+        : "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
       content: { "application/json": { schema: successSchema(keys, isList, unresolvedSpreads) } },
     };
   }
@@ -1077,7 +1414,9 @@ function buildResponses({ key, responses, isList, identity, bodySchemaName, rate
     thrown.get(status).add(match[2]);
   }
   // …and the codes a route writes by hand rather than throwing.
-  for (const match of routeBody.matchAll(/response\s*\.\s*status\s*\(\s*(\d{3})\s*\)\s*\.\s*json\s*\(\s*\{\s*error:\s*\{\s*code:\s*"([A-Z0-9_]+)"/g)) {
+  for (const match of routeBody.matchAll(
+    /response\s*\.\s*status\s*\(\s*(\d{3})\s*\)\s*\.\s*json\s*\(\s*\{\s*error:\s*\{\s*code:\s*"([A-Z0-9_]+)"/g
+  )) {
     const status = Number(match[1]);
     if (!thrown.has(status)) thrown.set(status, new Set());
     thrown.get(status).add(match[2]);
@@ -1097,10 +1436,15 @@ function buildResponses({ key, responses, isList, identity, bodySchemaName, rate
     if (!thrown.has(413)) thrown.set(413, new Set());
     thrown.get(413).add("REQUEST_BODY_TOO_LARGE");
   }
-  if (rateLimited) { if (!thrown.has(429)) thrown.set(429, new Set()); thrown.get(429).add("RATE_LIMITED"); }
+  if (rateLimited) {
+    if (!thrown.has(429)) thrown.set(429, new Set());
+    thrown.get(429).add("RATE_LIMITED");
+  }
   if (identity.kinds.length) {
     if (!thrown.has(401)) thrown.set(401, new Set());
-    thrown.get(401).add(identity.kinds.includes("customer") ? "CUSTOMER_SESSION_REQUIRED" : "MISSING_SESSION");
+    thrown
+      .get(401)
+      .add(identity.kinds.includes("customer") ? "CUSTOMER_SESSION_REQUIRED" : "MISSING_SESSION");
   }
 
   for (const [status, codes] of [...thrown.entries()].sort(([a], [b]) => a - b)) {
@@ -1129,11 +1473,29 @@ function errorSchemaFor(key, status, codes) {
   const base = { $ref: "#/components/schemas/ErrorEnvelope" };
   if (status === 422 && codes.includes("VALIDATION_FAILED")) {
     return handWritten
-      ? { allOf: [{ $ref: "#/components/schemas/ValidationFailed" }, { type: "object", properties: handWritten.extraProperties, description: handWritten.reason }] }
+      ? {
+          allOf: [
+            { $ref: "#/components/schemas/ValidationFailed" },
+            {
+              type: "object",
+              properties: handWritten.extraProperties,
+              description: handWritten.reason,
+            },
+          ],
+        }
       : { $ref: "#/components/schemas/ValidationFailed" };
   }
   if (handWritten && status >= 400) {
-    return { allOf: [base, { type: "object", properties: handWritten.extraProperties, description: handWritten.reason }] };
+    return {
+      allOf: [
+        base,
+        {
+          type: "object",
+          properties: handWritten.extraProperties,
+          description: handWritten.reason,
+        },
+      ],
+    };
   }
   return base;
 }
@@ -1150,7 +1512,10 @@ function errorSchemaFor(key, status, codes) {
  */
 function successSchema(keys, isList, unresolvedSpreads) {
   if (!keys) {
-    const opaque = { type: "object", description: "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا." };
+    const opaque = {
+      type: "object",
+      description: "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا.",
+    };
     // A list route whose route line hands the service's return straight through
     // (`response.json(await listSettlements(...))`) still answers the 20-2
     // envelope — that contract is enforced by `list:guard`, not by this line.
@@ -1161,8 +1526,21 @@ function successSchema(keys, isList, unresolvedSpreads) {
   const properties = {};
   for (const key of keys) {
     if (key.startsWith("…")) continue;
-    if (key === "nextCursor") { properties[key] = { type: ["string", "null"], description: "`null` تعني أن هذه كانت الصفحة الأخيرة. لا `hasMore` بجوارها يمكن أن يخالفها." }; continue; }
-    if (key === "storeSlug") { properties[key] = { type: "string", description: "المتجر الذي تخص هذه القائمة — صدىً مقصود يجعل الاستجابة واصفةً لنفسها." }; continue; }
+    if (key === "nextCursor") {
+      properties[key] = {
+        type: ["string", "null"],
+        description:
+          "`null` تعني أن هذه كانت الصفحة الأخيرة. لا `hasMore` بجوارها يمكن أن يخالفها.",
+      };
+      continue;
+    }
+    if (key === "storeSlug") {
+      properties[key] = {
+        type: "string",
+        description: "المتجر الذي تخص هذه القائمة — صدىً مقصود يجعل الاستجابة واصفةً لنفسها.",
+      };
+      continue;
+    }
     properties[key] = {};
   }
   const shape = { type: "object", properties };
@@ -1177,16 +1555,29 @@ function errorEnvelopeSchema(catalogue) {
     type: "object",
     required: ["error"],
     additionalProperties: false,
-    description: "مغلّف الخطأ الموحّد. الرسائل عربية وهي عقد: المرحلة 22 تترجمها **بالرمز**، فالرمز هو ما يُبنى عليه، لا نصّ الرسالة.",
+    description:
+      "مغلّف الخطأ الموحّد. الرسائل عربية وهي عقد: المرحلة 22 تترجمها **بالرمز**، فالرمز هو ما يُبنى عليه، لا نصّ الرسالة.",
     properties: {
       error: {
         type: "object",
         required: ["code", "message", "requestId"],
         additionalProperties: true,
         properties: {
-          code: { type: "string", enum: [...catalogue.keys()].sort(), description: "رمز ثابت. المجموعة كاملة في `x-codiq-error-catalogue`." },
-          message: { type: "string", description: "رسالة للقارئ. قد تتغير صياغتها؛ الرمز لا يتغير." },
-          requestId: { type: "string", pattern: "^[0-9a-f]{16}$", description: "معرّف الطلب نفسه في ترويسة `x-request-id` وفي سطر السجل — هو ما يُقتبس عند الإبلاغ عن خطأ." },
+          code: {
+            type: "string",
+            enum: [...catalogue.keys()].sort(),
+            description: "رمز ثابت. المجموعة كاملة في `x-codiq-error-catalogue`.",
+          },
+          message: {
+            type: "string",
+            description: "رسالة للقارئ. قد تتغير صياغتها؛ الرمز لا يتغير.",
+          },
+          requestId: {
+            type: "string",
+            pattern: "^[0-9a-f]{16}$",
+            description:
+              "معرّف الطلب نفسه في ترويسة `x-request-id` وفي سطر السجل — هو ما يُقتبس عند الإبلاغ عن خطأ.",
+          },
         },
       },
     },
@@ -1206,13 +1597,21 @@ function validationFailedSchema() {
               code: { const: "VALIDATION_FAILED" },
               fields: {
                 type: "array",
-                description: "إضافة المرحلة 19-ج: حقلٌ حقلاً. الحقلان `code` و`message` في المغلّف لم يتغيرا، فالعملاء القدامى يرون ما كانوا يرونه.",
+                description:
+                  "إضافة المرحلة 19-ج: حقلٌ حقلاً. الحقلان `code` و`message` في المغلّف لم يتغيرا، فالعملاء القدامى يرون ما كانوا يرونه.",
                 items: {
                   type: "object",
                   required: ["path", "code", "message"],
                   properties: {
-                    path: { type: "string", description: "مسار منقوط: `address.governorate` أو `items.0.quantity`." },
-                    code: { type: "string", description: "رمز zod — `too_small`، `invalid_type`، `too_big`. مجموعة مغلقة يمكن للمترجم حصرها." },
+                    path: {
+                      type: "string",
+                      description: "مسار منقوط: `address.governorate` أو `items.0.quantity`.",
+                    },
+                    code: {
+                      type: "string",
+                      description:
+                        "رمز zod — `too_small`، `invalid_type`، `too_big`. مجموعة مغلقة يمكن للمترجم حصرها.",
+                    },
                     message: { type: "string" },
                   },
                 },
@@ -1243,12 +1642,23 @@ function listEnvelopeSchema() {
 }
 
 function sharedErrorResponses() {
-  const envelope = { content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } } };
+  const envelope = {
+    content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } },
+  };
   return {
     Error: { description: "خطأ، بالمغلّف الموحّد.", ...envelope },
-    MalformedBody: { description: "`INVALID_JSON_BODY` — الجسم ليس JSON صالحاً. خطأ المُرسِل، لا خطأ الخادم.", ...envelope },
-    BodyTooLarge: { description: "`REQUEST_BODY_TOO_LARGE` — تجاوز سقف المحلّل (1 ميغابايت).", ...envelope },
-    InternalError: { description: "`INTERNAL_ERROR` — عطل يملكه الخادم. مُسجَّل بسطر واحد يحمل `requestId` نفسه.", ...envelope },
+    MalformedBody: {
+      description: "`INVALID_JSON_BODY` — الجسم ليس JSON صالحاً. خطأ المُرسِل، لا خطأ الخادم.",
+      ...envelope,
+    },
+    BodyTooLarge: {
+      description: "`REQUEST_BODY_TOO_LARGE` — تجاوز سقف المحلّل (1 ميغابايت).",
+      ...envelope,
+    },
+    InternalError: {
+      description: "`INTERNAL_ERROR` — عطل يملكه الخادم. مُسجَّل بسطر واحد يحمل `requestId` نفسه.",
+      ...envelope,
+    },
   };
 }
 
@@ -1329,23 +1739,33 @@ export function renderTs(document) {
   ].join("\n");
 }
 
-const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+const invokedDirectly =
+  process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
   const document = await buildOpenApiDocument();
   writeFileSync(JSON_OUTPUT, renderJson(document), "utf8");
   writeFileSync(TS_OUTPUT, renderTs(document), "utf8");
-  const operations = Object.values(document.paths).reduce((total, item) => total + Object.keys(item).filter((key) => key !== "servers").length, 0);
-  console.log(JSON.stringify({
-    generator: "openapi",
-    status: "written",
-    summary: {
-      operations,
-      pathItems: Object.keys(document.paths).length,
-      schemas: Object.keys(document.components.schemas).length,
-      errorCodes: Object.keys(document["x-codiq-error-catalogue"]).length,
-      json: path.relative(REPO, JSON_OUTPUT).replace(/\\/g, "/"),
-      module: path.relative(REPO, TS_OUTPUT).replace(/\\/g, "/"),
-    },
-  }, null, 2));
+  const operations = Object.values(document.paths).reduce(
+    (total, item) => total + Object.keys(item).filter((key) => key !== "servers").length,
+    0
+  );
+  console.log(
+    JSON.stringify(
+      {
+        generator: "openapi",
+        status: "written",
+        summary: {
+          operations,
+          pathItems: Object.keys(document.paths).length,
+          schemas: Object.keys(document.components.schemas).length,
+          errorCodes: Object.keys(document["x-codiq-error-catalogue"]).length,
+          json: path.relative(REPO, JSON_OUTPUT).replace(/\\/g, "/"),
+          module: path.relative(REPO, TS_OUTPUT).replace(/\\/g, "/"),
+        },
+      },
+      null,
+      2
+    )
+  );
   process.exit(0);
 }

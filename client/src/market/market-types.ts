@@ -1,7 +1,13 @@
 /** The shapes the market's store routes answer with (modules/market-stores). */
 export type MarketTier = "bronze" | "silver" | "gold" | "platinum";
 export type GrantedMark = "verified" | "brand" | "ambassador" | "boosted" | "new_store";
-export type BadgeCode = GrantedMark | "fast_response" | "low_cancellation" | "high_rating" | "repeat_customers" | "top_seller";
+export type BadgeCode =
+  | GrantedMark
+  | "fast_response"
+  | "low_cancellation"
+  | "high_rating"
+  | "repeat_customers"
+  | "top_seller";
 
 export type MarketStoreCard = {
   slug: string;
@@ -26,11 +32,28 @@ export type MarketStoreCard = {
   distanceKm: number | null;
 };
 
-export type MarketStoreSort = "recommended" | "rating" | "response" | "views" | "sales" | "newest" | "nearest";
+export type MarketStoreSort =
+  | "recommended"
+  | "rating"
+  | "response"
+  | "views"
+  | "sales"
+  | "newest"
+  | "nearest";
 
-export type MarketStoresPage = { stores: MarketStoreCard[]; nextCursor: string | null; sort: MarketStoreSort };
+export type MarketStoresPage = {
+  stores: MarketStoreCard[];
+  nextCursor: string | null;
+  sort: MarketStoreSort;
+};
 
-export type BadgeView = { code: BadgeCode; title: string; description: string; earned: boolean; level: MarketTier | null };
+export type BadgeView = {
+  code: BadgeCode;
+  title: string;
+  description: string;
+  earned: boolean;
+  level: MarketTier | null;
+};
 
 export type MarketStorePageData = {
   storeSlug: string;
@@ -45,13 +68,29 @@ export type MarketStorePageData = {
     storefrontPath: string;
   };
   reputation: {
-    score: number | null; tier: MarketTier | null; tierLabel: string | null; rating: number | null; ratingCount: number;
-    completedOrders: number; cancelRate: number | null; repeatRate: number | null; medianResponseMinutes: number | null; computedAt: string | null;
+    score: number | null;
+    tier: MarketTier | null;
+    tierLabel: string | null;
+    rating: number | null;
+    ratingCount: number;
+    completedOrders: number;
+    cancelRate: number | null;
+    repeatRate: number | null;
+    medianResponseMinutes: number | null;
+    computedAt: string | null;
   };
   badges: BadgeView[];
-  hours: { days: { weekday: number; opensAt: string | null; closesAt: string | null }[]; openNow: boolean | null };
+  hours: {
+    days: { weekday: number; opensAt: string | null; closesAt: string | null }[];
+    openNow: boolean | null;
+  };
   paymentMethods: { code: string; displayName: string }[];
 };
 
-export const TIER_LABELS: Record<MarketTier, string> = { bronze: "برونزي", silver: "فضّي", gold: "ذهبي", platinum: "بلاتيني" };
+export const TIER_LABELS: Record<MarketTier, string> = {
+  bronze: "برونزي",
+  silver: "فضّي",
+  gold: "ذهبي",
+  platinum: "بلاتيني",
+};
 export const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];

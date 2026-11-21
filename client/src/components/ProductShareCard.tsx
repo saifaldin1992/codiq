@@ -31,20 +31,33 @@ const FONT = '"Inter", "Rubik", "Noto Sans Arabic", system-ui, sans-serif';
  * storefront serve the same photo from different paths, and a component that
  * guessed would work in one place and silently draw an empty box in the other.
  */
-export interface ShareProduct { id: string; name: string; priceIqd: number; imageUrl?: string | null }
+export interface ShareProduct {
+  id: string;
+  name: string;
+  priceIqd: number;
+  imageUrl?: string | null;
+}
 
 /**
  * Wraps RTL text by measuring words. `ctx.direction = "rtl"` shapes each line;
  * the breaking is ours because canvas has no line box.
  */
-function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): string[] {
+function wrap(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number
+): string[] {
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let line = "";
   for (const word of words) {
     const candidate = line ? `${line} ${word}` : word;
     if (ctx.measureText(candidate).width <= maxWidth || !line) line = candidate;
-    else { lines.push(line); line = word; }
+    else {
+      lines.push(line);
+      line = word;
+    }
     if (lines.length === maxLines) break;
   }
   if (lines.length < maxLines && line) lines.push(line);
@@ -57,7 +70,14 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
   return lines;
 }
 
-function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
   ctx.arcTo(x + width, y, x + width, y + height, radius);
@@ -67,7 +87,17 @@ function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, width:
   ctx.closePath();
 }
 
-export function ProductShareCard({ storeSlug, storeName, product, onClose }: { storeSlug: string; storeName?: string; product: ShareProduct; onClose: () => void }) {
+export function ProductShareCard({
+  storeSlug,
+  storeName,
+  product,
+  onClose,
+}: {
+  storeSlug: string;
+  storeName?: string;
+  product: ShareProduct;
+  onClose: () => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
@@ -83,7 +113,11 @@ export function ProductShareCard({ storeSlug, storeName, product, onClose }: { s
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    if (!ctx) { setFailure("متصفحك لا يدعم توليد الصورة."); setBusy(false); return; }
+    if (!ctx) {
+      setFailure("متصفحك لا يدعم توليد الصورة.");
+      setBusy(false);
+      return;
+    }
     setBusy(true);
     try {
       // Without this the first render can measure and draw in a fallback face
@@ -118,7 +152,13 @@ export function ProductShareCard({ storeSlug, storeName, product, onClose }: { s
             const scale = Math.max(box.size / bitmap.width, box.size / bitmap.height);
             const width = bitmap.width * scale;
             const height = bitmap.height * scale;
-            ctx.drawImage(bitmap, box.x + (box.size - width) / 2, box.y + (box.size - height) / 2, width, height);
+            ctx.drawImage(
+              bitmap,
+              box.x + (box.size - width) / 2,
+              box.y + (box.size - height) / 2,
+              width,
+              height
+            );
             bitmap.close();
           }
         } catch {
@@ -152,7 +192,9 @@ export function ProductShareCard({ storeSlug, storeName, product, onClose }: { s
       ctx.fillStyle = "rgba(255,255,255,0.7)";
       ctx.fillText(productUrl.replace(/^https?:\/\//, ""), 80, HEIGHT - 118);
 
-      const generated = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      const generated = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/png")
+      );
       setBlob(generated);
       setFailure(null);
     } catch (error) {
@@ -160,9 +202,19 @@ export function ProductShareCard({ storeSlug, storeName, product, onClose }: { s
     } finally {
       setBusy(false);
     }
-  }, [product.id, product.imageUrl, product.name, product.priceIqd, storeSlug, storeName, productUrl]);
+  }, [
+    product.id,
+    product.imageUrl,
+    product.name,
+    product.priceIqd,
+    storeSlug,
+    storeName,
+    productUrl,
+  ]);
 
-  useEffect(() => { void draw(); }, [draw]);
+  useEffect(() => {
+    void draw();
+  }, [draw]);
 
   const fileName = `codiq-${product.id}.png`;
   function download() {
@@ -181,8 +233,16 @@ export function ProductShareCard({ storeSlug, storeName, product, onClose }: { s
     // `canShare` is checked with the actual file: a browser may have `share`
     // and still refuse files, and calling it then throws in the user's face.
     if (navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ files: [file], text: `${product.name} — ${money.format(product.priceIqd)} د.ع`, url: productUrl }); return; }
-      catch { /* the merchant dismissed the sheet; that is not an error */ return; }
+      try {
+        await navigator.share({
+          files: [file],
+          text: `${product.name} — ${money.format(product.priceIqd)} د.ع`,
+          url: productUrl,
+        });
+        return;
+      } catch {
+        /* the merchant dismissed the sheet; that is not an error */ return;
+      }
     }
     download();
   }
@@ -192,17 +252,56 @@ export function ProductShareCard({ storeSlug, storeName, product, onClose }: { s
       <div className="w-full max-w-sm space-y-3 rounded-3xl bg-[var(--codiq-surface)] p-4 shadow-xl">
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold text-[var(--codiq-accent-strong)]">صورة جاهزة للنشر</p>
-          <Button size="sm" variant="ghost" onClick={onClose} className="rounded-xl text-[var(--codiq-text-secondary)]">إغلاق</Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onClose}
+            className="rounded-xl text-[var(--codiq-text-secondary)]"
+          >
+            إغلاق
+          </Button>
         </div>
         <div className="relative overflow-hidden rounded-2xl bg-[#0E2E56]">
-          <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="block h-auto w-full" role="img" aria-label={`صورة مشاركة لمنتج ${product.name}`} />
-          {busy ? <div className="absolute inset-0 grid place-items-center bg-white/70"><LoaderCircle className="h-6 w-6 animate-spin text-[var(--codiq-accent)]" /></div> : null}
+          <canvas
+            ref={canvasRef}
+            width={WIDTH}
+            height={HEIGHT}
+            className="block h-auto w-full"
+            role="img"
+            aria-label={`صورة مشاركة لمنتج ${product.name}`}
+          />
+          {busy ? (
+            <div className="absolute inset-0 grid place-items-center bg-white/70">
+              <LoaderCircle className="h-6 w-6 animate-spin text-[var(--codiq-accent)]" />
+            </div>
+          ) : null}
         </div>
-        {failure ? <p className="flex items-center gap-2 rounded-xl bg-[var(--codiq-danger-soft)] px-3 py-2 text-[13px] font-semibold text-[var(--codiq-danger)]"><CircleAlert className="h-4 w-4" /> {failure}</p> : null}
-        <p className="text-[11px] leading-5 text-[var(--codiq-text-muted)]">السعر والاسم مأخوذان من المنتج كما هو الآن. إن غيّرتهما، أعد توليد الصورة.</p>
+        {failure ? (
+          <p className="flex items-center gap-2 rounded-xl bg-[var(--codiq-danger-soft)] px-3 py-2 text-[13px] font-semibold text-[var(--codiq-danger)]">
+            <CircleAlert className="h-4 w-4" /> {failure}
+          </p>
+        ) : null}
+        <p className="text-[11px] leading-5 text-[var(--codiq-text-muted)]">
+          السعر والاسم مأخوذان من المنتج كما هو الآن. إن غيّرتهما، أعد توليد الصورة.
+        </p>
         <div className="flex gap-2">
-          <Button type="button" disabled={!blob} onClick={() => void share()} className="flex-1 rounded-xl bg-[var(--codiq-accent)] hover:bg-[var(--codiq-accent-hover)]"><Share2 className="ml-1 h-4 w-4" /> مشاركة</Button>
-          <Button type="button" variant="outline" disabled={!blob} onClick={download} className="rounded-xl"><Download className="ml-1 h-4 w-4" /> تنزيل</Button>
+          <Button
+            type="button"
+            disabled={!blob}
+            onClick={() => void share()}
+            className="flex-1 rounded-xl bg-[var(--codiq-accent)] hover:bg-[var(--codiq-accent-hover)]"
+          >
+            <Share2 className="ml-1 h-4 w-4" /> مشاركة
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!blob}
+            onClick={download}
+            className="rounded-xl"
+          >
+            <Download className="ml-1 h-4 w-4" /> تنزيل
+          </Button>
         </div>
       </div>
     </div>

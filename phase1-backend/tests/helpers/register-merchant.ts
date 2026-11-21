@@ -37,13 +37,24 @@ export async function registerMerchantDirect(body: unknown): Promise<DirectRegis
   let payload: any;
   try {
     const parsed = parseOrThrow(registerMerchantSchema, body ?? {});
-    const account = await registerMerchant({ email: parsed.email, password: parsed.password, businessName: parsed.businessName, ownerName: parsed.ownerName, phone: parsed.phone });
+    const account = await registerMerchant({
+      email: parsed.email,
+      password: parsed.password,
+      businessName: parsed.businessName,
+      ownerName: parsed.ownerName,
+      phone: parsed.phone,
+    });
     status = 201;
     payload = { account };
   } catch (error) {
     // The same mapping the HTTP layer applies: HttpError as-is, a unique
     // violation from the database as the 409 the race tests expect.
-    const outcome = classifyError(error, { path: "/auth/merchant/register", method: "POST", headers: {}, header: () => undefined } as any);
+    const outcome = classifyError(error, {
+      path: "/auth/merchant/register",
+      method: "POST",
+      headers: {},
+      header: () => undefined,
+    } as any);
     status = outcome.status;
     payload = { error: outcome.error };
   }

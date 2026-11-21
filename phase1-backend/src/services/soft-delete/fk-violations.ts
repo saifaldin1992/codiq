@@ -23,7 +23,12 @@ import { Prisma } from "@prisma/client";
 export function foreignKeyConstraintName(error: unknown): string | null {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
     const meta = (error.meta ?? {}) as { constraint?: unknown; field_name?: unknown };
-    const named = typeof meta.constraint === "string" ? meta.constraint : Array.isArray(meta.constraint) ? meta.constraint.join(",") : undefined;
+    const named =
+      typeof meta.constraint === "string"
+        ? meta.constraint
+        : Array.isArray(meta.constraint)
+          ? meta.constraint.join(",")
+          : undefined;
     if (named) return named;
     if (typeof meta.field_name === "string") return meta.field_name;
   }
@@ -49,7 +54,13 @@ export function isForeignKeyViolation(error: unknown): boolean {
   return error instanceof Error && error.message.includes("23503");
 }
 
-type FkRule = { match: (constraint: string) => boolean; status: 409; code: string; message: string; reason: string };
+type FkRule = {
+  match: (constraint: string) => boolean;
+  status: 409;
+  code: string;
+  message: string;
+  reason: string;
+};
 
 /**
  * Ordered rules: the FIRST match wins, so the more specific table names come
@@ -135,12 +146,17 @@ export function fkRuleFor(constraint: string | null): FkRule | null {
  * the badge the bin shows today and the one the sweep stamps later are the same
  * string from the same row.
  */
-export function reasonForBlockingTable(table: "order_items" | "coupon_redemptions" | "store_orders_coupon" | "products_category"): string {
+export function reasonForBlockingTable(
+  table: "order_items" | "coupon_redemptions" | "store_orders_coupon" | "products_category"
+): string {
   return fkRuleFor(table)?.reason ?? GENERIC_REASON;
 }
 
 /** The merchant-facing «محفوظ لسجلاتك» explanation for a blocked purge. */
 export function purgeBlockReason(error: unknown): string {
   const constraint = foreignKeyConstraintName(error);
-  return fkRuleFor(constraint)?.reason ?? (constraint ? `${GENERIC_REASON} (${constraint})` : GENERIC_REASON);
+  return (
+    fkRuleFor(constraint)?.reason ??
+    (constraint ? `${GENERIC_REASON} (${constraint})` : GENERIC_REASON)
+  );
 }

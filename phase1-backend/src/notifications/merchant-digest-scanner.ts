@@ -60,16 +60,34 @@ export interface MerchantDigestScanResult {
 }
 
 /** The Baghdad wall-clock hour and calendar date for an instant. */
-export function baghdadClock(at: Date): { hour: number; date: string; dayStartUtc: Date; dayEndUtc: Date } {
+export function baghdadClock(at: Date): {
+  hour: number;
+  date: string;
+  dayStartUtc: Date;
+  dayEndUtc: Date;
+} {
   const shifted = new Date(at.getTime() + BAGHDAD_OFFSET_MS);
   const date = shifted.toISOString().slice(0, 10);
   const dayStartUtc = new Date(Date.parse(`${date}T00:00:00.000Z`) - BAGHDAD_OFFSET_MS);
-  return { hour: shifted.getUTCHours(), date, dayStartUtc, dayEndUtc: new Date(dayStartUtc.getTime() + 86_400_000 - 1) };
+  return {
+    hour: shifted.getUTCHours(),
+    date,
+    dayStartUtc,
+    dayEndUtc: new Date(dayStartUtc.getTime() + 86_400_000 - 1),
+  };
 }
 
-export async function scanMerchantDigests(options: { now?: Date } = {}): Promise<MerchantDigestScanResult> {
+export async function scanMerchantDigests(
+  options: { now?: Date } = {}
+): Promise<MerchantDigestScanResult> {
   const now = options.now ?? new Date();
-  const result: MerchantDigestScanResult = { eligibleStores: 0, skippedTooEarly: 0, skippedNothingToSay: 0, enqueued: 0, duplicates: 0 };
+  const result: MerchantDigestScanResult = {
+    eligibleStores: 0,
+    skippedTooEarly: 0,
+    skippedNothingToSay: 0,
+    enqueued: 0,
+    duplicates: 0,
+  };
   const clock = baghdadClock(now);
 
   // Keyset pagination on storeId: a stable total order, so no store is read
@@ -77,11 +95,17 @@ export async function scanMerchantDigests(options: { now?: Date } = {}): Promise
   let cursor: string | undefined;
   for (;;) {
     const settingsRows = await prisma.notificationSettings.findMany({
-      where: { isEnabled: true, dailyDigestEnabled: true, ...(cursor ? { storeId: { gt: cursor } } : {}) },
+      where: {
+        isEnabled: true,
+        dailyDigestEnabled: true,
+        ...(cursor ? { storeId: { gt: cursor } } : {}),
+      },
       select: {
         storeId: true,
         dailyDigestHour: true,
-        store: { select: { slug: true, name: true, isActive: true, merchant: { select: { email: true } } } },
+        store: {
+          select: { slug: true, name: true, isActive: true, merchant: { select: { email: true } } },
+        },
       },
       orderBy: { storeId: "asc" },
       take: SCAN_PAGE_SIZE,
@@ -93,22 +117,34 @@ export async function scanMerchantDigests(options: { now?: Date } = {}): Promise
       if (!settings.store.isActive) continue;
       result.eligibleStores += 1;
       // His clock, his chosen hour. Not "the day is over" — see the header.
-      if (clock.hour < settings.dailyDigestHour) { result.skippedTooEarly += 1; continue; }
+      if (clock.hour < settings.dailyDigestHour) {
+        result.skippedTooEarly += 1;
+        continue;
+      }
 
       const range = { gte: clock.dayStartUtc, lte: clock.dayEndUtc };
       const [ordersToday, revenueToday, waiting] = await Promise.all([
         prisma.storeOrder.count({ where: { storeId: settings.storeId, createdAt: range } }),
         prisma.storeOrder.aggregate({
-          where: { storeId: settings.storeId, createdAt: range, status: { notIn: ["cancelled", "rejected"] } },
+          where: {
+            storeId: settings.storeId,
+            createdAt: range,
+            status: { notIn: ["cancelled", "rejected"] },
+          },
           _sum: { totalIqd: true },
         }),
         // Waiting is a LIVE figure, not a figure about today: an order from
         // Tuesday still sitting in `new` on Thursday is exactly what he needs to
         // be told about.
-        prisma.storeOrder.count({ where: { storeId: settings.storeId, status: { in: WAITING_STATUSES } } }),
+        prisma.storeOrder.count({
+          where: { storeId: settings.storeId, status: { in: WAITING_STATUSES } },
+        }),
       ]);
 
-      if (ordersToday === 0 && waiting === 0) { result.skippedNothingToSay += 1; continue; }
+      if (ordersToday === 0 && waiting === 0) {
+        result.skippedNothingToSay += 1;
+        continue;
+      }
 
       try {
         await prisma.notificationOutbox.create({
@@ -133,7 +169,8 @@ export async function scanMerchantDigests(options: { now?: Date } = {}): Promise
       } catch (error) {
         // The unique constraint IS the once-per-day rule; hitting it means the
         // digest for this Baghdad day already exists, which is success.
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") result.duplicates += 1;
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+          result.duplicates += 1;
         else throw error;
       }
     }

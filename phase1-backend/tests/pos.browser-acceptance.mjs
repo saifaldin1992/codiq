@@ -42,25 +42,40 @@ process.env.SESSION_JWT_SECRET = "pos-browser-seed-secret-not-for-production";
 const { prisma } = await import("../src/db/prisma.ts");
 const web = spawn("node", ["dist/index.js"], {
   cwd: process.cwd(),
-  env: { ...process.env, NODE_ENV: "production", PORT: String(port), DATABASE_URL: dbUrl, SESSION_JWT_SECRET: "pos-browser-seed-secret-not-for-production", CODIQ_NOTIFICATIONS_WORKER: "off" },
+  env: {
+    ...process.env,
+    NODE_ENV: "production",
+    PORT: String(port),
+    DATABASE_URL: dbUrl,
+    SESSION_JWT_SECRET: "pos-browser-seed-secret-not-for-production",
+    CODIQ_NOTIFICATIONS_WORKER: "off",
+  },
   stdio: "ignore",
 });
 
 const artifactsDir = process.env.CODIQ_TEST_ARTIFACTS_DIR ?? "/home/ubuntu/webdev-static-assets";
 fs.mkdirSync(artifactsDir, { recursive: true });
-const executablePath = process.env.CODIQ_CHROMIUM_PATH ?? (process.platform === "linux" ? "/usr/bin/chromium" : undefined);
+const executablePath =
+  process.env.CODIQ_CHROMIUM_PATH ??
+  (process.platform === "linux" ? "/usr/bin/chromium" : undefined);
 
 async function waitFor(url) {
   // CI machines are slow: 150 × 200ms = a 30s budget for the built server.
   for (let attempt = 0; attempt < 150; attempt += 1) {
-    try { const response = await fetch(url); if (response.status < 500) return; } catch {}
+    try {
+      const response = await fetch(url);
+      if (response.status < 500) return;
+    } catch {}
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`Timed out waiting for ${url}`);
 }
 
 async function json(path, init = {}) {
-  const response = await fetch(`${base}${path}`, { ...init, headers: { "content-type": "application/json", ...(init.headers ?? {}) } });
+  const response = await fetch(`${base}${path}`, {
+    ...init,
+    headers: { "content-type": "application/json", ...(init.headers ?? {}) },
+  });
   return { response, body: await response.json().catch(() => null) };
 }
 
@@ -84,17 +99,25 @@ function armTripwire(page, tag) {
     if (BENIGN_CONSOLE.some((pattern) => pattern.test(text))) return;
     consoleErrors.push(`[${tag}] ${text}`);
   });
-  page.on("pageerror", (error) => { consoleErrors.push(`[${tag}] pageerror: ${error.message}`); });
+  page.on("pageerror", (error) => {
+    consoleErrors.push(`[${tag}] pageerror: ${error.message}`);
+  });
 }
 function assertConsoleClean(where) {
-  assert.equal(consoleErrors.length, 0, `page console must stay clean (${where}):\n${consoleErrors.join("\n")}`);
+  assert.equal(
+    consoleErrors.length,
+    0,
+    `page console must stay clean (${where}):\n${consoleErrors.join("\n")}`
+  );
 }
 
 const browser = await chromium.launch({ executablePath, headless: true });
 try {
   await waitFor(`${base}/api/health`);
   // phase16's reset plus the POS tables and the ledger — `plans` stays seeded.
-  await prisma.$executeRawUnsafe("TRUNCATE TABLE pos_ticket_shortfalls, pos_tickets, pos_devices, ledger_entries, notification_outbox, staff_sessions, staff_membership_permission_overrides, store_staff_memberships, staff, inventory_reservations, checkout_requests, cart_items, shopping_carts, customer_addresses, order_status_events, order_items, store_orders, inventory_movements, product_images, product_variants, products, product_categories, customer_sessions, customers, merchant_sessions, stores, merchants, platform_owner_sessions, platform_owners, storefront_rate_limits CASCADE");
+  await prisma.$executeRawUnsafe(
+    "TRUNCATE TABLE pos_ticket_shortfalls, pos_tickets, pos_devices, ledger_entries, notification_outbox, staff_sessions, staff_membership_permission_overrides, store_staff_memberships, staff, inventory_reservations, checkout_requests, cart_items, shopping_carts, customer_addresses, order_status_events, order_items, store_orders, inventory_movements, product_images, product_variants, products, product_categories, customer_sessions, customers, merchant_sessions, stores, merchants, platform_owner_sessions, platform_owners, storefront_rate_limits CASCADE"
+  );
 
   // ------------------------------------------------------------- fixtures
   const ownerEmail = `${runId}.owner@codiq.test`;
@@ -102,11 +125,32 @@ try {
   const ownerPassword = "PosOwnerPass123!";
   let merchantPassword = "PosMerchantPass123!";
 
-  const ownerRegister = await json("/api/auth/platform/register", { method: "POST", body: JSON.stringify({ email: ownerEmail, password: ownerPassword, displayName: "مالك قبول الكاشير" }) });
+  const ownerRegister = await json("/api/auth/platform/register", {
+    method: "POST",
+    body: JSON.stringify({
+      email: ownerEmail,
+      password: ownerPassword,
+      displayName: "مالك قبول الكاشير",
+    }),
+  });
   assert.equal(ownerRegister.response.status, 201, JSON.stringify(ownerRegister.body));
-  const ownerLogin = await json("/api/auth/platform/login", { method: "POST", body: JSON.stringify({ email: ownerEmail, password: ownerPassword }) });
+  const ownerLogin = await json("/api/auth/platform/login", {
+    method: "POST",
+    body: JSON.stringify({ email: ownerEmail, password: ownerPassword }),
+  });
   const ownerCookie = sessionCookie(ownerLogin.response);
-  const provisioned = await json("/api/platform/merchants/manual", { method: "POST", headers: { cookie: ownerCookie }, body: JSON.stringify({ ownerName: "صاحب المتجر", phone: "+9647100396011", email: merchantEmail, temporaryPassword: merchantPassword, businessName: "تاجر الكاشير", firstStoreName: "متجر الكاشير" }) });
+  const provisioned = await json("/api/platform/merchants/manual", {
+    method: "POST",
+    headers: { cookie: ownerCookie },
+    body: JSON.stringify({
+      ownerName: "صاحب المتجر",
+      phone: "+9647100396011",
+      email: merchantEmail,
+      temporaryPassword: merchantPassword,
+      businessName: "تاجر الكاشير",
+      firstStoreName: "متجر الكاشير",
+    }),
+  });
   assert.equal(provisioned.response.status, 201, JSON.stringify(provisioned.body));
   const store = provisioned.body.store;
   // ق-218/ق-226: a hand-provisioned merchant replaces the provisioner's password
@@ -117,10 +161,34 @@ try {
   // One product, TWO variants, the pos.integration.mjs shapes exactly: the
   // products AFTER INSERT trigger mints the default variant inheriting the
   // product's sku/price 1:1; the second variant is created explicitly.
-  const product = await prisma.product.create({ data: { storeId: store.id, sku: "POS-SHIRT", name: "قميص المحل", priceIqd: 10000, isActive: true } });
-  const defaultVariant = await prisma.productVariant.findFirstOrThrow({ where: { productId: product.id, isDefault: true } });
-  await prisma.productVariant.update({ where: { id: defaultVariant.id }, data: { stockQuantity: 10, lowStockThreshold: 2 } });
-  const bigVariant = await prisma.productVariant.create({ data: { storeId: store.id, productId: product.id, sku: "POS-SHIRT-L", name: "كبير", priceIqd: 15000, stockQuantity: 2, isDefault: false, position: 1 } });
+  const product = await prisma.product.create({
+    data: {
+      storeId: store.id,
+      sku: "POS-SHIRT",
+      name: "قميص المحل",
+      priceIqd: 10000,
+      isActive: true,
+    },
+  });
+  const defaultVariant = await prisma.productVariant.findFirstOrThrow({
+    where: { productId: product.id, isDefault: true },
+  });
+  await prisma.productVariant.update({
+    where: { id: defaultVariant.id },
+    data: { stockQuantity: 10, lowStockThreshold: 2 },
+  });
+  const bigVariant = await prisma.productVariant.create({
+    data: {
+      storeId: store.id,
+      productId: product.id,
+      sku: "POS-SHIRT-L",
+      name: "كبير",
+      priceIqd: 15000,
+      stockQuantity: 2,
+      isDefault: false,
+      position: 1,
+    },
+  });
 
   // ------------------------------------------------------- merchant login
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -140,8 +208,14 @@ try {
   await page.getByTestId("pos-device-label").fill("كاشير ١");
   await page.getByTestId("pos-pair-submit").click();
   await page.getByTestId("pos-paired-notice").waitFor();
-  const shortBadge = (await page.getByTestId("pos-paired-notice").locator('span[dir="ltr"]').innerText()).trim();
-  assert.match(shortBadge, /^[A-HJ-NP-Z2-9]{4}$/, "the paired notice shows the 4-char receipt code, no lookalike characters");
+  const shortBadge = (
+    await page.getByTestId("pos-paired-notice").locator('span[dir="ltr"]').innerText()
+  ).trim();
+  assert.match(
+    shortBadge,
+    /^[A-HJ-NP-Z2-9]{4}$/,
+    "the paired notice shows the 4-char receipt code, no lookalike characters"
+  );
   await page.getByTestId(`pos-device-${shortBadge}`).waitFor();
   const device = await prisma.posDevice.findFirstOrThrow({ where: { storeId: store.id } });
   assert.equal(device.deviceShort, shortBadge, "the badge on screen IS the code the server minted");
@@ -153,8 +227,14 @@ try {
   // The grid renders only once a device is selected AND the catalog loaded —
   // this one wait proves both, and the chooser must NOT appear for one device.
   await page.getByTestId(`till-add-${defaultVariant.id}`).waitFor();
-  assert.equal(await page.getByTestId(`till-device-${device.id}`).count(), 0, "a single device is auto-selected — no chooser dialog");
-  await page.waitForFunction(() => document.activeElement?.getAttribute("data-testid") === "till-scan");
+  assert.equal(
+    await page.getByTestId(`till-device-${device.id}`).count(),
+    0,
+    "a single device is auto-selected — no chooser dialog"
+  );
+  await page.waitForFunction(
+    () => document.activeElement?.getAttribute("data-testid") === "till-scan"
+  );
   await page.screenshot({ path: `${artifactsDir}/pos-till-empty.png`, fullPage: true });
 
   // ------------------------------------------- 4: scanner + grid + stepper
@@ -170,16 +250,23 @@ try {
   await page.getByTestId(`till-line-inc-${defaultVariant.id}`).click();
   await page.getByTestId(`till-line-inc-${defaultVariant.id}`).click();
   // The qty readout is the span between the − and + steppers, in ar-IQ digits.
-  await page.waitForFunction(({ testId, digits }) => {
-    const inc = document.querySelector(`[data-testid="${testId}"]`);
-    const ascii = (inc?.previousElementSibling?.textContent ?? "").replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/\D/g, "");
-    return ascii === digits;
-  }, { testId: `till-line-inc-${defaultVariant.id}`, digits: "3" });
+  await page.waitForFunction(
+    ({ testId, digits }) => {
+      const inc = document.querySelector(`[data-testid="${testId}"]`);
+      const ascii = (inc?.previousElementSibling?.textContent ?? "")
+        .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+        .replace(/\D/g, "");
+      return ascii === digits;
+    },
+    { testId: `till-line-inc-${defaultVariant.id}`, digits: "3" }
+  );
   // The cart footer total: 3×10,000 + 1×15,000 = 45,000 — read off the screen.
   await page.waitForFunction(() => {
     const spans = Array.from(document.querySelectorAll("aside span"));
     const label = spans.find((el) => el.textContent === "الإجمالي");
-    const ascii = (label?.nextElementSibling?.textContent ?? "").replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/\D/g, "");
+    const ascii = (label?.nextElementSibling?.textContent ?? "")
+      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+      .replace(/\D/g, "");
     return ascii === "45000";
   });
   await page.screenshot({ path: `${artifactsDir}/pos-till-cart.png`, fullPage: true });
@@ -190,19 +277,28 @@ try {
   await page.getByTestId("till-received").fill("100000");
   // Change = 100,000 − 45,000 = 55,000, in the tabular value span next to
   // «الباقي للزبون» — asserted digit-for-digit after normalising ar-IQ digits.
-  await page.waitForFunction(({ label, digits }) => {
-    const dialog = document.querySelector('[aria-label="تحصيل المبلغ"]');
-    if (!dialog) return false;
-    const spans = Array.from(dialog.querySelectorAll("span"));
-    const labelEl = spans.find((el) => el.textContent === label);
-    const value = labelEl?.nextElementSibling;
-    if (!value || !value.classList.contains("tabular-nums")) return false;
-    const ascii = (value.textContent ?? "").replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/\D/g, "");
-    return ascii === digits;
-  }, { label: "الباقي للزبون", digits: "55000" });
+  await page.waitForFunction(
+    ({ label, digits }) => {
+      const dialog = document.querySelector('[aria-label="تحصيل المبلغ"]');
+      if (!dialog) return false;
+      const spans = Array.from(dialog.querySelectorAll("span"));
+      const labelEl = spans.find((el) => el.textContent === label);
+      const value = labelEl?.nextElementSibling;
+      if (!value || !value.classList.contains("tabular-nums")) return false;
+      const ascii = (value.textContent ?? "")
+        .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+        .replace(/\D/g, "");
+      return ascii === digits;
+    },
+    { label: "الباقي للزبون", digits: "55000" }
+  );
   await page.screenshot({ path: `${artifactsDir}/pos-till-payment.png`, fullPage: true });
 
-  const saleResponsePromise = page.waitForResponse((response) => response.url().includes(`/api/merchant/stores/${store.slug}/pos/tickets`) && response.request().method() === "POST");
+  const saleResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/merchant/stores/${store.slug}/pos/tickets`) &&
+      response.request().method() === "POST"
+  );
   await page.getByTestId("till-confirm").click();
   const saleResponse = await saleResponsePromise;
   assert.equal(saleResponse.status(), 201, "a fresh ticket answers 201");
@@ -214,25 +310,66 @@ try {
   await page.getByTestId("till-order-number").waitFor();
   const orderNumber = (await page.getByTestId("till-order-number").innerText()).trim();
   assert.ok(orderNumber.startsWith("POS-"), `the receipt number is a POS number: ${orderNumber}`);
-  assert.ok(orderNumber.startsWith(`POS-${device.deviceShort}-`), `ق-132: the receipt names WHICH till sold it: ${orderNumber}`);
-  assert.equal(await page.getByTestId("till-shortfalls").count(), 0, "a clean sale shows no shortfall strip");
+  assert.ok(
+    orderNumber.startsWith(`POS-${device.deviceShort}-`),
+    `ق-132: the receipt names WHICH till sold it: ${orderNumber}`
+  );
+  assert.equal(
+    await page.getByTestId("till-shortfalls").count(),
+    0,
+    "a clean sale shows no shortfall strip"
+  );
   await page.screenshot({ path: `${artifactsDir}/pos-till-done.png`, fullPage: true });
 
-  const saleOrder = await prisma.storeOrder.findFirstOrThrow({ where: { storeId: store.id, source: "pos" } });
-  assert.equal(saleOrder.orderNumber, orderNumber, "the number on the screen IS the order in the book");
-  assert.equal(saleOrder.status, "completed", "ق-132: born completed — the customer left with the goods");
+  const saleOrder = await prisma.storeOrder.findFirstOrThrow({
+    where: { storeId: store.id, source: "pos" },
+  });
+  assert.equal(
+    saleOrder.orderNumber,
+    orderNumber,
+    "the number on the screen IS the order in the book"
+  );
+  assert.equal(
+    saleOrder.status,
+    "completed",
+    "ق-132: born completed — the customer left with the goods"
+  );
   assert.equal(saleOrder.paymentStatus, "paid");
   assert.equal(saleOrder.paymentMethodCode, "cash");
   assert.equal(saleOrder.totalIqd, 45000);
-  assert.equal((await prisma.productVariant.findUniqueOrThrow({ where: { id: defaultVariant.id }, select: { stockQuantity: true } })).stockQuantity, 7, "10 − 3 sold");
-  assert.equal((await prisma.productVariant.findUniqueOrThrow({ where: { id: bigVariant.id }, select: { stockQuantity: true } })).stockQuantity, 1, "2 − 1 sold");
-  assert.equal(await prisma.ledgerEntry.count({ where: { storeId: store.id } }), 0, "ق-135: NO ledger entry — the platform never touched this cash");
+  assert.equal(
+    (
+      await prisma.productVariant.findUniqueOrThrow({
+        where: { id: defaultVariant.id },
+        select: { stockQuantity: true },
+      })
+    ).stockQuantity,
+    7,
+    "10 − 3 sold"
+  );
+  assert.equal(
+    (
+      await prisma.productVariant.findUniqueOrThrow({
+        where: { id: bigVariant.id },
+        select: { stockQuantity: true },
+      })
+    ).stockQuantity,
+    1,
+    "2 − 1 sold"
+  );
+  assert.equal(
+    await prisma.ledgerEntry.count({ where: { storeId: store.id } }),
+    0,
+    "ق-135: NO ledger entry — the platform never touched this cash"
+  );
   assertConsoleClean("after the first sale");
 
   // ------------------------------------------------- 7: «بيعة جديدة» resets
   await page.getByTestId("till-new-sale").click();
   await page.getByTestId("till-order-number").waitFor({ state: "detached" });
-  await page.waitForFunction(() => document.activeElement?.getAttribute("data-testid") === "till-scan");
+  await page.waitForFunction(
+    () => document.activeElement?.getAttribute("data-testid") === "till-scan"
+  );
 
   // --------------------------- 8: oversell — accepted, clamped, recorded
   // «كبير» has 1 left; the till sells 5. The unit already left the shelf and
@@ -240,11 +377,16 @@ try {
   // screen must never do. The server clamps to 0 and writes the gap of 4.
   await page.getByTestId(`till-add-${bigVariant.id}`).click();
   await page.getByTestId(`till-line-inc-${bigVariant.id}`).waitFor();
-  for (let bump = 0; bump < 4; bump += 1) await page.getByTestId(`till-line-inc-${bigVariant.id}`).click();
+  for (let bump = 0; bump < 4; bump += 1)
+    await page.getByTestId(`till-line-inc-${bigVariant.id}`).click();
   await page.keyboard.press("F2");
   await page.getByTestId("till-received").waitFor();
   await page.getByTestId("till-quick-exact").click();
-  const oversellResponsePromise = page.waitForResponse((response) => response.url().includes(`/api/merchant/stores/${store.slug}/pos/tickets`) && response.request().method() === "POST");
+  const oversellResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/merchant/stores/${store.slug}/pos/tickets`) &&
+      response.request().method() === "POST"
+  );
   await page.getByTestId("till-confirm").click();
   const oversellResponse = await oversellResponsePromise;
   assert.equal(oversellResponse.status(), 201, "the oversell is ACCEPTED — the sale happened");
@@ -253,27 +395,54 @@ try {
   assert.equal(oversellBody.shortfalls[0].shortfallQty, 4, "sold 5, had 1 — the gap is 4");
 
   await page.getByTestId("till-shortfalls").waitFor();
-  assert.ok((await page.getByTestId("till-shortfalls").innerText()).includes("بيع فوق المخزون"), "the amber strip tells the cashier what happened");
+  assert.ok(
+    (await page.getByTestId("till-shortfalls").innerText()).includes("بيع فوق المخزون"),
+    "the amber strip tells the cashier what happened"
+  );
   await page.screenshot({ path: `${artifactsDir}/pos-till-shortfall-done.png`, fullPage: true });
 
-  assert.equal(await prisma.posTicketShortfall.count({ where: { storeId: store.id } }), 1, "one gap, one row");
-  const shortfall = await prisma.posTicketShortfall.findFirstOrThrow({ where: { storeId: store.id } });
+  assert.equal(
+    await prisma.posTicketShortfall.count({ where: { storeId: store.id } }),
+    1,
+    "one gap, one row"
+  );
+  const shortfall = await prisma.posTicketShortfall.findFirstOrThrow({
+    where: { storeId: store.id },
+  });
   assert.equal(shortfall.variantId, bigVariant.id);
   assert.equal(shortfall.soldQty, 5);
   assert.equal(shortfall.availableQty, 1);
   assert.equal(shortfall.shortfallQty, 4);
   assert.equal(shortfall.reviewedAt, null, "fresh gaps sit in the open queue");
-  assert.equal((await prisma.productVariant.findUniqueOrThrow({ where: { id: bigVariant.id }, select: { stockQuantity: true } })).stockQuantity, 0, "clamped at zero, never negative");
+  assert.equal(
+    (
+      await prisma.productVariant.findUniqueOrThrow({
+        where: { id: bigVariant.id },
+        select: { stockQuantity: true },
+      })
+    ).stockQuantity,
+    0,
+    "clamped at zero, never negative"
+  );
 
   // ------------------------------- 9: the merchant reviews the shortfall
   await page.goto(`${base}/merchant/stores/${store.slug}/dashboard/settings/pos`);
   await page.getByTestId(`pos-shortfall-review-${shortfall.id}`).waitFor();
-  const reviewResponsePromise = page.waitForResponse((response) => response.url().includes(`/pos/shortfalls/${shortfall.id}/review`) && response.request().method() === "POST");
+  const reviewResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes(`/pos/shortfalls/${shortfall.id}/review`) &&
+      response.request().method() === "POST"
+  );
   await page.getByTestId(`pos-shortfall-review-${shortfall.id}`).click();
   assert.equal((await reviewResponsePromise).status(), 204);
   await page.getByTestId("pos-shortfalls-empty").waitFor();
-  const reviewed = await prisma.posTicketShortfall.findUniqueOrThrow({ where: { id: shortfall.id } });
-  assert.ok(reviewed.reviewedAt instanceof Date, "reviewedAt is set — the queue drained, the fact remains");
+  const reviewed = await prisma.posTicketShortfall.findUniqueOrThrow({
+    where: { id: shortfall.id },
+  });
+  assert.ok(
+    reviewed.reviewedAt instanceof Date,
+    "reviewedAt is set — the queue drained, the fact remains"
+  );
   await page.screenshot({ path: `${artifactsDir}/pos-till-reviewed.png`, fullPage: true });
 
   // ---------- 10 (ق-144): the search sees the STORE, not the loaded page ----------
@@ -287,9 +456,23 @@ try {
   // The needle «ازار» is written with a bare alef and the product with a
   // hamza-under alef «إزار»: finding it proves the server's normalizer is on
   // the wire, not merely that some request was sent.
-  const searchTarget = await prisma.product.create({ data: { storeId: store.id, sku: "POS-IZAR", name: "إزار قطني للبيت", priceIqd: 7000, isActive: true, createdAt: new Date("2020-01-01T00:00:00.000Z") } });
-  const searchVariant = await prisma.productVariant.findFirstOrThrow({ where: { productId: searchTarget.id, isDefault: true } });
-  await prisma.productVariant.update({ where: { id: searchVariant.id }, data: { stockQuantity: 6 } });
+  const searchTarget = await prisma.product.create({
+    data: {
+      storeId: store.id,
+      sku: "POS-IZAR",
+      name: "إزار قطني للبيت",
+      priceIqd: 7000,
+      isActive: true,
+      createdAt: new Date("2020-01-01T00:00:00.000Z"),
+    },
+  });
+  const searchVariant = await prisma.productVariant.findFirstOrThrow({
+    where: { productId: searchTarget.id, isDefault: true },
+  });
+  await prisma.productVariant.update({
+    where: { id: searchVariant.id },
+    data: { stockQuantity: 6 },
+  });
   // 520 fillers, every one NEWER than the target, so a createdAt-DESC list puts
   // the target past position 500. `createdAt` is explicit rather than left to
   // `now()`: rows written in the same millisecond would order by id and the
@@ -308,88 +491,150 @@ try {
 
   // THE PREMISE, asserted rather than assumed: if the target ever drifts inside
   // either window this screen silently stops testing anything.
-  const orderedIds = await prisma.product.findMany({ where: { storeId: store.id, deletedAt: null }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true } });
+  const orderedIds = await prisma.product.findMany({
+    where: { storeId: store.id, deletedAt: null },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: { id: true },
+  });
   const targetPosition = orderedIds.findIndex((row) => row.id === searchTarget.id) + 1;
-  assert.ok(targetPosition > 500, `the needle's product must sit past BOTH browser windows (catalog 100, till 5×100) — it is at position ${targetPosition} of ${orderedIds.length}`);
+  assert.ok(
+    targetPosition > 500,
+    `the needle's product must sit past BOTH browser windows (catalog 100, till 5×100) — it is at position ${targetPosition} of ${orderedIds.length}`
+  );
 
   // ---- 10a: the merchant catalog ----
   await page.goto(`${base}/merchant/stores/${store.slug}/dashboard/products`);
   await page.getByTestId("product-list-filter").waitFor();
   await page.getByTestId(`product-share-POS-BULK-0519`).waitFor();
-  assert.equal(await page.getByTestId(`product-share-${searchTarget.sku}`).count(), 0,
-    "page 1 must NOT contain the needle's product — this is the exact state in which the old browser filter answered «لا يطابق أي منتج هذه التصفية»");
+  assert.equal(
+    await page.getByTestId(`product-share-${searchTarget.sku}`).count(),
+    0,
+    "page 1 must NOT contain the needle's product — this is the exact state in which the old browser filter answered «لا يطابق أي منتج هذه التصفية»"
+  );
 
-  const catalogSearchPromise = page.waitForResponse((response) =>
-    response.url().includes(`/api/merchant/stores/${store.slug}/catalog/products?`)
-    && response.url().includes("q=")
-    && response.request().method() === "GET");
+  const catalogSearchPromise = page.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/merchant/stores/${store.slug}/catalog/products?`) &&
+      response.url().includes("q=") &&
+      response.request().method() === "GET"
+  );
   await page.getByTestId("product-list-filter").fill("ازار");
   const catalogSearch = await catalogSearchPromise;
   assert.equal(catalogSearch.status(), 200, "the catalog asks the SERVER for `q`");
   // The one assertion the change stands on.
   await page.getByTestId(`product-share-${searchTarget.sku}`).waitFor();
   const catalogBody = await catalogSearch.json();
-  assert.equal(catalogBody.products.length, 1, `«ازار» matches exactly one product of ${orderedIds.length}: ${JSON.stringify(catalogBody.products.map((p) => p.sku))}`);
-  assert.equal(catalogBody.products[0].sku, searchTarget.sku, "and it is the one past the first page");
-  await page.screenshot({ path: `${artifactsDir}/pos-catalog-search-beyond-page-one.png`, fullPage: true });
+  assert.equal(
+    catalogBody.products.length,
+    1,
+    `«ازار» matches exactly one product of ${orderedIds.length}: ${JSON.stringify(catalogBody.products.map((p) => p.sku))}`
+  );
+  assert.equal(
+    catalogBody.products[0].sku,
+    searchTarget.sku,
+    "and it is the one past the first page"
+  );
+  await page.screenshot({
+    path: `${artifactsDir}/pos-catalog-search-beyond-page-one.png`,
+    fullPage: true,
+  });
 
   // The 2-character floor, in the palette's words — and NO request below it.
   await page.getByTestId("product-list-filter").fill("ا");
   await page.getByTestId("product-search-min-length").waitFor();
-  assert.equal((await page.getByTestId("product-search-min-length").innerText()).trim(), "أدخل حرفين على الأقل للبحث.",
-    "one message for every search box in the dashboard (owner decision 6)");
+  assert.equal(
+    (await page.getByTestId("product-search-min-length").innerText()).trim(),
+    "أدخل حرفين على الأقل للبحث.",
+    "one message for every search box in the dashboard (owner decision 6)"
+  );
 
   // ---- 10b: the till ----
   await page.goto(`${base}/merchant/stores/${store.slug}/till`);
   await page.getByTestId(`till-add-${defaultVariant.id}`).waitFor();
-  assert.equal(await page.getByTestId(`till-add-${searchVariant.id}`).count(), 0,
-    "the till's 5×100 snapshot does not hold the needle's product — the state in which the old in-memory filter said «لا نتائج»");
+  assert.equal(
+    await page.getByTestId(`till-add-${searchVariant.id}`).count(),
+    0,
+    "the till's 5×100 snapshot does not hold the needle's product — the state in which the old in-memory filter said «لا نتائج»"
+  );
 
-  const posSearchPromise = page.waitForResponse((response) =>
-    response.url().includes(`/api/merchant/stores/${store.slug}/pos/products?`)
-    && response.request().method() === "GET");
+  const posSearchPromise = page.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/merchant/stores/${store.slug}/pos/products?`) &&
+      response.request().method() === "GET"
+  );
   await page.getByTestId("till-scan").fill("ازار");
-  assert.equal((await posSearchPromise).status(), 200, "the till asks the server while it can reach it");
+  assert.equal(
+    (await posSearchPromise).status(),
+    200,
+    "the till asks the server while it can reach it"
+  );
   await page.getByTestId(`till-add-${searchVariant.id}`).waitFor();
-  assert.equal(await page.getByTestId("till-grid").getAttribute("data-search-source"), "server",
-    "the grid on screen IS the server's answer, not a re-filter of the snapshot");
+  assert.equal(
+    await page.getByTestId("till-grid").getAttribute("data-search-source"),
+    "server",
+    "the grid on screen IS the server's answer, not a re-filter of the snapshot"
+  );
   // And it SELLS: a row found only by the server rings up like any other.
   await page.getByTestId(`till-add-${searchVariant.id}`).click();
   await page.getByTestId(`till-line-inc-${searchVariant.id}`).waitFor();
-  await page.screenshot({ path: `${artifactsDir}/pos-till-search-beyond-snapshot.png`, fullPage: true });
+  await page.screenshot({
+    path: `${artifactsDir}/pos-till-search-beyond-snapshot.png`,
+    fullPage: true,
+  });
   await page.getByTestId("till-clear-cart").click();
 
   // The same floor on the till, and no 400 in the console for a lone letter.
   await page.getByTestId("till-scan").fill("ا");
   await page.getByTestId("till-search-min-length").waitFor();
-  assert.equal((await page.getByTestId("till-search-min-length").innerText()).trim(), "أدخل حرفين على الأقل للبحث.");
+  assert.equal(
+    (await page.getByTestId("till-search-min-length").innerText()).trim(),
+    "أدخل حرفين على الأقل للبحث."
+  );
   await page.getByTestId("till-scan").fill("");
 
   assertConsoleClean("end of run");
 
-  console.log(JSON.stringify({
-    suite: "pos.browser-acceptance",
-    flow: {
-      pairedShort: device.deviceShort,
-      scanBoxFocused: true,
-      sale: { orderNumber, totalIqd: 45000, changeShown: 55000, stockAfter: [7, 1], ledgerEntries: 0 },
-      oversell: { accepted: 201, shortfallQty: 4, stockClampedTo: 0 },
-      shortfallReviewed: true,
-      search: { storeProducts: orderedIds.length, targetPosition, needle: "ازار", foundOn: ["merchant catalog", "till"], tillGridSource: "server" },
-      consoleErrors: 0,
-    },
-    screenshots: [
-      `${artifactsDir}/pos-till-devices.png`,
-      `${artifactsDir}/pos-till-empty.png`,
-      `${artifactsDir}/pos-till-cart.png`,
-      `${artifactsDir}/pos-till-payment.png`,
-      `${artifactsDir}/pos-till-done.png`,
-      `${artifactsDir}/pos-till-shortfall-done.png`,
-      `${artifactsDir}/pos-till-reviewed.png`,
-      `${artifactsDir}/pos-catalog-search-beyond-page-one.png`,
-      `${artifactsDir}/pos-till-search-beyond-snapshot.png`,
-    ],
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        suite: "pos.browser-acceptance",
+        flow: {
+          pairedShort: device.deviceShort,
+          scanBoxFocused: true,
+          sale: {
+            orderNumber,
+            totalIqd: 45000,
+            changeShown: 55000,
+            stockAfter: [7, 1],
+            ledgerEntries: 0,
+          },
+          oversell: { accepted: 201, shortfallQty: 4, stockClampedTo: 0 },
+          shortfallReviewed: true,
+          search: {
+            storeProducts: orderedIds.length,
+            targetPosition,
+            needle: "ازار",
+            foundOn: ["merchant catalog", "till"],
+            tillGridSource: "server",
+          },
+          consoleErrors: 0,
+        },
+        screenshots: [
+          `${artifactsDir}/pos-till-devices.png`,
+          `${artifactsDir}/pos-till-empty.png`,
+          `${artifactsDir}/pos-till-cart.png`,
+          `${artifactsDir}/pos-till-payment.png`,
+          `${artifactsDir}/pos-till-done.png`,
+          `${artifactsDir}/pos-till-shortfall-done.png`,
+          `${artifactsDir}/pos-till-reviewed.png`,
+          `${artifactsDir}/pos-catalog-search-beyond-page-one.png`,
+          `${artifactsDir}/pos-till-search-beyond-snapshot.png`,
+        ],
+      },
+      null,
+      2
+    )
+  );
   await context.close();
 } catch (error) {
   // Before tearing the browser down, capture where every page was and what it
@@ -401,7 +646,10 @@ try {
       const tag = `ctx${contextIndex}-page${pageIndex}`;
       try {
         console.error(`${tag} url: ${openPage.url()}`);
-        await openPage.screenshot({ path: `${artifactsDir}/pos-FAILURE-${tag}.png`, fullPage: true });
+        await openPage.screenshot({
+          path: `${artifactsDir}/pos-FAILURE-${tag}.png`,
+          fullPage: true,
+        });
       } catch (dumpError) {
         console.error(`${tag} could not be captured: ${dumpError.message}`);
       }

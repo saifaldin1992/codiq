@@ -49,11 +49,30 @@ export interface MerchantWallet {
   lifetime: { settledCount: number; settledNetIqd: number };
 }
 
-function signedTotals(groups: { entryType: string; _count: { _all: number }; _sum: { subtotalIqd: number | null; deliveryFeeIqd: number | null; loyaltyDiscountIqd: number | null; commissionIqd: number | null } }[]) {
-  const totals = { completedOrders: 0, reversedOrders: 0, subtotalIqd: 0, deliveryFeeIqd: 0, loyaltyDiscountIqd: 0, commissionIqd: 0 };
+function signedTotals(
+  groups: {
+    entryType: string;
+    _count: { _all: number };
+    _sum: {
+      subtotalIqd: number | null;
+      deliveryFeeIqd: number | null;
+      loyaltyDiscountIqd: number | null;
+      commissionIqd: number | null;
+    };
+  }[]
+) {
+  const totals = {
+    completedOrders: 0,
+    reversedOrders: 0,
+    subtotalIqd: 0,
+    deliveryFeeIqd: 0,
+    loyaltyDiscountIqd: 0,
+    commissionIqd: 0,
+  };
   for (const group of groups) {
     const sign = group.entryType === "order_completed" ? 1 : -1;
-    if (sign === 1) totals.completedOrders += group._count._all; else totals.reversedOrders += group._count._all;
+    if (sign === 1) totals.completedOrders += group._count._all;
+    else totals.reversedOrders += group._count._all;
     totals.subtotalIqd += sign * (group._sum.subtotalIqd ?? 0);
     totals.deliveryFeeIqd += sign * (group._sum.deliveryFeeIqd ?? 0);
     totals.loyaltyDiscountIqd += sign * (group._sum.loyaltyDiscountIqd ?? 0);
@@ -77,15 +96,33 @@ function signedTotals(groups: { entryType: string; _count: { _all: number }; _su
  * that it does not move: a coupon reduces the base («العمولة على المجموع بعد
  * الخصم», 20B-1 §8.4), redeemed points do not.
  */
-function netPayout(parts: { subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number | null; commissionIqd: number }): number {
-  return parts.subtotalIqd + parts.deliveryFeeIqd - (parts.loyaltyDiscountIqd ?? 0) - parts.commissionIqd;
+function netPayout(parts: {
+  subtotalIqd: number;
+  deliveryFeeIqd: number;
+  loyaltyDiscountIqd: number | null;
+  commissionIqd: number;
+}): number {
+  return (
+    parts.subtotalIqd + parts.deliveryFeeIqd - (parts.loyaltyDiscountIqd ?? 0) - parts.commissionIqd
+  );
 }
 
-export async function merchantWallet(merchantId: string, now = new Date()): Promise<MerchantWallet> {
+export async function merchantWallet(
+  merchantId: string,
+  now = new Date()
+): Promise<MerchantWallet> {
   const lastSettlement = await prisma.settlement.findFirst({
     where: { merchantId },
     orderBy: [{ periodTo: "desc" }, { createdAt: "desc" }],
-    select: { id: true, periodTo: true, subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true, createdAt: true },
+    select: {
+      id: true,
+      periodTo: true,
+      subtotalIqd: true,
+      deliveryFeeIqd: true,
+      loyaltyDiscountIqd: true,
+      commissionIqd: true,
+      createdAt: true,
+    },
   });
   // Strictly AFTER the settled period, so one order can never be paid twice.
   const from = lastSettlement?.periodTo ?? null;
@@ -95,16 +132,45 @@ export async function merchantWallet(merchantId: string, now = new Date()): Prom
       by: ["entryType"],
       where: { store: { merchantId }, createdAt: { ...(from ? { gt: from } : {}), lte: now } },
       _count: { _all: true },
-      _sum: { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true },
+      _sum: {
+        subtotalIqd: true,
+        deliveryFeeIqd: true,
+        loyaltyDiscountIqd: true,
+        commissionIqd: true,
+      },
     }),
-    prisma.settlement.aggregate({ where: { merchantId }, _count: { _all: true }, _sum: { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true } }),
+    prisma.settlement.aggregate({
+      where: { merchantId },
+      _count: { _all: true },
+      _sum: {
+        subtotalIqd: true,
+        deliveryFeeIqd: true,
+        loyaltyDiscountIqd: true,
+        commissionIqd: true,
+      },
+    }),
   ]);
 
   const totals = signedTotals(groups);
   return {
     period: { from, to: now },
-    lastSettlement: lastSettlement ? { id: lastSettlement.id, periodTo: lastSettlement.periodTo, netPayoutIqd: netPayout(lastSettlement), createdAt: lastSettlement.createdAt } : null,
+    lastSettlement: lastSettlement
+      ? {
+          id: lastSettlement.id,
+          periodTo: lastSettlement.periodTo,
+          netPayoutIqd: netPayout(lastSettlement),
+          createdAt: lastSettlement.createdAt,
+        }
+      : null,
     pending: { ...totals, netPayoutIqd: netPayout(totals) },
-    lifetime: { settledCount: settledAggregate._count._all, settledNetIqd: netPayout({ subtotalIqd: settledAggregate._sum.subtotalIqd ?? 0, deliveryFeeIqd: settledAggregate._sum.deliveryFeeIqd ?? 0, loyaltyDiscountIqd: settledAggregate._sum.loyaltyDiscountIqd ?? 0, commissionIqd: settledAggregate._sum.commissionIqd ?? 0 }) },
+    lifetime: {
+      settledCount: settledAggregate._count._all,
+      settledNetIqd: netPayout({
+        subtotalIqd: settledAggregate._sum.subtotalIqd ?? 0,
+        deliveryFeeIqd: settledAggregate._sum.deliveryFeeIqd ?? 0,
+        loyaltyDiscountIqd: settledAggregate._sum.loyaltyDiscountIqd ?? 0,
+        commissionIqd: settledAggregate._sum.commissionIqd ?? 0,
+      }),
+    },
   };
 }

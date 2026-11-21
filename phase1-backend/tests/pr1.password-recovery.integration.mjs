@@ -37,9 +37,11 @@ import crypto from "node:crypto";
 import { Client } from "pg";
 
 const testId = `pr1-${Date.now()}`;
-process.env.SESSION_JWT_SECRET = process.env.SESSION_JWT_SECRET ?? "pr1-test-secret-only-not-for-production";
+process.env.SESSION_JWT_SECRET =
+  process.env.SESSION_JWT_SECRET ?? "pr1-test-secret-only-not-for-production";
 process.env.CODIQ_ALLOW_OWNER_REGISTRATION = "true";
-process.env.CODIQ_ENCRYPTION_KEY = process.env.CODIQ_ENCRYPTION_KEY ?? "pr1-test-encryption-root-not-a-secret-0123456789abcdef";
+process.env.CODIQ_ENCRYPTION_KEY =
+  process.env.CODIQ_ENCRYPTION_KEY ?? "pr1-test-encryption-root-not-a-secret-0123456789abcdef";
 // The mail channel, as the platform sees it. `smtpSettingsFromEnv` needs a host
 // and a from address; the outbox worker in this suite is driven with a FAKE
 // provider, so nothing is ever handed to a real SMTP server.
@@ -111,11 +113,19 @@ async function drainAndReadLink(recipient) {
   // it is testing. The real worker polls on a 5-second interval, so a row is
   // always claimed on a LATER tick than the one that created it; this reproduces
   // that and nothing else.
-  const batch = await processOutboxBatch(provider, { batchSize: 50, now: new Date(Date.now() + 5000) });
+  const batch = await processOutboxBatch(provider, {
+    batchSize: 50,
+    now: new Date(Date.now() + 5000),
+  });
   const sent = provider.sent.slice(before).filter((message) => message.to === recipient);
   if (sent.length !== 1) {
-    const state = await prisma.notificationOutbox.findMany({ where: { recipient }, select: { status: true, lastOutcome: true, nextAttemptAt: true, attemptCount: true } });
-    assert.fail(`exactly one recovery mail for ${recipient} (got ${sent.length}); batch=${JSON.stringify(batch)} rows=${JSON.stringify(state)}`);
+    const state = await prisma.notificationOutbox.findMany({
+      where: { recipient },
+      select: { status: true, lastOutcome: true, nextAttemptAt: true, attemptCount: true },
+    });
+    assert.fail(
+      `exactly one recovery mail for ${recipient} (got ${sent.length}); batch=${JSON.stringify(batch)} rows=${JSON.stringify(state)}`
+    );
   }
   const link = /https?:\/\/\S+/.exec(sent[0].body)?.[0];
   assert.ok(link, `the mail must carry a working absolute link:\n${sent[0].body}`);
@@ -156,13 +166,23 @@ try {
   const merchantEmail = `${testId}-merchant@codiq.test`;
   const merchantPassword = "Pr1MerchantPass2026!";
   const merchantPhone = `+9647${String(Date.now()).slice(-9)}`;
-  const merchantReg = await registerMerchantDirect({ email: merchantEmail, password: merchantPassword, businessName: "متجر النور", ownerName: "سيف الدين", phone: merchantPhone });
+  const merchantReg = await registerMerchantDirect({
+    email: merchantEmail,
+    password: merchantPassword,
+    businessName: "متجر النور",
+    ownerName: "سيف الدين",
+    phone: merchantPhone,
+  });
   assert.equal(merchantReg.status, 201, JSON.stringify(merchantReg.payload));
   const merchantId = merchantReg.payload.account.id;
   await prisma.store.create({
     data: { merchantId, name: "متجر النور", slug: `${testId}-m`, defaultSubdomain: `${testId}-m` },
   });
-  const loginMerchant = (password) => request("/auth/merchant/login", { method: "POST", body: { identifier: merchantEmail, password } });
+  const loginMerchant = (password) =>
+    request("/auth/merchant/login", {
+      method: "POST",
+      body: { identifier: merchantEmail, password },
+    });
 
   // ==========================================================================
   // 12. THE TOKEN IS NEVER STORED — asserted first, because everything else
@@ -177,41 +197,92 @@ try {
   const first = await requestLink({ kind: "merchant", email: merchantEmail });
   const firstToken = tokenOf(first.link);
 
-  const rows = await sql.query("SELECT token_hash, identity_kind, subject_id, store_id, expires_at FROM password_reset_tokens WHERE subject_id = $1", [merchantId]);
+  const rows = await sql.query(
+    "SELECT token_hash, identity_kind, subject_id, store_id, expires_at FROM password_reset_tokens WHERE subject_id = $1",
+    [merchantId]
+  );
   assert.equal(rows.rows.length, 1, "one token row for one request");
-  assert.equal(rows.rows[0].token_hash, sha256(firstToken), "PR-1: the column holds the HASH of the mailed token");
+  assert.equal(
+    rows.rows[0].token_hash,
+    sha256(firstToken),
+    "PR-1: the column holds the HASH of the mailed token"
+  );
   assert.ok(!rows.rows[0].token_hash.includes(firstToken), "PR-1: …and not the token itself");
-  assert.equal(rows.rows[0].store_id, null, "PR-1: a merchant's token carries no store — he may own several");
+  assert.equal(
+    rows.rows[0].store_id,
+    null,
+    "PR-1: a merchant's token carries no store — he may own several"
+  );
 
-  const outboxRaw = await sql.query("SELECT store_id, event_type, recipient_kind, payload::text AS payload FROM notification_outbox WHERE recipient = $1", [merchantEmail]);
+  const outboxRaw = await sql.query(
+    "SELECT store_id, event_type, recipient_kind, payload::text AS payload FROM notification_outbox WHERE recipient = $1",
+    [merchantEmail]
+  );
   assert.equal(outboxRaw.rows.length, 1, "one queued message");
-  assert.ok(!outboxRaw.rows[0].payload.includes(firstToken), `PR-1: the outbox payload must NOT contain the plaintext token:\n${outboxRaw.rows[0].payload}`);
-  assert.match(outboxRaw.rows[0].payload, /codiq1\./, "PR-1: …it carries a secret-box envelope instead");
-  assert.equal(outboxRaw.rows[0].store_id, null, "PR-1: account-recovery mail belongs to no store — a store cap must never defer a link that expires in 45 minutes");
-  assert.equal(outboxRaw.rows[0].recipient_kind, "account", "PR-1: it is addressed to the account holder, whichever identity kind he is");
+  assert.ok(
+    !outboxRaw.rows[0].payload.includes(firstToken),
+    `PR-1: the outbox payload must NOT contain the plaintext token:\n${outboxRaw.rows[0].payload}`
+  );
+  assert.match(
+    outboxRaw.rows[0].payload,
+    /codiq1\./,
+    "PR-1: …it carries a secret-box envelope instead"
+  );
+  assert.equal(
+    outboxRaw.rows[0].store_id,
+    null,
+    "PR-1: account-recovery mail belongs to no store — a store cap must never defer a link that expires in 45 minutes"
+  );
+  assert.equal(
+    outboxRaw.rows[0].recipient_kind,
+    "account",
+    "PR-1: it is addressed to the account holder, whichever identity kind he is"
+  );
   summary.tokenAtRest = { column: "sha256", outboxPayload: "sealed", storeId: null };
 
   // The mail is in Arabic, says how long the link lives, and tells the person
   // who did NOT ask that the correct action is none.
   assert.match(first.message.subject, /[؀-ۿ]/, "PR-1: Arabic-first, including the mail");
   assert.match(first.message.body, /45/, "PR-1: the mail states the lifetime");
-  assert.match(first.message.body, /إن لم تطلب هذا/, "PR-1: …and tells an unwitting recipient that nothing has changed");
+  assert.match(
+    first.message.body,
+    /إن لم تطلب هذا/,
+    "PR-1: …and tells an unwitting recipient that nothing has changed"
+  );
 
   // ==========================================================================
   // 1. SINGLE USE.
   // ==========================================================================
   const merchantNew = "Pr1MerchantFresh2026!";
-  const used = await request("/auth/password/reset/consume", { method: "POST", body: { token: firstToken, newPassword: merchantNew } });
+  const used = await request("/auth/password/reset/consume", {
+    method: "POST",
+    body: { token: firstToken, newPassword: merchantNew },
+  });
   assert.equal(used.status, 200, JSON.stringify(used.payload));
   assert.equal(used.payload.redirectTo, "/merchant/login", "PR-1: he is sent to his own door");
 
-  const replay = await request("/auth/password/reset/consume", { method: "POST", body: { token: firstToken, newPassword: "Pr1ReplayPass2026!" } });
+  const replay = await request("/auth/password/reset/consume", {
+    method: "POST",
+    body: { token: firstToken, newPassword: "Pr1ReplayPass2026!" },
+  });
   assert.equal(replay.status, 422, JSON.stringify(replay.payload));
-  assert.equal(replay.payload.error.code, "INVALID_RESET_TOKEN", "PR-1: a spent link is spent — a link that works twice is a link an interceptor can use after its owner");
-  assert.equal((await loginMerchant("Pr1ReplayPass2026!")).status, 401, "PR-1: …and the replay changed nothing");
+  assert.equal(
+    replay.payload.error.code,
+    "INVALID_RESET_TOKEN",
+    "PR-1: a spent link is spent — a link that works twice is a link an interceptor can use after its owner"
+  );
+  assert.equal(
+    (await loginMerchant("Pr1ReplayPass2026!")).status,
+    401,
+    "PR-1: …and the replay changed nothing"
+  );
 
   // The password genuinely moved.
-  assert.equal((await loginMerchant(merchantPassword)).status, 401, "PR-1: the forgotten password no longer works");
+  assert.equal(
+    (await loginMerchant(merchantPassword)).status,
+    401,
+    "PR-1: the forgotten password no longer works"
+  );
   assert.equal((await loginMerchant(merchantNew)).status, 200, "PR-1: …and the new one does");
   summary.singleUse = { secondAttempt: replay.payload.error.code };
 
@@ -225,28 +296,58 @@ try {
   // ==========================================================================
   const heldA = (await loginMerchant(merchantNew)).payload.accessToken;
   const heldB = (await loginMerchant(merchantNew)).payload.accessToken;
-  assert.equal((await request("/auth/sessions", { token: heldA })).status, 200, "both sessions start alive");
+  assert.equal(
+    (await request("/auth/sessions", { token: heldA })).status,
+    200,
+    "both sessions start alive"
+  );
   assert.equal((await request("/auth/sessions", { token: heldB })).status, 200);
 
   const second = await requestLink({ kind: "merchant", email: merchantEmail });
-  const recovered = await request("/auth/password/reset/consume", { method: "POST", body: { token: tokenOf(second.link), newPassword: "Pr1MerchantThird2026!" } });
+  const recovered = await request("/auth/password/reset/consume", {
+    method: "POST",
+    body: { token: tokenOf(second.link), newPassword: "Pr1MerchantThird2026!" },
+  });
   assert.equal(recovered.status, 200, JSON.stringify(recovered.payload));
-  assert.ok(recovered.payload.sessionsEnded >= 2, `PR-1: the sessions are reported ended (${recovered.payload.sessionsEnded})`);
-  assert.equal((await request("/auth/sessions", { token: heldA })).status, 401, "PR-1: the first session is DEAD, not merely counted as revoked");
-  assert.equal((await request("/auth/sessions", { token: heldB })).status, 401, "PR-1: …and so is the second");
+  assert.ok(
+    recovered.payload.sessionsEnded >= 2,
+    `PR-1: the sessions are reported ended (${recovered.payload.sessionsEnded})`
+  );
+  assert.equal(
+    (await request("/auth/sessions", { token: heldA })).status,
+    401,
+    "PR-1: the first session is DEAD, not merely counted as revoked"
+  );
+  assert.equal(
+    (await request("/auth/sessions", { token: heldB })).status,
+    401,
+    "PR-1: …and so is the second"
+  );
 
   // REVOKED, not quietly expired — the distinction 19-أ established. Expiring a
   // session kills the token just as dead, so an implementation that did that
   // would pass every assertion above this one.
-  const sessionRows = await sql.query("SELECT revoked_at, expires_at > now() AS still_in_date FROM merchant_sessions WHERE merchant_id = $1", [merchantId]);
+  const sessionRows = await sql.query(
+    "SELECT revoked_at, expires_at > now() AS still_in_date FROM merchant_sessions WHERE merchant_id = $1",
+    [merchantId]
+  );
   const revoked = sessionRows.rows.filter((row) => row.revoked_at !== null);
   assert.ok(revoked.length >= 2, "PR-1: revoked at the row level");
-  assert.ok(revoked.every((row) => row.still_in_date), "PR-1: REVOKED, not quietly expired");
-  summary.sessionsRevokedOnUse = { reported: recovered.payload.sessionsEnded, verifiedDeadWith: 401 };
+  assert.ok(
+    revoked.every((row) => row.still_in_date),
+    "PR-1: REVOKED, not quietly expired"
+  );
+  summary.sessionsRevokedOnUse = {
+    reported: recovered.payload.sessionsEnded,
+    verifiedDeadWith: 401,
+  };
 
   // A successful reset does NOT sign him in. This is the security decision the
   // TOTP block below depends on, so it is asserted for its own sake here.
-  assert.ok(!("accessToken" in recovered.payload), "PR-1: a reset issues NO session — a mail link must not become one");
+  assert.ok(
+    !("accessToken" in recovered.payload),
+    "PR-1: a reset issues NO session — a mail link must not become one"
+  );
 
   // ==========================================================================
   // 3 + 5. RE-ISSUE KILLS THE OLDER LINK, AND CONSUMING KILLS EVERY SIBLING.
@@ -257,16 +358,52 @@ try {
   // ==========================================================================
   const older = await requestLink({ kind: "merchant", email: merchantEmail });
   const newer = await requestLink({ kind: "merchant", email: merchantEmail });
-  assert.notEqual(tokenOf(older.link), tokenOf(newer.link), "two requests mint two different tokens");
+  assert.notEqual(
+    tokenOf(older.link),
+    tokenOf(newer.link),
+    "two requests mint two different tokens"
+  );
 
-  assert.equal((await request("/auth/password/reset/inspect", { method: "POST", body: { token: tokenOf(older.link) } })).payload.valid, false, "PR-1: issuing a newer link kills the older one");
-  assert.equal((await request("/auth/password/reset/inspect", { method: "POST", body: { token: tokenOf(newer.link) } })).payload.valid, true, "PR-1: …and leaves the newest alive");
+  assert.equal(
+    (
+      await request("/auth/password/reset/inspect", {
+        method: "POST",
+        body: { token: tokenOf(older.link) },
+      })
+    ).payload.valid,
+    false,
+    "PR-1: issuing a newer link kills the older one"
+  );
+  assert.equal(
+    (
+      await request("/auth/password/reset/inspect", {
+        method: "POST",
+        body: { token: tokenOf(newer.link) },
+      })
+    ).payload.valid,
+    true,
+    "PR-1: …and leaves the newest alive"
+  );
 
-  const supersededUse = await request("/auth/password/reset/consume", { method: "POST", body: { token: tokenOf(older.link), newPassword: "Pr1SupersededPass2026!" } });
-  assert.equal(supersededUse.payload.error.code, "INVALID_RESET_TOKEN", "PR-1: and it is refused, not merely reported invalid");
+  const supersededUse = await request("/auth/password/reset/consume", {
+    method: "POST",
+    body: { token: tokenOf(older.link), newPassword: "Pr1SupersededPass2026!" },
+  });
+  assert.equal(
+    supersededUse.payload.error.code,
+    "INVALID_RESET_TOKEN",
+    "PR-1: and it is refused, not merely reported invalid"
+  );
 
-  const reasons = await sql.query("SELECT invalidated_reason FROM password_reset_tokens WHERE token_hash = $1", [sha256(tokenOf(older.link))]);
-  assert.equal(reasons.rows[0].invalidated_reason, "superseded", "PR-1: every invalidation says why — an incident nobody can read is an incident nobody can answer");
+  const reasons = await sql.query(
+    "SELECT invalidated_reason FROM password_reset_tokens WHERE token_hash = $1",
+    [sha256(tokenOf(older.link))]
+  );
+  assert.equal(
+    reasons.rows[0].invalidated_reason,
+    "superseded",
+    "PR-1: every invalidation says why — an incident nobody can read is an incident nobody can answer"
+  );
   summary.reissueInvalidates = { olderReason: "superseded" };
 
   // ==========================================================================
@@ -275,12 +412,44 @@ try {
   // ==========================================================================
   const ageing = await requestLink({ kind: "merchant", email: merchantEmail });
   const ageingToken = tokenOf(ageing.link);
-  assert.equal((await request("/auth/password/reset/inspect", { method: "POST", body: { token: ageingToken } })).payload.valid, true, "alive one second before");
-  await sql.query("UPDATE password_reset_tokens SET expires_at = now() - interval '1 second' WHERE token_hash = $1", [sha256(ageingToken)]);
-  assert.equal((await request("/auth/password/reset/inspect", { method: "POST", body: { token: ageingToken } })).payload.valid, false, "PR-1: past its window it is dead");
-  const expiredUse = await request("/auth/password/reset/consume", { method: "POST", body: { token: ageingToken, newPassword: "Pr1ExpiredPass2026!" } });
-  assert.equal(expiredUse.payload.error.code, "INVALID_RESET_TOKEN", "PR-1: …and refused, not merely marked");
-  assert.equal((await loginMerchant("Pr1ExpiredPass2026!")).status, 401, "PR-1: an expired link changes nothing");
+  assert.equal(
+    (
+      await request("/auth/password/reset/inspect", {
+        method: "POST",
+        body: { token: ageingToken },
+      })
+    ).payload.valid,
+    true,
+    "alive one second before"
+  );
+  await sql.query(
+    "UPDATE password_reset_tokens SET expires_at = now() - interval '1 second' WHERE token_hash = $1",
+    [sha256(ageingToken)]
+  );
+  assert.equal(
+    (
+      await request("/auth/password/reset/inspect", {
+        method: "POST",
+        body: { token: ageingToken },
+      })
+    ).payload.valid,
+    false,
+    "PR-1: past its window it is dead"
+  );
+  const expiredUse = await request("/auth/password/reset/consume", {
+    method: "POST",
+    body: { token: ageingToken, newPassword: "Pr1ExpiredPass2026!" },
+  });
+  assert.equal(
+    expiredUse.payload.error.code,
+    "INVALID_RESET_TOKEN",
+    "PR-1: …and refused, not merely marked"
+  );
+  assert.equal(
+    (await loginMerchant("Pr1ExpiredPass2026!")).status,
+    401,
+    "PR-1: an expired link changes nothing"
+  );
   summary.tokenLifetimeMinutes = RESET_TOKEN_TTL_MS / 60000;
 
   // ==========================================================================
@@ -295,17 +464,53 @@ try {
   const currentPassword = "Pr1MerchantThird2026!";
   const outstanding = await requestLink({ kind: "merchant", email: merchantEmail });
   const outstandingToken = tokenOf(outstanding.link);
-  assert.equal((await request("/auth/password/reset/inspect", { method: "POST", body: { token: outstandingToken } })).payload.valid, true, "the link is live before the change");
+  assert.equal(
+    (
+      await request("/auth/password/reset/inspect", {
+        method: "POST",
+        body: { token: outstandingToken },
+      })
+    ).payload.valid,
+    true,
+    "the link is live before the change"
+  );
 
   const session = (await loginMerchant(currentPassword)).payload.accessToken;
-  const changed = await request("/auth/password", { method: "POST", token: session, body: { currentPassword, newPassword: "Pr1ChangedInside2026!" } });
+  const changed = await request("/auth/password", {
+    method: "POST",
+    token: session,
+    body: { currentPassword, newPassword: "Pr1ChangedInside2026!" },
+  });
   assert.equal(changed.status, 200, JSON.stringify(changed.payload));
 
-  assert.equal((await request("/auth/password/reset/inspect", { method: "POST", body: { token: outstandingToken } })).payload.valid, false, "PR-1: changing the password from inside kills every outstanding link");
-  const afterChange = await request("/auth/password/reset/consume", { method: "POST", body: { token: outstandingToken, newPassword: "Pr1UndoTheChange2026!" } });
-  assert.equal(afterChange.payload.error.code, "INVALID_RESET_TOKEN", "PR-1: …and the mail in his inbox cannot undo it");
-  assert.equal((await loginMerchant("Pr1ChangedInside2026!")).status, 200, "PR-1: the password he chose is the password he has");
-  const changeReason = await sql.query("SELECT invalidated_reason FROM password_reset_tokens WHERE token_hash = $1", [sha256(outstandingToken)]);
+  assert.equal(
+    (
+      await request("/auth/password/reset/inspect", {
+        method: "POST",
+        body: { token: outstandingToken },
+      })
+    ).payload.valid,
+    false,
+    "PR-1: changing the password from inside kills every outstanding link"
+  );
+  const afterChange = await request("/auth/password/reset/consume", {
+    method: "POST",
+    body: { token: outstandingToken, newPassword: "Pr1UndoTheChange2026!" },
+  });
+  assert.equal(
+    afterChange.payload.error.code,
+    "INVALID_RESET_TOKEN",
+    "PR-1: …and the mail in his inbox cannot undo it"
+  );
+  assert.equal(
+    (await loginMerchant("Pr1ChangedInside2026!")).status,
+    200,
+    "PR-1: the password he chose is the password he has"
+  );
+  const changeReason = await sql.query(
+    "SELECT invalidated_reason FROM password_reset_tokens WHERE token_hash = $1",
+    [sha256(outstandingToken)]
+  );
   assert.equal(changeReason.rows[0].invalidated_reason, "password_changed");
   summary.passwordChangeInvalidates = { reason: "password_changed" };
 
@@ -319,21 +524,53 @@ try {
   //    a time — from an endpoint that needs no account to knock on it.
   // ==========================================================================
   const unknownEmail = `${testId}-nobody@codiq.test`;
-  const knownAnswer = await request("/auth/password/reset/request", { method: "POST", body: { kind: "merchant", email: merchantEmail } });
-  const unknownAnswer = await request("/auth/password/reset/request", { method: "POST", body: { kind: "merchant", email: unknownEmail } });
+  const knownAnswer = await request("/auth/password/reset/request", {
+    method: "POST",
+    body: { kind: "merchant", email: merchantEmail },
+  });
+  const unknownAnswer = await request("/auth/password/reset/request", {
+    method: "POST",
+    body: { kind: "merchant", email: unknownEmail },
+  });
   assert.equal(knownAnswer.status, unknownAnswer.status, "PR-1: the same status");
-  assert.deepEqual(knownAnswer.payload, unknownAnswer.payload, "PR-1: the same body, byte for byte");
+  assert.deepEqual(
+    knownAnswer.payload,
+    unknownAnswer.payload,
+    "PR-1: the same body, byte for byte"
+  );
 
   // An unknown address must leave NOTHING behind — the constant-work path rolls
   // its decoy back, so a row surviving here is a real leak of a different kind.
-  const strayRows = await sql.query("SELECT count(*)::int AS n FROM password_reset_tokens WHERE email_normalized = $1", [unknownEmail]);
-  assert.equal(strayRows.rows[0].n, 0, "PR-1: the constant-work decoy is rolled back, never committed");
-  const strayMail = await sql.query("SELECT count(*)::int AS n FROM notification_outbox WHERE recipient = $1", [unknownEmail]);
-  assert.equal(strayMail.rows[0].n, 0, "PR-1: …and no mail is queued to an address nobody registered");
+  const strayRows = await sql.query(
+    "SELECT count(*)::int AS n FROM password_reset_tokens WHERE email_normalized = $1",
+    [unknownEmail]
+  );
+  assert.equal(
+    strayRows.rows[0].n,
+    0,
+    "PR-1: the constant-work decoy is rolled back, never committed"
+  );
+  const strayMail = await sql.query(
+    "SELECT count(*)::int AS n FROM notification_outbox WHERE recipient = $1",
+    [unknownEmail]
+  );
+  assert.equal(
+    strayMail.rows[0].n,
+    0,
+    "PR-1: …and no mail is queued to an address nobody registered"
+  );
 
   const probes = {
-    known: () => request("/auth/password/reset/request", { method: "POST", body: { kind: "merchant", email: merchantEmail } }),
-    unknown: () => request("/auth/password/reset/request", { method: "POST", body: { kind: "merchant", email: unknownEmail } }),
+    known: () =>
+      request("/auth/password/reset/request", {
+        method: "POST",
+        body: { kind: "merchant", email: merchantEmail },
+      }),
+    unknown: () =>
+      request("/auth/password/reset/request", {
+        method: "POST",
+        body: { kind: "merchant", email: unknownEmail },
+      }),
   };
   // The house helper, unchanged: it holds the floor the five sign-in doors were
   // fixed to, so a miss can never answer measurably FASTER than a hit.
@@ -356,11 +593,16 @@ try {
   const ENUMERATION_RATIO_CEILING = 3;
   assert.ok(
     doorTiming.ratio <= ENUMERATION_RATIO_CEILING,
-    `PR-1: an unknown address answered in ${doorTiming.unknownMs} ms against ${doorTiming.knownMs} ms for a known one `
-      + `(${doorTiming.ratio}×; the ceiling is ${ENUMERATION_RATIO_CEILING}×). The constant-work path is heavier than the real one, which enumerates `
-      + "accounts just as well as being lighter. Make the decoy do the SAME writes — see constantWorkForMiss.",
+    `PR-1: an unknown address answered in ${doorTiming.unknownMs} ms against ${doorTiming.knownMs} ms for a known one ` +
+      `(${doorTiming.ratio}×; the ceiling is ${ENUMERATION_RATIO_CEILING}×). The constant-work path is heavier than the real one, which enumerates ` +
+      "accounts just as well as being lighter. Make the decoy do the SAME writes — see constantWorkForMiss."
   );
-  summary.enumeration = { statusesEqual: true, bodiesEqual: true, timing: doorTiming, ratioCeiling: ENUMERATION_RATIO_CEILING };
+  summary.enumeration = {
+    statusesEqual: true,
+    bodiesEqual: true,
+    timing: doorTiming,
+    ratioCeiling: ENUMERATION_RATIO_CEILING,
+  };
   await sql.query("DELETE FROM storefront_rate_limits");
   await sql.query("DELETE FROM notification_outbox");
   provider.sent.length = 0;
@@ -376,31 +618,56 @@ try {
   await sql.query("DELETE FROM storefront_rate_limits");
   const addressStatuses = [];
   for (let attempt = 0; attempt < RESET_REQUEST_ADDRESS_LIMIT + 2; attempt += 1) {
-    const response = await request("/auth/password/reset/request", { method: "POST", keepRateLimits: true, body: { kind: "merchant", email: merchantEmail } });
+    const response = await request("/auth/password/reset/request", {
+      method: "POST",
+      keepRateLimits: true,
+      body: { kind: "merchant", email: merchantEmail },
+    });
     addressStatuses.push(response.status);
     if (response.status === 429) break;
   }
-  assert.ok(addressStatuses.includes(429), `PR-1: unmetered recovery mail to one address — ${addressStatuses.length} requests and not one 429 (${addressStatuses.join(",")})`);
-  assert.ok(addressStatuses.length <= RESET_REQUEST_ADDRESS_LIMIT + 1, `PR-1: the address ceiling must bite by attempt ${RESET_REQUEST_ADDRESS_LIMIT + 1}`);
+  assert.ok(
+    addressStatuses.includes(429),
+    `PR-1: unmetered recovery mail to one address — ${addressStatuses.length} requests and not one 429 (${addressStatuses.join(",")})`
+  );
+  assert.ok(
+    addressStatuses.length <= RESET_REQUEST_ADDRESS_LIMIT + 1,
+    `PR-1: the address ceiling must bite by attempt ${RESET_REQUEST_ADDRESS_LIMIT + 1}`
+  );
 
   // …and the bucket is keyed on the NORMALIZED address, which is the half that
   // makes it bite. The merchant-login key carried a raw `storeSlug` and one
   // changed character minted a fresh bucket; here, varying the CASE of the same
   // address must land in the SAME bucket or the ceiling is decoration.
   const shouted = merchantEmail.toUpperCase();
-  const casedAttempt = await request("/auth/password/reset/request", { method: "POST", keepRateLimits: true, body: { kind: "merchant", email: shouted } });
-  assert.equal(casedAttempt.status, 429, "PR-1: A@X.COM and a@x.com are one address and share one bucket — otherwise the ceiling is walked around by holding shift");
+  const casedAttempt = await request("/auth/password/reset/request", {
+    method: "POST",
+    keepRateLimits: true,
+    body: { kind: "merchant", email: shouted },
+  });
+  assert.equal(
+    casedAttempt.status,
+    429,
+    "PR-1: A@X.COM and a@x.com are one address and share one bucket — otherwise the ceiling is walked around by holding shift"
+  );
 
   // 8b. THE REQUEST, PER IP. The address bucket alone is defeated by a sweep
   //     across addresses; this one bounds the sweep.
   await sql.query("DELETE FROM storefront_rate_limits");
   const ipStatuses = [];
   for (let attempt = 0; attempt < RESET_REQUEST_IP_LIMIT + 2; attempt += 1) {
-    const response = await request("/auth/password/reset/request", { method: "POST", keepRateLimits: true, body: { kind: "merchant", email: `${testId}-sweep-${attempt}@codiq.test` } });
+    const response = await request("/auth/password/reset/request", {
+      method: "POST",
+      keepRateLimits: true,
+      body: { kind: "merchant", email: `${testId}-sweep-${attempt}@codiq.test` },
+    });
     ipStatuses.push(response.status);
     if (response.status === 429) break;
   }
-  assert.ok(ipStatuses.includes(429), `PR-1: one host swept ${ipStatuses.length} candidate addresses with no ceiling (${ipStatuses.join(",")})`);
+  assert.ok(
+    ipStatuses.includes(429),
+    `PR-1: one host swept ${ipStatuses.length} candidate addresses with no ceiling (${ipStatuses.join(",")})`
+  );
 
   // 8c. THE CONSUME, PER IP — and this is where the merchant-login lesson bites.
   //     The token is ENTIRELY attacker-supplied, so a per-token bucket alone
@@ -417,13 +684,22 @@ try {
     const response = await request("/auth/password/reset/consume", {
       method: "POST",
       keepRateLimits: true,
-      body: { token: crypto.randomBytes(32).toString("base64url"), newPassword: "Pr1GrindPass2026!" },
+      body: {
+        token: crypto.randomBytes(32).toString("base64url"),
+        newPassword: "Pr1GrindPass2026!",
+      },
     });
     consumeStatuses.push(response.status);
     if (response.status === 429) break;
   }
-  assert.ok(consumeStatuses.includes(429), `PR-1: the consume door is bypassable by varying the token — ${consumeStatuses.length} attempts, no 429 (${consumeStatuses.join(",")})`);
-  assert.ok(consumeStatuses.length <= RESET_CONSUME_IP_LIMIT + 1, `PR-1: the consume ceiling must bite by attempt ${RESET_CONSUME_IP_LIMIT + 1}`);
+  assert.ok(
+    consumeStatuses.includes(429),
+    `PR-1: the consume door is bypassable by varying the token — ${consumeStatuses.length} attempts, no 429 (${consumeStatuses.join(",")})`
+  );
+  assert.ok(
+    consumeStatuses.length <= RESET_CONSUME_IP_LIMIT + 1,
+    `PR-1: the consume ceiling must bite by attempt ${RESET_CONSUME_IP_LIMIT + 1}`
+  );
   summary.ceilings = {
     requestPerAddress: { limit: RESET_REQUEST_ADDRESS_LIMIT, bitAt: addressStatuses.length },
     requestPerIp: { limit: RESET_REQUEST_IP_LIMIT, bitAt: ipStatuses.length },
@@ -445,46 +721,103 @@ try {
   // ==========================================================================
   const ownerEmail = `${testId}-owner@codiq.test`;
   const ownerPassword = "Pr1OwnerPass2026!";
-  const ownerReg = await request("/auth/platform/register", { method: "POST", body: { email: ownerEmail, password: ownerPassword, displayName: "مالك المنصة" } });
+  const ownerReg = await request("/auth/platform/register", {
+    method: "POST",
+    body: { email: ownerEmail, password: ownerPassword, displayName: "مالك المنصة" },
+  });
   assert.equal(ownerReg.status, 201, JSON.stringify(ownerReg.payload));
   const ownerId = ownerReg.payload.account.id;
 
-  const ownerSession = (await request("/auth/platform/login", { method: "POST", body: { email: ownerEmail, password: ownerPassword } })).payload.accessToken;
-  const begun = await request("/platform/security/totp/begin", { method: "POST", token: ownerSession });
+  const ownerSession = (
+    await request("/auth/platform/login", {
+      method: "POST",
+      body: { email: ownerEmail, password: ownerPassword },
+    })
+  ).payload.accessToken;
+  const begun = await request("/platform/security/totp/begin", {
+    method: "POST",
+    token: ownerSession,
+  });
   assert.equal(begun.status, 200, JSON.stringify(begun.payload));
   const secret = begun.payload.secret;
   const codeFor = () => totpForCounter(base32Decode(secret), currentStep());
-  const confirmed = await request("/platform/security/totp/confirm", { method: "POST", token: ownerSession, body: { code: codeFor() } });
+  const confirmed = await request("/platform/security/totp/confirm", {
+    method: "POST",
+    token: ownerSession,
+    body: { code: codeFor() },
+  });
   assert.equal(confirmed.status, 200, JSON.stringify(confirmed.payload));
   const recoveryCodes = confirmed.payload.recoveryCodes;
 
   // The door demands the factor BEFORE the reset — otherwise the assertion
   // after it proves nothing.
   assert.equal(
-    (await request("/auth/platform/login", { method: "POST", body: { email: ownerEmail, password: ownerPassword } })).payload.error.code,
+    (
+      await request("/auth/platform/login", {
+        method: "POST",
+        body: { email: ownerEmail, password: ownerPassword },
+      })
+    ).payload.error.code,
     "SECOND_FACTOR_REQUIRED",
-    "the enrolled owner is asked for his code before any of this",
+    "the enrolled owner is asked for his code before any of this"
   );
 
-  const totpBefore = await sql.query("SELECT totp_secret, totp_enabled_at, totp_last_step FROM platform_owners WHERE id = $1", [ownerId]);
-  const codesBefore = await sql.query("SELECT count(*)::int AS n FROM platform_owner_recovery_codes WHERE platform_owner_id = $1 AND used_at IS NULL", [ownerId]);
+  const totpBefore = await sql.query(
+    "SELECT totp_secret, totp_enabled_at, totp_last_step FROM platform_owners WHERE id = $1",
+    [ownerId]
+  );
+  const codesBefore = await sql.query(
+    "SELECT count(*)::int AS n FROM platform_owner_recovery_codes WHERE platform_owner_id = $1 AND used_at IS NULL",
+    [ownerId]
+  );
 
   const ownerLink = await requestLink({ kind: "platform_owner", email: ownerEmail });
   const ownerNew = "Pr1OwnerFresh2026!";
-  const ownerReset = await request("/auth/password/reset/consume", { method: "POST", body: { token: tokenOf(ownerLink.link), newPassword: ownerNew } });
+  const ownerReset = await request("/auth/password/reset/consume", {
+    method: "POST",
+    body: { token: tokenOf(ownerLink.link), newPassword: ownerNew },
+  });
   assert.equal(ownerReset.status, 200, JSON.stringify(ownerReset.payload));
-  assert.equal(ownerReset.payload.redirectTo, "/platform/login", "PR-1: he is sent to the door, not past it");
-  assert.ok(!("accessToken" in ownerReset.payload), "PR-1: NO session is issued — a mail link must not become the thing the second factor withholds");
+  assert.equal(
+    ownerReset.payload.redirectTo,
+    "/platform/login",
+    "PR-1: he is sent to the door, not past it"
+  );
+  assert.ok(
+    !("accessToken" in ownerReset.payload),
+    "PR-1: NO session is issued — a mail link must not become the thing the second factor withholds"
+  );
 
-  const totpAfter = await sql.query("SELECT totp_secret, totp_enabled_at, totp_last_step FROM platform_owners WHERE id = $1", [ownerId]);
-  assert.deepEqual(totpAfter.rows[0], totpBefore.rows[0], "PR-1: a reset writes the password hash and NOTHING else — clearing the factor here would be a 2FA bypass reachable from a mailbox");
-  const codesAfter = await sql.query("SELECT count(*)::int AS n FROM platform_owner_recovery_codes WHERE platform_owner_id = $1 AND used_at IS NULL", [ownerId]);
-  assert.equal(codesAfter.rows[0].n, codesBefore.rows[0].n, "PR-1: …and no recovery code is spent or reissued by it");
+  const totpAfter = await sql.query(
+    "SELECT totp_secret, totp_enabled_at, totp_last_step FROM platform_owners WHERE id = $1",
+    [ownerId]
+  );
+  assert.deepEqual(
+    totpAfter.rows[0],
+    totpBefore.rows[0],
+    "PR-1: a reset writes the password hash and NOTHING else — clearing the factor here would be a 2FA bypass reachable from a mailbox"
+  );
+  const codesAfter = await sql.query(
+    "SELECT count(*)::int AS n FROM platform_owner_recovery_codes WHERE platform_owner_id = $1 AND used_at IS NULL",
+    [ownerId]
+  );
+  assert.equal(
+    codesAfter.rows[0].n,
+    codesBefore.rows[0].n,
+    "PR-1: …and no recovery code is spent or reissued by it"
+  );
 
   // THE ASSERTION THAT MATTERS: the new password alone still does not get in.
-  const withNewPasswordOnly = await request("/auth/platform/login", { method: "POST", body: { email: ownerEmail, password: ownerNew } });
+  const withNewPasswordOnly = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email: ownerEmail, password: ownerNew },
+  });
   assert.equal(withNewPasswordOnly.status, 401, JSON.stringify(withNewPasswordOnly.payload));
-  assert.equal(withNewPasswordOnly.payload.error.code, "SECOND_FACTOR_REQUIRED", "PR-1: a mailbox thief may set the password and STILL cannot sign in");
+  assert.equal(
+    withNewPasswordOnly.payload.error.code,
+    "SECOND_FACTOR_REQUIRED",
+    "PR-1: a mailbox thief may set the password and STILL cannot sign in"
+  );
   // …and the OLD password is genuinely gone, so the reset really happened
   // rather than merely appearing to. The code differs from the one above by
   // design: `loginPlatformOwner` verifies the password first and asks for the
@@ -492,9 +825,14 @@ try {
   // means «this password is right» — which reveals nothing to an attacker who
   // supplied it, and is exactly how the door tells a client to show the field.
   assert.equal(
-    (await request("/auth/platform/login", { method: "POST", body: { email: ownerEmail, password: ownerPassword } })).payload.error.code,
+    (
+      await request("/auth/platform/login", {
+        method: "POST",
+        body: { email: ownerEmail, password: ownerPassword },
+      })
+    ).payload.error.code,
     "INVALID_PLATFORM_OWNER_CREDENTIALS",
-    "PR-1: the forgotten password no longer opens the owner door either",
+    "PR-1: the forgotten password no longer opens the owner door either"
   );
 
   // And the person who legitimately holds both walks in.
@@ -506,12 +844,22 @@ try {
   // fails on the next. Blocking until the counter advances removes the race
   // instead of tolerating it. Same idiom as phase19b and ps1.
   await waitForFreshTotpStep();
-  const withFactor = await request("/auth/platform/login", { method: "POST", body: { email: ownerEmail, password: ownerNew, totpCode: codeFor() } });
+  const withFactor = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email: ownerEmail, password: ownerNew, totpCode: codeFor() },
+  });
   assert.equal(withFactor.status, 200, JSON.stringify(withFactor.payload));
   // A recovery code still works too — the path for someone who lost the phone.
-  const withRecovery = await request("/auth/platform/login", { method: "POST", body: { email: ownerEmail, password: ownerNew, totpCode: recoveryCodes[0] } });
+  const withRecovery = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email: ownerEmail, password: ownerNew, totpCode: recoveryCodes[0] },
+  });
   assert.equal(withRecovery.status, 200, JSON.stringify(withRecovery.payload));
-  summary.totp = { enrolmentPreserved: true, sessionIssuedByReset: false, doorAfterReset: "SECOND_FACTOR_REQUIRED" };
+  summary.totp = {
+    enrolmentPreserved: true,
+    sessionIssuedByReset: false,
+    doorAfterReset: "SECOND_FACTOR_REQUIRED",
+  };
 
   // ==========================================================================
   // 10. A CUSTOMER'S LINK LANDS ON HIS OWN STORE.
@@ -524,44 +872,124 @@ try {
   //     (which is path-scoped per store) and no reason to trust the form.
   // ==========================================================================
   const sharedEmail = `${testId}-shopper@codiq.test`;
-  const storeA = await prisma.store.create({ data: { merchantId, name: "متجر ألف", slug: `${testId}-a`, defaultSubdomain: `${testId}-a`, customDomain: `shop-${testId}-a.example` } });
-  const storeB = await prisma.store.create({ data: { merchantId, name: "متجر باء", slug: `${testId}-b`, defaultSubdomain: `${testId}-b` } });
-
-  const registerShopper = (slug, phoneSuffix, password) => request(`/store/${slug}/account/register`, {
-    method: "POST",
-    body: { fullName: "زبون الاختبار", phone: `+96475${phoneSuffix}`, password, email: sharedEmail },
+  const storeA = await prisma.store.create({
+    data: {
+      merchantId,
+      name: "متجر ألف",
+      slug: `${testId}-a`,
+      defaultSubdomain: `${testId}-a`,
+      customDomain: `shop-${testId}-a.example`,
+    },
   });
-  const shopperA = await registerShopper(storeA.slug, String(Date.now()).slice(-8), "Pr1ShopperAPass2026!");
-  assert.equal(shopperA.status, 201, JSON.stringify(shopperA.payload));
-  const shopperB = await registerShopper(storeB.slug, String(Date.now() + 1).slice(-8), "Pr1ShopperBPass2026!");
-  assert.equal(shopperB.status, 201, JSON.stringify(shopperB.payload));
-  assert.notEqual(shopperA.payload.account.id, shopperB.payload.account.id, "one address, two genuinely separate shoppers");
+  const storeB = await prisma.store.create({
+    data: { merchantId, name: "متجر باء", slug: `${testId}-b`, defaultSubdomain: `${testId}-b` },
+  });
 
-  const customerLink = await requestLink({ email: sharedEmail }, { path: `/store/${storeA.slug}/account/password/reset/request`, recipient: sharedEmail });
+  const registerShopper = (slug, phoneSuffix, password) =>
+    request(`/store/${slug}/account/register`, {
+      method: "POST",
+      body: {
+        fullName: "زبون الاختبار",
+        phone: `+96475${phoneSuffix}`,
+        password,
+        email: sharedEmail,
+      },
+    });
+  const shopperA = await registerShopper(
+    storeA.slug,
+    String(Date.now()).slice(-8),
+    "Pr1ShopperAPass2026!"
+  );
+  assert.equal(shopperA.status, 201, JSON.stringify(shopperA.payload));
+  const shopperB = await registerShopper(
+    storeB.slug,
+    String(Date.now() + 1).slice(-8),
+    "Pr1ShopperBPass2026!"
+  );
+  assert.equal(shopperB.status, 201, JSON.stringify(shopperB.payload));
+  assert.notEqual(
+    shopperA.payload.account.id,
+    shopperB.payload.account.id,
+    "one address, two genuinely separate shoppers"
+  );
+
+  const customerLink = await requestLink(
+    { email: sharedEmail },
+    { path: `/store/${storeA.slug}/account/password/reset/request`, recipient: sharedEmail }
+  );
   // THE ORIGIN. Store A has a custom domain, so that is where its shopper is
   // sent — never the platform host he has never used.
-  assert.equal(new URL(customerLink.link).host, `shop-${testId}-a.example`, `PR-1: store A's shopper is sent to store A's own domain — got ${customerLink.link}`);
-  assert.ok(customerLink.link.includes(`/store/${storeA.slug}/account/reset-password`), "PR-1: …on his own store's path");
+  assert.equal(
+    new URL(customerLink.link).host,
+    `shop-${testId}-a.example`,
+    `PR-1: store A's shopper is sent to store A's own domain — got ${customerLink.link}`
+  );
+  assert.ok(
+    customerLink.link.includes(`/store/${storeA.slug}/account/reset-password`),
+    "PR-1: …on his own store's path"
+  );
   assert.ok(!customerLink.link.includes(storeB.slug), "PR-1: …and store B appears nowhere in it");
 
   // THE ACCOUNT. The token resolves to store A's shopper, and only his password
   // moves — a reset that resolved by address alone would move both.
-  const bHashBefore = (await prisma.customer.findUnique({ where: { id: shopperB.payload.account.id }, select: { passwordHash: true } })).passwordHash;
-  const shopperReset = await request("/auth/password/reset/consume", { method: "POST", body: { token: tokenOf(customerLink.link), newPassword: "Pr1ShopperFresh2026!" } });
+  const bHashBefore = (
+    await prisma.customer.findUnique({
+      where: { id: shopperB.payload.account.id },
+      select: { passwordHash: true },
+    })
+  ).passwordHash;
+  const shopperReset = await request("/auth/password/reset/consume", {
+    method: "POST",
+    body: { token: tokenOf(customerLink.link), newPassword: "Pr1ShopperFresh2026!" },
+  });
   assert.equal(shopperReset.status, 200, JSON.stringify(shopperReset.payload));
-  assert.equal(shopperReset.payload.redirectTo, `/store/${storeA.slug}/account/login`, "PR-1: back to HIS store's sign-in page");
+  assert.equal(
+    shopperReset.payload.redirectTo,
+    `/store/${storeA.slug}/account/login`,
+    "PR-1: back to HIS store's sign-in page"
+  );
 
-  const bHashAfter = (await prisma.customer.findUnique({ where: { id: shopperB.payload.account.id }, select: { passwordHash: true } })).passwordHash;
-  assert.equal(bHashAfter, bHashBefore, "PR-1: store B's shopper — same address, different person — is untouched");
-  const tokenStore = await sql.query("SELECT store_id FROM password_reset_tokens WHERE token_hash = $1", [sha256(tokenOf(customerLink.link))]);
-  assert.equal(tokenStore.rows[0].store_id, storeA.id, "PR-1: the token itself is scoped to the store it was asked at");
+  const bHashAfter = (
+    await prisma.customer.findUnique({
+      where: { id: shopperB.payload.account.id },
+      select: { passwordHash: true },
+    })
+  ).passwordHash;
+  assert.equal(
+    bHashAfter,
+    bHashBefore,
+    "PR-1: store B's shopper — same address, different person — is untouched"
+  );
+  const tokenStore = await sql.query(
+    "SELECT store_id FROM password_reset_tokens WHERE token_hash = $1",
+    [sha256(tokenOf(customerLink.link))]
+  );
+  assert.equal(
+    tokenStore.rows[0].store_id,
+    storeA.id,
+    "PR-1: the token itself is scoped to the store it was asked at"
+  );
 
   // A store WITHOUT a custom domain falls back to its own path on the platform
   // base — still the right STORE, which is the half that matters.
-  const bLink = await requestLink({ email: sharedEmail }, { path: `/store/${storeB.slug}/account/password/reset/request`, recipient: sharedEmail });
-  assert.equal(new URL(bLink.link).host, "pr1.codiqos.test", "PR-1: no custom domain ⇒ the platform base, never a guessed subdomain host");
-  assert.ok(bLink.link.includes(`/store/${storeB.slug}/account/reset-password`), "PR-1: …and still on store B's own path");
-  summary.customerOrigin = { withCustomDomain: new URL(customerLink.link).host, without: new URL(bLink.link).host, crossStoreLeak: false };
+  const bLink = await requestLink(
+    { email: sharedEmail },
+    { path: `/store/${storeB.slug}/account/password/reset/request`, recipient: sharedEmail }
+  );
+  assert.equal(
+    new URL(bLink.link).host,
+    "pr1.codiqos.test",
+    "PR-1: no custom domain ⇒ the platform base, never a guessed subdomain host"
+  );
+  assert.ok(
+    bLink.link.includes(`/store/${storeB.slug}/account/reset-password`),
+    "PR-1: …and still on store B's own path"
+  );
+  summary.customerOrigin = {
+    withCustomDomain: new URL(customerLink.link).host,
+    without: new URL(bLink.link).host,
+    crossStoreLeak: false,
+  };
 
   // ==========================================================================
   // 11. NO PROVIDER ⇒ NO PROMISE, AND NOTHING MINTED.
@@ -574,20 +1002,52 @@ try {
   const smtpHost = process.env.CODIQ_SMTP_HOST;
   delete process.env.CODIQ_SMTP_HOST;
   await sql.query("DELETE FROM storefront_rate_limits");
-  const tokensBeforeOutage = (await sql.query("SELECT count(*)::int AS n FROM password_reset_tokens")).rows[0].n;
-  const mailBeforeOutage = (await sql.query("SELECT count(*)::int AS n FROM notification_outbox WHERE event_type = 'auth.password_reset'")).rows[0].n;
+  const tokensBeforeOutage = (
+    await sql.query("SELECT count(*)::int AS n FROM password_reset_tokens")
+  ).rows[0].n;
+  const mailBeforeOutage = (
+    await sql.query(
+      "SELECT count(*)::int AS n FROM notification_outbox WHERE event_type = 'auth.password_reset'"
+    )
+  ).rows[0].n;
 
-  const degraded = await request("/auth/password/reset/request", { method: "POST", body: { kind: "merchant", email: merchantEmail } });
+  const degraded = await request("/auth/password/reset/request", {
+    method: "POST",
+    body: { kind: "merchant", email: merchantEmail },
+  });
   assert.equal(degraded.status, 202, JSON.stringify(degraded.payload));
-  assert.equal(degraded.payload.delivery, "unavailable", "PR-1: with no channel the platform says so instead of promising mail");
+  assert.equal(
+    degraded.payload.delivery,
+    "unavailable",
+    "PR-1: with no channel the platform says so instead of promising mail"
+  );
 
   // The honest answer is the same for an address nobody registered, so the
   // degraded branch is not itself an oracle.
-  const degradedUnknown = await request("/auth/password/reset/request", { method: "POST", body: { kind: "merchant", email: unknownEmail } });
-  assert.deepEqual(degradedUnknown.payload, degraded.payload, "PR-1: …identically for an address that does not exist");
+  const degradedUnknown = await request("/auth/password/reset/request", {
+    method: "POST",
+    body: { kind: "merchant", email: unknownEmail },
+  });
+  assert.deepEqual(
+    degradedUnknown.payload,
+    degraded.payload,
+    "PR-1: …identically for an address that does not exist"
+  );
 
-  assert.equal((await sql.query("SELECT count(*)::int AS n FROM password_reset_tokens")).rows[0].n, tokensBeforeOutage, "PR-1: nothing is minted when nothing can be delivered");
-  assert.equal((await sql.query("SELECT count(*)::int AS n FROM notification_outbox WHERE event_type = 'auth.password_reset'")).rows[0].n, mailBeforeOutage, "PR-1: …and nothing is queued to be skipped later");
+  assert.equal(
+    (await sql.query("SELECT count(*)::int AS n FROM password_reset_tokens")).rows[0].n,
+    tokensBeforeOutage,
+    "PR-1: nothing is minted when nothing can be delivered"
+  );
+  assert.equal(
+    (
+      await sql.query(
+        "SELECT count(*)::int AS n FROM notification_outbox WHERE event_type = 'auth.password_reset'"
+      )
+    ).rows[0].n,
+    mailBeforeOutage,
+    "PR-1: …and nothing is queued to be skipped later"
+  );
   process.env.CODIQ_SMTP_HOST = smtpHost;
   summary.noProvider = { status: 202, delivery: "unavailable", tokensMinted: 0, rowsQueued: 0 };
 
@@ -597,8 +1057,15 @@ try {
   const publicBase = process.env.CODIQ_PUBLIC_BASE_URL;
   delete process.env.CODIQ_PUBLIC_BASE_URL;
   await sql.query("DELETE FROM storefront_rate_limits");
-  const linkless = await request("/auth/password/reset/request", { method: "POST", body: { kind: "merchant", email: merchantEmail } });
-  assert.equal(linkless.payload.delivery, "unavailable", "PR-1: no base URL means no working link, and a link-less recovery mail is not sent");
+  const linkless = await request("/auth/password/reset/request", {
+    method: "POST",
+    body: { kind: "merchant", email: merchantEmail },
+  });
+  assert.equal(
+    linkless.payload.delivery,
+    "unavailable",
+    "PR-1: no base URL means no working link, and a link-less recovery mail is not sent"
+  );
   process.env.CODIQ_PUBLIC_BASE_URL = publicBase;
 
   // ==========================================================================
@@ -608,11 +1075,17 @@ try {
   //     minutes spent behind a backlog come straight out of the window the
   //     recipient has to use it.
   // ==========================================================================
-  const priority = await sql.query("SELECT priority, kind FROM notification_event_kinds WHERE event_type = 'auth.password_reset'");
-  assert.equal(priority.rows[0].kind, "operational", "PR-1: classified in the DATABASE — an unclassified event cannot be enqueued at all");
+  const priority = await sql.query(
+    "SELECT priority, kind FROM notification_event_kinds WHERE event_type = 'auth.password_reset'"
+  );
+  assert.equal(
+    priority.rows[0].kind,
+    "operational",
+    "PR-1: classified in the DATABASE — an unclassified event cannot be enqueued at all"
+  );
   assert.ok(
     Number(priority.rows[0].priority) < 0,
-    `PR-1: recovery mail must drain ahead of every other operational message (priority ${priority.rows[0].priority}); it is the only one whose payload expires`,
+    `PR-1: recovery mail must drain ahead of every other operational message (priority ${priority.rows[0].priority}); it is the only one whose payload expires`
   );
   summary.queuePriority = Number(priority.rows[0].priority);
 

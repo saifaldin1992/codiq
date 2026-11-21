@@ -117,7 +117,8 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
   {
     key: "publicBaseUrl",
     // The star finding. Two shipped features die silently without it.
-    consequence: "استعادة كلمة السرّ تُجيب «غير متاحة» لكل تاجر ومالك وموظّف، وروابط إلغاء الاشتراك تختفي — بلا خطأ واحد في السجلّ.",
+    consequence:
+      "استعادة كلمة السرّ تُجيب «غير متاحة» لكل تاجر ومالك وموظّف، وروابط إلغاء الاشتراك تختفي — بلا خطأ واحد في السجلّ.",
     required: ["CODIQ_PUBLIC_BASE_URL"],
     requiredInDeployment: true,
   },
@@ -150,7 +151,14 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
     // ق-184: `CODIQ_SUPPORT_EMAIL` is optional and stays optional. Unset means
     // platform mail carries no reply path — a missing courtesy, never a missing
     // delivery, so it must not be able to call a working deployment broken.
-    optional: ["CODIQ_SMTP_PORT", "CODIQ_SMTP_SECURE", "CODIQ_SMTP_USER", "CODIQ_SMTP_PASS", "CODIQ_SMTP_FAMILY", "CODIQ_SUPPORT_EMAIL"],
+    optional: [
+      "CODIQ_SMTP_PORT",
+      "CODIQ_SMTP_SECURE",
+      "CODIQ_SMTP_USER",
+      "CODIQ_SMTP_PASS",
+      "CODIQ_SMTP_FAMILY",
+      "CODIQ_SUPPORT_EMAIL",
+    ],
     requiredInDeployment: true,
   },
   {
@@ -165,7 +173,8 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
      * the outage ran for two days.
      */
     key: "observability",
-    consequence: "لا شيء يُبلّغ عن أعطال الخادم من خارجه — انقطاعٌ كالذي جرى في 2026-09-09 يمرّ صامتاً حتى يشتكي تاجر.",
+    consequence:
+      "لا شيء يُبلّغ عن أعطال الخادم من خارجه — انقطاعٌ كالذي جرى في 2026-09-09 يمرّ صامتاً حتى يشتكي تاجر.",
     required: ["SENTRY_DSN"],
     requiredInDeployment: false,
   },
@@ -176,9 +185,13 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
     consequence: "لا دخول من التطبيق الشريك ولا روابط دفع منه.",
     required: ["CODIQ_PARTNER_APP_SECRET"],
     optional: ["CODIQ_PARTNER_APP_ID", "CODIQ_PARTNER_APP_NAME", "CODIQ_PARTNER_APP_PAY_URL"],
-    weakWhen: (env) => ((env.CODIQ_PARTNER_APP_SECRET?.trim().length ?? 0) < 32
-      ? { names: ["CODIQ_PARTNER_APP_SECRET"], consequence: "مفتاح التطبيق الشريك أقصر من ٣٢ حرفاً — يمكن تزوير دخول أو دفع." }
-      : null),
+    weakWhen: (env) =>
+      (env.CODIQ_PARTNER_APP_SECRET?.trim().length ?? 0) < 32
+        ? {
+            names: ["CODIQ_PARTNER_APP_SECRET"],
+            consequence: "مفتاح التطبيق الشريك أقصر من ٣٢ حرفاً — يمكن تزوير دخول أو دفع.",
+          }
+        : null,
     requiredInDeployment: false,
   },
   {
@@ -187,9 +200,14 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
     key: "payments",
     consequence: "لا دفع إلكترونيّ ولا تقسيط في السوق — الدفع نقداً عند الاستلام فقط.",
     required: ["CODIQ_PAYMENTS_PROVIDER", "CODIQ_PAYMENTS_WEBHOOK_SECRET"],
-    weakWhen: (env) => ((env.CODIQ_PAYMENTS_WEBHOOK_SECRET?.trim().length ?? 0) < 32
-      ? { names: ["CODIQ_PAYMENTS_WEBHOOK_SECRET"], consequence: "مفتاح توقيع إشعارات الدفع أقصر من ٣٢ حرفاً — يمكن تزوير إشعار «تمّ الدفع»." }
-      : null),
+    weakWhen: (env) =>
+      (env.CODIQ_PAYMENTS_WEBHOOK_SECRET?.trim().length ?? 0) < 32
+        ? {
+            names: ["CODIQ_PAYMENTS_WEBHOOK_SECRET"],
+            consequence:
+              "مفتاح توقيع إشعارات الدفع أقصر من ٣٢ حرفاً — يمكن تزوير إشعار «تمّ الدفع».",
+          }
+        : null,
     requiredInDeployment: false,
   },
   {
@@ -203,15 +221,27 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
     optional: ["CODIQ_MAP_TILE_ATTRIBUTION", "CODIQ_MAP_MAX_ZOOM"],
     weakWhen: (env) => {
       const raw = env.CODIQ_MAP_TILE_URL?.trim() ?? "";
-      const fine = raw.startsWith("https://") && ["{z}", "{x}", "{y}"].every((part) => raw.includes(part));
-      return raw && !fine ? { names: ["CODIQ_MAP_TILE_URL"], consequence: "قالب البلاطات يجب أن يكون https وفيه {z} و{x} و{y} — والخريطة بلا خلفيّة حتى يُصحَّح." } : null;
+      const fine =
+        raw.startsWith("https://") && ["{z}", "{x}", "{y}"].every((part) => raw.includes(part));
+      return raw && !fine
+        ? {
+            names: ["CODIQ_MAP_TILE_URL"],
+            consequence:
+              "قالب البلاطات يجب أن يكون https وفيه {z} و{x} و{y} — والخريطة بلا خلفيّة حتى يُصحَّح.",
+          }
+        : null;
     },
     requiredInDeployment: false,
   },
   {
     key: "storage",
     consequence: "رفع صور المنتجات يفشل عند أول محاولة — والتاجر يكتشفها لا الخادم.",
-    required: ["PRODUCT_S3_BUCKET", "PRODUCT_S3_REGION", "PRODUCT_S3_ACCESS_KEY_ID", "PRODUCT_S3_SECRET_ACCESS_KEY"],
+    required: [
+      "PRODUCT_S3_BUCKET",
+      "PRODUCT_S3_REGION",
+      "PRODUCT_S3_ACCESS_KEY_ID",
+      "PRODUCT_S3_SECRET_ACCESS_KEY",
+    ],
     optional: ["PRODUCT_S3_ENDPOINT", "PRODUCT_S3_FORCE_PATH_STYLE"],
     requiredInDeployment: true,
   },
@@ -232,7 +262,8 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
    */
   {
     key: "backupIsolation",
-    consequence: "النسخ الاحتياطية تسكن حاوية صور المنتجات نفسها — فقدانُ حساب التخزين يأخذ النسختين معاً. نسخةٌ تموت مع ما تحميه ليست نسخة.",
+    consequence:
+      "النسخ الاحتياطية تسكن حاوية صور المنتجات نفسها — فقدانُ حساب التخزين يأخذ النسختين معاً. نسخةٌ تموت مع ما تحميه ليست نسخة.",
     required: [
       "CODIQ_BACKUP_S3_ENDPOINT",
       "CODIQ_BACKUP_S3_BUCKET",
@@ -275,7 +306,9 @@ export function reportEnvironment(environment: NodeJS.ProcessEnv = process.env):
     const sets = group.satisfiedBy ?? [group.required];
     const shortfalls = sets.map((set) => set.filter((name) => !present(environment, name)));
     const missing = [...shortfalls].sort((a, b) => a.length - b.length)[0] ?? [];
-    const anySet = [...sets.flat(), ...(group.optional ?? [])].some((name) => present(environment, name));
+    const anySet = [...sets.flat(), ...(group.optional ?? [])].some((name) =>
+      present(environment, name)
+    );
     let verdict: GroupVerdict = missing.length === 0 ? "ok" : anySet ? "incomplete" : "absent";
     let consequence = group.consequence;
     let reported = missing;
@@ -312,7 +345,10 @@ export function reportEnvironment(environment: NodeJS.ProcessEnv = process.env):
 }
 
 /** The compact form for `/ready`: one boolean per group, no names, no values. */
-export function readinessSummary(environment: NodeJS.ProcessEnv = process.env): { ok: boolean; groups: Record<string, GroupVerdict> } {
+export function readinessSummary(environment: NodeJS.ProcessEnv = process.env): {
+  ok: boolean;
+  groups: Record<string, GroupVerdict>;
+} {
   const report = reportEnvironment(environment);
   const groups: Record<string, GroupVerdict> = {};
   for (const group of report.groups) groups[group.key] = group.verdict;
@@ -329,29 +365,41 @@ const TLS_MODES = new Set(["require", "verify-ca", "verify-full"]);
  * network where the database has no certificate (a compose file's `db` service)
  * says so explicitly with CODIQ_DATABASE_PLAINTEXT_OK=true.
  */
-export function databaseTlsWeakness(environment: NodeJS.ProcessEnv): { names: string[]; consequence: string } | null {
+export function databaseTlsWeakness(
+  environment: NodeJS.ProcessEnv
+): { names: string[]; consequence: string } | null {
   if (environment.CODIQ_DATABASE_PLAINTEXT_OK?.trim() === "true") return null;
-  const weak = ["DATABASE_URL", "CODIQ_POSTGRES_URL", "CODIQ_POSTGRES_URL_UNPOOLED"].filter((name) => {
-    const raw = environment[name]?.trim();
-    if (!raw) return false;
-    let url: URL;
-    try { url = new URL(raw); } catch { return false; }
-    if (LOOPBACK_HOSTS.has(url.hostname)) return false;
-    return !TLS_MODES.has(url.searchParams.get("sslmode") ?? "");
-  });
+  const weak = ["DATABASE_URL", "CODIQ_POSTGRES_URL", "CODIQ_POSTGRES_URL_UNPOOLED"].filter(
+    (name) => {
+      const raw = environment[name]?.trim();
+      if (!raw) return false;
+      let url: URL;
+      try {
+        url = new URL(raw);
+      } catch {
+        return false;
+      }
+      if (LOOPBACK_HOSTS.has(url.hostname)) return false;
+      return !TLS_MODES.has(url.searchParams.get("sslmode") ?? "");
+    }
+  );
   if (!weak.length) return null;
   return {
     names: weak,
-    consequence: "اتّصال قاعدة البيانات عبر الشبكة بلا TLS — كلمات السرّ المشفّرة والعناوين والطلبات تمرّ نصّاً مقروءاً. أضف sslmode=require إلى العنوان، أو CODIQ_DATABASE_PLAINTEXT_OK=true لشبكة خاصّة فقط.",
+    consequence:
+      "اتّصال قاعدة البيانات عبر الشبكة بلا TLS — كلمات السرّ المشفّرة والعناوين والطلبات تمرّ نصّاً مقروءاً. أضف sslmode=require إلى العنوان، أو CODIQ_DATABASE_PLAINTEXT_OK=true لشبكة خاصّة فقط.",
   };
 }
 
 /** Security pass 2026-11 — the test switches that must never stay on outside development. */
-export function testSwitchesLeftOn(environment: NodeJS.ProcessEnv): { names: string[]; consequence: string } | null {
+export function testSwitchesLeftOn(
+  environment: NodeJS.ProcessEnv
+): { names: string[]; consequence: string } | null {
   if ((environment.NODE_ENV ?? "") === "development") return null;
   const names: string[] = [];
   if (environment.CODIQ_OTP_PROVIDER?.trim() === "insecure-log") names.push("CODIQ_OTP_PROVIDER");
-  if (environment.CODIQ_ALLOW_OWNER_REGISTRATION?.trim() === "true") names.push("CODIQ_ALLOW_OWNER_REGISTRATION");
+  if (environment.CODIQ_ALLOW_OWNER_REGISTRATION?.trim() === "true")
+    names.push("CODIQ_ALLOW_OWNER_REGISTRATION");
   // Marketplace M13a: the test payment providers approve whatever the shopper clicks.
   if (environment.CODIQ_PAYMENTS_PROVIDER?.trim() === "fake") names.push("CODIQ_PAYMENTS_PROVIDER");
   if (!names.length) return null;
@@ -362,7 +410,9 @@ export function testSwitchesLeftOn(environment: NodeJS.ProcessEnv): { names: str
 }
 
 /** ق-231: present is not adequate — a short session key is reported as incomplete. */
-function weakSessionSecret(environment: NodeJS.ProcessEnv): { names: string[]; consequence: string } | null {
+function weakSessionSecret(
+  environment: NodeJS.ProcessEnv
+): { names: string[]; consequence: string } | null {
   const value = environment.SESSION_JWT_SECRET ?? "";
   const bytes = Buffer.byteLength(value, "utf8");
   if (!value || bytes >= SESSION_SECRET_MIN_BYTES) return null;

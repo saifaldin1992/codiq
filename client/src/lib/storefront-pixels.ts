@@ -25,14 +25,24 @@
  * Conversions API (server-side events) is explicitly deferred to phases 24/25.
  */
 
-export type StorefrontPixelIds = { metaPixelId?: string; tiktokPixelId?: string; ga4MeasurementId?: string };
+export type StorefrontPixelIds = {
+  metaPixelId?: string;
+  tiktokPixelId?: string;
+  ga4MeasurementId?: string;
+};
 
 const META_PIXEL_ID_PATTERN = /^[0-9]{5,20}$/;
 const TIKTOK_PIXEL_ID_PATTERN = /^[A-Z0-9]{10,30}$/;
 const GA4_MEASUREMENT_ID_PATTERN = /^G-[A-Z0-9]{4,20}$/;
 
 type PixelWindow = Window & {
-  fbq?: ((...args: unknown[]) => void) & { callMethod?: (...args: unknown[]) => void; queue: unknown[]; push: unknown; loaded: boolean; version: string };
+  fbq?: ((...args: unknown[]) => void) & {
+    callMethod?: (...args: unknown[]) => void;
+    queue: unknown[];
+    push: unknown;
+    loaded: boolean;
+    version: string;
+  };
   _fbq?: unknown;
   ttq?: any;
   TiktokAnalyticsObject?: string;
@@ -55,7 +65,9 @@ function loadScript(src: string) {
 /** Official Meta base snippet, written as TS: stub fbq, then load fbevents.js. */
 function injectMeta(pixelId: string, w: PixelWindow) {
   if (!w.fbq) {
-    const stub: any = (...args: unknown[]) => { stub.callMethod ? stub.callMethod(...args) : stub.queue.push(args); };
+    const stub: any = (...args: unknown[]) => {
+      stub.callMethod ? stub.callMethod(...args) : stub.queue.push(args);
+    };
     stub.queue = [];
     stub.push = stub;
     stub.loaded = true;
@@ -71,10 +83,30 @@ function injectMeta(pixelId: string, w: PixelWindow) {
 function injectTikTok(pixelId: string, w: PixelWindow) {
   w.TiktokAnalyticsObject = "ttq";
   const ttq: any = (w.ttq = w.ttq ?? []);
-  const methods = ["page", "track", "identify", "instances", "debug", "on", "off", "once", "ready", "alias", "group", "enableCookie", "disableCookie"];
-  const setAndDefer = (target: any, method: string) => { target[method] = (...args: unknown[]) => target.push([method, ...args]); };
+  const methods = [
+    "page",
+    "track",
+    "identify",
+    "instances",
+    "debug",
+    "on",
+    "off",
+    "once",
+    "ready",
+    "alias",
+    "group",
+    "enableCookie",
+    "disableCookie",
+  ];
+  const setAndDefer = (target: any, method: string) => {
+    target[method] = (...args: unknown[]) => target.push([method, ...args]);
+  };
   for (const method of methods) setAndDefer(ttq, method);
-  ttq.instance = (name: string) => { const instance = ttq._i?.[name] ?? []; for (const method of methods) setAndDefer(instance, method); return instance; };
+  ttq.instance = (name: string) => {
+    const instance = ttq._i?.[name] ?? [];
+    for (const method of methods) setAndDefer(instance, method);
+    return instance;
+  };
   ttq.load = (id: string) => {
     const src = "https://analytics.tiktok.com/i18n/pixel/events.js";
     ttq._i = ttq._i ?? {};
@@ -112,9 +144,16 @@ export function initStorefrontPixels(ids: StorefrontPixelIds) {
   if (initialized || typeof document === "undefined") return;
   initialized = true;
   const w = window as unknown as PixelWindow;
-  const meta = ids.metaPixelId && META_PIXEL_ID_PATTERN.test(ids.metaPixelId) ? ids.metaPixelId : undefined;
-  const tiktok = ids.tiktokPixelId && TIKTOK_PIXEL_ID_PATTERN.test(ids.tiktokPixelId) ? ids.tiktokPixelId : undefined;
-  const ga4 = ids.ga4MeasurementId && GA4_MEASUREMENT_ID_PATTERN.test(ids.ga4MeasurementId) ? ids.ga4MeasurementId : undefined;
+  const meta =
+    ids.metaPixelId && META_PIXEL_ID_PATTERN.test(ids.metaPixelId) ? ids.metaPixelId : undefined;
+  const tiktok =
+    ids.tiktokPixelId && TIKTOK_PIXEL_ID_PATTERN.test(ids.tiktokPixelId)
+      ? ids.tiktokPixelId
+      : undefined;
+  const ga4 =
+    ids.ga4MeasurementId && GA4_MEASUREMENT_ID_PATTERN.test(ids.ga4MeasurementId)
+      ? ids.ga4MeasurementId
+      : undefined;
   if (meta) injectMeta(meta, w);
   if (tiktok) injectTikTok(tiktok, w);
   if (ga4) injectGa4(ga4, w);
@@ -124,9 +163,16 @@ export function initStorefrontPixels(ids: StorefrontPixelIds) {
 }
 
 function dispatch(event: () => void) {
-  if (!initialized) { pendingEvents.push(event); return; }
+  if (!initialized) {
+    pendingEvents.push(event);
+    return;
+  }
   if (!active.meta && !active.tiktok && !active.ga4) return; // pixel-less store: no-op
-  try { event(); } catch { /* analytics must never break the storefront */ }
+  try {
+    event();
+  } catch {
+    /* analytics must never break the storefront */
+  }
 }
 
 export function trackPageView() {
@@ -134,7 +180,11 @@ export function trackPageView() {
     const w = window as unknown as PixelWindow;
     if (active.meta && w.fbq) w.fbq("track", "PageView");
     if (active.tiktok && w.ttq?.page) w.ttq.page();
-    if (active.ga4 && w.gtag) w.gtag("event", "page_view", { page_location: window.location.href, page_title: document.title });
+    if (active.ga4 && w.gtag)
+      w.gtag("event", "page_view", {
+        page_location: window.location.href,
+        page_title: document.title,
+      });
   });
 }
 
@@ -142,7 +192,8 @@ export function trackAddToCart(valueIqd: number) {
   dispatch(() => {
     const w = window as unknown as PixelWindow;
     if (active.meta && w.fbq) w.fbq("track", "AddToCart", { value: valueIqd, currency: "IQD" });
-    if (active.tiktok && w.ttq?.track) w.ttq.track("AddToCart", { value: valueIqd, currency: "IQD" });
+    if (active.tiktok && w.ttq?.track)
+      w.ttq.track("AddToCart", { value: valueIqd, currency: "IQD" });
     if (active.ga4 && w.gtag) w.gtag("event", "add_to_cart", { value: valueIqd, currency: "IQD" });
   });
 }
@@ -151,7 +202,13 @@ export function trackPurchase(valueIqd: number, orderNumber: string) {
   dispatch(() => {
     const w = window as unknown as PixelWindow;
     if (active.meta && w.fbq) w.fbq("track", "Purchase", { value: valueIqd, currency: "IQD" });
-    if (active.tiktok && w.ttq?.track) w.ttq.track("CompletePayment", { value: valueIqd, currency: "IQD" });
-    if (active.ga4 && w.gtag) w.gtag("event", "purchase", { value: valueIqd, currency: "IQD", transaction_id: orderNumber });
+    if (active.tiktok && w.ttq?.track)
+      w.ttq.track("CompletePayment", { value: valueIqd, currency: "IQD" });
+    if (active.ga4 && w.gtag)
+      w.gtag("event", "purchase", {
+        value: valueIqd,
+        currency: "IQD",
+        transaction_id: orderNumber,
+      });
   });
 }

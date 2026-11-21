@@ -43,7 +43,8 @@ import { prisma } from "../src/db/prisma.js";
 
 function flag(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
-  if (index !== -1 && process.argv[index + 1] && !process.argv[index + 1]!.startsWith("--")) return process.argv[index + 1];
+  if (index !== -1 && process.argv[index + 1] && !process.argv[index + 1]!.startsWith("--"))
+    return process.argv[index + 1];
   const inline = process.argv.find((argument) => argument.startsWith(`--${name}=`));
   return inline ? inline.slice(name.length + 3) : undefined;
 }
@@ -58,7 +59,8 @@ function readSecret(prompt: string): Promise<string> {
   process.stdout.write(prompt);
   let muted = false;
   const sink = Object.create(process.stdout) as NodeJS.WriteStream;
-  sink.write = ((chunk: string, ...rest: unknown[]) => (muted ? true : process.stdout.write(chunk, ...(rest as [])))) as NodeJS.WriteStream["write"];
+  sink.write = ((chunk: string, ...rest: unknown[]) =>
+    muted ? true : process.stdout.write(chunk, ...(rest as []))) as NodeJS.WriteStream["write"];
   const rl = createInterface({ input: process.stdin, output: sink, terminal: true });
   muted = true;
   return new Promise((resolve) => {
@@ -75,17 +77,27 @@ function readSecret(prompt: string): Promise<string> {
  * one. The count is read inside the same call that creates, because "is this
  * database empty of owners" is the entire safety property.
  */
-export async function createFirstOwner(input: { email: string; displayName: string; password: string }) {
+export async function createFirstOwner(input: {
+  email: string;
+  displayName: string;
+  password: string;
+}) {
   const existing = await prisma.platformOwner.count();
   if (existing > 0) {
-    throw new Error(`OWNER_ALREADY_EXISTS: this database already has ${existing} platform owner row(s). This script only bootstraps an empty database — use \`pnpm owner:email\` to change an existing owner's address.`);
+    throw new Error(
+      `OWNER_ALREADY_EXISTS: this database already has ${existing} platform owner row(s). This script only bootstraps an empty database — use \`pnpm owner:email\` to change an existing owner's address.`
+    );
   }
   return registerPlatformOwner(input);
 }
 
 async function main() {
-  if (process.argv.some((argument) => argument === "--password" || argument.startsWith("--password="))) {
-    console.error("رُفض: كلمة السرّ لا تُمرَّر وسيطاً. الوسيط يبقى في سجلّ الأوامر وفي مخرجات ps — تُطلب من الطرفية بلا إظهار.");
+  if (
+    process.argv.some((argument) => argument === "--password" || argument.startsWith("--password="))
+  ) {
+    console.error(
+      "رُفض: كلمة السرّ لا تُمرَّر وسيطاً. الوسيط يبقى في سجلّ الأوامر وفي مخرجات ps — تُطلب من الطرفية بلا إظهار."
+    );
     process.exitCode = 1;
     return;
   }
@@ -93,14 +105,18 @@ async function main() {
   const email = flag("email");
   const displayName = flag("name");
   if (!email || !displayName) {
-    console.error('Usage: pnpm owner:create -- --email <owner@example.com> --name "<display name>"');
+    console.error(
+      'Usage: pnpm owner:create -- --email <owner@example.com> --name "<display name>"'
+    );
     process.exitCode = 1;
     return;
   }
 
   const existing = await prisma.platformOwner.count();
   if (existing > 0) {
-    console.error(`رُفض: القاعدة تحوي ${existing} مالكاً بالفعل. هذا السكربت للتمهيد على قاعدة فارغة وحدها — لتغيير بريد مالك قائم استعمل \`pnpm owner:email\`.`);
+    console.error(
+      `رُفض: القاعدة تحوي ${existing} مالكاً بالفعل. هذا السكربت للتمهيد على قاعدة فارغة وحدها — لتغيير بريد مالك قائم استعمل \`pnpm owner:email\`.`
+    );
     process.exitCode = 1;
     return;
   }
@@ -108,7 +124,9 @@ async function main() {
   // A password typed once and mistyped once is a platform nobody can sign into,
   // recoverable only by deleting the row and starting over.
   if (!process.stdin.isTTY) {
-    console.error("رُفض: لا طرفية تفاعلية. كلمة السرّ تُكتب بيد المالك، ولا تُقرأ من أنبوب أو ملف.");
+    console.error(
+      "رُفض: لا طرفية تفاعلية. كلمة السرّ تُكتب بيد المالك، ولا تُقرأ من أنبوب أو ملف."
+    );
     process.exitCode = 1;
     return;
   }
@@ -122,14 +140,17 @@ async function main() {
 
   const account = await createFirstOwner({ email, displayName, password });
   console.log(JSON.stringify({ created: account }, null, 2));
-  console.log("\nالخطوة التالية: سجّل الدخول من لوحة المالك وفعّل المصادقة الثنائية فوراً (ق-124).");
+  console.log(
+    "\nالخطوة التالية: سجّل الدخول من لوحة المالك وفعّل المصادقة الثنائية فوراً (ق-124)."
+  );
 }
 
 // Only when this file IS the command. Importing it — which the test does, to
 // exercise `createFirstOwner` without a terminal — must not run `main()`: it
 // would print a usage line and set a non-zero exit code, failing a suite whose
 // assertions all passed.
-const invokedDirectly = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+const invokedDirectly =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (invokedDirectly) {
   main()
     .catch((error) => {

@@ -55,7 +55,9 @@ const plainJson = JSON.stringify(payload);
 // A minimal valid webp, standing in for a product image: already compressed,
 // and the one content type that must come back untouched.
 const webp = Buffer.concat([
-  Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WEBPVP8 "),
+  Buffer.from("RIFF"),
+  Buffer.alloc(4),
+  Buffer.from("WEBPVP8 "),
   Buffer.alloc(2048, 0x7f),
 ]);
 webp.writeUInt32LE(webp.length - 8, 4);
@@ -63,13 +65,21 @@ webp.writeUInt32LE(webp.length - 8, 4);
 const app = express();
 app.use(compression());
 app.get("/orders", (_request, response) => response.type("application/json").send(plainJson));
-app.get("/tiny", (_request, response) => response.type("application/json").send(JSON.stringify({ ok: true })));
+app.get("/tiny", (_request, response) =>
+  response.type("application/json").send(JSON.stringify({ ok: true }))
+);
 app.get("/image", (_request, response) => response.type("image/webp").send(webp));
 
 const server = http.createServer(app);
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
-process.on("exit", () => { try { server.close(); } catch { /* already closed */ } });
+process.on("exit", () => {
+  try {
+    server.close();
+  } catch {
+    /* already closed */
+  }
+});
 
 /** Raw, so the client never decodes for us and hides what actually came over the wire. */
 function get(path, acceptEncoding) {
@@ -78,7 +88,13 @@ function get(path, acceptEncoding) {
     const request = http.request(`${base}${path}`, { headers }, (response) => {
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
-      response.on("end", () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks) }));
+      response.on("end", () =>
+        resolve({
+          status: response.statusCode,
+          headers: response.headers,
+          body: Buffer.concat(chunks),
+        })
+      );
     });
     request.on("error", reject);
     request.end();
@@ -89,17 +105,41 @@ function get(path, acceptEncoding) {
 // 1. Arabic JSON is encoded, and decodes back byte-for-byte.
 // ============================================================
 const plain = await get("/orders", "identity");
-assert.equal(plain.headers["content-encoding"], undefined, "a client asking for identity gets none");
-assert.equal(plain.body.toString("utf8"), plainJson, "…and the plain answer is the handler's own bytes");
+assert.equal(
+  plain.headers["content-encoding"],
+  undefined,
+  "a client asking for identity gets none"
+);
+assert.equal(
+  plain.body.toString("utf8"),
+  plainJson,
+  "…and the plain answer is the handler's own bytes"
+);
 
 const gzipped = await get("/orders", "gzip");
-assert.equal(gzipped.headers["content-encoding"], "gzip", "ق-241: an Arabic JSON list above the floor MUST come back compressed");
+assert.equal(
+  gzipped.headers["content-encoding"],
+  "gzip",
+  "ق-241: an Arabic JSON list above the floor MUST come back compressed"
+);
 const fromGzip = await gunzip(gzipped.body);
-assert.equal(fromGzip.toString("utf8"), plainJson, "…and gunzip must return the handler's bytes exactly — a truncated UTF-8 tail would pass a size check and break a shopper's screen");
+assert.equal(
+  fromGzip.toString("utf8"),
+  plainJson,
+  "…and gunzip must return the handler's bytes exactly — a truncated UTF-8 tail would pass a size check and break a shopper's screen"
+);
 
 const brotli = await get("/orders", "br");
-assert.equal(brotli.headers["content-encoding"], "br", "brotli is preferred when the client offers it");
-assert.equal((await brotliDecompress(brotli.body)).toString("utf8"), plainJson, "…and it too round-trips exactly");
+assert.equal(
+  brotli.headers["content-encoding"],
+  "br",
+  "brotli is preferred when the client offers it"
+);
+assert.equal(
+  (await brotliDecompress(brotli.body)).toString("utf8"),
+  plainJson,
+  "…and it too round-trips exactly"
+);
 
 const rawBytes = Buffer.byteLength(plainJson);
 const ratio = (encoded) => `${(100 - (encoded / rawBytes) * 100).toFixed(1)}%`;
@@ -113,8 +153,16 @@ summary.arabicJson = {
 // ============================================================
 // 2. Vary — or a shared cache poisons a client that cannot decode.
 // ============================================================
-for (const [label, response] of [["gzip", gzipped], ["br", brotli], ["identity", plain]]) {
-  assert.match(String(response.headers.vary ?? ""), /accept-encoding/i, `«${label}»: Vary must name Accept-Encoding — without it a shared cache can hand a gzipped body to a client that never asked`);
+for (const [label, response] of [
+  ["gzip", gzipped],
+  ["br", brotli],
+  ["identity", plain],
+]) {
+  assert.match(
+    String(response.headers.vary ?? ""),
+    /accept-encoding/i,
+    `«${label}»: Vary must name Accept-Encoding — without it a shared cache can hand a gzipped body to a client that never asked`
+  );
 }
 summary.vary = "every answer carries Vary: Accept-Encoding, compressed or not";
 
@@ -122,19 +170,32 @@ summary.vary = "every answer carries Vary: Accept-Encoding, compressed or not";
 // 3. A client that says nothing at all still gets a correct answer.
 // ============================================================
 const silent = await get("/orders", undefined);
-const silentBody = silent.headers["content-encoding"] === "gzip" ? await gunzip(silent.body) : silent.body;
-assert.equal(silentBody.toString("utf8"), plainJson, "a request with no Accept-Encoding still gets the right bytes");
+const silentBody =
+  silent.headers["content-encoding"] === "gzip" ? await gunzip(silent.body) : silent.body;
+assert.equal(
+  silentBody.toString("utf8"),
+  plainJson,
+  "a request with no Accept-Encoding still gets the right bytes"
+);
 summary.noHeader = `a client that sends no Accept-Encoding gets «${silent.headers["content-encoding"] ?? "identity"}» and the correct body`;
 
 // ============================================================
 // 4. What must NOT be compressed.
 // ============================================================
 const image = await get("/image", "gzip, br");
-assert.equal(image.headers["content-encoding"], undefined, "ق-238's webp variants are already compressed — recompressing costs CPU and usually ADDS bytes");
+assert.equal(
+  image.headers["content-encoding"],
+  undefined,
+  "ق-238's webp variants are already compressed — recompressing costs CPU and usually ADDS bytes"
+);
 assert.equal(image.body.length, webp.length, "…and the image arrives untouched");
 
 const tiny = await get("/tiny", "gzip, br");
-assert.equal(tiny.headers["content-encoding"], undefined, "below the 1 KB floor the encoding header is most of the saving");
+assert.equal(
+  tiny.headers["content-encoding"],
+  undefined,
+  "below the 1 KB floor the encoding header is most of the saving"
+);
 summary.skips = "image/webp and anything under 1 KB are sent as-is";
 
 server.close();

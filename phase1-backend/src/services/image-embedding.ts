@@ -37,7 +37,9 @@ function normalise(values: number[], weight: number) {
 }
 
 function hsv(r: number, g: number, b: number) {
-  const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min;
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    delta = max - min;
   let h = 0;
   if (delta > 0) {
     if (max === r) h = ((g - b) / delta) % 6;
@@ -53,18 +55,44 @@ export async function embedImage(input: Buffer): Promise<number[]> {
   let raw: Buffer;
   let hashPixels: Buffer;
   try {
-    const base = sharp(input, { failOn: "error", limitInputPixels: 40_000_000 }).rotate().flatten({ background: "#ffffff" });
+    const base = sharp(input, { failOn: "error", limitInputPixels: 40_000_000 })
+      .rotate()
+      .flatten({ background: "#ffffff" });
     raw = await base.clone().resize(SIDE, SIDE, { fit: "fill" }).removeAlpha().raw().toBuffer();
     hashPixels = await base.clone().resize(9, 8, { fit: "fill" }).greyscale().raw().toBuffer();
   } catch {
-    throw new HttpError(422, "IMAGE_UNREADABLE", "تعذّرت قراءة الصورة. جرّب صورة JPG أو PNG أو WebP.");
+    throw new HttpError(
+      422,
+      "IMAGE_UNREADABLE",
+      "تعذّرت قراءة الصورة. جرّب صورة JPG أو PNG أو WebP."
+    );
   }
-  const pixel = (x: number, y: number) => { const i = (y * SIDE + x) * 3; return [raw[i] / 255, raw[i + 1] / 255, raw[i + 2] / 255] as const; };
+  const pixel = (x: number, y: number) => {
+    const i = (y * SIDE + x) * 3;
+    return [raw[i] / 255, raw[i + 1] / 255, raw[i + 2] / 255] as const;
+  };
 
   // The background: the mean colour of the outermost ring of pixels.
-  let br = 0, bg = 0, bb = 0, ring = 0;
-  for (let i = 0; i < SIDE; i += 1) for (const [x, y] of [[i, 0], [i, SIDE - 1], [0, i], [SIDE - 1, i]]) { const [r, g, b] = pixel(x, y); br += r; bg += g; bb += b; ring += 1; }
-  br /= ring; bg /= ring; bb /= ring;
+  let br = 0,
+    bg = 0,
+    bb = 0,
+    ring = 0;
+  for (let i = 0; i < SIDE; i += 1)
+    for (const [x, y] of [
+      [i, 0],
+      [i, SIDE - 1],
+      [0, i],
+      [SIDE - 1, i],
+    ]) {
+      const [r, g, b] = pixel(x, y);
+      br += r;
+      bg += g;
+      bb += b;
+      ring += 1;
+    }
+  br /= ring;
+  bg /= ring;
+  bb /= ring;
 
   const colour = new Array(96).fill(0);
   const layout = new Array(48).fill(0);
@@ -82,11 +110,24 @@ export async function embedImage(input: Buffer): Promise<number[]> {
       const huePos = s < 0.12 ? 0 : h / 22.5 - 0.5;
       const satPos = Math.min(Math.max(s * 3 - 0.5, 0), 2);
       const valPos = Math.min(Math.max(v * 2 - 0.5, 0), 1);
-      const h0 = Math.floor(huePos), s0 = Math.floor(satPos), v0 = Math.floor(valPos);
-      const hf = huePos - h0, sf = satPos - s0, vf = valPos - v0;
-      for (const [dh, wh] of [[0, 1 - hf], [1, hf]] as const) {
-        for (const [ds, ws] of [[0, 1 - sf], [1, sf]] as const) {
-          for (const [dv, wv] of [[0, 1 - vf], [1, vf]] as const) {
+      const h0 = Math.floor(huePos),
+        s0 = Math.floor(satPos),
+        v0 = Math.floor(valPos);
+      const hf = huePos - h0,
+        sf = satPos - s0,
+        vf = valPos - v0;
+      for (const [dh, wh] of [
+        [0, 1 - hf],
+        [1, hf],
+      ] as const) {
+        for (const [ds, ws] of [
+          [0, 1 - sf],
+          [1, sf],
+        ] as const) {
+          for (const [dv, wv] of [
+            [0, 1 - vf],
+            [1, vf],
+          ] as const) {
             const share = weight * wh * ws * wv;
             if (share <= 0) continue;
             const hueBin = (((h0 + dh) % 16) + 16) % 16;
@@ -95,7 +136,9 @@ export async function embedImage(input: Buffer): Promise<number[]> {
         }
       }
       const cell = Math.floor(y / 16) * 4 + Math.floor(x / 16);
-      layout[cell * 3] += r / 256; layout[cell * 3 + 1] += g / 256; layout[cell * 3 + 2] += b / 256;
+      layout[cell * 3] += r / 256;
+      layout[cell * 3 + 1] += g / 256;
+      layout[cell * 3 + 2] += b / 256;
     }
   }
 
@@ -104,7 +147,9 @@ export async function embedImage(input: Buffer): Promise<number[]> {
     const cells = Array.from({ length: 16 }, (_, cell) => layout[cell * 3 + channel]);
     const mean = cells.reduce((sum, value) => sum + value, 0) / 16;
     const spread = Math.sqrt(cells.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 16) || 1;
-    cells.forEach((value, cell) => { layout[cell * 3 + channel] = (value - mean) / spread; });
+    cells.forEach((value, cell) => {
+      layout[cell * 3 + channel] = (value - mean) / spread;
+    });
   }
 
   const edges = new Array(48).fill(0);
@@ -123,7 +168,9 @@ export async function embedImage(input: Buffer): Promise<number[]> {
   }
 
   const shape: number[] = [];
-  for (let y = 0; y < 8; y += 1) for (let x = 0; x < 8; x += 1) shape.push(hashPixels[y * 9 + x] < hashPixels[y * 9 + x + 1] ? 1 : -1);
+  for (let y = 0; y < 8; y += 1)
+    for (let x = 0; x < 8; x += 1)
+      shape.push(hashPixels[y * 9 + x] < hashPixels[y * 9 + x + 1] ? 1 : -1);
 
   // Square roots of the histograms (Hellinger): one dominant colour no longer drowns the rest.
   const vector = [
@@ -137,6 +184,7 @@ export async function embedImage(input: Buffer): Promise<number[]> {
 
 /** pgvector's text form, built from numbers only. */
 export function vectorLiteral(values: number[]): string {
-  if (values.length !== IMAGE_EMBEDDING_DIMENSIONS || !values.every(Number.isFinite)) throw new Error("embedding has the wrong shape");
+  if (values.length !== IMAGE_EMBEDDING_DIMENSIONS || !values.every(Number.isFinite))
+    throw new Error("embedding has the wrong shape");
   return `[${values.map((value) => value.toFixed(6)).join(",")}]`;
 }

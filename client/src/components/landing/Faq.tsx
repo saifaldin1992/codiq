@@ -84,7 +84,10 @@ export function Faq() {
                 className="flex w-full items-center justify-between gap-4 px-6 py-5 text-start text-[15px] font-bold text-[#20304C] transition hover:bg-[var(--codiq-surface-sunken)] sm:px-7"
               >
                 <span>{item.q}</span>
-                <span aria-hidden="true" className="cq-faq__icon grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--codiq-accent-soft)] text-[var(--codiq-accent)]">
+                <span
+                  aria-hidden="true"
+                  className="cq-faq__icon grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--codiq-accent-soft)] text-[var(--codiq-accent)]"
+                >
                   <Plus size={15} strokeWidth={2.4} />
                 </span>
               </button>
@@ -93,9 +96,16 @@ export function Faq() {
                 index.css collapses the panel to zero rows and flips it to
                 `visibility: hidden`, which removes it from the accessibility tree
                 and the tab order just the same. */}
-            <div id={`faq-panel-${index}`} role="region" aria-labelledby={`faq-trigger-${index}`} className="cq-faq__panel">
+            <div
+              id={`faq-panel-${index}`}
+              role="region"
+              aria-labelledby={`faq-trigger-${index}`}
+              className="cq-faq__panel"
+            >
               <div className="min-h-0">
-                <p className="px-6 pb-6 text-[14px] leading-8 text-[var(--codiq-text-secondary)] sm:px-7">{item.a}</p>
+                <p className="px-6 pb-6 text-[14px] leading-8 text-[var(--codiq-text-secondary)] sm:px-7">
+                  {item.a}
+                </p>
               </div>
             </div>
           </div>

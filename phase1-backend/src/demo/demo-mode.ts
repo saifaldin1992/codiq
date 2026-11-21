@@ -64,7 +64,9 @@ const DEMO_BLOCKED_PREFIXES = ["/platform", "/auth/platform"] as const;
  */
 export function isDemoBlockedPath(path: string): boolean {
   const normalized = path.toLowerCase();
-  return DEMO_BLOCKED_PREFIXES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
+  return DEMO_BLOCKED_PREFIXES.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
+  );
 }
 
 /**
@@ -117,7 +119,8 @@ export type DemoProtectedKind = "demo_store" | "demo_staff" | "demo_merchant_acc
 const DEMO_READ_ONLY_MESSAGES: Record<DemoProtectedKind, string> = {
   demo_store: "متجر النسخة التجريبية محمي من التعديل — أنشئ متجراً جديداً لتجربة هذا الإجراء.",
   demo_staff: "حساب الموظف التجريبي محمي — أضف موظفاً جديداً لتجربة الأدوار والصلاحيات.",
-  demo_merchant_account: "حساب التاجر التجريبي محمي — لا يمكن تغيير بريده أو كلمة مروره في النسخة التجريبية.",
+  demo_merchant_account:
+    "حساب التاجر التجريبي محمي — لا يمكن تغيير بريده أو كلمة مروره في النسخة التجريبية.",
 };
 
 /**
@@ -136,7 +139,10 @@ const DEMO_PROTECTED_IDENTITIES: Record<DemoProtectedKind, string> = {
  * Returns immediately — byte-for-byte today's behaviour — when the flag is off or
  * when the target is something the visitor created themselves.
  */
-export function assertDemoWritable(kind: DemoProtectedKind, identity: string | null | undefined): void {
+export function assertDemoWritable(
+  kind: DemoProtectedKind,
+  identity: string | null | undefined
+): void {
   if (!config.demoMode) return;
   if (typeof identity !== "string") return;
   if (identity.trim().toLowerCase() !== DEMO_PROTECTED_IDENTITIES[kind]) return;

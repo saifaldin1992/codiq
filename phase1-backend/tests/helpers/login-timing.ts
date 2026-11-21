@@ -50,7 +50,11 @@ export interface DoorTiming {
   ratio: number;
 }
 
-export async function measureLoginDoor({ known, unknown, samples = SAMPLES }: LoginDoorProbes): Promise<DoorTiming> {
+export async function measureLoginDoor({
+  known,
+  unknown,
+  samples = SAMPLES,
+}: LoginDoorProbes): Promise<DoorTiming> {
   // One untimed pass of each first: the very first bcrypt call in a process
   // carries JIT warm-up that belongs to neither branch.
   await known();
@@ -75,13 +79,20 @@ export async function measureLoginDoor({ known, unknown, samples = SAMPLES }: Lo
  * Asserts the door does not answer «no such account» measurably faster than
  * «wrong password». Returns the rounded measurement so the suite can report it.
  */
-export async function assertNoEnumerationOracle(doorName: string, probes: LoginDoorProbes): Promise<DoorTiming> {
+export async function assertNoEnumerationOracle(
+  doorName: string,
+  probes: LoginDoorProbes
+): Promise<DoorTiming> {
   const measured = await measureLoginDoor(probes);
   assert.ok(
     measured.ratio >= ENUMERATION_RATIO_FLOOR,
-    `${doorName}: an unknown identity answered in ${measured.unknownMs.toFixed(0)} ms against ${measured.knownMs.toFixed(0)} ms for a wrong password `
-      + `(${measured.ratio.toFixed(2)}×; the floor is ${ENUMERATION_RATIO_FLOOR}×). The door skips bcrypt when nobody matched, so its response `
-      + "time enumerates accounts. Run the compare unconditionally against ABSENT_IDENTITY_HASH BEFORE the branch — see auth/identity.ts.",
+    `${doorName}: an unknown identity answered in ${measured.unknownMs.toFixed(0)} ms against ${measured.knownMs.toFixed(0)} ms for a wrong password ` +
+      `(${measured.ratio.toFixed(2)}×; the floor is ${ENUMERATION_RATIO_FLOOR}×). The door skips bcrypt when nobody matched, so its response ` +
+      "time enumerates accounts. Run the compare unconditionally against ABSENT_IDENTITY_HASH BEFORE the branch — see auth/identity.ts."
   );
-  return { knownMs: Math.round(measured.knownMs), unknownMs: Math.round(measured.unknownMs), ratio: Number(measured.ratio.toFixed(2)) };
+  return {
+    knownMs: Math.round(measured.knownMs),
+    unknownMs: Math.round(measured.unknownMs),
+    ratio: Number(measured.ratio.toFixed(2)),
+  };
 }

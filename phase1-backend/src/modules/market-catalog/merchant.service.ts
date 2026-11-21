@@ -8,7 +8,12 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
-import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../../services/list-page.js";
+import {
+  decodeListCursor,
+  encodeListCursor,
+  pageOf,
+  parseListLimit,
+} from "../../services/list-page.js";
 import { marketCategoryExists, marketCategoryTree } from "./categories.service.js";
 import type { ProductMarketFieldsInput } from "./schema.js";
 
@@ -23,22 +28,47 @@ export async function storeCategoryMappings(storeId: string) {
 }
 
 async function assertMarketCategory(id: number | null) {
-  if (id !== null && !(await marketCategoryExists(id))) throw new HttpError(422, "UNKNOWN_MARKET_CATEGORY", "فئة السوق غير موجودة.");
+  if (id !== null && !(await marketCategoryExists(id)))
+    throw new HttpError(422, "UNKNOWN_MARKET_CATEGORY", "فئة السوق غير موجودة.");
 }
 
-export async function mapStoreCategory(storeId: string, categoryId: string, marketCategoryId: number | null) {
+export async function mapStoreCategory(
+  storeId: string,
+  categoryId: string,
+  marketCategoryId: number | null
+) {
   await assertMarketCategory(marketCategoryId);
-  const moved = await prisma.productCategory.updateMany({ where: { id: categoryId, storeId, deletedAt: null }, data: { marketCategoryId } });
-  if (moved.count === 0) throw new HttpError(404, "CATEGORY_NOT_FOUND", "التصنيف غير موجود في هذا المتجر.");
+  const moved = await prisma.productCategory.updateMany({
+    where: { id: categoryId, storeId, deletedAt: null },
+    data: { marketCategoryId },
+  });
+  if (moved.count === 0)
+    throw new HttpError(404, "CATEGORY_NOT_FOUND", "التصنيف غير موجود في هذا المتجر.");
   return { categoryId, marketCategoryId };
 }
 
 const FIELDS_SELECT = {
-  id: true, name: true, priceIqd: true, isActive: true, createdAt: true,
-  marketCategoryId: true, compareAtPriceIqd: true, condition: true, tags: true, specs: true,
-  isPreorder: true, preorderReleaseOn: true, preorderShipsBy: true, maxPerOrder: true, instalmentsEligible: true, instalmentsCashPrice: true,
+  id: true,
+  name: true,
+  priceIqd: true,
+  isActive: true,
+  createdAt: true,
+  marketCategoryId: true,
+  compareAtPriceIqd: true,
+  condition: true,
+  tags: true,
+  specs: true,
+  isPreorder: true,
+  preorderReleaseOn: true,
+  preorderShipsBy: true,
+  maxPerOrder: true,
+  instalmentsEligible: true,
+  instalmentsCashPrice: true,
   category: { select: { name: true, marketCategoryId: true } },
-  addons: { select: { id: true, name: true, priceIqd: true, isActive: true }, orderBy: [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }] },
+  addons: {
+    select: { id: true, name: true, priceIqd: true, isActive: true },
+    orderBy: [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }],
+  },
 } satisfies Prisma.ProductSelect;
 
 type FieldsRow = Prisma.ProductGetPayload<{ select: typeof FIELDS_SELECT }>;
@@ -69,31 +99,54 @@ function fieldsView(row: FieldsRow) {
 }
 
 const LIMIT_MAX = 100;
-export async function marketProductFieldsPage(storeId: string, rawCursor: unknown, rawLimit: unknown) {
+export async function marketProductFieldsPage(
+  storeId: string,
+  rawCursor: unknown,
+  rawLimit: unknown
+) {
   const limit = parseListLimit(rawLimit, LIMIT_MAX, 25);
   const cursor = decodeListCursor("merchant-market-products", rawCursor);
   const at = cursor ? new Date(cursor.value) : null;
   const rows = await prisma.product.findMany({
-    where: { storeId, deletedAt: null, ...(cursor && at ? { OR: [{ createdAt: { lt: at } }, { createdAt: at, id: { lt: cursor.id } }] } : {}) },
+    where: {
+      storeId,
+      deletedAt: null,
+      ...(cursor && at
+        ? { OR: [{ createdAt: { lt: at } }, { createdAt: at, id: { lt: cursor.id } }] }
+        : {}),
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     select: FIELDS_SELECT,
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor("merchant-market-products", last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor("merchant-market-products", last.createdAt, last.id)
+  );
   return { products: page.map(fieldsView), nextCursor };
 }
 
 async function loadOwn(storeId: string, productId: string) {
-  const row = await prisma.product.findFirst({ where: { id: productId, storeId, deletedAt: null }, select: FIELDS_SELECT });
+  const row = await prisma.product.findFirst({
+    where: { id: productId, storeId, deletedAt: null },
+    select: FIELDS_SELECT,
+  });
   if (!row) throw new HttpError(404, "PRODUCT_NOT_FOUND", "المنتج غير موجود في هذا المتجر.");
   return row;
 }
 
-export async function updateProductMarketFields(storeId: string, productId: string, input: ProductMarketFieldsInput) {
+export async function updateProductMarketFields(
+  storeId: string,
+  productId: string,
+  input: ProductMarketFieldsInput
+) {
   const current = await loadOwn(storeId, productId);
   await assertMarketCategory(input.marketCategoryId);
   if (input.compareAtPriceIqd !== null && input.compareAtPriceIqd <= current.priceIqd) {
-    throw new HttpError(422, "COMPARE_AT_NOT_ABOVE_PRICE", `السعر قبل الخصم يجب أن يكون أعلى من سعر المنتج (${current.priceIqd.toLocaleString("en-US")} د.ع).`);
+    throw new HttpError(
+      422,
+      "COMPARE_AT_NOT_ABOVE_PRICE",
+      `السعر قبل الخصم يجب أن يكون أعلى من سعر المنتج (${current.priceIqd.toLocaleString("en-US")} د.ع).`
+    );
   }
   const updated = await prisma.product.update({
     where: { id: current.id },
@@ -104,12 +157,23 @@ export async function updateProductMarketFields(storeId: string, productId: stri
       tags: input.tags,
       specs: input.specs,
       isPreorder: input.isPreorder,
-      preorderReleaseOn: input.preorderReleaseOn ? new Date(`${input.preorderReleaseOn}T00:00:00Z`) : null,
-      preorderShipsBy: input.preorderShipsBy ? new Date(`${input.preorderShipsBy}T00:00:00Z`) : null,
+      preorderReleaseOn: input.preorderReleaseOn
+        ? new Date(`${input.preorderReleaseOn}T00:00:00Z`)
+        : null,
+      preorderShipsBy: input.preorderShipsBy
+        ? new Date(`${input.preorderShipsBy}T00:00:00Z`)
+        : null,
       maxPerOrder: input.maxPerOrder,
-      ...(input.instalmentsEligible !== undefined ? { instalmentsEligible: input.instalmentsEligible } : {}),
+      ...(input.instalmentsEligible !== undefined
+        ? { instalmentsEligible: input.instalmentsEligible }
+        : {}),
       // Not sold in instalments means not at the cash price either.
-      ...(input.instalmentsCashPrice !== undefined || input.instalmentsEligible === false ? { instalmentsCashPrice: input.instalmentsEligible === false ? false : input.instalmentsCashPrice } : {}),
+      ...(input.instalmentsCashPrice !== undefined || input.instalmentsEligible === false
+        ? {
+            instalmentsCashPrice:
+              input.instalmentsEligible === false ? false : input.instalmentsCashPrice,
+          }
+        : {}),
     },
     select: FIELDS_SELECT,
   });
@@ -117,11 +181,24 @@ export async function updateProductMarketFields(storeId: string, productId: stri
 }
 
 /** Replaces the whole add-on list at once: a short list edited on one screen, in its own order. */
-export async function replaceProductAddons(storeId: string, productId: string, addons: { name: string; priceIqd: number; isActive: boolean }[]) {
+export async function replaceProductAddons(
+  storeId: string,
+  productId: string,
+  addons: { name: string; priceIqd: number; isActive: boolean }[]
+) {
   const current = await loadOwn(storeId, productId);
   await prisma.$transaction([
     prisma.productAddon.deleteMany({ where: { storeId, productId: current.id } }),
-    prisma.productAddon.createMany({ data: addons.map((addon, index) => ({ storeId, productId: current.id, name: addon.name, priceIqd: addon.priceIqd, isActive: addon.isActive, sortOrder: index })) }),
+    prisma.productAddon.createMany({
+      data: addons.map((addon, index) => ({
+        storeId,
+        productId: current.id,
+        name: addon.name,
+        priceIqd: addon.priceIqd,
+        isActive: addon.isActive,
+        sortOrder: index,
+      })),
+    }),
   ]);
   return { product: fieldsView(await loadOwn(storeId, productId)) };
 }

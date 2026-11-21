@@ -37,8 +37,14 @@ export default function PasswordResetConsume() {
   const [sessionsEnded, setSessionsEnded] = useState(0);
 
   useEffect(() => {
-    const fromQuery = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("token");
-    if (!fromQuery) { setState("dead"); return; }
+    const fromQuery =
+      typeof window === "undefined"
+        ? null
+        : new URLSearchParams(window.location.search).get("token");
+    if (!fromQuery) {
+      setState("dead");
+      return;
+    }
     setToken(fromQuery);
     let cancelled = false;
     void (async () => {
@@ -59,7 +65,9 @@ export default function PasswordResetConsume() {
         if (!cancelled) setState("ready");
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -88,7 +96,9 @@ export default function PasswordResetConsume() {
       setSessionsEnded(Number(payload?.sessionsEnded ?? 0));
       setState("done");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "تعذّر تعيين كلمة السر. اطلب رابطاً جديداً.");
+      setError(
+        cause instanceof Error ? cause.message : "تعذّر تعيين كلمة السر. اطلب رابطاً جديداً."
+      );
     } finally {
       setPending(false);
     }
@@ -101,18 +111,26 @@ export default function PasswordResetConsume() {
           <h1 className="text-2xl font-bold text-[var(--codiq-text)]">اختر كلمة سر جديدة</h1>
 
           {state === "checking" ? (
-            <p className="mt-3 text-sm leading-6 text-[var(--codiq-text-muted)]">جارٍ التحقق من الرابط…</p>
+            <p className="mt-3 text-sm leading-6 text-[var(--codiq-text-muted)]">
+              جارٍ التحقق من الرابط…
+            </p>
           ) : null}
 
           {state === "dead" ? (
             <div data-testid="reset-consume-dead" role="alert" className="mt-4 space-y-3">
               <p className="rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--codiq-danger)]">
-                هذا الرابط لم يعد صالحاً — فقد يكون استُعمل من قبل، أو انتهت مدته، أو طلبت رابطاً أحدث منه.
+                هذا الرابط لم يعد صالحاً — فقد يكون استُعمل من قبل، أو انتهت مدته، أو طلبت رابطاً
+                أحدث منه.
               </p>
               <p className="text-sm leading-6 text-[var(--codiq-text-muted)]">
                 اطلب رابطاً جديداً من صفحة الاستعادة، وسيصلك خلال دقائق.
               </p>
-              <Button type="button" data-testid="reset-consume-restart" onClick={() => navigate("/forgot-password")} className="h-11 w-full rounded-xl bg-[var(--codiq-accent)] text-base text-[var(--codiq-surface)] hover:bg-[var(--codiq-accent-hover)]">
+              <Button
+                type="button"
+                data-testid="reset-consume-restart"
+                onClick={() => navigate("/forgot-password")}
+                className="h-11 w-full rounded-xl bg-[var(--codiq-accent)] text-base text-[var(--codiq-surface)] hover:bg-[var(--codiq-accent-hover)]"
+              >
                 اطلب رابطاً جديداً
               </Button>
             </div>
@@ -121,7 +139,8 @@ export default function PasswordResetConsume() {
           {state === "ready" ? (
             <form onSubmit={submit}>
               <p className="mt-2 text-sm leading-6 text-[var(--codiq-text-muted)]">
-                اختر كلمة سر جديدة لحسابك. سيُستعمل هذا الرابط مرة واحدة، وستُنهى كل الجلسات المفتوحة على حسابك.
+                اختر كلمة سر جديدة لحسابك. سيُستعمل هذا الرابط مرة واحدة، وستُنهى كل الجلسات
+                المفتوحة على حسابك.
               </p>
               <div className="mt-6 space-y-4">
                 {/* Deliberately NOT a wrapping <label>: the reveal toggle would be
@@ -129,17 +148,40 @@ export default function PasswordResetConsume() {
                     text alternative. htmlFor keeps the binding and the name clean. */}
                 <div className="block space-y-1.5 text-sm font-semibold text-[var(--codiq-text-secondary)]">
                   <label htmlFor="reset-new-password">كلمة السر الجديدة</label>
-                  <PasswordInputWithMeter data-testid="reset-consume-password" id="reset-new-password" name="newPassword" required autoComplete="new-password" autoFocus />
+                  <PasswordInputWithMeter
+                    data-testid="reset-consume-password"
+                    id="reset-new-password"
+                    name="newPassword"
+                    required
+                    autoComplete="new-password"
+                    autoFocus
+                  />
                 </div>
                 <div className="block space-y-1.5 text-sm font-semibold text-[var(--codiq-text-secondary)]">
                   <label htmlFor="reset-confirm-password">تأكيد كلمة السر</label>
-                  <PasswordInputWithMeter data-testid="reset-consume-confirm" id="reset-confirm-password" name="confirmPassword" required autoComplete="new-password" />
+                  <PasswordInputWithMeter
+                    data-testid="reset-consume-confirm"
+                    id="reset-confirm-password"
+                    name="confirmPassword"
+                    required
+                    autoComplete="new-password"
+                  />
                 </div>
               </div>
               {error ? (
-                <p role="alert" data-testid="reset-consume-error" className="mt-4 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--codiq-danger)]">{error}</p>
+                <p
+                  role="alert"
+                  data-testid="reset-consume-error"
+                  className="mt-4 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--codiq-danger)]"
+                >
+                  {error}
+                </p>
               ) : null}
-              <Button disabled={pending} data-testid="reset-consume-submit" className="mt-6 h-11 w-full rounded-xl bg-[var(--codiq-accent)] text-base text-[var(--codiq-surface)] hover:bg-[var(--codiq-accent-hover)]">
+              <Button
+                disabled={pending}
+                data-testid="reset-consume-submit"
+                className="mt-6 h-11 w-full rounded-xl bg-[var(--codiq-accent)] text-base text-[var(--codiq-surface)] hover:bg-[var(--codiq-accent-hover)]"
+              >
                 {pending ? "جارٍ الحفظ…" : "احفظ كلمة السر الجديدة"}
               </Button>
             </form>
@@ -154,25 +196,39 @@ export default function PasswordResetConsume() {
                   A line reading «أُنهيت 0 جلسات» every time is how a person learns
                   to skim past the time it says 3. */}
               {sessionsEnded > 0 ? (
-                <p data-testid="reset-consume-sessions" className="text-sm leading-6 text-[var(--codiq-text-muted)]">
+                <p
+                  data-testid="reset-consume-sessions"
+                  className="text-sm leading-6 text-[var(--codiq-text-muted)]"
+                >
                   أُنهيت {sessionsEnded} من الجلسات المفتوحة على حسابك.
                 </p>
               ) : null}
               <p className="text-sm leading-6 text-[var(--codiq-text-muted)]">
-                سجّل الدخول بكلمة السر الجديدة. إن كان على حسابك تطبيق مصادقة، فسيُطلب رمزه كالمعتاد.
+                سجّل الدخول بكلمة السر الجديدة. إن كان على حسابك تطبيق مصادقة، فسيُطلب رمزه
+                كالمعتاد.
               </p>
-              <Button type="button" data-testid="reset-consume-login" onClick={() => navigate(redirectTo)} className="h-11 w-full rounded-xl bg-[var(--codiq-accent)] text-base text-[var(--codiq-surface)] hover:bg-[var(--codiq-accent-hover)]">
+              <Button
+                type="button"
+                data-testid="reset-consume-login"
+                onClick={() => navigate(redirectTo)}
+                className="h-11 w-full rounded-xl bg-[var(--codiq-accent)] text-base text-[var(--codiq-surface)] hover:bg-[var(--codiq-accent-hover)]"
+              >
                 إلى تسجيل الدخول
               </Button>
             </div>
           ) : null}
 
           <p className="mt-7 text-center text-sm text-[var(--codiq-text-muted)]">
-            <Link href="/" className="font-bold text-[var(--codiq-accent)] hover:underline">العودة إلى الصفحة الرئيسية</Link>
+            <Link href="/" className="font-bold text-[var(--codiq-accent)] hover:underline">
+              العودة إلى الصفحة الرئيسية
+            </Link>
           </p>
         </div>
         {/* ق-138 lockup rules: mark before word (dir=ltr), wordmark «Codiq». */}
-        <div dir="ltr" className="mt-6 flex items-center justify-center gap-2 text-[var(--codiq-text-muted)]">
+        <div
+          dir="ltr"
+          className="mt-6 flex items-center justify-center gap-2 text-[var(--codiq-text-muted)]"
+        >
           <BrandMark className="h-5 w-5" />
           <span className="text-[13px] font-semibold">Codiq</span>
         </div>

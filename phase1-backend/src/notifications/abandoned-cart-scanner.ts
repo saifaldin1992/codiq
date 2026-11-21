@@ -53,9 +53,16 @@ export interface AbandonedCartScanResult {
   duplicates: number;
 }
 
-export async function scanAbandonedCarts(options: { now?: Date } = {}): Promise<AbandonedCartScanResult> {
+export async function scanAbandonedCarts(
+  options: { now?: Date } = {}
+): Promise<AbandonedCartScanResult> {
   const now = options.now ?? new Date();
-  const result: AbandonedCartScanResult = { eligibleStores: 0, candidates: 0, enqueued: 0, duplicates: 0 };
+  const result: AbandonedCartScanResult = {
+    eligibleStores: 0,
+    candidates: 0,
+    enqueued: 0,
+    duplicates: 0,
+  };
 
   // PG-3: a marketing cap of 0 means the store sends no marketing, so nothing is
   // enqueued for it in the first place. Letting the row through and refusing it
@@ -67,24 +74,45 @@ export async function scanAbandonedCarts(options: { now?: Date } = {}): Promise<
     select: {
       storeId: true,
       configuration: true,
-      store: { select: { name: true, slug: true, isActive: true, merchant: { select: { isActive: true } } } },
+      store: {
+        select: {
+          name: true,
+          slug: true,
+          isActive: true,
+          merchant: { select: { isActive: true } },
+        },
+      },
     },
   });
   const eligibleStores = settingsRows
-    .map((row) => ({ storeId: row.storeId, store: row.store, settings: normalizeAbandonedCartSettings(row.configuration) }))
+    .map((row) => ({
+      storeId: row.storeId,
+      store: row.store,
+      settings: normalizeAbandonedCartSettings(row.configuration),
+    }))
     .filter((row) => row.settings.enabled && row.store.isActive && row.store.merchant.isActive);
   result.eligibleStores = eligibleStores.length;
   if (!eligibleStores.length) return result;
 
   // Recovery coupons ride the message ONLY while still active in their own store.
-  const couponIds = eligibleStores.map((row) => row.settings.recoveryCouponId).filter((id): id is string => Boolean(id));
+  const couponIds = eligibleStores
+    .map((row) => row.settings.recoveryCouponId)
+    .filter((id): id is string => Boolean(id));
   const coupons = couponIds.length
-    ? await prisma.coupon.findMany({ where: { id: { in: couponIds }, isActive: true, ...LIVE }, select: { id: true, storeId: true, code: true } })
+    ? await prisma.coupon.findMany({
+        where: { id: { in: couponIds }, isActive: true, ...LIVE },
+        select: { id: true, storeId: true, code: true },
+      })
     : [];
-  const couponByStore = new Map(eligibleStores.map((row) => {
-    const coupon = coupons.find((candidate) => candidate.id === row.settings.recoveryCouponId && candidate.storeId === row.storeId);
-    return [row.storeId, coupon?.code ?? null] as const;
-  }));
+  const couponByStore = new Map(
+    eligibleStores.map((row) => {
+      const coupon = coupons.find(
+        (candidate) =>
+          candidate.id === row.settings.recoveryCouponId && candidate.storeId === row.storeId
+      );
+      return [row.storeId, coupon?.code ?? null] as const;
+    })
+  );
   const storeById = new Map(eligibleStores.map((row) => [row.storeId, row]));
 
   // ONE candidate query across every eligible store; each store contributes its
@@ -128,7 +156,10 @@ export async function scanAbandonedCarts(options: { now?: Date } = {}): Promise<
     const store = storeById.get(cart.storeId);
     if (!store || !cart.customer?.email) continue;
     const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalIqd = cart.items.reduce((sum, item) => sum + item.quantity * item.priceSnapshotIqd, 0);
+    const totalIqd = cart.items.reduce(
+      (sum, item) => sum + item.quantity * item.priceSnapshotIqd,
+      0
+    );
     const couponCode = couponByStore.get(cart.storeId) ?? null;
     try {
       // 19-د: the message and the CART'S OWN record of it commit together.
@@ -165,12 +196,18 @@ export async function scanAbandonedCarts(options: { now?: Date } = {}): Promise<
             },
           },
         });
-        const stamped = await tx.shoppingCart.updateMany({ where: { id: cart.id, abandonedNotifiedAt: null }, data: { abandonedNotifiedAt: now } });
+        const stamped = await tx.shoppingCart.updateMany({
+          where: { id: cart.id, abandonedNotifiedAt: null },
+          data: { abandonedNotifiedAt: now },
+        });
         if (stamped.count !== 1) throw new AlreadyNotifiedError();
       });
       result.enqueued += 1;
     } catch (error) {
-      if (error instanceof AlreadyNotifiedError || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) {
+      if (
+        error instanceof AlreadyNotifiedError ||
+        (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+      ) {
         result.duplicates += 1;
         continue;
       }

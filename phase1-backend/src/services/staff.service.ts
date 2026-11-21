@@ -8,7 +8,12 @@ import { prisma } from "../db/prisma.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { createPasswordHash, normalizeEmail } from "../auth/identity.js";
 import { assertDemoWritable } from "../demo/demo-mode.js";
-import { assertPermissionCode, assertStaffRoleCode, resolvePermissionSet, PERMISSION_CODES } from "../auth/staff-permissions.js";
+import {
+  assertPermissionCode,
+  assertStaffRoleCode,
+  resolvePermissionSet,
+  PERMISSION_CODES,
+} from "../auth/staff-permissions.js";
 import { assertWithinPlanLimit } from "./entitlement.service.js";
 import type { AuditActor } from "./soft-delete/audit-log.service.js";
 import { LIVE } from "./soft-delete/constants.js";
@@ -21,7 +26,10 @@ const membershipSelect = {
   permissionVersion: true,
   createdAt: true,
   staff: { select: { id: true, email: true, displayName: true, isActive: true } },
-  permissionOverrides: { select: { permissionCode: true, effect: true }, orderBy: { permissionCode: "asc" as const } },
+  permissionOverrides: {
+    select: { permissionCode: true, effect: true },
+    orderBy: { permissionCode: "asc" as const },
+  },
 } as const;
 
 function membershipPayload(membership: {
@@ -41,7 +49,9 @@ function membershipPayload(membership: {
     createdAt: membership.createdAt,
     staff: membership.staff,
     overrides: membership.permissionOverrides,
-    permissions: Array.from(resolvePermissionSet(membership.roleCode, membership.permissionOverrides)).sort(),
+    permissions: Array.from(
+      resolvePermissionSet(membership.roleCode, membership.permissionOverrides)
+    ).sort(),
   };
 }
 
@@ -64,12 +74,20 @@ export async function listStoreTeam(storeId: string) {
  * team; the removal revokes that membership's sessions immediately (D14-07) and
  * bumps permissionVersion, exactly like a disable.
  */
-export async function removeStoreMembership(storeId: string, membershipId: string, actor: AuditActor) {
+export async function removeStoreMembership(
+  storeId: string,
+  membershipId: string,
+  actor: AuditActor
+) {
   return softDelete("staff_membership", storeId, membershipId, actor);
 }
 
 /** Overrides come back with the membership; SESSIONS never do — the person signs in again. */
-export async function restoreStoreMembership(storeId: string, membershipId: string, actor: AuditActor) {
+export async function restoreStoreMembership(
+  storeId: string,
+  membershipId: string,
+  actor: AuditActor
+) {
   return restore("staff_membership", storeId, membershipId, actor);
 }
 
@@ -82,18 +100,33 @@ export async function restoreStoreMembership(storeId: string, membershipId: stri
  * membership for an existing staff identity needs neither it nor a password
  * (D14-06), and only the database knows which case this is.
  */
-export async function createStoreStaff(storeId: string, input: { email: unknown; displayName?: unknown; temporaryPassword?: unknown; roleCode: unknown; linkExisting?: unknown }) {
+export async function createStoreStaff(
+  storeId: string,
+  input: {
+    email: unknown;
+    displayName?: unknown;
+    temporaryPassword?: unknown;
+    roleCode: unknown;
+    linkExisting?: unknown;
+  }
+) {
   const email = normalizeEmail(input.email);
   const roleCode = assertStaffRoleCode(input.roleCode);
   // Phase 16: team size is a plan entitlement across the merchant's stores.
-  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { merchantId: true },
+  });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
   await assertWithinPlanLimit(prisma, store.merchantId, "max_staff");
   // ق-227: the LIVING only. An identity whose last membership was removed has
   // released its address, and a new employee typing the same one is a NEW person
   // — with his own password, his own display name, and none of the departed
   // employee's memberships.
-  const existingStaff = await prisma.staff.findFirst({ where: { email, deletedAt: null }, select: { id: true, isActive: true, displayName: true } });
+  const existingStaff = await prisma.staff.findFirst({
+    where: { email, deletedAt: null },
+    select: { id: true, isActive: true, displayName: true },
+  });
 
   if (existingStaff) {
     /**
@@ -126,7 +159,7 @@ export async function createStoreStaff(storeId: string, input: { email: unknown;
       throw new HttpError(
         409,
         "STAFF_EMAIL_ALREADY_REGISTERED",
-        "هذا البريد مسجَّل لموظّف على المنصّة. إن كان الشخص نفسه فأكّد ربطه بمتجرك — سيدخل بكلمة مروره هو، ولن تتغيّر.",
+        "هذا البريد مسجَّل لموظّف على المنصّة. إن كان الشخص نفسه فأكّد ربطه بمتجرك — سيدخل بكلمة مروره هو، ولن تتغيّر."
       );
     }
     // The stored password is never replaced through the team endpoint, and this
@@ -140,25 +173,52 @@ export async function createStoreStaff(storeId: string, input: { email: unknown;
   }
 
   if (typeof input.displayName !== "string" || input.displayName.trim().length < 2) {
-    throw new HttpError(400, "INVALID_DISPLAY_NAME", "Display name must contain at least 2 characters.");
+    throw new HttpError(
+      400,
+      "INVALID_DISPLAY_NAME",
+      "Display name must contain at least 2 characters."
+    );
   }
   const passwordHash = await createPasswordHash(input.temporaryPassword);
   const membership = await prisma.$transaction(async (tx) => {
     // Audit 14-ب: the merchant typed this password, so it is provisional until
     // the employee replaces it (staff counterpart of ق-218).
-    const staff = await tx.staff.create({ data: { email, passwordHash, displayName: (input.displayName as string).trim(), passwordSetByProvisionerAt: new Date() }, select: { id: true } });
-    return tx.storeStaffMembership.create({ data: { staffId: staff.id, storeId, roleCode }, select: membershipSelect });
+    const staff = await tx.staff.create({
+      data: {
+        email,
+        passwordHash,
+        displayName: (input.displayName as string).trim(),
+        passwordSetByProvisionerAt: new Date(),
+      },
+      select: { id: true },
+    });
+    return tx.storeStaffMembership.create({
+      data: { staffId: staff.id, storeId, roleCode },
+      select: membershipSelect,
+    });
   });
   return { created: "staff" as const, membership: membershipPayload(membership) };
 }
 
 async function requireMembershipInStore(storeId: string, membershipId: string) {
-  const membership = await prisma.storeStaffMembership.findFirst({ where: { id: membershipId, storeId, ...LIVE }, select: { id: true, roleCode: true, isActive: true, staff: { select: { email: true } } } });
-  if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested team membership was not found in this store.");
+  const membership = await prisma.storeStaffMembership.findFirst({
+    where: { id: membershipId, storeId, ...LIVE },
+    select: { id: true, roleCode: true, isActive: true, staff: { select: { email: true } } },
+  });
+  if (!membership)
+    throw new HttpError(
+      404,
+      "RESOURCE_NOT_FOUND",
+      "The requested team membership was not found in this store."
+    );
   return membership;
 }
 
-export async function updateStoreMembership(storeId: string, membershipId: string, input: { roleCode?: unknown; isActive?: unknown }) {
+export async function updateStoreMembership(
+  storeId: string,
+  membershipId: string,
+  input: { roleCode?: unknown; isActive?: unknown }
+) {
   const current = await requireMembershipInStore(storeId, membershipId);
   // P27-7: disabling this membership revokes its sessions immediately (D14-07),
   // which would kill the demo staff login documented for prospects until the
@@ -177,7 +237,10 @@ export async function updateStoreMembership(storeId: string, membershipId: strin
       // Audit 16-ب: re-activating a suspended member adds a seat exactly like
       // inviting one does, so it spends the same `max_staff` quota. Without this
       // the limit was bypassed from the team screen: suspend, invite, reactivate.
-      const store = await tx.store.findUniqueOrThrow({ where: { id: storeId }, select: { merchantId: true } });
+      const store = await tx.store.findUniqueOrThrow({
+        where: { id: storeId },
+        select: { merchantId: true },
+      });
       await assertWithinPlanLimit(tx, store.merchantId, "max_staff");
     }
     const updated = await tx.storeStaffMembership.update({
@@ -191,17 +254,28 @@ export async function updateStoreMembership(storeId: string, membershipId: strin
     });
     if (roleChanged || (activeChanged && nextActive === false)) {
       // D14-07: the change takes effect immediately — open sessions on this membership die now.
-      await tx.staffSession.updateMany({ where: { membershipId, revokedAt: null }, data: { revokedAt: new Date() } });
+      await tx.staffSession.updateMany({
+        where: { membershipId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
     }
     return updated;
   });
   return membershipPayload(membership);
 }
 
-export async function setMembershipOverrides(storeId: string, membershipId: string, input: { overrides: unknown }) {
+export async function setMembershipOverrides(
+  storeId: string,
+  membershipId: string,
+  input: { overrides: unknown }
+) {
   await requireMembershipInStore(storeId, membershipId);
   if (!Array.isArray(input.overrides) || input.overrides.length > PERMISSION_CODES.length) {
-    throw new HttpError(400, "INVALID_OVERRIDES", "overrides must be an array with at most one entry per permission code.");
+    throw new HttpError(
+      400,
+      "INVALID_OVERRIDES",
+      "overrides must be an array with at most one entry per permission code."
+    );
   }
   const seen = new Set<string>();
   const entries = input.overrides.map((entry: any) => {
@@ -209,7 +283,12 @@ export async function setMembershipOverrides(storeId: string, membershipId: stri
     if (entry?.effect !== "allow" && entry?.effect !== "deny") {
       throw new HttpError(422, "INVALID_OVERRIDE_EFFECT", "Override effect must be allow or deny.");
     }
-    if (seen.has(permissionCode)) throw new HttpError(422, "DUPLICATE_OVERRIDE", "Each permission code may appear at most once.");
+    if (seen.has(permissionCode))
+      throw new HttpError(
+        422,
+        "DUPLICATE_OVERRIDE",
+        "Each permission code may appear at most once."
+      );
     seen.add(permissionCode);
     return { permissionCode, effect: entry.effect as "allow" | "deny" };
   });
@@ -217,7 +296,9 @@ export async function setMembershipOverrides(storeId: string, membershipId: stri
   const membership = await prisma.$transaction(async (tx) => {
     await tx.staffMembershipPermissionOverride.deleteMany({ where: { membershipId } });
     if (entries.length) {
-      await tx.staffMembershipPermissionOverride.createMany({ data: entries.map((entry) => ({ membershipId, ...entry })) });
+      await tx.staffMembershipPermissionOverride.createMany({
+        data: entries.map((entry) => ({ membershipId, ...entry })),
+      });
     }
     return tx.storeStaffMembership.update({
       where: { id: membershipId },

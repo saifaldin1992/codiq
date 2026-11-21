@@ -23,6 +23,6 @@ export async function applyPlanTermsNow(prisma: any, planId: string): Promise<vo
      )
      UPDATE merchant_subscriptions SET plan_version_id = (SELECT id FROM next)
       WHERE plan_id = $1::uuid AND status = 'active'`,
-    planId,
+    planId
   );
 }

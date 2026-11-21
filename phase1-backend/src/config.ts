@@ -31,13 +31,15 @@ function requiredEnvironment(name: "SESSION_JWT_SECRET"): string {
   if (bytes < SESSION_SECRET_MIN_BYTES) {
     // Structured, so the logging guard's own rule covers it and it cannot be
     // lost in a wall of output.
-    console.warn(JSON.stringify({
-      level: "warn",
-      event: "config.weak_session_secret",
-      bytes,
-      minimum: SESSION_SECRET_MIN_BYTES,
-      message: `${name} is ${bytes} bytes; a key that signs the sessions of all five identities must be at least ${SESSION_SECRET_MIN_BYTES} (ASVS 2.10). Rotate with SESSION_JWT_SECRET_PREVIOUS so nobody is signed out: openssl rand -base64 48`,
-    }));
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        event: "config.weak_session_secret",
+        bytes,
+        minimum: SESSION_SECRET_MIN_BYTES,
+        message: `${name} is ${bytes} bytes; a key that signs the sessions of all five identities must be at least ${SESSION_SECRET_MIN_BYTES} (ASVS 2.10). Rotate with SESSION_JWT_SECRET_PREVIOUS so nobody is signed out: openssl rand -base64 48`,
+      })
+    );
   }
   return value;
 }

@@ -31,7 +31,13 @@ import { redactKey, scrubText } from "./redact.js";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
-const RANK: Record<LogLevel | "silent", number> = { debug: 10, info: 20, warn: 30, error: 40, silent: 100 };
+const RANK: Record<LogLevel | "silent", number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+  silent: 100,
+};
 
 /**
  * Read ONCE at import, like `config.demoMode` and `config.cookieSecure`: the
@@ -57,7 +63,9 @@ const MAX_STACK = 2000;
 const MAX_LINE = 8192;
 
 type Sink = (line: string) => void;
-const stdoutSink: Sink = (line) => { process.stdout.write(`${line}\n`); };
+const stdoutSink: Sink = (line) => {
+  process.stdout.write(`${line}\n`);
+};
 let sink: Sink = stdoutSink;
 
 /**
@@ -67,7 +75,9 @@ let sink: Sink = stdoutSink;
 export function setLogSink(next: Sink): () => void {
   const previous = sink;
   sink = next;
-  return () => { sink = previous; };
+  return () => {
+    sink = previous;
+  };
 }
 
 export function isLevelEnabled(level: LogLevel): boolean {
@@ -76,8 +86,13 @@ export function isLevelEnabled(level: LogLevel): boolean {
 
 function serializeError(error: unknown): Record<string, unknown> {
   if (error instanceof Error) {
-    const stack = typeof error.stack === "string" ? scrubText(error.stack).slice(0, MAX_STACK) : undefined;
-    return { name: error.name, message: scrubText(error.message).slice(0, MAX_STRING), ...(stack ? { stack } : {}) };
+    const stack =
+      typeof error.stack === "string" ? scrubText(error.stack).slice(0, MAX_STACK) : undefined;
+    return {
+      name: error.name,
+      message: scrubText(error.message).slice(0, MAX_STRING),
+      ...(stack ? { stack } : {}),
+    };
   }
   return { name: "NonError", message: scrubText(String(error)).slice(0, MAX_STRING) };
 }
@@ -91,7 +106,9 @@ function sanitize(value: unknown, depth: number, seen: WeakSet<object>): unknown
   switch (typeof value) {
     case "string": {
       const scrubbed = scrubText(value);
-      return scrubbed.length > MAX_STRING ? `${scrubbed.slice(0, MAX_STRING)}…(+${scrubbed.length - MAX_STRING})` : scrubbed;
+      return scrubbed.length > MAX_STRING
+        ? `${scrubbed.slice(0, MAX_STRING)}…(+${scrubbed.length - MAX_STRING})`
+        : scrubbed;
     }
     case "number":
       return Number.isFinite(value) ? value : String(value);
@@ -146,7 +163,10 @@ function emit(level: LogLevel, message: string, fields?: LogFields): void {
     if (fields) {
       for (const [key, value] of Object.entries(fields)) {
         if (value === undefined) continue;
-        if (key === "err") { ctx.err = serializeError(value); continue; }
+        if (key === "err") {
+          ctx.err = serializeError(value);
+          continue;
+        }
         ctx[key] = redactKey(key) ? "[redacted]" : sanitize(value, 1, new WeakSet());
       }
     }

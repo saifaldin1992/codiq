@@ -43,10 +43,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
 
 const { BACKUP_POLICY, backupCronExpression } = await import("../src/backup/backup-policy.ts");
-const { backupKeyring, collect, currentBackupKey, decryptBackupStream, encryptBackupStream } = await import(
-  "../src/backup/backup-envelope.ts"
+const { backupKeyring, collect, currentBackupKey, decryptBackupStream, encryptBackupStream } =
+  await import("../src/backup/backup-envelope.ts");
+const { backupObjectKey, selectExpiredBackups, resolveBackupStorage } = await import(
+  "../src/backup/backup-storage.ts"
 );
-const { backupObjectKey, selectExpiredBackups, resolveBackupStorage } = await import("../src/backup/backup-storage.ts");
 
 /** Two unrelated roots, so «wrong key» is genuinely a different key. */
 const ROOT_A = "guard-root-a-000000000000000000000000000000";
@@ -58,7 +59,8 @@ const CHUNK = 1024;
 /** Deliberately not a multiple of CHUNK: the tail frame is its own code path. */
 const PAYLOAD = Buffer.from(`-- codiq backup guard --\n${"CODIQ".repeat(1500)}\n-- end --`, "utf8");
 
-const seal = (payload = PAYLOAD, key = KEY_A) => collect(encryptBackupStream([payload], key, { chunkBytes: CHUNK }));
+const seal = (payload = PAYLOAD, key = KEY_A) =>
+  collect(encryptBackupStream([payload], key, { chunkBytes: CHUNK }));
 const open = (bytes, keyring = [KEY_A]) => collect(decryptBackupStream([bytes], keyring));
 
 async function rejects(what, run) {
@@ -83,9 +85,14 @@ const big = Buffer.concat(Array.from({ length: 40 }, (_, i) => Buffer.alloc(700,
 const pieces = [];
 for (let at = 0; at < big.length; at += 333) pieces.push(big.subarray(at, at + 333));
 assert.deepEqual(
-  await collect(decryptBackupStream([await collect(encryptBackupStream(pieces, KEY_A, { chunkBytes: CHUNK }))], [KEY_A])),
+  await collect(
+    decryptBackupStream(
+      [await collect(encryptBackupStream(pieces, KEY_A, { chunkBytes: CHUNK }))],
+      [KEY_A]
+    )
+  ),
   big,
-  "a stream arriving in pieces unaligned to the chunk size must reassemble exactly",
+  "a stream arriving in pieces unaligned to the chunk size must reassemble exactly"
 );
 
 // Rotation: yesterday's dump opens under today's keyring because PREVIOUS is on it.
@@ -93,14 +100,24 @@ const keyringAfterRotation = backupKeyring({
   CODIQ_BACKUP_ENCRYPTION_KEY: ROOT_B,
   CODIQ_BACKUP_ENCRYPTION_KEY_PREVIOUS: ROOT_A,
 });
-assert.equal(keyringAfterRotation.length, 2, "the keyring must carry the previous key so a rotation does not orphan dumps");
-assert.deepEqual(await open(sealed, keyringAfterRotation), PAYLOAD, "rotating the backup key must not strand yesterday's dump");
+assert.equal(
+  keyringAfterRotation.length,
+  2,
+  "the keyring must carry the previous key so a rotation does not orphan dumps"
+);
+assert.deepEqual(
+  await open(sealed, keyringAfterRotation),
+  PAYLOAD,
+  "rotating the backup key must not strand yesterday's dump"
+);
 
 // ===========================================================================
 // 2. FAIL-CLOSED KEY RESOLUTION — no development fallback, ever
 // ===========================================================================
 
-const missing = await rejects("an unset CODIQ_BACKUP_ENCRYPTION_KEY", async () => currentBackupKey({}));
+const missing = await rejects("an unset CODIQ_BACKUP_ENCRYPTION_KEY", async () =>
+  currentBackupKey({})
+);
 assert.match(missing, /CODIQ_BACKUP_ENCRYPTION_KEY/, "the message must name the variable");
 
 // The sibling secret-box.ts DOES fall back under NODE_ENV=development, and that
@@ -108,9 +125,11 @@ assert.match(missing, /CODIQ_BACKUP_ENCRYPTION_KEY/, "the message must name the 
 // the repository — a plaintext dump wearing a costume. Prove the costume is not
 // available.
 await rejects("a development fallback for the backup key", async () =>
-  currentBackupKey({ NODE_ENV: "development" }),
+  currentBackupKey({ NODE_ENV: "development" })
 );
-await rejects("a key shorter than 32 characters", async () => currentBackupKey({ CODIQ_BACKUP_ENCRYPTION_KEY: "tooshort" }));
+await rejects("a key shorter than 32 characters", async () =>
+  currentBackupKey({ CODIQ_BACKUP_ENCRYPTION_KEY: "tooshort" })
+);
 assert.notEqual(KEY_A.keyId, KEY_B.keyId, "different roots must derive different key ids");
 
 // ===========================================================================
@@ -123,15 +142,19 @@ assert.notEqual(KEY_A.keyId, KEY_B.keyId, "different roots must derive different
 // frame boundary by sealing a payload and cutting the terminator off.
 const terminatorBytes = 4 + 12 + 16; // length | iv | tag, over zero ciphertext
 const cutAtBoundary = sealed.subarray(0, sealed.length - terminatorBytes);
-const boundaryMessage = await rejects("a dump truncated exactly at a frame boundary", () => open(cutAtBoundary));
+const boundaryMessage = await rejects("a dump truncated exactly at a frame boundary", () =>
+  open(cutAtBoundary)
+);
 assert.match(
   boundaryMessage,
   /end-of-stream marker/,
-  "a boundary-truncated dump must be rejected for its MISSING TERMINATOR, not by luck",
+  "a boundary-truncated dump must be rejected for its MISSING TERMINATOR, not by luck"
 );
 
 // (b) Truncation in the middle of a frame.
-await rejects("a dump truncated mid-frame", () => open(sealed.subarray(0, sealed.length - terminatorBytes - 7)));
+await rejects("a dump truncated mid-frame", () =>
+  open(sealed.subarray(0, sealed.length - terminatorBytes - 7))
+);
 
 // (c) A flipped byte in the ciphertext.
 const flipped = Buffer.from(sealed);
@@ -153,11 +176,19 @@ await rejects("a dump whose frames were reordered", () => open(reordered));
 
 // (e) A key nobody holds. The message has to send the operator to escrow rather
 // than let him conclude the file is corrupt.
-const strangerMessage = await rejects("a dump sealed with an unknown key", () => open(sealed, [KEY_B]));
-assert.match(strangerMessage, /escrow/, "an unknown key id must point at escrow, not at corruption");
+const strangerMessage = await rejects("a dump sealed with an unknown key", () =>
+  open(sealed, [KEY_B])
+);
+assert.match(
+  strangerMessage,
+  /escrow/,
+  "an unknown key id must point at escrow, not at corruption"
+);
 
 // (f) Something that is not a backup at all.
-await rejects("a file that is not an envelope", () => open(Buffer.from("PGDMP not really", "utf8")));
+await rejects("a file that is not an envelope", () =>
+  open(Buffer.from("PGDMP not really", "utf8"))
+);
 
 // ===========================================================================
 // 4. THE PRUNER — the only step with no undo
@@ -176,12 +207,18 @@ assert.deepEqual(
   selectExpiredBackups(ancient, now),
   [],
   `with only ${BACKUP_POLICY.minimumKeptCopies} objects the pruner must delete NOTHING, whatever their age — ` +
-    `a stopped cron or a skewed clock must not be able to empty the bucket`,
+    `a stopped cron or a skewed clock must not be able to empty the bucket`
 );
 
 // Fresh copies are never candidates, even far past the floor.
-const fresh = Array.from({ length: BACKUP_POLICY.minimumKeptCopies * 3 }, (_, i) => fixture(i * 0.25));
-assert.deepEqual(selectExpiredBackups(fresh, now), [], "objects inside the retention window must never be selected");
+const fresh = Array.from({ length: BACKUP_POLICY.minimumKeptCopies * 3 }, (_, i) =>
+  fixture(i * 0.25)
+);
+assert.deepEqual(
+  selectExpiredBackups(fresh, now),
+  [],
+  "objects inside the retention window must never be selected"
+);
 
 // The real shape: a long archive with genuinely expired tails.
 const mixed = [
@@ -189,10 +226,20 @@ const mixed = [
   ...Array.from({ length: 5 }, (_, i) => fixture(BACKUP_POLICY.retentionDays + 10 + i)),
 ];
 const expired = selectExpiredBackups(mixed, now);
-assert.equal(expired.length, 5, "exactly the objects past the retention window and beyond the floor may be pruned");
+assert.equal(
+  expired.length,
+  5,
+  "exactly the objects past the retention window and beyond the floor may be pruned"
+);
 for (const object of expired) {
-  assert.ok(object.key.startsWith(BACKUP_POLICY.objectPrefix), `the pruner must never select «${object.key}» — outside the prefix`);
-  assert.ok(now.getTime() - object.lastModified.getTime() > BACKUP_POLICY.retentionDays * day, "a selected object must truly be expired");
+  assert.ok(
+    object.key.startsWith(BACKUP_POLICY.objectPrefix),
+    `the pruner must never select «${object.key}» — outside the prefix`
+  );
+  assert.ok(
+    now.getTime() - object.lastModified.getTime() > BACKUP_POLICY.retentionDays * day,
+    "a selected object must truly be expired"
+  );
 }
 
 // Object keys must sort chronologically, because the pruner and «--key latest»
@@ -201,7 +248,7 @@ const ordered = [fixture(3), fixture(1), fixture(2)].map((o) => o.key);
 assert.deepEqual(
   [...ordered].sort(),
   [fixture(3).key, fixture(2).key, fixture(1).key],
-  "object keys must sort lexicographically into chronological order",
+  "object keys must sort lexicographically into chronological order"
 );
 
 // ===========================================================================
@@ -217,15 +264,22 @@ const claims = [
   [`\`${cron}\``, "the cron expression the Railway service must carry"],
   [`${BACKUP_POLICY.retentionDays} يوماً`, "the retention window"],
   [`${BACKUP_POLICY.minimumKeptCopies} نسخة`, "the pruner's floor"],
-  [`PostgreSQL ${BACKUP_POLICY.productionServerMajor}`, "the production server major, which pg_dump must match or exceed"],
+  [
+    `PostgreSQL ${BACKUP_POLICY.productionServerMajor}`,
+    "the production server major, which pg_dump must match or exceed",
+  ],
 ];
 
 const drifted = claims.filter(([text]) => !doc.includes(text));
 if (drifted.length) {
-  console.error("backup:guard FAILED — docs/DISASTER_RECOVERY.md no longer states what the code does:\n");
+  console.error(
+    "backup:guard FAILED — docs/DISASTER_RECOVERY.md no longer states what the code does:\n"
+  );
   for (const [text, what] of drifted) {
     console.error(`  ✗ ${what}: the document must contain «${text}»`);
-    console.error(`    Either write it, or change phase1-backend/src/backup/backup-policy.ts so the promise matches.\n`);
+    console.error(
+      `    Either write it, or change phase1-backend/src/backup/backup-policy.ts so the promise matches.\n`
+    );
   }
   process.exit(1);
 }
@@ -236,16 +290,22 @@ const workflow = readFileSync(path.join(root, ".github", "workflows", "ci.yml"),
 assert.ok(
   !/backup:run/.test(workflow),
   "ci.yml must never run `backup:run` — docs/DEPLOYMENT.md forbids Neon and production credentials in CI («ممنوع Neon والإنتاج»). " +
-    "The dump runs from Railway, where the credential already lives.",
+    "The dump runs from Railway, where the credential already lives."
 );
 
 // The connection string must reach pg_dump through libpq's environment, never
 // through argv where the process table exposes it.
-const runner = readFileSync(path.join(root, "phase1-backend", "scripts", "backup-database.ts"), "utf8");
-assert.ok(runner.includes("PGPASSWORD"), "backup-database.ts must pass credentials through the environment");
+const runner = readFileSync(
+  path.join(root, "phase1-backend", "scripts", "backup-database.ts"),
+  "utf8"
+);
+assert.ok(
+  runner.includes("PGPASSWORD"),
+  "backup-database.ts must pass credentials through the environment"
+);
 assert.ok(
   !/spawn\(\s*"pg_dump"\s*,\s*\[[^\]]*--dbname/.test(runner),
-  "backup-database.ts must not put the connection string in pg_dump's argv — the process table is readable",
+  "backup-database.ts must not put the connection string in pg_dump's argv — the process table is readable"
 );
 
 // ===========================================================================
@@ -272,25 +332,47 @@ const DEDICATED_FAMILY = {
 };
 
 const sharedStorage = resolveBackupStorage({ ...PRODUCT_FAMILY });
-assert.equal(sharedStorage.bucket, "codiq-images", "with no dedicated variables the dumps still work — into the image bucket");
-assert.equal(sharedStorage.failureDomain, "shared-with-product-images", "…and the run SAYS so: the cost is reported on every successful backup, not buried in a document");
+assert.equal(
+  sharedStorage.bucket,
+  "codiq-images",
+  "with no dedicated variables the dumps still work — into the image bucket"
+);
+assert.equal(
+  sharedStorage.failureDomain,
+  "shared-with-product-images",
+  "…and the run SAYS so: the cost is reported on every successful backup, not buried in a document"
+);
 
 const dedicatedStorage = resolveBackupStorage({ ...PRODUCT_FAMILY, ...DEDICATED_FAMILY });
-assert.equal(dedicatedStorage.bucket, "codiq-dumps", "the dedicated family wins outright when it is complete");
-assert.equal(dedicatedStorage.accessKeyId, "dump-id", "…including the KEYS — a separate bucket on the same credentials is the same failure domain wearing a different name");
+assert.equal(
+  dedicatedStorage.bucket,
+  "codiq-dumps",
+  "the dedicated family wins outright when it is complete"
+);
+assert.equal(
+  dedicatedStorage.accessKeyId,
+  "dump-id",
+  "…including the KEYS — a separate bucket on the same credentials is the same failure domain wearing a different name"
+);
 assert.equal(dedicatedStorage.failureDomain, "dedicated");
 
 // The case that matters. Each variable on its own, with the other three absent.
 for (const [name, value] of Object.entries(DEDICATED_FAMILY)) {
   const message = await rejects(`a dedicated destination with only ${name} set`, async () =>
-    resolveBackupStorage({ ...PRODUCT_FAMILY, [name]: value }),
+    resolveBackupStorage({ ...PRODUCT_FAMILY, [name]: value })
   );
   assert.match(message, /half-configured/i, `«${name}» alone must refuse, not fall back`);
-  assert.match(message, /Refusing to fall back/i, "…and say WHY, because the operator's next move depends on it");
+  assert.match(
+    message,
+    /Refusing to fall back/i,
+    "…and say WHY, because the operator's next move depends on it"
+  );
 }
 // Even a lone optional variable counts as an attempt: a typo'd region with no
 // keys must not resolve quietly to the image bucket.
-await rejects("a lone CODIQ_BACKUP_S3_REGION", async () => resolveBackupStorage({ ...PRODUCT_FAMILY, CODIQ_BACKUP_S3_REGION: "auto" }));
+await rejects("a lone CODIQ_BACKUP_S3_REGION", async () =>
+  resolveBackupStorage({ ...PRODUCT_FAMILY, CODIQ_BACKUP_S3_REGION: "auto" })
+);
 
 console.log(
   JSON.stringify(
@@ -299,10 +381,22 @@ console.log(
         failureDomain: {
           dedicated: "CODIQ_BACKUP_S3_* — own bucket, own keys",
           fallback: "PRODUCT_S3_* — supported, defaulted to, and named in every run's JSON line",
-          refuses: "any partial CODIQ_BACKUP_S3_* configuration, including a lone optional variable",
+          refuses:
+            "any partial CODIQ_BACKUP_S3_* configuration, including a lone optional variable",
         },
-        envelope: { algorithm: "aes-256-gcm", chunkBytes: BACKUP_POLICY.chunkBytes, rotationKeys: keyringAfterRotation.length },
-        rejected: ["boundary-truncation", "mid-frame-truncation", "bit-flip", "frame-reorder", "unknown-key", "not-an-envelope"],
+        envelope: {
+          algorithm: "aes-256-gcm",
+          chunkBytes: BACKUP_POLICY.chunkBytes,
+          rotationKeys: keyringAfterRotation.length,
+        },
+        rejected: [
+          "boundary-truncation",
+          "mid-frame-truncation",
+          "bit-flip",
+          "frame-reorder",
+          "unknown-key",
+          "not-an-envelope",
+        ],
         failClosed: ["unset-key", "development-fallback", "short-key"],
         pruner: {
           retentionDays: BACKUP_POLICY.retentionDays,
@@ -313,7 +407,7 @@ console.log(
       },
     },
     null,
-    2,
-  ),
+    2
+  )
 );
 console.log("backup:guard OK");

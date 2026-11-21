@@ -64,7 +64,10 @@ export async function scanRestocks(): Promise<RestockScanResult> {
         // worker then refused (cap 0 / disabled) burned the shopper's «نبّهني»
         // with no message ever arriving. Refusing here leaves his request
         // standing until the store can actually honour it.
-        store: { isActive: true, notificationSettings: { isEnabled: true, marketingDailyCap: { gt: 0 } } },
+        store: {
+          isActive: true,
+          notificationSettings: { isEnabled: true, marketingDailyCap: { gt: 0 } },
+        },
         // A customer registered by phone alone has nowhere to be written to
         // until the WhatsApp channel arrives in 25ب. Excluded HERE rather than
         // fetched and discarded: this candidate set only drains when a message
@@ -77,7 +80,11 @@ export async function scanRestocks(): Promise<RestockScanResult> {
       orderBy: { id: "asc" },
       take: SCAN_PAGE_SIZE,
       select: {
-        id: true, storeId: true, variantId: true, customerId: true, productId: true,
+        id: true,
+        storeId: true,
+        variantId: true,
+        customerId: true,
+        productId: true,
         customer: { select: { email: true, fullName: true } },
         product: { select: { name: true } },
         variant: { select: { name: true, isDefault: true, priceIqd: true } },
@@ -105,18 +112,24 @@ export async function scanRestocks(): Promise<RestockScanResult> {
               payload: {
                 storeName: item.store.name,
                 storeSlug: item.store.slug,
-                productName: item.variant.isDefault ? item.product.name : `${item.product.name} — ${item.variant.name}`,
+                productName: item.variant.isDefault
+                  ? item.product.name
+                  : `${item.product.name} — ${item.variant.name}`,
                 priceIqd: item.variant.priceIqd,
                 productUrl: `/store/${item.store.slug}/products/${item.productId}`,
               },
             },
           });
-          await tx.wishlistItem.update({ where: { id: item.id }, data: { notifyOnRestock: false } });
+          await tx.wishlistItem.update({
+            where: { id: item.id },
+            data: { notifyOnRestock: false },
+          });
         });
         result.enqueued += 1;
       } catch (error) {
         // The unique key catches a concurrent pass that got here first.
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") result.duplicates += 1;
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+          result.duplicates += 1;
         else throw error;
       }
     }

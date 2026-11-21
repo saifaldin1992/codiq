@@ -10,7 +10,12 @@
  */
 import type { Express as ExpressApp, Request } from "express";
 import { config } from "../../config.js";
-import { asyncRoute, requireTrustedWriteOrigin, resolveStorefrontStore, storefrontCookiePath } from "../shared.js";
+import {
+  asyncRoute,
+  requireTrustedWriteOrigin,
+  resolveStorefrontStore,
+  storefrontCookiePath,
+} from "../shared.js";
 import { parseOrThrow } from "../validate.js";
 import { visitSchema } from "../schemas/store-traffic.schema.js";
 import { baghdadDay, recordVisit } from "../../services/store-traffic.service.js";
@@ -39,9 +44,12 @@ function limitVisitBeacon(storeSlug: string, ip: string) {
   const key = `${storeSlug}:${ip}`;
   const count = (visitCounts.get(key) ?? 0) + 1;
   visitCounts.set(key, count);
-  if (count > VISIT_LIMIT) throw new HttpError(429, "RATE_LIMITED", "Too many requests. Please try again later.");
+  if (count > VISIT_LIMIT)
+    throw new HttpError(429, "RATE_LIMITED", "Too many requests. Please try again later.");
 }
-export function visitCookieName(storeSlug: string) { return `codiq_visit_${storeSlug}`; }
+export function visitCookieName(storeSlug: string) {
+  return `codiq_visit_${storeSlug}`;
+}
 
 function cookie(request: Request, name: string): string | undefined {
   const header = request.header("cookie");
@@ -55,17 +63,26 @@ function cookie(request: Request, name: string): string | undefined {
 }
 
 export function registerStoreTrafficRoutes(app: ExpressApp) {
-  app.post("/store/:storeSlug/visit", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const store = await resolveStorefrontStore(request.params.storeSlug);
-    limitVisitBeacon(store.slug, clientIp(request));
-    const body = parseOrThrow(visitSchema, request.body ?? {});
-    const day = baghdadDay();
-    const newVisitor = cookie(request, visitCookieName(store.slug)) !== day;
-    await recordVisit(store.id, { day, newVisitor, productId: body.productId ?? null });
-    if (newVisitor) {
-      response.cookie(visitCookieName(store.slug), day, { httpOnly: true, sameSite: "lax", secure: config.cookieSecure, path: storefrontCookiePath(store.slug), maxAge: 24 * 60 * 60 * 1000 });
-    }
-    response.status(204).end();
-  }));
+  app.post(
+    "/store/:storeSlug/visit",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const store = await resolveStorefrontStore(request.params.storeSlug);
+      limitVisitBeacon(store.slug, clientIp(request));
+      const body = parseOrThrow(visitSchema, request.body ?? {});
+      const day = baghdadDay();
+      const newVisitor = cookie(request, visitCookieName(store.slug)) !== day;
+      await recordVisit(store.id, { day, newVisitor, productId: body.productId ?? null });
+      if (newVisitor) {
+        response.cookie(visitCookieName(store.slug), day, {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: config.cookieSecure,
+          path: storefrontCookiePath(store.slug),
+          maxAge: 24 * 60 * 60 * 1000,
+        });
+      }
+      response.status(204).end();
+    })
+  );
 }

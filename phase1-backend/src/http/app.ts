@@ -63,7 +63,9 @@ export function createApp() {
     // both names share. Anchoring it would have silently stopped marking
     // authenticated answers `no-store` in production only — the one place it
     // matters.
-    const carriesIdentity = Boolean(request.header("authorization")) || /codiq_session|codiq_customer_|codiq_shopper_/.test(request.header("cookie") ?? "");
+    const carriesIdentity =
+      Boolean(request.header("authorization")) ||
+      /codiq_session|codiq_customer_|codiq_shopper_/.test(request.header("cookie") ?? "");
     // Set as the DEFAULT rather than forced at write time: a later
     // `setHeader("cache-control", …)` in a handler simply replaces it, so the
     // image routes keep their immutable year and nothing needs an exemption
@@ -86,45 +88,51 @@ export function createApp() {
    * signal and verdict-only diagnostics — never a name, a host or a value.
    */
   app.get("/health", (_request, response) => response.status(200).json({ status: "ok" }));
-  app.get("/ready", asyncRoute(async (_request, response) => {
-    await prisma.$queryRaw`SELECT 1`;
-    // PG-6 (ق-74): which engine answered, and the word-similarity threshold
-    // THIS connection actually sees. `ALTER DATABASE … SET` applies to NEW
-    // sessions only, so a pooled connection older than the migration keeps the
-    // 0.6 default and the search silently narrows. Reporting it here turns
-    // «the fuzzy match stopped working» into one line of evidence.
-    // The mail channel, for the same reason as the threshold above: it is
-    // configured by ENVIRONMENT VARIABLES, so «why did no email arrive?» is
-    // otherwise answered by reading a dashboard nobody can read from here.
-    // Reports only WHETHER a provider resolves — never the host, the user or
-    // anything that would put a credential in an unauthenticated response.
-    response.status(200).json({
-      status: "ok",
-      db: "ok",
-      // D-66: no `env` here either. It named the deployment to anyone who asked.
-      // `threshold()` guards itself, and this guards it again ON PURPOSE.
-      //
-      // On 2026-09-05 this exact expression answered 500 to every `/ready`
-      // request in production for twenty minutes: `current_setting` raised
-      // 42704 because pg_trgm's library had not been loaded on that connection,
-      // and the raw rejection walked straight out of the route. The engine no
-      // longer throws — but the RULE is what matters and it belongs here, where
-      // the response is assembled: an OPTIONAL DIAGNOSTIC MAY NEVER DECIDE
-      // WHETHER THIS ENDPOINT ANSWERS. The database check above is the readiness
-      // signal; everything after it is evidence for a human, and evidence that
-      // cannot be gathered is reported as such, not raised.
-      search: { engine: searchEngine.name, threshold: await searchEngine.threshold().catch(() => "unavailable") },
-      mail: { configured: isEmailProviderConfigured() },
-      // Same reasoning as `mail` above, generalised. `mail.configured` answered
-      // one variable group out of six; the other five failed at the point of
-      // use, hours later, on a merchant's action. `CODIQ_PUBLIC_BASE_URL` was
-      // the proof: unset in production, so password recovery answered
-      // «unavailable» to everyone from the day it shipped, with nothing in any
-      // log to find. Verdicts only — no names, no values (`readinessSummary`
-      // enforces that; this endpoint is unauthenticated).
-      config: readinessSummary(),
-    });
-  }));
+  app.get(
+    "/ready",
+    asyncRoute(async (_request, response) => {
+      await prisma.$queryRaw`SELECT 1`;
+      // PG-6 (ق-74): which engine answered, and the word-similarity threshold
+      // THIS connection actually sees. `ALTER DATABASE … SET` applies to NEW
+      // sessions only, so a pooled connection older than the migration keeps the
+      // 0.6 default and the search silently narrows. Reporting it here turns
+      // «the fuzzy match stopped working» into one line of evidence.
+      // The mail channel, for the same reason as the threshold above: it is
+      // configured by ENVIRONMENT VARIABLES, so «why did no email arrive?» is
+      // otherwise answered by reading a dashboard nobody can read from here.
+      // Reports only WHETHER a provider resolves — never the host, the user or
+      // anything that would put a credential in an unauthenticated response.
+      response.status(200).json({
+        status: "ok",
+        db: "ok",
+        // D-66: no `env` here either. It named the deployment to anyone who asked.
+        // `threshold()` guards itself, and this guards it again ON PURPOSE.
+        //
+        // On 2026-09-05 this exact expression answered 500 to every `/ready`
+        // request in production for twenty minutes: `current_setting` raised
+        // 42704 because pg_trgm's library had not been loaded on that connection,
+        // and the raw rejection walked straight out of the route. The engine no
+        // longer throws — but the RULE is what matters and it belongs here, where
+        // the response is assembled: an OPTIONAL DIAGNOSTIC MAY NEVER DECIDE
+        // WHETHER THIS ENDPOINT ANSWERS. The database check above is the readiness
+        // signal; everything after it is evidence for a human, and evidence that
+        // cannot be gathered is reported as such, not raised.
+        search: {
+          engine: searchEngine.name,
+          threshold: await searchEngine.threshold().catch(() => "unavailable"),
+        },
+        mail: { configured: isEmailProviderConfigured() },
+        // Same reasoning as `mail` above, generalised. `mail.configured` answered
+        // one variable group out of six; the other five failed at the point of
+        // use, hours later, on a merchant's action. `CODIQ_PUBLIC_BASE_URL` was
+        // the proof: unset in production, so password recovery answered
+        // «unavailable» to everyone from the day it shipped, with nothing in any
+        // log to find. Verdicts only — no names, no values (`readinessSummary`
+        // enforces that; this endpoint is unauthenticated).
+        config: readinessSummary(),
+      });
+    })
+  );
   // P27-7: in the demo environment the whole platform-owner surface returns a
   // plain 404 before any route, body parsing or session lookup runs. Registered
   // only when the flag is on, so every other environment keeps today's stack.
@@ -149,7 +157,14 @@ export function createApp() {
   // ق-182: the Resend webhook verifies a signature over the RAW bytes; a body
   // re-serialised from the parsed object is a different string and would fail
   // every genuine delivery. `verify` runs before parsing and keeps the bytes.
-  app.use(express.json({ limit: "1mb", verify: (request, _response, buffer) => { (request as typeof request & { rawBody?: Buffer }).rawBody = buffer; } }));
+  app.use(
+    express.json({
+      limit: "1mb",
+      verify: (request, _response, buffer) => {
+        (request as typeof request & { rawBody?: Buffer }).rawBody = buffer;
+      },
+    })
+  );
 
   // Express matches routes in registration order. The order — the 28 core
   // modules exactly as they were registered here before, then the extension

@@ -192,7 +192,7 @@ const SWEEPS: readonly Sweep[] = [
  * abandoned-cart scanner.
  */
 export async function sweepOperationalRetention(
-  options: { now?: Date; batchSize?: number } = {},
+  options: { now?: Date; batchSize?: number } = {}
 ): Promise<RetentionResult> {
   const now = options.now ?? new Date();
   const batchSize = options.batchSize ?? RETENTION_BATCH_SIZE;

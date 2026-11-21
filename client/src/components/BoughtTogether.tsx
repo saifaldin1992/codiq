@@ -13,7 +13,13 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { storefrontApi } from "@/lib/storefront-api";
 
-type Recommendation = { productId: string; name: string; priceIqd: number; ordersTogether: number; imageId: string | null };
+type Recommendation = {
+  productId: string;
+  name: string;
+  priceIqd: number;
+  ordersTogether: number;
+  imageId: string | null;
+};
 
 const money = new Intl.NumberFormat("ar-IQ");
 
@@ -22,19 +28,28 @@ export function BoughtTogether({ slug, productId }: { slug: string; productId: s
 
   useEffect(() => {
     let alive = true;
-    void storefrontApi.recommendations(slug, productId)
-      .then((data) => { if (alive) setItems(data.recommendations); })
+    void storefrontApi
+      .recommendations(slug, productId)
+      .then((data) => {
+        if (alive) setItems(data.recommendations);
+      })
       // A failed recommendation strip must never break a product page: the page
       // sells, this only suggests.
-      .catch(() => { if (alive) setItems([]); });
-    return () => { alive = false; };
+      .catch(() => {
+        if (alive) setItems([]);
+      });
+    return () => {
+      alive = false;
+    };
   }, [slug, productId]);
 
   if (!items || items.length === 0) return null;
 
   return (
     <section className="space-y-3" aria-labelledby="bought-together-heading">
-      <h2 id="bought-together-heading" className="text-lg font-black text-[var(--storefront-text)]">يُشترى معه عادة</h2>
+      <h2 id="bought-together-heading" className="text-lg font-black text-[var(--storefront-text)]">
+        يُشترى معه عادة
+      </h2>
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((item) => (
           <li key={item.productId}>
@@ -52,10 +67,16 @@ export function BoughtTogether({ slug, productId }: { slug: string; productId: s
                   />
                 ) : null}
               </div>
-              <p className="mt-2 line-clamp-2 text-sm font-bold text-[var(--storefront-text)]">{item.name}</p>
-              <p className="mt-0.5 text-sm font-black tabular-nums text-[var(--storefront-text)]">{money.format(item.priceIqd)} د.ع</p>
+              <p className="mt-2 line-clamp-2 text-sm font-bold text-[var(--storefront-text)]">
+                {item.name}
+              </p>
+              <p className="mt-0.5 text-sm font-black tabular-nums text-[var(--storefront-text)]">
+                {money.format(item.priceIqd)} د.ع
+              </p>
               {/* The evidence, not just the claim. */}
-              <p className="mt-0.5 text-[11px] text-[var(--storefront-muted)]">اشتراه معه {money.format(item.ordersTogether)} زبوناً</p>
+              <p className="mt-0.5 text-[11px] text-[var(--storefront-muted)]">
+                اشتراه معه {money.format(item.ordersTogether)} زبوناً
+              </p>
             </Link>
           </li>
         ))}

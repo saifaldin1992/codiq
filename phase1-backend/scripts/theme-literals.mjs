@@ -81,24 +81,33 @@ for (const file of walk(CLIENT_SRC)) {
   leftOpacity += (after.match(WITH_OPACITY) ?? []).length;
   if (count > 0) {
     collapsed += count;
-    perFile.push({ file: path.relative(CLIENT_SRC, file).split(path.sep).join("/"), collapsed: count });
+    perFile.push({
+      file: path.relative(CLIENT_SRC, file).split(path.sep).join("/"),
+      collapsed: count,
+    });
     if (apply) writeFileSync(file, after, "utf8");
   }
 }
 
 perFile.sort((a, b) => b.collapsed - a.collapsed);
-console.log(JSON.stringify({
-  suite: "theme-literals",
-  mode: apply ? "applied" : "dry-run",
-  summary: {
-    collapsed,
-    filesTouched: perFile.length,
-    leftAlone: {
-      ink: leftInk,
-      scrim: leftScrim,
-      withOpacity: leftOpacity,
+console.log(
+  JSON.stringify(
+    {
+      suite: "theme-literals",
+      mode: apply ? "applied" : "dry-run",
+      summary: {
+        collapsed,
+        filesTouched: perFile.length,
+        leftAlone: {
+          ink: leftInk,
+          scrim: leftScrim,
+          withOpacity: leftOpacity,
+        },
+      },
+      files: perFile.slice(0, 15),
     },
-  },
-  files: perFile.slice(0, 15),
-}, null, 2));
+    null,
+    2
+  )
+);
 if (!apply) console.log("\nnothing was written. re-run with --apply.");

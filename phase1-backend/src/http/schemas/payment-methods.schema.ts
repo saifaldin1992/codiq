@@ -10,4 +10,6 @@ export const updatePaymentMethodSchema = z
     holderName: text(120),
     instructions: text(500),
   })
-  .refine((value) => Object.values(value).some((entry) => entry !== undefined), { message: "لا يوجد تغيير لتطبيقه." });
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+    message: "لا يوجد تغيير لتطبيقه.",
+  });

@@ -34,8 +34,12 @@ import { logger } from "../logging/logger.js";
  * when the store has a support address — and to nobody otherwise, which is the
  * deliberate «no path is better than the wrong path» of ق-184.
  */
-async function replyToFor(row: { recipientKind: string; storeId: string | null }): Promise<string | undefined> {
-  if (row.recipientKind === "customer") return row.storeId ? storeSupportReplyTo(row.storeId) : undefined;
+async function replyToFor(row: {
+  recipientKind: string;
+  storeId: string | null;
+}): Promise<string | undefined> {
+  if (row.recipientKind === "customer")
+    return row.storeId ? storeSupportReplyTo(row.storeId) : undefined;
   return supportReplyTo(row.recipientKind);
 }
 
@@ -78,38 +82,54 @@ function linkLine(prefix: string, relativePath: unknown): string {
   return absolute ? `\n${prefix} ${absolute}` : "";
 }
 
-export function renderMessage(row: { eventType: string; recipientKind: string; payload: unknown }): RenderedMessage {
+export function renderMessage(row: {
+  eventType: string;
+  recipientKind: string;
+  payload: unknown;
+}): RenderedMessage {
   const payload = (row.payload ?? {}) as Record<string, unknown>;
   const storeName = String(payload.storeName ?? "متجرك");
   if (row.eventType === "order.created") {
     const orderNumber = String(payload.orderNumber ?? "");
     if (row.recipientKind === "merchant") {
-      return { subject: `طلب جديد ${orderNumber}`, body: `وصل طلب جديد إلى ${storeName}.\nرقم الطلب: ${orderNumber}\nالزبون: ${String(payload.customerName ?? "")}\nالإجمالي: ${String(payload.totalIqd ?? "")} د.ع` };
+      return {
+        subject: `طلب جديد ${orderNumber}`,
+        body: `وصل طلب جديد إلى ${storeName}.\nرقم الطلب: ${orderNumber}\nالزبون: ${String(payload.customerName ?? "")}\nالإجمالي: ${String(payload.totalIqd ?? "")} د.ع`,
+      };
     }
-    return { subject: `تأكيد طلبك ${orderNumber}`, body: `استلمنا طلبك من ${storeName}.\nرقم الطلب: ${orderNumber}\nالإجمالي: ${String(payload.totalIqd ?? "")} د.ع\nسنعلمك عند تغير حالة الطلب.` };
+    return {
+      subject: `تأكيد طلبك ${orderNumber}`,
+      body: `استلمنا طلبك من ${storeName}.\nرقم الطلب: ${orderNumber}\nالإجمالي: ${String(payload.totalIqd ?? "")} د.ع\nسنعلمك عند تغير حالة الطلب.`,
+    };
   }
   if (row.eventType === "order.status_changed") {
     const orderNumber = String(payload.orderNumber ?? "");
-    return { subject: `تحديث حالة الطلب ${orderNumber}`, body: `تغيرت حالة الطلب ${orderNumber} في ${storeName} من ${String(payload.fromStatus ?? "")} إلى ${String(payload.toStatus ?? "")}.` };
+    return {
+      subject: `تحديث حالة الطلب ${orderNumber}`,
+      body: `تغيرت حالة الطلب ${orderNumber} في ${storeName} من ${String(payload.fromStatus ?? "")} إلى ${String(payload.toStatus ?? "")}.`,
+    };
   }
   // CD-1b: «مندوبك في الطريق» — the courier-dispatched notice, customers only.
   if (row.eventType === "order.courier_dispatched") {
     const orderNumber = String(payload.orderNumber ?? "");
     return {
       subject: `مندوبك في الطريق — الطلب ${orderNumber}`,
-      body: `خرج طلبك ${orderNumber} من ${storeName} مع مندوب التوصيل، وهو الآن في طريقه إليك.`
-        + linkLine("تابع حالة طلبك في أي وقت من هنا:", payload.trackingUrl)
-        + `\nيرجى تجهيز مبلغ الدفع عند الاستلام.`,
+      body:
+        `خرج طلبك ${orderNumber} من ${storeName} مع مندوب التوصيل، وهو الآن في طريقه إليك.` +
+        linkLine("تابع حالة طلبك في أي وقت من هنا:", payload.trackingUrl) +
+        `\nيرجى تجهيز مبلغ الدفع عند الاستلام.`,
     };
   }
   // Phase 20B-2: abandoned-cart recovery message (customers with email only).
   if (row.eventType === "cart.abandoned") {
-    const couponCode = typeof payload.couponCode === "string" && payload.couponCode ? payload.couponCode : null;
+    const couponCode =
+      typeof payload.couponCode === "string" && payload.couponCode ? payload.couponCode : null;
     return {
       subject: `سلتك في ${storeName} بانتظارك`,
-      body: `تركت ${String(payload.itemCount ?? "")} من المنتجات في سلتك لدى ${storeName} بقيمة ${String(payload.totalIqd ?? "")} د.ع.`
-        + linkLine("أكمل طلبك من هنا:", payload.cartUrl)
-        + (couponCode ? `\nاستخدم الكوبون ${couponCode} عند إتمام الطلب للحصول على خصمك.` : ""),
+      body:
+        `تركت ${String(payload.itemCount ?? "")} من المنتجات في سلتك لدى ${storeName} بقيمة ${String(payload.totalIqd ?? "")} د.ع.` +
+        linkLine("أكمل طلبك من هنا:", payload.cartUrl) +
+        (couponCode ? `\nاستخدم الكوبون ${couponCode} عند إتمام الطلب للحصول على خصمك.` : ""),
     };
   }
   // PR-1: «استعادة كلمة السر». Above the fallback for the same reason every
@@ -129,14 +149,15 @@ export function renderMessage(row: { eventType: string; recipientKind: string; p
     const link = openSecret("password-reset-link", String(payload.resetUrlSealed ?? ""));
     return {
       subject: "استعادة كلمة السر في Codiq",
-      body: `وصلنا طلب لإعادة تعيين كلمة السر لحسابك.`
-        + `\n\nافتح الرابط التالي واختر كلمة سر جديدة:\n${link}`
-        + `\n\nالرابط صالح لمدة ${minutes} دقيقة، ولمرة واحدة فقط.`
-        + `\nعند استخدامه ستُنهى كل الجلسات المفتوحة على حسابك، ويلزمك تسجيل الدخول من جديد.`
+      body:
+        `وصلنا طلب لإعادة تعيين كلمة السر لحسابك.` +
+        `\n\nافتح الرابط التالي واختر كلمة سر جديدة:\n${link}` +
+        `\n\nالرابط صالح لمدة ${minutes} دقيقة، ولمرة واحدة فقط.` +
+        `\nعند استخدامه ستُنهى كل الجلسات المفتوحة على حسابك، ويلزمك تسجيل الدخول من جديد.` +
         // Said plainly, because the person who did NOT ask is the one who most
         // needs to know what to do: nothing. No account changes until the link
         // is opened, so ignoring the message is a complete answer.
-        + `\n\nإن لم تطلب هذا، فلا حاجة لأي إجراء — لم يتغير شيء في حسابك، والرابط ينتهي وحده.`,
+        `\n\nإن لم تطلب هذا، فلا حاجة لأي إجراء — لم يتغير شيء في حسابك، والرابط ينتهي وحده.`,
     };
   }
   // ق-250: a maintenance window that touches this merchant — when it is scheduled,
@@ -150,9 +171,10 @@ export function renderMessage(row: { eventType: string; recipientKind: string; p
     if (row.eventType === "maintenance.scheduled") {
       return {
         subject: `صيانة مجدولة — ${subject}`,
-        body: `ستتوقّف «${subject}» للصيانة من ${from} إلى ${to} (بتوقيت بغداد).`
-          + (message ? `\n\n${message}` : ``)
-          + `\n\nمتجرك وطلباتك وزبائنك لا يُمسّون؛ ما يتوقّف هو ما سُمّي أعلاه، وللمدّة المذكورة فقط. تصلك رسالة حين ينتهي.`,
+        body:
+          `ستتوقّف «${subject}» للصيانة من ${from} إلى ${to} (بتوقيت بغداد).` +
+          (message ? `\n\n${message}` : ``) +
+          `\n\nمتجرك وطلباتك وزبائنك لا يُمسّون؛ ما يتوقّف هو ما سُمّي أعلاه، وللمدّة المذكورة فقط. تصلك رسالة حين ينتهي.`,
       };
     }
     return {
@@ -181,10 +203,13 @@ export function renderMessage(row: { eventType: string; recipientKind: string; p
     const replyTo = supportReplyToFromEnv();
     return {
       subject: `تجربتك المجانية في Codiq تنتهي ${remaining}`,
-      body: `تنتهي تجربتك المجانية ${remaining}${date ? ` (${date})` : ""}.`
-        + `\n\nبعدها ينتقل حسابك تلقائياً إلى الخطة المجانية. متجرك يبقى مفتوحاً، وطلباتك وزبائنك ومنتجاتك كما هي — لا يُحذف شيء ولا يتوقف بيع.`
-        + `\nالذي يتغير هو حدود الخطة فقط.`
-        + (replyTo ? `\n\nإن أردت البقاء على خطتك الحالية، راسلنا بالرد على هذه الرسالة قبل انتهاء المدة.` : ``),
+      body:
+        `تنتهي تجربتك المجانية ${remaining}${date ? ` (${date})` : ""}.` +
+        `\n\nبعدها ينتقل حسابك تلقائياً إلى الخطة المجانية. متجرك يبقى مفتوحاً، وطلباتك وزبائنك ومنتجاتك كما هي — لا يُحذف شيء ولا يتوقف بيع.` +
+        `\nالذي يتغير هو حدود الخطة فقط.` +
+        (replyTo
+          ? `\n\nإن أردت البقاء على خطتك الحالية، راسلنا بالرد على هذه الرسالة قبل انتهاء المدة.`
+          : ``),
     };
   }
   // MD-3: the merchant's own daily summary. This sits ABOVE the fallback below,
@@ -194,11 +219,12 @@ export function renderMessage(row: { eventType: string; recipientKind: string; p
     const waiting = Number(payload.ordersWaiting ?? 0);
     return {
       subject: `ملخص يومك في ${storeName} — ${String(payload.date ?? "")}`,
-      body: `طلبات اليوم: ${String(payload.ordersToday ?? 0)}`
-        + `\nمبيعات اليوم: ${String(payload.revenueTodayIqd ?? 0)} د.ع`
+      body:
+        `طلبات اليوم: ${String(payload.ordersToday ?? 0)}` +
+        `\nمبيعات اليوم: ${String(payload.revenueTodayIqd ?? 0)} د.ع` +
         // Said only when there is something to act on. A line reading «0 بانتظارك»
         // every evening is how a merchant learns to skim past the evening it says 12.
-        + (waiting > 0 ? `\n\n${waiting} طلباً ينتظر تجهيزك.` : ""),
+        (waiting > 0 ? `\n\n${waiting} طلباً ينتظر تجهيزك.` : ""),
     };
   }
   // CD-2: back in stock. Above the fallback below for the same reason every
@@ -208,21 +234,23 @@ export function renderMessage(row: { eventType: string; recipientKind: string; p
     const productName = String(payload.productName ?? "");
     return {
       subject: `${productName} عاد للتوفر في ${storeName}`,
-      body: `طلبت أن نُنبّهك عندما يعود «${productName}» — وقد عاد الآن إلى ${storeName}.`
-        + `\nالسعر: ${String(payload.priceIqd ?? "")} د.ع`
-        + linkLine("اطلبه من هنا:", payload.productUrl)
+      body:
+        `طلبت أن نُنبّهك عندما يعود «${productName}» — وقد عاد الآن إلى ${storeName}.` +
+        `\nالسعر: ${String(payload.priceIqd ?? "")} د.ع` +
+        linkLine("اطلبه من هنا:", payload.productUrl) +
         // Said plainly: this is a one-time answer to one request, not a
         // subscription he now has to escape from.
-        + `\n\nهذا تنبيه لمرة واحدة عن طلبك. إن أردت تنبيهاً آخر لاحقاً، أعد طلبه من قائمة رغباتك.`,
+        `\n\nهذا تنبيه لمرة واحدة عن طلبك. إن أردت تنبيهاً آخر لاحقاً، أعد طلبه من قائمة رغباتك.`,
     };
   }
   return {
     subject: `تنبيه مخزون منخفض — ${String(payload.productName ?? "")}`,
-    body: `انخفض مخزون المنتج ${String(payload.productName ?? "")} (SKU: ${String(payload.sku ?? "")}) في ${storeName} إلى ${String(payload.stockQuantity ?? "")} قطعة.`
+    body:
+      `انخفض مخزون المنتج ${String(payload.productName ?? "")} (SKU: ${String(payload.sku ?? "")}) في ${storeName} إلى ${String(payload.stockQuantity ?? "")} قطعة.` +
       // MD-3: the forecast is attached by the worker at SEND time, not at enqueue
       // time — he may have restocked since — and is absent entirely when the
       // product has not sold enough for a rate to mean anything.
-      + (typeof payload.daysRemaining === "number"
+      (typeof payload.daysRemaining === "number"
         ? `\nبمعدل بيعك في آخر ${String(payload.forecastWindowDays ?? 14)} يوماً، يكفي هذا المخزون ~${String(payload.daysRemaining)} يوماً.`
         : ""),
   };
@@ -244,7 +272,9 @@ export function renderMessage(row: { eventType: string; recipientKind: string; p
 // Generic on the row type, not narrowed to the three fields this function reads:
 // a concrete parameter type would hand `renderMessage` back a row stripped of
 // `recipientKind`, which it needs to tell a merchant's copy from a customer's.
-async function withStockForecast<T extends { eventType: string; storeId: string | null; payload: unknown }>(row: T): Promise<T> {
+async function withStockForecast<
+  T extends { eventType: string; storeId: string | null; payload: unknown },
+>(row: T): Promise<T> {
   // PR-1: `storeId` is nullable now. A low-stock alert always has one — the
   // CHECK constraint sees to that — so this is a type narrowing rather than a
   // new case, and a forecast is a courtesy that adds nothing when it cannot run.
@@ -255,7 +285,14 @@ async function withStockForecast<T extends { eventType: string; storeId: string 
   try {
     const forecast = await stockForecastFor(row.storeId, variantId);
     if (!forecast) return row;
-    return { ...row, payload: { ...payload, daysRemaining: forecast.daysRemaining, forecastWindowDays: forecast.windowDays } };
+    return {
+      ...row,
+      payload: {
+        ...payload,
+        daysRemaining: forecast.daysRemaining,
+        forecastWindowDays: forecast.windowDays,
+      },
+    };
   } catch {
     return row;
   }
@@ -267,17 +304,33 @@ export function retryDelaySeconds(attemptCount: number): number {
 
 export async function processOutboxBatch(
   provider: NotificationProvider | null,
-  options: { batchSize?: number; now?: Date } = {},
+  options: { batchSize?: number; now?: Date } = {}
 ): Promise<OutboxBatchResult> {
   const now = options.now ?? new Date();
   const batchSize = options.batchSize ?? 20;
-  const result: OutboxBatchResult = { claimed: 0, sent: 0, retried: 0, deadLettered: 0, skipped: 0, deferred: 0 };
+  const result: OutboxBatchResult = {
+    claimed: 0,
+    sent: 0,
+    retried: 0,
+    deadLettered: 0,
+    skipped: 0,
+    deferred: 0,
+  };
 
   // A deploy or crash strands claimed rows in "processing" forever; anything held
   // past the stale window is returned to the queue before this batch claims.
   await prisma.notificationOutbox.updateMany({
-    where: { status: "processing", claimedAt: { lt: new Date(now.valueOf() - STALE_CLAIM_RECOVERY_MS) } },
-    data: { status: "retry_scheduled", nextAttemptAt: now, claimToken: null, claimedAt: null, lastOutcome: "stale_claim_recovered" },
+    where: {
+      status: "processing",
+      claimedAt: { lt: new Date(now.valueOf() - STALE_CLAIM_RECOVERY_MS) },
+    },
+    data: {
+      status: "retry_scheduled",
+      nextAttemptAt: now,
+      claimToken: null,
+      claimedAt: null,
+      lastOutcome: "stale_claim_recovered",
+    },
   });
 
   // PG-3: operational mail outranks marketing, always and across every store.
@@ -302,20 +355,42 @@ export async function processOutboxBatch(
   // The claim re-checks status, so rows grabbed by a competing worker are skipped here.
   const claimToken = crypto.randomUUID();
   await prisma.notificationOutbox.updateMany({
-    where: { id: { in: due.map((row) => row.id) }, status: { in: [...CLAIMABLE_STATUSES] }, nextAttemptAt: { lte: now } },
+    where: {
+      id: { in: due.map((row) => row.id) },
+      status: { in: [...CLAIMABLE_STATUSES] },
+      nextAttemptAt: { lte: now },
+    },
     data: { status: "processing", claimToken, claimedAt: now },
   });
-  const claimed = await prisma.notificationOutbox.findMany({ where: { claimToken, status: "processing" } });
+  const claimed = await prisma.notificationOutbox.findMany({
+    where: { claimToken, status: "processing" },
+  });
   result.claimed = claimed.length;
 
   for (const row of claimed) {
     if (!provider) {
-      await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "skipped", lastOutcome: "no_provider_configured", claimToken: null, claimedAt: null } });
+      await prisma.notificationOutbox.update({
+        where: { id: row.id },
+        data: {
+          status: "skipped",
+          lastOutcome: "no_provider_configured",
+          claimToken: null,
+          claimedAt: null,
+        },
+      });
       result.skipped += 1;
       continue;
     }
     if (!row.recipient) {
-      await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "skipped", lastOutcome: "no_recipient_address", claimToken: null, claimedAt: null } });
+      await prisma.notificationOutbox.update({
+        where: { id: row.id },
+        data: {
+          status: "skipped",
+          lastOutcome: "no_recipient_address",
+          claimToken: null,
+          claimedAt: null,
+        },
+      });
       result.skipped += 1;
       continue;
     }
@@ -365,19 +440,29 @@ export async function processOutboxBatch(
       // call, and the most expensive message on this platform to lose) was
       // deferred to tomorrow. The STORE ceiling still bounds him, which is the
       // dimension that actually protects the sending domain.
-      const [caps, sentToday] = await Promise.all([operationalCaps(row.storeId), operationalSentToday(row.storeId, row.recipient, now)]);
-      const exceeded = row.recipientKind !== "merchant" && sentToday.recipient >= caps.recipient
-        ? `recipient_daily_cap_deferred:${caps.recipient}`
-        : sentToday.store >= caps.store
-          ? `store_daily_cap_deferred:${caps.store}`
-          : null;
+      const [caps, sentToday] = await Promise.all([
+        operationalCaps(row.storeId),
+        operationalSentToday(row.storeId, row.recipient, now),
+      ]);
+      const exceeded =
+        row.recipientKind !== "merchant" && sentToday.recipient >= caps.recipient
+          ? `recipient_daily_cap_deferred:${caps.recipient}`
+          : sentToday.store >= caps.store
+            ? `store_daily_cap_deferred:${caps.store}`
+            : null;
       if (exceeded) {
         await prisma.notificationOutbox.update({
           where: { id: row.id },
           // Spread like the marketing deferral, for the same reason: landing
           // every held message on the same instant rebuilds tomorrow the pile-up
           // the cap exists to prevent.
-          data: { status: "retry_scheduled", nextAttemptAt: deferredUntil(now, row.id), lastOutcome: exceeded, claimToken: null, claimedAt: null },
+          data: {
+            status: "retry_scheduled",
+            nextAttemptAt: deferredUntil(now, row.id),
+            lastOutcome: exceeded,
+            claimToken: null,
+            claimedAt: null,
+          },
         });
         result.deferred += 1;
         continue;
@@ -392,14 +477,30 @@ export async function processOutboxBatch(
     // the failure would otherwise be silent and pointed at the platform's
     // sending reputation.
     if (kind === "marketing" && !row.storeId) {
-      await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "dead_letter", lastOutcome: "marketing_without_store", claimToken: null, claimedAt: null } });
+      await prisma.notificationOutbox.update({
+        where: { id: row.id },
+        data: {
+          status: "dead_letter",
+          lastOutcome: "marketing_without_store",
+          claimToken: null,
+          claimedAt: null,
+        },
+      });
       result.deadLettered += 1;
       continue;
     }
     if (kind === "marketing" && row.storeId) {
       if (await isUnsubscribed(row.storeId, row.recipient)) {
         // Terminal, not a retry: consent does not come back on its own.
-        await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "skipped", lastOutcome: "recipient_unsubscribed", claimToken: null, claimedAt: null } });
+        await prisma.notificationOutbox.update({
+          where: { id: row.id },
+          data: {
+            status: "skipped",
+            lastOutcome: "recipient_unsubscribed",
+            claimToken: null,
+            claimedAt: null,
+          },
+        });
         result.skipped += 1;
         continue;
       }
@@ -407,20 +508,41 @@ export async function processOutboxBatch(
       // ق-207: the per-recipient ceiling, checked BEFORE the store cap so a
       // flood aimed at one address is refused whatever store it rides on.
       // Terminal, with the reason on the row — see MARKETING_RECIPIENT_DAILY_CAP.
-      if ((await marketingSentTodayToRecipient(row.recipient, now)) >= MARKETING_RECIPIENT_DAILY_CAP) {
-        await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "skipped", lastOutcome: `recipient_daily_cap:${MARKETING_RECIPIENT_DAILY_CAP}`, claimToken: null, claimedAt: null } });
+      if (
+        (await marketingSentTodayToRecipient(row.recipient, now)) >= MARKETING_RECIPIENT_DAILY_CAP
+      ) {
+        await prisma.notificationOutbox.update({
+          where: { id: row.id },
+          data: {
+            status: "skipped",
+            lastOutcome: `recipient_daily_cap:${MARKETING_RECIPIENT_DAILY_CAP}`,
+            claimToken: null,
+            claimedAt: null,
+          },
+        });
         result.skipped += 1;
         continue;
       }
 
-      const [cap, sentToday] = await Promise.all([marketingDailyCap(row.storeId), marketingSentToday(row.storeId, now)]);
+      const [cap, sentToday] = await Promise.all([
+        marketingDailyCap(row.storeId),
+        marketingSentToday(row.storeId, now),
+      ]);
       if (cap === 0) {
         // A cap of zero means the store does not send marketing at all, so this
         // is terminal, not a deferral. Deferring it would schedule the row for
         // tomorrow, and tomorrow, forever — a queue that grows and never drains
         // is the opposite of «disabled». The scanner already refuses to enqueue
         // for such a store; this is the second line for rows created elsewhere.
-        await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "skipped", lastOutcome: "marketing_disabled_for_store", claimToken: null, claimedAt: null } });
+        await prisma.notificationOutbox.update({
+          where: { id: row.id },
+          data: {
+            status: "skipped",
+            lastOutcome: "marketing_disabled_for_store",
+            claimToken: null,
+            claimedAt: null,
+          },
+        });
         result.skipped += 1;
         continue;
       }
@@ -433,7 +555,13 @@ export async function processOutboxBatch(
           where: { id: row.id },
           // Spread, not stacked: scheduling every deferral on the same instant
           // rebuilds tomorrow the exact pile-up the cap exists to prevent.
-          data: { status: "retry_scheduled", nextAttemptAt: deferredUntil(now, row.id), lastOutcome: `daily_cap_deferred:${cap}`, claimToken: null, claimedAt: null },
+          data: {
+            status: "retry_scheduled",
+            nextAttemptAt: deferredUntil(now, row.id),
+            lastOutcome: `daily_cap_deferred:${cap}`,
+            claimToken: null,
+            claimedAt: null,
+          },
         });
         result.deferred += 1;
         continue;
@@ -446,17 +574,34 @@ export async function processOutboxBatch(
         // rather than going out incomplete. Terminal, because retrying cannot
         // fix a missing configuration and each retry would be another attempt
         // to send a non-compliant message.
-        await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "dead_letter", lastOutcome: "missing_unsubscribe_link", claimToken: null, claimedAt: null } });
+        await prisma.notificationOutbox.update({
+          where: { id: row.id },
+          data: {
+            status: "dead_letter",
+            lastOutcome: "missing_unsubscribe_link",
+            claimToken: null,
+            claimedAt: null,
+          },
+        });
         result.deadLettered += 1;
         continue;
       }
-      message.body += `\n\n———\nلا ترغب بهذه التذكيرات؟ ألغِ اشتراكك بضغطة: ${optOut}`
-        + `\nهذا يوقف الرسائل التسويقية من هذا المتجر فقط — وتبقى إشعارات طلباتك تصلك.`;
+      message.body +=
+        `\n\n———\nلا ترغب بهذه التذكيرات؟ ألغِ اشتراكك بضغطة: ${optOut}` +
+        `\nهذا يوقف الرسائل التسويقية من هذا المتجر فقط — وتبقى إشعارات طلباتك تصلك.`;
       // Belt and braces: the line above is the only writer, but the invariant
       // that matters is «no marketing message leaves without a link», and an
       // invariant is worth asserting where it is relied upon.
       if (!message.body.includes(optOut)) {
-        await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "dead_letter", lastOutcome: "missing_unsubscribe_link", claimToken: null, claimedAt: null } });
+        await prisma.notificationOutbox.update({
+          where: { id: row.id },
+          data: {
+            status: "dead_letter",
+            lastOutcome: "missing_unsubscribe_link",
+            claimToken: null,
+            claimedAt: null,
+          },
+        });
         result.deadLettered += 1;
         continue;
       }
@@ -464,18 +609,27 @@ export async function processOutboxBatch(
 
     let outcome: ProviderResult;
     try {
-      outcome = row.channel === "sms"
-        ? await provider.sendSms({ to: row.recipient, body: message.body })
-        // ق-184: the reply path is per-audience, decided by `supportReplyTo` —
-        // the platform's own mail (merchant, account) carries the platform's
-        // address. ق-199 supplies the other half: a SHOPPER's mail carries the
-        // STORE's support address, when the merchant has written one, so a
-        // reply to an order confirmation reaches the shop and not the platform.
-        // This is the ONE place a message becomes an email, so it is the one
-        // place the decision can be made once.
-        : await provider.sendEmail({ to: row.recipient, subject: message.subject, body: message.body, replyTo: await replyToFor(row) });
+      outcome =
+        row.channel === "sms"
+          ? await provider.sendSms({ to: row.recipient, body: message.body })
+          : // ق-184: the reply path is per-audience, decided by `supportReplyTo` —
+            // the platform's own mail (merchant, account) carries the platform's
+            // address. ق-199 supplies the other half: a SHOPPER's mail carries the
+            // STORE's support address, when the merchant has written one, so a
+            // reply to an order confirmation reaches the shop and not the platform.
+            // This is the ONE place a message becomes an email, so it is the one
+            // place the decision can be made once.
+            await provider.sendEmail({
+              to: row.recipient,
+              subject: message.subject,
+              body: message.body,
+              replyTo: await replyToFor(row),
+            });
     } catch (error) {
-      outcome = { ok: false, outcome: error instanceof Error ? `provider_threw:${error.name}` : "provider_threw" };
+      outcome = {
+        ok: false,
+        outcome: error instanceof Error ? `provider_threw:${error.name}` : "provider_threw",
+      };
     }
 
     if (outcome.ok) {
@@ -485,18 +639,47 @@ export async function processOutboxBatch(
       // and the cap stops being a cap. It also makes the cap testable without
       // the suite having to rewrite sentAt by hand afterwards, which is what it
       // was doing: the assertion passed because of the fixture, not the code.
-      await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "sent", sentAt: now, lastOutcome: outcome.outcome, attemptCount: { increment: 1 }, claimToken: null, claimedAt: null } });
+      await prisma.notificationOutbox.update({
+        where: { id: row.id },
+        data: {
+          status: "sent",
+          sentAt: now,
+          lastOutcome: outcome.outcome,
+          attemptCount: { increment: 1 },
+          claimToken: null,
+          claimedAt: null,
+        },
+      });
       result.sent += 1;
       continue;
     }
 
     const attemptCount = row.attemptCount + 1;
     if (attemptCount >= OUTBOX_MAX_ATTEMPTS) {
-      await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "dead_letter", attemptCount, lastOutcome: outcome.outcome, claimToken: null, claimedAt: null } });
+      await prisma.notificationOutbox.update({
+        where: { id: row.id },
+        data: {
+          status: "dead_letter",
+          attemptCount,
+          lastOutcome: outcome.outcome,
+          claimToken: null,
+          claimedAt: null,
+        },
+      });
       result.deadLettered += 1;
     } else {
       const nextAttemptAt = new Date(now.valueOf() + retryDelaySeconds(attemptCount) * 1000);
-      await prisma.notificationOutbox.update({ where: { id: row.id }, data: { status: "retry_scheduled", attemptCount, nextAttemptAt, lastOutcome: outcome.outcome, claimToken: null, claimedAt: null } });
+      await prisma.notificationOutbox.update({
+        where: { id: row.id },
+        data: {
+          status: "retry_scheduled",
+          attemptCount,
+          nextAttemptAt,
+          lastOutcome: outcome.outcome,
+          claimToken: null,
+          claimedAt: null,
+        },
+      });
       result.retried += 1;
     }
   }
@@ -572,7 +755,10 @@ const OUTBOX_FAST_WINDOW_MS = 60_000;
  * The poll is the floor under all of it. If every signal were lost forever,
  * nothing would be stranded longer than `idleMaxMs`.
  */
-export function startOutboxWorker(provider: NotificationProvider | null, options: OutboxWorkerOptions = {}): OutboxWorker {
+export function startOutboxWorker(
+  provider: NotificationProvider | null,
+  options: OutboxWorkerOptions = {}
+): OutboxWorker {
   const fastMs = options.fastMs ?? OUTBOX_FAST_MS;
   const idleMaxMs = Math.max(fastMs, options.idleMaxMs ?? 30 * 60 * 1000);
   const fastWindowMs = options.fastWindowMs ?? OUTBOX_FAST_WINDOW_MS;
@@ -589,7 +775,9 @@ export function startOutboxWorker(provider: NotificationProvider | null, options
     if (timer) clearTimeout(timer);
     // `unref` so a worker with nothing to do never holds the process open on its
     // own — shutdown is decided by SIGTERM, not by a pending timer.
-    timer = setTimeout(() => { void pass(); }, ms);
+    timer = setTimeout(() => {
+      void pass();
+    }, ms);
     timer.unref?.();
   };
 
@@ -621,7 +809,10 @@ export function startOutboxWorker(provider: NotificationProvider | null, options
 
   schedule(fastMs);
   return {
-    stop: () => { stopped = true; if (timer) clearTimeout(timer); },
+    stop: () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    },
     wake: () => {
       if (stopped) return;
       fastUntil = Date.now() + fastWindowMs;

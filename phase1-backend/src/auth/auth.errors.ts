@@ -8,7 +8,7 @@ export class HttpError extends Error {
      * — the restore conflict payload (`conflicts`, `hint`) is the first user.
      * Absent by default, so every pre-existing error body is byte-identical.
      */
-    public readonly details?: Record<string, unknown>,
+    public readonly details?: Record<string, unknown>
   ) {
     super(message);
   }

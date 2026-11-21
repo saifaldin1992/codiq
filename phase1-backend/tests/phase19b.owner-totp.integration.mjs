@@ -23,7 +23,8 @@ import assert from "node:assert/strict";
 import { Client } from "pg";
 
 const testId = `p19b-${Date.now()}`;
-process.env.SESSION_JWT_SECRET = process.env.SESSION_JWT_SECRET ?? "p19b-test-secret-only-not-for-production";
+process.env.SESSION_JWT_SECRET =
+  process.env.SESSION_JWT_SECRET ?? "p19b-test-secret-only-not-for-production";
 process.env.CODIQ_ALLOW_OWNER_REGISTRATION = "true";
 const { assertSafeTestDatabaseUrl } = await import("./helpers/test-database-guard.ts");
 const testDatabaseUrl = assertSafeTestDatabaseUrl(process.env.CODIQ_TEST_DATABASE_URL);
@@ -32,7 +33,9 @@ process.env.CODIQ_POSTGRES_URL = testDatabaseUrl;
 
 const { createApp } = await import("../src/http/app.ts");
 const { prisma } = await import("../src/db/prisma.ts");
-const { totpForCounter, base32Decode, currentStep, TOTP_STEP_SECONDS } = await import("../src/auth/totp.ts");
+const { totpForCounter, base32Decode, currentStep, TOTP_STEP_SECONDS } = await import(
+  "../src/auth/totp.ts"
+);
 
 const sql = new Client({ connectionString: process.env.DATABASE_URL });
 await sql.connect();
@@ -68,7 +71,10 @@ try {
 
   const email = `${testId}@codiq.test`;
   const password = "P19bOwnerPass2026!";
-  const registered = await request("/auth/platform/register", { method: "POST", body: { email, password, displayName: "مالك المنصة" } });
+  const registered = await request("/auth/platform/register", {
+    method: "POST",
+    body: { email, password, displayName: "مالك المنصة" },
+  });
   assert.equal(registered.status, 201, JSON.stringify(registered.payload));
   // Scoped to THIS owner everywhere below: the table is shared, and a previous
   // run of this suite leaves its own ten rows behind.
@@ -77,15 +83,22 @@ try {
   // ============================================================
   // 2. Off by default, and the login is byte-for-byte the old one.
   // ============================================================
-  const plain = await request("/auth/platform/login", { method: "POST", body: { email, password } });
+  const plain = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email, password },
+  });
   assert.equal(plain.status, 200, JSON.stringify(plain.payload));
   assert.deepEqual(
     Object.keys(plain.payload).sort(),
     ["accessToken", "redirectTo"],
-    "19-أ: with no factor enrolled the login answers exactly what it always answered — no new keys for existing clients",
+    "19-أ: with no factor enrolled the login answers exactly what it always answered — no new keys for existing clients"
   );
   const token = plain.payload.accessToken;
-  assert.equal((await request("/platform/security/totp", { token })).payload.totp.enabled, false, "19-أ: nobody is enrolled until he asks");
+  assert.equal(
+    (await request("/platform/security/totp", { token })).payload.totp.enabled,
+    false,
+    "19-أ: nobody is enrolled until he asks"
+  );
 
   // ============================================================
   // 3. Enrolment is two steps.
@@ -93,49 +106,121 @@ try {
   const begun = await request("/platform/security/totp/begin", { method: "POST", token });
   assert.equal(begun.status, 200, JSON.stringify(begun.payload));
   const secret = begun.payload.secret;
-  assert.match(begun.payload.uri, /^otpauth:\/\/totp\//, "19-أ: an app can be enrolled from the URI");
-  assert.match(begun.payload.uri, /issuer=Codiq/, "19-أ: …and it says which service the code belongs to");
-  assert.ok(begun.payload.uri.includes(secret), "19-أ: the QR carries the secret the app must store");
+  assert.match(
+    begun.payload.uri,
+    /^otpauth:\/\/totp\//,
+    "19-أ: an app can be enrolled from the URI"
+  );
+  assert.match(
+    begun.payload.uri,
+    /issuer=Codiq/,
+    "19-أ: …and it says which service the code belongs to"
+  );
+  assert.ok(
+    begun.payload.uri.includes(secret),
+    "19-أ: the QR carries the secret the app must store"
+  );
 
   // A secret alone changes nothing: the factor is still off and login untouched.
-  assert.equal((await request("/platform/security/totp", { token })).payload.totp.enabled, false, "19-أ: beginning enrolment enables NOTHING — a blurry QR must not lock him out");
-  assert.equal((await request("/auth/platform/login", { method: "POST", body: { email, password } })).status, 200, "19-أ: …and he can still sign in with the password alone");
+  assert.equal(
+    (await request("/platform/security/totp", { token })).payload.totp.enabled,
+    false,
+    "19-أ: beginning enrolment enables NOTHING — a blurry QR must not lock him out"
+  );
+  assert.equal(
+    (await request("/auth/platform/login", { method: "POST", body: { email, password } })).status,
+    200,
+    "19-أ: …and he can still sign in with the password alone"
+  );
 
-  assert.equal((await request("/platform/security/totp/confirm", { method: "POST", token, body: { code: "000000" } })).payload.error.code, "INVALID_TOTP_CODE", "19-أ: a wrong code does not enable it");
+  assert.equal(
+    (
+      await request("/platform/security/totp/confirm", {
+        method: "POST",
+        token,
+        body: { code: "000000" },
+      })
+    ).payload.error.code,
+    "INVALID_TOTP_CODE",
+    "19-أ: a wrong code does not enable it"
+  );
   assert.equal((await request("/platform/security/totp", { token })).payload.totp.enabled, false);
 
-  const confirmed = await request("/platform/security/totp/confirm", { method: "POST", token, body: { code: codeFor(secret) } });
+  const confirmed = await request("/platform/security/totp/confirm", {
+    method: "POST",
+    token,
+    body: { code: codeFor(secret) },
+  });
   assert.equal(confirmed.status, 200, JSON.stringify(confirmed.payload));
   const recoveryCodes = confirmed.payload.recoveryCodes;
-  assert.equal(recoveryCodes.length, 10, "19-أ: ten recovery codes — one owner, no support desk above him");
-  assert.ok(recoveryCodes.every((code) => /^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(code)), `19-أ: readable off a screen — ${recoveryCodes[0]}`);
-  assert.ok(!recoveryCodes.some((code) => /[ILOU]/.test(code)), "19-أ: no I, L, O or U — the four a person mistypes under stress");
+  assert.equal(
+    recoveryCodes.length,
+    10,
+    "19-أ: ten recovery codes — one owner, no support desk above him"
+  );
+  assert.ok(
+    recoveryCodes.every((code) => /^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(code)),
+    `19-أ: readable off a screen — ${recoveryCodes[0]}`
+  );
+  assert.ok(
+    !recoveryCodes.some((code) => /[ILOU]/.test(code)),
+    "19-أ: no I, L, O or U — the four a person mistypes under stress"
+  );
 
   // They are hashed the moment they are handed over, and never readable again.
-  const stored = await prisma.platformOwnerRecoveryCode.findMany({ where: { platformOwnerId: ownerId, usedAt: null }, select: { codeHash: true } });
+  const stored = await prisma.platformOwnerRecoveryCode.findMany({
+    where: { platformOwnerId: ownerId, usedAt: null },
+    select: { codeHash: true },
+  });
   assert.equal(stored.length, 10);
-  assert.ok(stored.every((row) => row.codeHash.startsWith("$2")), "19-أ: stored as bcrypt — a recovery code IS a password");
-  assert.ok(!stored.some((row) => recoveryCodes.includes(row.codeHash)), "19-أ: …so a database dump yields none of them");
+  assert.ok(
+    stored.every((row) => row.codeHash.startsWith("$2")),
+    "19-أ: stored as bcrypt — a recovery code IS a password"
+  );
+  assert.ok(
+    !stored.some((row) => recoveryCodes.includes(row.codeHash)),
+    "19-أ: …so a database dump yields none of them"
+  );
 
   // ============================================================
   // 4. THE GATE: a password alone no longer signs him in.
   // ============================================================
-  const withoutFactor = await request("/auth/platform/login", { method: "POST", body: { email, password } });
+  const withoutFactor = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email, password },
+  });
   assert.equal(withoutFactor.status, 401, JSON.stringify(withoutFactor.payload));
-  assert.equal(withoutFactor.payload.error.code, "SECOND_FACTOR_REQUIRED", "19-أ: THE acceptance gate — the owner cannot sign in on a password alone");
+  assert.equal(
+    withoutFactor.payload.error.code,
+    "SECOND_FACTOR_REQUIRED",
+    "19-أ: THE acceptance gate — the owner cannot sign in on a password alone"
+  );
   assert.ok(!withoutFactor.payload.accessToken, "19-أ: …and no token is issued");
 
-  const wrongCode = await request("/auth/platform/login", { method: "POST", body: { email, password, totpCode: "000000" } });
+  const wrongCode = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email, password, totpCode: "000000" },
+  });
   assert.equal(wrongCode.payload.error.code, "INVALID_SECOND_FACTOR");
-  const wrongPassword = await request("/auth/platform/login", { method: "POST", body: { email, password: "not-his-password", totpCode: codeFor(secret) } });
-  assert.equal(wrongPassword.payload.error.code, "INVALID_PLATFORM_OWNER_CREDENTIALS", "19-أ: a wrong password fails on the password, whatever the code");
+  const wrongPassword = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email, password: "not-his-password", totpCode: codeFor(secret) },
+  });
+  assert.equal(
+    wrongPassword.payload.error.code,
+    "INVALID_PLATFORM_OWNER_CREDENTIALS",
+    "19-أ: a wrong password fails on the password, whatever the code"
+  );
 
   // The NEXT step's code, not this one: confirming enrolment spent the current
   // code, and single-use means exactly that. In real use he waits for his phone
   // to roll over — which is what anyone who has ever enrolled an authenticator
   // expects, and the price of a code that cannot be replayed.
   const step = currentStep() + 1;
-  const good = await request("/auth/platform/login", { method: "POST", body: { email, password, totpCode: codeFor(secret, step) } });
+  const good = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email, password, totpCode: codeFor(secret, step) },
+  });
   assert.equal(good.status, 200, JSON.stringify(good.payload));
   assert.ok(good.payload.accessToken, "19-أ: password plus code signs him in");
   assert.ok(!good.payload.usedRecoveryCode, "19-أ: …without spending a recovery code");
@@ -143,40 +228,102 @@ try {
   // ============================================================
   // 5. A code is single-use.
   // ============================================================
-  const replay = await request("/auth/platform/login", { method: "POST", body: { email, password, totpCode: codeFor(secret, step) } });
-  assert.equal(replay.payload.error.code, "INVALID_SECOND_FACTOR", "19-أ: the SAME code is refused a second time — one read over a shoulder is not ninety usable seconds");
+  const replay = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email, password, totpCode: codeFor(secret, step) },
+  });
+  assert.equal(
+    replay.payload.error.code,
+    "INVALID_SECOND_FACTOR",
+    "19-أ: the SAME code is refused a second time — one read over a shoulder is not ninety usable seconds"
+  );
   // And so is an OLDER code that is still inside the ±1 window: arithmetically
   // valid, but from a step at or below the one already spent. This is the same
   // property from the other side, and it is testable now — whereas "the next
   // code works" would need a real thirty seconds of waiting.
-  const stale = await request("/auth/platform/login", { method: "POST", body: { email, password, totpCode: codeFor(secret, step - 1) } });
-  assert.equal(stale.payload.error.code, "INVALID_SECOND_FACTOR", "19-أ: a code from a spent step is refused even while its window is still open");
+  const stale = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email, password, totpCode: codeFor(secret, step - 1) },
+  });
+  assert.equal(
+    stale.payload.error.code,
+    "INVALID_SECOND_FACTOR",
+    "19-أ: a code from a spent step is refused even while its window is still open"
+  );
 
   // ============================================================
   // 6. Recovery codes: they work, once.
   // ============================================================
   const recovery = recoveryCodes[0];
-  const rescued = await request("/auth/platform/login", { method: "POST", body: { email, password, totpCode: recovery } });
+  const rescued = await request("/auth/platform/login", {
+    method: "POST",
+    body: { email, password, totpCode: recovery },
+  });
   assert.equal(rescued.status, 200, JSON.stringify(rescued.payload));
-  assert.equal(rescued.payload.usedRecoveryCode, true, "19-أ: he is TOLD one was spent — a silent count is one he discovers at zero");
+  assert.equal(
+    rescued.payload.usedRecoveryCode,
+    true,
+    "19-أ: he is TOLD one was spent — a silent count is one he discovers at zero"
+  );
   const rescuedToken = rescued.payload.accessToken;
-  assert.equal((await request("/platform/security/totp", { token: rescuedToken })).payload.totp.recoveryCodesLeft, 9, "19-أ: nine left, and he can see the number");
+  assert.equal(
+    (await request("/platform/security/totp", { token: rescuedToken })).payload.totp
+      .recoveryCodesLeft,
+    9,
+    "19-أ: nine left, and he can see the number"
+  );
 
   assert.equal(
-    (await request("/auth/platform/login", { method: "POST", body: { email, password, totpCode: recovery } })).payload.error.code,
+    (
+      await request("/auth/platform/login", {
+        method: "POST",
+        body: { email, password, totpCode: recovery },
+      })
+    ).payload.error.code,
     "INVALID_SECOND_FACTOR",
-    "19-أ: a spent recovery code is refused — otherwise it is a permanent password past the factor",
+    "19-أ: a spent recovery code is refused — otherwise it is a permanent password past the factor"
   );
   // A different one still works: spending one does not spend the rest.
-  assert.equal((await request("/auth/platform/login", { method: "POST", body: { email, password, totpCode: recoveryCodes[1] } })).status, 200);
+  assert.equal(
+    (
+      await request("/auth/platform/login", {
+        method: "POST",
+        body: { email, password, totpCode: recoveryCodes[1] },
+      })
+    ).status,
+    200
+  );
   // Case and dashes never matter — he types these off a screen under stress.
-  assert.equal((await request("/auth/platform/login", { method: "POST", body: { email, password, totpCode: recoveryCodes[2].toLowerCase().replace("-", " ") } })).status, 200, "19-أ: case and punctuation are forgiven");
+  assert.equal(
+    (
+      await request("/auth/platform/login", {
+        method: "POST",
+        body: { email, password, totpCode: recoveryCodes[2].toLowerCase().replace("-", " ") },
+      })
+    ).status,
+    200,
+    "19-أ: case and punctuation are forgiven"
+  );
 
   // ============================================================
   // 7. Turning it off needs the password.
   // ============================================================
-  assert.equal((await request("/platform/security/totp/disable", { method: "POST", token: rescuedToken, body: { password: "wrong" } })).payload.error.code, "INVALID_PASSWORD", "19-أ: a live session alone must not remove the factor — a borrowed laptop would");
-  assert.equal((await request("/platform/security/totp", { token: rescuedToken })).payload.totp.enabled, true, "19-أ: …and the refused attempt left it on");
+  assert.equal(
+    (
+      await request("/platform/security/totp/disable", {
+        method: "POST",
+        token: rescuedToken,
+        body: { password: "wrong" },
+      })
+    ).payload.error.code,
+    "INVALID_PASSWORD",
+    "19-أ: a live session alone must not remove the factor — a borrowed laptop would"
+  );
+  assert.equal(
+    (await request("/platform/security/totp", { token: rescuedToken })).payload.totp.enabled,
+    true,
+    "19-أ: …and the refused attempt left it on"
+  );
 
   // 19-د (ATTACK-SURFACE): «needs the password» is only a defence if the number
   // of guesses is bounded. This gate had NO ceiling at all, and it is the gate
@@ -189,25 +336,74 @@ try {
   const { REAUTH_ATTEMPT_LIMIT } = await import("../src/services/storefront.service.ts");
   const disableGrind = [];
   for (let attempt = 0; attempt < REAUTH_ATTEMPT_LIMIT + 2; attempt += 1) {
-    const response = await request("/platform/security/totp/disable", { method: "POST", token: rescuedToken, keepRateLimits: true, body: { password: `guess-${attempt}` } });
+    const response = await request("/platform/security/totp/disable", {
+      method: "POST",
+      token: rescuedToken,
+      keepRateLimits: true,
+      body: { password: `guess-${attempt}` },
+    });
     disableGrind.push(response.status);
-    if (response.status === 429) { assert.equal(response.payload.error.code, "RATE_LIMITED"); break; }
-    assert.equal(response.payload.error.code, "INVALID_PASSWORD", `19-د: attempt ${attempt} must be a refused guess`);
+    if (response.status === 429) {
+      assert.equal(response.payload.error.code, "RATE_LIMITED");
+      break;
+    }
+    assert.equal(
+      response.payload.error.code,
+      "INVALID_PASSWORD",
+      `19-د: attempt ${attempt} must be a refused guess`
+    );
   }
-  assert.ok(disableGrind.includes(429), `19-د: unmetered guessing at the TOTP-disable gate — ${disableGrind.length} wrong passwords and not one 429 (${disableGrind.join(",")})`);
-  assert.ok(disableGrind.length <= REAUTH_ATTEMPT_LIMIT + 1, `19-د: the ceiling must bite by attempt ${REAUTH_ATTEMPT_LIMIT + 1}`);
-  assert.equal((await request("/platform/security/totp", { token: rescuedToken })).payload.totp.enabled, true, "19-د: …and the whole grind left the factor on");
+  assert.ok(
+    disableGrind.includes(429),
+    `19-د: unmetered guessing at the TOTP-disable gate — ${disableGrind.length} wrong passwords and not one 429 (${disableGrind.join(",")})`
+  );
+  assert.ok(
+    disableGrind.length <= REAUTH_ATTEMPT_LIMIT + 1,
+    `19-د: the ceiling must bite by attempt ${REAUTH_ATTEMPT_LIMIT + 1}`
+  );
+  assert.equal(
+    (await request("/platform/security/totp", { token: rescuedToken })).payload.totp.enabled,
+    true,
+    "19-د: …and the whole grind left the factor on"
+  );
   await sql.query("DELETE FROM storefront_rate_limits");
 
-  assert.equal((await request("/platform/security/totp/disable", { method: "POST", token: rescuedToken, keepRateLimits: true, body: { password } })).status, 204);
+  assert.equal(
+    (
+      await request("/platform/security/totp/disable", {
+        method: "POST",
+        token: rescuedToken,
+        keepRateLimits: true,
+        body: { password },
+      })
+    ).status,
+    204
+  );
   // The refund: the owner who typed his own password must not be one wrong
   // guess away from being locked out of his own security screen.
-  const disableBucket = await sql.query("SELECT attempt_count FROM storefront_rate_limits WHERE scope = 'password_reverify'");
-  assert.equal(Number(disableBucket.rows[0]?.attempt_count), 1, "19-د: a correct password is refunded down to the bucket's floor");
+  const disableBucket = await sql.query(
+    "SELECT attempt_count FROM storefront_rate_limits WHERE scope = 'password_reverify'"
+  );
+  assert.equal(
+    Number(disableBucket.rows[0]?.attempt_count),
+    1,
+    "19-د: a correct password is refunded down to the bucket's floor"
+  );
   await sql.query("DELETE FROM storefront_rate_limits");
-  assert.equal((await request("/platform/security/totp", { token: rescuedToken })).payload.totp.enabled, false);
-  assert.equal(await prisma.platformOwnerRecoveryCode.count({ where: { platformOwnerId: ownerId } }), 0, "19-أ: the recovery codes go with the factor — they were ways past a factor that no longer exists");
-  assert.equal((await request("/auth/platform/login", { method: "POST", body: { email, password } })).status, 200, "19-أ: and the password alone signs him in again");
+  assert.equal(
+    (await request("/platform/security/totp", { token: rescuedToken })).payload.totp.enabled,
+    false
+  );
+  assert.equal(
+    await prisma.platformOwnerRecoveryCode.count({ where: { platformOwnerId: ownerId } }),
+    0,
+    "19-أ: the recovery codes go with the factor — they were ways past a factor that no longer exists"
+  );
+  assert.equal(
+    (await request("/auth/platform/login", { method: "POST", body: { email, password } })).status,
+    200,
+    "19-أ: and the password alone signs him in again"
+  );
 
   summary.ownerTotp = {
     defaultEnabled: false,
@@ -218,7 +414,10 @@ try {
     recoveryCodes: recoveryCodes.length,
     recoveryCodesLeftAfterOne: 9,
     disableWithoutPassword: "INVALID_PASSWORD",
-    disableReauthCeiling: { limit: REAUTH_ATTEMPT_LIMIT, attemptsBefore429: disableGrind.length - 1 },
+    disableReauthCeiling: {
+      limit: REAUTH_ATTEMPT_LIMIT,
+      attemptsBefore429: disableGrind.length - 1,
+    },
     stepSeconds: TOTP_STEP_SECONDS,
   };
 

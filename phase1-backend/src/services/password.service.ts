@@ -28,7 +28,12 @@ import { createPasswordHash, verifyPassword, type SessionClaims } from "../auth/
 import type { IdentityKind } from "../auth/redirects.js";
 import { invalidateLiveResetTokens } from "./password-reset.service.js";
 import { revokeOtherSessionsWithin } from "./session.service.js";
-import { REAUTH_ATTEMPT_LIMIT, REAUTH_WINDOW_MS, consumeStorefrontRateLimit, refundStorefrontRateLimit } from "./storefront.service.js";
+import {
+  REAUTH_ATTEMPT_LIMIT,
+  REAUTH_WINDOW_MS,
+  consumeStorefrontRateLimit,
+  refundStorefrontRateLimit,
+} from "./storefront.service.js";
 
 /**
  * Where each identity keeps its hash. The delegate is named as a string because
@@ -66,7 +71,7 @@ export interface PasswordChangeResult {
 export async function changeOwnPassword(
   claims: SessionClaims,
   input: { currentPassword: unknown; newPassword: unknown },
-  now = new Date(),
+  now = new Date()
 ): Promise<PasswordChangeResult> {
   const name = delegateNameFor(claims.identityKind);
 
@@ -79,8 +84,15 @@ export async function changeOwnPassword(
   // 19-د: the ceiling lives HERE, in the service, not on the route — an
   // unavoidable gate for any future caller, and ahead of the bcrypt compare so
   // a grinder is refused before he spends the CPU. See REAUTH_ATTEMPT_LIMIT.
-  const reauthKey = { scope: "password_reverify", rawKey: `${claims.identityKind}:${claims.subjectId}` };
-  await consumeStorefrontRateLimit({ ...reauthKey, limit: REAUTH_ATTEMPT_LIMIT, windowMs: REAUTH_WINDOW_MS });
+  const reauthKey = {
+    scope: "password_reverify",
+    rawKey: `${claims.identityKind}:${claims.subjectId}`,
+  };
+  await consumeStorefrontRateLimit({
+    ...reauthKey,
+    limit: REAUTH_ATTEMPT_LIMIT,
+    windowMs: REAUTH_WINDOW_MS,
+  });
 
   if (!(await verifyPassword(input.currentPassword, row.passwordHash))) {
     throw new HttpError(422, "INVALID_PASSWORD", "كلمة المرور الحالية غير صحيحة.");
@@ -93,8 +105,15 @@ export async function changeOwnPassword(
   // Refused BEFORE hashing, so the message is about what he did rather than
   // about a policy he did not break. A "change" that changes nothing leaves a
   // leaked password live while telling him it is not.
-  if (typeof input.newPassword === "string" && (await verifyPassword(input.newPassword, row.passwordHash))) {
-    throw new HttpError(422, "PASSWORD_UNCHANGED", "كلمة المرور الجديدة مطابقة للحالية. اختر كلمة مختلفة.");
+  if (
+    typeof input.newPassword === "string" &&
+    (await verifyPassword(input.newPassword, row.passwordHash))
+  ) {
+    throw new HttpError(
+      422,
+      "PASSWORD_UNCHANGED",
+      "كلمة المرور الجديدة مطابقة للحالية. اختر كلمة مختلفة."
+    );
   }
 
   // Throws WEAK_PASSWORD on its own — the platform's single length rule (8) and its refusal of
@@ -110,11 +129,17 @@ export async function changeOwnPassword(
     // the mark did not, he would be holding a password the platform still treats
     // as somebody else's.
     if (claims.identityKind === "merchant") {
-      await tx.merchant.update({ where: { id: claims.subjectId }, data: { passwordSetByProvisionerAt: null } });
+      await tx.merchant.update({
+        where: { id: claims.subjectId },
+        data: { passwordSetByProvisionerAt: null },
+      });
     }
     // Audit 14-ب: the same for a store employee whose first password the merchant chose.
     if (claims.identityKind === "staff") {
-      await tx.staff.update({ where: { id: claims.subjectId }, data: { passwordSetByProvisionerAt: null } });
+      await tx.staff.update({
+        where: { id: claims.subjectId },
+        data: { passwordSetByProvisionerAt: null },
+      });
     }
     // PR-1: every outstanding RESET LINK dies here too, in the same transaction
     // as the hash. Without this line a person who asked for a link, then
@@ -122,7 +147,13 @@ export async function changeOwnPassword(
     // leave a live account-takeover primitive sitting in his inbox for the rest
     // of its 45 minutes — pointed at the password he just replaced. Whoever can
     // read that mail could undo the change he made to be safe.
-    await invalidateLiveResetTokens(tx, claims.identityKind, claims.subjectId, "password_changed", now);
+    await invalidateLiveResetTokens(
+      tx,
+      claims.identityKind,
+      claims.subjectId,
+      "password_changed",
+      now
+    );
     // Every other session goes. THIS one survives: logging him out of the device
     // he is holding, at the moment he did the right thing, teaches him not to do
     // it again — and he has just proven he holds the password.

@@ -21,12 +21,37 @@ import { MarketReelPage, MarketReelsPage } from "./pages/MarketReelsPage";
 const MapPages = () => import("./pages/MarketMapPages");
 const LazyMap = lazy(() => MapPages().then((module) => ({ default: module.MarketMapPage })));
 const LazyRoute = lazy(() => MapPages().then((module) => ({ default: module.MarketRoutePage })));
-const loadingMap = <p className="py-10 text-center text-sm text-[var(--codiq-text-muted)]">جارٍ تحميل الخريطة…</p>;
-const MarketMapPage = () => <Suspense fallback={loadingMap}><LazyMap /></Suspense>;
-const MarketRoutePage = () => <Suspense fallback={loadingMap}><LazyRoute /></Suspense>;
-import { MarketNewTicketPage, MarketTicketPage, MarketTicketsPage } from "./pages/MarketTicketsPages";
-import { MarketContactPage, MarketFavouritesPage, MarketFeedbackPage, MarketHelpPage, MarketNotificationsPage } from "./pages/MarketHelpPages";
-import { MarketAccountInfoPage, MarketAccountPage, MarketAddressesPage, MarketAddressFormPage } from "./pages/MarketAccountPages";
+const loadingMap = (
+  <p className="py-10 text-center text-sm text-[var(--codiq-text-muted)]">جارٍ تحميل الخريطة…</p>
+);
+const MarketMapPage = () => (
+  <Suspense fallback={loadingMap}>
+    <LazyMap />
+  </Suspense>
+);
+const MarketRoutePage = () => (
+  <Suspense fallback={loadingMap}>
+    <LazyRoute />
+  </Suspense>
+);
+import {
+  MarketNewTicketPage,
+  MarketTicketPage,
+  MarketTicketsPage,
+} from "./pages/MarketTicketsPages";
+import {
+  MarketContactPage,
+  MarketFavouritesPage,
+  MarketFeedbackPage,
+  MarketHelpPage,
+  MarketNotificationsPage,
+} from "./pages/MarketHelpPages";
+import {
+  MarketAccountInfoPage,
+  MarketAccountPage,
+  MarketAddressesPage,
+  MarketAddressFormPage,
+} from "./pages/MarketAccountPages";
 import { MarketCategoriesPage } from "./pages/MarketCategoriesPage";
 import { MarketCategoryPage } from "./pages/MarketCategoryPage";
 import { MarketSearchPage } from "./pages/MarketSearchPage";
@@ -34,7 +59,11 @@ import { MarketImageSearchPage } from "./pages/MarketImageSearchPage";
 import { MarketPayPage } from "./pages/MarketPayPage";
 import { MarketPartnerEnterPage } from "./pages/MarketPartnerPages";
 import { MarketProductPage } from "./pages/MarketProductPage";
-import { MarketCollectionPage, MarketMallPage, MarketSectionPage } from "./pages/MarketSectionPages";
+import {
+  MarketCollectionPage,
+  MarketMallPage,
+  MarketSectionPage,
+} from "./pages/MarketSectionPages";
 import { MarketStoresPage } from "./pages/MarketStoresPage";
 import { MarketStorePage } from "./pages/MarketStorePage";
 import { MarketStoreReviewsPage } from "./pages/MarketStoreReviewsPage";

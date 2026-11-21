@@ -28,10 +28,41 @@ const EXTENSIONS = [".ts", ".tsx"];
 /** Feminine second-person singular forms — the ones this codebase actually used. */
 const FEMININE_FORMS = [
   // Imperatives.
-  "أرفقي", "ارفقي", "قومي", "اذهبي", "اضغطي", "أدخلي", "ادخلي", "احذفي", "أضيفي",
-  "اضيفي", "اختاري", "راجعي", "تأكدي", "حاولي", "أكملي", "اكملي", "اكتبي", "انقري",
-  "أعيدي", "اعيدي", "تحققي", "سجّلي", "سجلي", "حدّدي", "حددي", "افتحي", "أغلقي",
-  "اغلقي", "ارفعي", "عدّلي", "عدلي", "انتظري", "تابعي", "غيّري", "غيري",
+  "أرفقي",
+  "ارفقي",
+  "قومي",
+  "اذهبي",
+  "اضغطي",
+  "أدخلي",
+  "ادخلي",
+  "احذفي",
+  "أضيفي",
+  "اضيفي",
+  "اختاري",
+  "راجعي",
+  "تأكدي",
+  "حاولي",
+  "أكملي",
+  "اكملي",
+  "اكتبي",
+  "انقري",
+  "أعيدي",
+  "اعيدي",
+  "تحققي",
+  "سجّلي",
+  "سجلي",
+  "حدّدي",
+  "حددي",
+  "افتحي",
+  "أغلقي",
+  "اغلقي",
+  "ارفعي",
+  "عدّلي",
+  "عدلي",
+  "انتظري",
+  "تابعي",
+  "غيّري",
+  "غيري",
   // المرحلة 20-4: two more that the list did not have, and the list is the
   // whole guard — an unenumerated form is a form that passes. Both were found
   // by generating the OpenAPI document, which publishes every Arabic error
@@ -40,12 +71,31 @@ const FEMININE_FORMS = [
   // correctly masculine — ق-96's «two products talking to one person», in one
   // line) and «أنشئيها» in the analytics empty state. Neither has a
   // non-imperative reading: «إصلاحي» begins with a different hamza.
-  "أصلحي", "اصلحي", "أنشئي", "انشئي",
+  "أصلحي",
+  "اصلحي",
+  "أنشئي",
+  "انشئي",
   // Past tense, second person.
-  "وصلتِ", "أدخلتِ", "اخترتِ", "حذفتِ", "أضفتِ", "سجّلتِ", "سجلتِ",
+  "وصلتِ",
+  "أدخلتِ",
+  "اخترتِ",
+  "حذفتِ",
+  "أضفتِ",
+  "سجّلتِ",
+  "سجلتِ",
   // Pronouns and attached possessives.
-  "أنتِ", "يمكنكِ", "لكِ", "بكِ", "منكِ", "إليكِ", "عليكِ", "لديكِ", "حسابكِ",
-  "متجركِ", "طلبكِ", "بياناتكِ",
+  "أنتِ",
+  "يمكنكِ",
+  "لكِ",
+  "بكِ",
+  "منكِ",
+  "إليكِ",
+  "عليكِ",
+  "لديكِ",
+  "حسابكِ",
+  "متجركِ",
+  "طلبكِ",
+  "بياناتكِ",
 ];
 
 /**
@@ -68,14 +118,66 @@ const FEMININE_FORMS = [
  * stays as the documented door for a real false positive.
  */
 const MASCULINE_IMPERATIVES = [
-  "أرفق", "ارفق", "قم", "اذهب", "اضغط", "أدخل", "ادخل", "احذف", "أضف", "اضف",
-  "اختر", "راجع", "تأكد", "حاول", "أكمل", "اكمل", "اكتب", "انقر", "أعد", "اعد",
-  "تحقق", "سجّل", "سجل", "حدّد", "حدد", "افتح", "أغلق", "اغلق", "ارفع", "عدّل",
-  "عدل", "انتظر", "تابع", "غيّر", "غير", "أصلح", "اصلح", "أنشئ", "انشئ",
+  "أرفق",
+  "ارفق",
+  "قم",
+  "اذهب",
+  "اضغط",
+  "أدخل",
+  "ادخل",
+  "احذف",
+  "أضف",
+  "اضف",
+  "اختر",
+  "راجع",
+  "تأكد",
+  "حاول",
+  "أكمل",
+  "اكمل",
+  "اكتب",
+  "انقر",
+  "أعد",
+  "اعد",
+  "تحقق",
+  "سجّل",
+  "سجل",
+  "حدّد",
+  "حدد",
+  "افتح",
+  "أغلق",
+  "اغلق",
+  "ارفع",
+  "عدّل",
+  "عدل",
+  "انتظر",
+  "تابع",
+  "غيّر",
+  "غير",
+  "أصلح",
+  "اصلح",
+  "أنشئ",
+  "انشئ",
   // Verbs the platform uses today whose feminine form nobody has written yet —
   // which is exactly the point of deriving rather than listing.
-  "امسح", "انسخ", "الصق", "أرسل", "ارسل", "استعد", "فعّل", "عطّل",
-  "ابحث", "صفّ", "رتّب", "احفظ", "ألغِ", "الغِ", "أكّد", "اكّد", "أكد", "أوقف", "اوقف",
+  "امسح",
+  "انسخ",
+  "الصق",
+  "أرسل",
+  "ارسل",
+  "استعد",
+  "فعّل",
+  "عطّل",
+  "ابحث",
+  "صفّ",
+  "رتّب",
+  "احفظ",
+  "ألغِ",
+  "الغِ",
+  "أكّد",
+  "اكّد",
+  "أكد",
+  "أوقف",
+  "اوقف",
 ];
 
 /**
@@ -99,7 +201,7 @@ const MASCULINE_IMPERATIVES = [
 const ATTACHED_PRONOUNS = ["", "ها", "ه", "هم", "هن", "نا", "هما"];
 
 const DERIVED_FEMININE = MASCULINE_IMPERATIVES.flatMap((stem) =>
-  ATTACHED_PRONOUNS.map((pronoun) => `${stem}ي${pronoun}`),
+  ATTACHED_PRONOUNS.map((pronoun) => `${stem}ي${pronoun}`)
 );
 
 /**
@@ -128,7 +230,10 @@ const patterns = new Map();
 
 function wordPattern(form) {
   if (!patterns.has(form)) {
-    patterns.set(form, new RegExp("(?<![" + ARABIC_BOUNDARY + "])" + form + "(?![" + ARABIC_BOUNDARY + "])", "u"));
+    patterns.set(
+      form,
+      new RegExp("(?<![" + ARABIC_BOUNDARY + "])" + form + "(?![" + ARABIC_BOUNDARY + "])", "u")
+    );
   }
   return patterns.get(form);
 }
@@ -153,7 +258,12 @@ function sourceFiles(directory) {
  */
 function isComment(line) {
   const trimmed = line.trim();
-  return trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*") || trimmed.startsWith("{/*");
+  return (
+    trimmed.startsWith("//") ||
+    trimmed.startsWith("*") ||
+    trimmed.startsWith("/*") ||
+    trimmed.startsWith("{/*")
+  );
 }
 
 /**
@@ -178,7 +288,12 @@ export function findFeminineAddress() {
         if (ALLOWED_PHRASES.some((phrase) => line.includes(phrase))) return;
         for (const form of ALL_FEMININE_FORMS) {
           if (wordPattern(form).test(line)) {
-            violations.push({ file: relative(repoRoot, file).replace(/\\/g, "/"), line: index + 1, form, text: line.trim().slice(0, 140) });
+            violations.push({
+              file: relative(repoRoot, file).replace(/\\/g, "/"),
+              line: index + 1,
+              form,
+              text: line.trim().slice(0, 140),
+            });
           }
         }
       });
@@ -188,13 +303,36 @@ export function findFeminineAddress() {
 }
 
 export function formatFeminineAddress(violations) {
-  return violations.map((violation) => `  ${violation.file}:${violation.line} — «${violation.form}» in: ${violation.text}`).join("\n");
+  return violations
+    .map(
+      (violation) =>
+        `  ${violation.file}:${violation.line} — «${violation.form}» in: ${violation.text}`
+    )
+    .join("\n");
 }
 
 const violations = findFeminineAddress();
 if (violations.length) {
-  console.error(`ق-96: ${violations.length} string(s) address the merchant in the feminine. Rewrite them in the masculine:\n${formatFeminineAddress(violations)}`);
+  console.error(
+    `ق-96: ${violations.length} string(s) address the merchant in the feminine. Rewrite them in the masculine:\n${formatFeminineAddress(violations)}`
+  );
   process.exitCode = 1;
 } else {
-  console.log(JSON.stringify({ suite: "copy-tone", status: "passed", summary: { scanned: ROOTS.join(", "), listed: FEMININE_FORMS.length, derived: DERIVED_FEMININE.length, forms: ALL_FEMININE_FORMS.length, violations: 0 } }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        suite: "copy-tone",
+        status: "passed",
+        summary: {
+          scanned: ROOTS.join(", "),
+          listed: FEMININE_FORMS.length,
+          derived: DERIVED_FEMININE.length,
+          forms: ALL_FEMININE_FORMS.length,
+          violations: 0,
+        },
+      },
+      null,
+      2
+    )
+  );
 }

@@ -25,7 +25,8 @@ import path from "node:path";
 import http from "node:http";
 
 process.env.SESSION_JWT_SECRET ??= "upload-limits-guard-secret-not-for-production";
-process.env.DATABASE_URL ??= "postgresql://guard:guard@upload-guard-never-connects.invalid:5432/guard";
+process.env.DATABASE_URL ??=
+  "postgresql://guard:guard@upload-guard-never-connects.invalid:5432/guard";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const srcRoot = path.resolve(here, "../src");
@@ -57,13 +58,26 @@ for (const file of sourceFiles(srcRoot)) {
     const window = source.slice(match.index, match.index + 700);
     const limits = window.match(/limits:\s*([A-Za-z_$][\w$]*\(|\{)/);
     const line = source.slice(0, match.index).split("\n").length;
-    if (!limits) { offenders.push(`${path.relative(srcRoot, file)}:${line} — no limits at all`); continue; }
-    if (limits[1] !== "uploadLimits(") offenders.push(`${path.relative(srcRoot, file)}:${line} — limits written by hand as ${limits[1]}`);
+    if (!limits) {
+      offenders.push(`${path.relative(srcRoot, file)}:${line} — no limits at all`);
+      continue;
+    }
+    if (limits[1] !== "uploadLimits(")
+      offenders.push(
+        `${path.relative(srcRoot, file)}:${line} — limits written by hand as ${limits[1]}`
+      );
   }
 }
 
-assert.equal(offenders.length, 0, `every multer instance must take its limits from uploadLimits():\n  ${offenders.join("\n  ")}`);
-assert.ok(multerInstances >= 6, `the guard must still be finding the upload routes — found ${multerInstances}`);
+assert.equal(
+  offenders.length,
+  0,
+  `every multer instance must take its limits from uploadLimits():\n  ${offenders.join("\n  ")}`
+);
+assert.ok(
+  multerInstances >= 6,
+  `the guard must still be finding the upload routes — found ${multerInstances}`
+);
 summary.sourceRule = `${multerInstances} multer instances, all of them through uploadLimits()`;
 
 // ============================================================
@@ -73,7 +87,11 @@ const { uploadLimits } = await import("../src/http/shared.ts");
 const limits = uploadLimits({ fileSize: 1234, files: 3 });
 assert.equal(limits.fileSize, 1234, "the caller's own ceiling is preserved");
 assert.equal(limits.files, 3);
-assert.equal(limits.fieldArrayIndexLimit, 0, "no bracket index is accepted — the platform sends none");
+assert.equal(
+  limits.fieldArrayIndexLimit,
+  0,
+  "no bracket index is accepted — the platform sends none"
+);
 assert.equal(limits.fieldNestingDepth, 0, "…and no nesting either, for the same reason");
 summary.shape = "uploadLimits keeps the caller's fileSize/files and adds both field-name ceilings";
 
@@ -84,7 +102,10 @@ summary.shape = "uploadLimits keeps the caller's fileSize/files and adds both fi
 // nothing useful. This is the half that cannot be faked: the attack body is
 // sent to a real multer instance configured exactly as the routes are.
 const multer = (await import("multer")).default;
-const upload = multer({ storage: multer.memoryStorage(), limits: uploadLimits({ fileSize: 1024 * 1024, files: 1 }) });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: uploadLimits({ fileSize: 1024 * 1024, files: 1 }),
+});
 
 const server = http.createServer((request, response) => {
   upload.any()(request, response, (error) => {
@@ -109,17 +130,41 @@ async function post(fields) {
 
 // The attack, verbatim from the advisory: the huge index, then a non-numeric key
 // on the same base that forces the sparse array to be walked.
-const attack = await post([["items[4294967294]", "x"], ["items[label]", "y"]]);
-assert.equal(attack.status, 422, "the crafted field name is REFUSED — this is the vulnerability itself");
-assert.ok(["LIMIT_FIELD_ARRAY_INDEX", "LIMIT_FIELD_NESTING"].includes(attack.body.code), `…by one of multer's own limits, so errors.ts answers 422 in Arabic rather than 500 — got ${attack.body.code}`);
+const attack = await post([
+  ["items[4294967294]", "x"],
+  ["items[label]", "y"],
+]);
+assert.equal(
+  attack.status,
+  422,
+  "the crafted field name is REFUSED — this is the vulnerability itself"
+);
+assert.ok(
+  ["LIMIT_FIELD_ARRAY_INDEX", "LIMIT_FIELD_NESTING"].includes(attack.body.code),
+  `…by one of multer's own limits, so errors.ts answers 422 in Arabic rather than 500 — got ${attack.body.code}`
+);
 summary.attackRefused = `«items[4294967294]» is refused with ${attack.body.code} before append-field ever sees it`;
 
 // And the fields the platform actually sends still pass. A guard that closes the
 // attack by breaking every upload is not a fix.
-const ordinary = await post([["image", "x"], ["linkUrl", "https://example.test"], ["altText", "شعار"], ["placement", "home"]]);
-assert.equal(ordinary.status, 200, `the real field names must still be accepted — ${JSON.stringify(ordinary.body)}`);
-assert.deepEqual(ordinary.body.fields.sort(), ["altText", "image", "linkUrl", "placement"], "…all four of them, unchanged");
-summary.ordinaryUnaffected = "image, linkUrl, altText and placement — every field name the platform sends — still pass";
+const ordinary = await post([
+  ["image", "x"],
+  ["linkUrl", "https://example.test"],
+  ["altText", "شعار"],
+  ["placement", "home"],
+]);
+assert.equal(
+  ordinary.status,
+  200,
+  `the real field names must still be accepted — ${JSON.stringify(ordinary.body)}`
+);
+assert.deepEqual(
+  ordinary.body.fields.sort(),
+  ["altText", "image", "linkUrl", "placement"],
+  "…all four of them, unchanged"
+);
+summary.ordinaryUnaffected =
+  "image, linkUrl, altText and placement — every field name the platform sends — still pass";
 
 server.close();
 console.log(JSON.stringify({ suite: "upload-limits", status: "passed", summary }, null, 2));

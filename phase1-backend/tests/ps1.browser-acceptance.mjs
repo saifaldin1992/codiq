@@ -36,24 +36,39 @@ const { prisma } = await import("../src/db/prisma.ts");
 const { totpForCounter, base32Decode, currentStep } = await import("../src/auth/totp.ts");
 const web = spawn("node", ["dist/index.js"], {
   cwd: process.cwd(),
-  env: { ...process.env, NODE_ENV: "production", PORT: String(port), DATABASE_URL: dbUrl, SESSION_JWT_SECRET: "ps1-browser-seed-secret-not-for-production", CODIQ_NOTIFICATIONS_WORKER: "off" },
+  env: {
+    ...process.env,
+    NODE_ENV: "production",
+    PORT: String(port),
+    DATABASE_URL: dbUrl,
+    SESSION_JWT_SECRET: "ps1-browser-seed-secret-not-for-production",
+    CODIQ_NOTIFICATIONS_WORKER: "off",
+  },
   stdio: "ignore",
 });
 
 const artifactsDir = process.env.CODIQ_TEST_ARTIFACTS_DIR ?? "/home/ubuntu/webdev-static-assets";
 fs.mkdirSync(artifactsDir, { recursive: true });
-const executablePath = process.env.CODIQ_CHROMIUM_PATH ?? (process.platform === "linux" ? "/usr/bin/chromium" : undefined);
+const executablePath =
+  process.env.CODIQ_CHROMIUM_PATH ??
+  (process.platform === "linux" ? "/usr/bin/chromium" : undefined);
 
 async function waitFor(url) {
   for (let attempt = 0; attempt < 150; attempt += 1) {
-    try { const response = await fetch(url); if (response.status < 500) return; } catch {}
+    try {
+      const response = await fetch(url);
+      if (response.status < 500) return;
+    } catch {}
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`Timed out waiting for ${url}`);
 }
 
 async function json(path, init = {}) {
-  const response = await fetch(`${base}${path}`, { ...init, headers: { "content-type": "application/json", ...(init.headers ?? {}) } });
+  const response = await fetch(`${base}${path}`, {
+    ...init,
+    headers: { "content-type": "application/json", ...(init.headers ?? {}) },
+  });
   return { response, body: await response.json().catch(() => null) };
 }
 
@@ -63,9 +78,7 @@ async function json(path, init = {}) {
 // attempt the door refuses pending the second factor) and 403s (the denial
 // screen's refused API call). Chromium logs each as a resource error before
 // the page's handler sees it. Anything else — a 500, a pageerror — fails.
-const BENIGN_CONSOLE = [
-  /Failed to load resource: the server responded with a status of (401|403)/,
-];
+const BENIGN_CONSOLE = [/Failed to load resource: the server responded with a status of (401|403)/];
 const consoleErrors = [];
 function armTripwire(page, tag) {
   page.on("console", (message) => {
@@ -74,10 +87,16 @@ function armTripwire(page, tag) {
     if (BENIGN_CONSOLE.some((pattern) => pattern.test(text))) return;
     consoleErrors.push(`[${tag}] ${text}`);
   });
-  page.on("pageerror", (error) => { consoleErrors.push(`[${tag}] pageerror: ${error.message}`); });
+  page.on("pageerror", (error) => {
+    consoleErrors.push(`[${tag}] pageerror: ${error.message}`);
+  });
 }
 function assertConsoleClean(where) {
-  assert.equal(consoleErrors.length, 0, `page console must stay clean (${where}):\n${consoleErrors.join("\n")}`);
+  assert.equal(
+    consoleErrors.length,
+    0,
+    `page console must stay clean (${where}):\n${consoleErrors.join("\n")}`
+  );
 }
 
 /** Blocks until the TOTP step counter advances — a spent code cannot replay. */
@@ -89,14 +108,23 @@ async function waitForFreshTotpStep() {
 const browser = await chromium.launch({ executablePath, headless: true });
 try {
   await waitFor(`${base}/api/health`);
-  await prisma.$executeRawUnsafe("TRUNCATE TABLE storefront_rate_limits, platform_staff_sessions, platform_staff_permission_overrides, platform_audit_events, platform_staff, settlements, plan_upgrade_requests, ledger_entries, staff_sessions, staff_membership_permission_overrides, store_staff_memberships, staff, order_status_events, order_items, store_orders, customer_sessions, customers, merchant_sessions, stores, merchants, platform_owner_sessions, platform_owners CASCADE");
+  await prisma.$executeRawUnsafe(
+    "TRUNCATE TABLE storefront_rate_limits, platform_staff_sessions, platform_staff_permission_overrides, platform_audit_events, platform_staff, settlements, plan_upgrade_requests, ledger_entries, staff_sessions, staff_membership_permission_overrides, store_staff_memberships, staff, order_status_events, order_items, store_orders, customer_sessions, customers, merchant_sessions, stores, merchants, platform_owner_sessions, platform_owners CASCADE"
+  );
 
   // ------------------------------------------------------------- fixtures
   const ownerEmail = `${runId}.owner@codiq.test`;
   const staffEmail = `${runId}.accountant@codiq.test`;
   const ownerPassword = "Ps1OwnerPass123!";
   const staffPassword = "Ps1AccountantPass123!";
-  const ownerRegister = await json("/api/auth/platform/register", { method: "POST", body: JSON.stringify({ email: ownerEmail, password: ownerPassword, displayName: "مالك قبول الطاقم" }) });
+  const ownerRegister = await json("/api/auth/platform/register", {
+    method: "POST",
+    body: JSON.stringify({
+      email: ownerEmail,
+      password: ownerPassword,
+      displayName: "مالك قبول الطاقم",
+    }),
+  });
   assert.equal(ownerRegister.response.status, 201, JSON.stringify(ownerRegister.body));
 
   // ---------------------------- 1: the owner creates a member ON SCREEN
@@ -120,7 +148,9 @@ try {
   await ownerPage.getByTestId("platform-team-create-submit").click();
   await ownerPage.getByTestId(`platform-team-row-${staffEmail}`).waitFor();
   await ownerPage.screenshot({ path: `${artifactsDir}/ps1-team-created.png`, fullPage: true });
-  const created = await prisma.platformStaff.findFirstOrThrow({ where: { email: staffEmail, deletedAt: null } });
+  const created = await prisma.platformStaff.findFirstOrThrow({
+    where: { email: staffEmail, deletedAt: null },
+  });
   assert.equal(created.roleCode, "accountant", "the role on screen is the role in the row");
   assertConsoleClean("owner created the accountant");
 
@@ -139,11 +169,15 @@ try {
   // The secret the page SHOWS is the only secret this test ever knows —
   // proving screen and server hold the same enrolment material.
   await staffPage.getByTestId("platform-staff-totp-secret").waitFor();
-  const shownSecret = (await staffPage.getByTestId("platform-staff-totp-secret").innerText()).trim();
+  const shownSecret = (
+    await staffPage.getByTestId("platform-staff-totp-secret").innerText()
+  ).trim();
   assert.match(shownSecret, /^[A-Z2-7]{16,}$/, "the enrolment screen shows a base32 secret");
   await staffPage.screenshot({ path: `${artifactsDir}/ps1-totp-enrolment.png`, fullPage: true });
 
-  await staffPage.getByTestId("platform-staff-totp-code").fill(totpForCounter(base32Decode(shownSecret), currentStep()));
+  await staffPage
+    .getByTestId("platform-staff-totp-code")
+    .fill(totpForCounter(base32Decode(shownSecret), currentStep()));
   await staffPage.getByTestId("platform-staff-totp-confirm").click();
 
   // ------------------- 3: the shell shows HIS entries and only his
@@ -152,12 +186,27 @@ try {
   // drawer), so a PRESENT entry resolves to two nodes — .first() takes the
   // desktop one; an ABSENT entry is 0 in both, so the count checks stand.
   await staffPage.getByTestId("platform-staff-nav-finance").first().waitFor();
-  assert.equal(await staffPage.getByTestId("platform-staff-nav-plans").count(), 0, "no plans entry for an accountant");
-  assert.equal(await staffPage.getByTestId("platform-staff-nav-registrations").count(), 0, "no registrations entry for an accountant");
+  assert.equal(
+    await staffPage.getByTestId("platform-staff-nav-plans").count(),
+    0,
+    "no plans entry for an accountant"
+  );
+  assert.equal(
+    await staffPage.getByTestId("platform-staff-nav-registrations").count(),
+    0,
+    "no registrations entry for an accountant"
+  );
   await staffPage.getByTestId("platform-staff-nav-finance").first().click();
   await staffPage.waitForURL("**/platform/staff/dashboard/finance");
-  assert.equal(await staffPage.getByTestId("platform-staff-denied").count(), 0, "finance opens, not the denial screen");
-  await staffPage.screenshot({ path: `${artifactsDir}/ps1-accountant-finance.png`, fullPage: true });
+  assert.equal(
+    await staffPage.getByTestId("platform-staff-denied").count(),
+    0,
+    "finance opens, not the denial screen"
+  );
+  await staffPage.screenshot({
+    path: `${artifactsDir}/ps1-accountant-finance.png`,
+    fullPage: true,
+  });
 
   // --------------------------- 4: a plans deep-link meets the denial wall
   await staffPage.goto(`${base}/platform/staff/dashboard/plans`);
@@ -177,7 +226,9 @@ try {
   await staffPage.getByRole("button", { name: "تسجيل الدخول" }).click();
   // No code yet → the form reveals the totpCode field instead of entering.
   await staffPage.locator('input[name="totpCode"]').waitFor();
-  await staffPage.locator('input[name="totpCode"]').fill(totpForCounter(base32Decode(shownSecret), currentStep()));
+  await staffPage
+    .locator('input[name="totpCode"]')
+    .fill(totpForCounter(base32Decode(shownSecret), currentStep()));
   await staffPage.getByRole("button", { name: "تسجيل الدخول" }).click();
   await staffPage.waitForURL("**/platform/staff/dashboard**");
   await staffPage.getByTestId("platform-staff-permission-chips").waitFor();
@@ -188,20 +239,39 @@ try {
   // Wait for the button to become «تفعيل» — the roster reloads only after the
   // PATCH resolves, so the flipped label is the real completion signal. The
   // row itself was already on screen and would wait for nothing.
-  await ownerPage.getByTestId("platform-team-active-toggle").first().filter({ hasText: "تفعيل" }).waitFor();
-  const flipped = await prisma.platformStaff.findFirstOrThrow({ where: { email: staffEmail, deletedAt: null } });
+  await ownerPage
+    .getByTestId("platform-team-active-toggle")
+    .first()
+    .filter({ hasText: "تفعيل" })
+    .waitFor();
+  const flipped = await prisma.platformStaff.findFirstOrThrow({
+    where: { email: staffEmail, deletedAt: null },
+  });
   assert.equal(flipped.isActive, false, "the toggle wrote the row");
   await staffPage.reload();
   await staffPage.waitForURL("**/platform/staff/login**");
   await staffPage.screenshot({ path: `${artifactsDir}/ps1-revoked-login.png`, fullPage: true });
 
   // ---------------------------------------- 7: the book remembers it all
-  const audit = await prisma.platformAuditEvent.findMany({ where: { entityType: "platform_staff" }, orderBy: { createdAt: "asc" } });
+  const audit = await prisma.platformAuditEvent.findMany({
+    where: { entityType: "platform_staff" },
+    orderBy: { createdAt: "asc" },
+  });
   const actions = audit.map((event) => event.action);
-  assert.ok(actions.indexOf("staff_created") !== -1, `audit holds the creation (${actions.join(", ")})`);
-  assert.ok(actions.indexOf("staff_updated") !== -1, `audit holds the flip (${actions.join(", ")})`);
+  assert.ok(
+    actions.indexOf("staff_created") !== -1,
+    `audit holds the creation (${actions.join(", ")})`
+  );
+  assert.ok(
+    actions.indexOf("staff_updated") !== -1,
+    `audit holds the flip (${actions.join(", ")})`
+  );
   for (const event of audit) {
-    assert.equal(event.actorKind, "platform_owner", "team management is owner-only, and the log says who");
+    assert.equal(
+      event.actorKind,
+      "platform_owner",
+      "team management is owner-only, and the log says who"
+    );
     assert.ok(event.actorLabel.length > 0, "the actor label snapshot is real");
   }
   assertConsoleClean("full lifecycle");

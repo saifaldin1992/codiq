@@ -56,10 +56,13 @@ import {
  * repeatable-read snapshot for the length of the dump.
  */
 function databaseUrl(): string {
-  const url = process.env.CODIQ_POSTGRES_URL_UNPOOLED ?? process.env.CODIQ_POSTGRES_URL ?? process.env.DATABASE_URL;
+  const url =
+    process.env.CODIQ_POSTGRES_URL_UNPOOLED ??
+    process.env.CODIQ_POSTGRES_URL ??
+    process.env.DATABASE_URL;
   if (!url) {
     throw new Error(
-      "[backup] no database address: set CODIQ_POSTGRES_URL_UNPOOLED (preferred — pg_dump needs one unpooled session).",
+      "[backup] no database address: set CODIQ_POSTGRES_URL_UNPOOLED (preferred — pg_dump needs one unpooled session)."
     );
   }
   return url;
@@ -89,8 +92,7 @@ function connectionEnvironment(url: string): NodeJS.ProcessEnv {
     // at all; demanding it there fails honest work for no security gain, since
     // the connection never leaves the machine.
     PGSSLMODE:
-      parsed.searchParams.get("sslmode") ??
-      (isLocalHost(parsed.hostname) ? "disable" : "require"),
+      parsed.searchParams.get("sslmode") ?? (isLocalHost(parsed.hostname) ? "disable" : "require"),
   };
 }
 
@@ -108,11 +110,13 @@ async function pgDumpMajor(environment: NodeJS.ProcessEnv): Promise<number> {
       reject(
         new Error(
           "[backup] `pg_dump` is not on PATH in this container. Add the PostgreSQL client to the image " +
-            `(major ${BACKUP_POLICY.productionServerMajor} or newer) — see docs/DISASTER_RECOVERY.md.`,
-        ),
-      ),
+            `(major ${BACKUP_POLICY.productionServerMajor} or newer) — see docs/DISASTER_RECOVERY.md.`
+        )
+      )
     );
-    child.on("close", (code) => (code === 0 ? resolve(text) : reject(new Error("[backup] `pg_dump --version` failed."))));
+    child.on("close", (code) =>
+      code === 0 ? resolve(text) : reject(new Error("[backup] `pg_dump --version` failed."))
+    );
   });
   const match = /(\d+)/.exec(output);
   if (!match) throw new Error(`[backup] could not read a version out of «${output.trim()}».`);
@@ -146,7 +150,7 @@ async function main(): Promise<void> {
   if (!isLocalHost(environment.PGHOST ?? "") && clientMajor < BACKUP_POLICY.productionServerMajor) {
     throw new Error(
       `[backup] pg_dump is major ${clientMajor} but production runs PostgreSQL ${BACKUP_POLICY.productionServerMajor}. ` +
-        `pg_dump cannot dump a server newer than itself — every run would fail. Install a newer client in the image.`,
+        `pg_dump cannot dump a server newer than itself — every run would fail. Install a newer client in the image.`
     );
   }
 
@@ -171,14 +175,18 @@ async function main(): Promise<void> {
     dump.on("close", (code) => resolve(code ?? -1));
   });
 
-  const spooled = await spoolCiphertext(encryptBackupStream(dump.stdout, key, { createdAt: startedAt }));
+  const spooled = await spoolCiphertext(
+    encryptBackupStream(dump.stdout, key, { createdAt: startedAt })
+  );
   const code = await exited;
 
   if (code !== 0) {
     await spooled.cleanup();
     // pg_dump's stderr can carry the host but never the password (it is not in
     // argv and libpq does not echo it), so this is safe to surface.
-    throw new Error(`[backup] pg_dump exited ${code}; nothing was uploaded.\n${dumpErrors.trim().slice(-2000)}`);
+    throw new Error(
+      `[backup] pg_dump exited ${code}; nothing was uploaded.\n${dumpErrors.trim().slice(-2000)}`
+    );
   }
 
   // The dump is only published — to disk or to the bucket — after pg_dump has
@@ -203,8 +211,8 @@ async function main(): Promise<void> {
           },
         },
         null,
-        2,
-      ),
+        2
+      )
     );
     console.log("backup:run OK");
     return;
@@ -247,8 +255,8 @@ async function main(): Promise<void> {
         },
       },
       null,
-      2,
-    ),
+      2
+    )
   );
   console.log("backup:run OK");
 }

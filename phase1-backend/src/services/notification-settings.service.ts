@@ -7,9 +7,22 @@ import { capsFromRow } from "./messaging-caps.service.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
 import { isEmailProviderConfigured } from "../notifications/notification-provider.js";
-import { normalizeCourierDispatchSettings, normalizePreferences, type NotificationPreferences } from "../notifications/notification-outbox.service.js";
-import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
-import { normalizeWhatsappTemplates, validateWhatsappTemplatesInput } from "./whatsapp-manual.service.js";
+import {
+  normalizeCourierDispatchSettings,
+  normalizePreferences,
+  type NotificationPreferences,
+} from "../notifications/notification-outbox.service.js";
+import {
+  encodeListCursor,
+  keysetWhere,
+  pageOf,
+  parseListLimit,
+  readListCursor,
+} from "./list-page.js";
+import {
+  normalizeWhatsappTemplates,
+  validateWhatsappTemplatesInput,
+} from "./whatsapp-manual.service.js";
 import { openSecret, sealSecret } from "../auth/secret-box.js";
 
 /**
@@ -30,7 +43,10 @@ const API_KEY_PURPOSE = "notification-api-key" as const;
 
 /** The one place the provider key comes back in the clear. */
 export async function notificationApiKey(storeId: string): Promise<string | null> {
-  const settings = await prisma.notificationSettings.findUnique({ where: { storeId }, select: { apiKey: true } });
+  const settings = await prisma.notificationSettings.findUnique({
+    where: { storeId },
+    select: { apiKey: true },
+  });
   if (!settings?.apiKey) return null;
   return openSecret(API_KEY_PURPOSE, settings.apiKey);
 }
@@ -44,7 +60,19 @@ export async function setNotificationApiKey(storeId: string, apiKey: string | nu
 }
 
 export async function notificationSettingsView(storeId: string) {
-  const settings = await prisma.notificationSettings.findUnique({ where: { storeId }, select: { isEnabled: true, configuration: true, senderId: true, dailyDigestEnabled: true, dailyDigestHour: true, marketingDailyCap: true, operationalDailyCap: true, operationalRecipientDailyCap: true } });
+  const settings = await prisma.notificationSettings.findUnique({
+    where: { storeId },
+    select: {
+      isEnabled: true,
+      configuration: true,
+      senderId: true,
+      dailyDigestEnabled: true,
+      dailyDigestHour: true,
+      marketingDailyCap: true,
+      operationalDailyCap: true,
+      operationalRecipientDailyCap: true,
+    },
+  });
   return {
     isEnabled: settings?.isEnabled === true,
     preferences: normalizePreferences(settings?.configuration),
@@ -55,7 +83,10 @@ export async function notificationSettingsView(storeId: string) {
     // digest scanner filters on them in SQL — `WHERE daily_digest_enabled`
     // is an index-able predicate and a JSON path over every store is not.
     // A sibling of `preferences` for the same reason courierDispatch is one.
-    dailyDigest: { enabled: settings?.dailyDigestEnabled === true, hour: settings?.dailyDigestHour ?? 20 },
+    dailyDigest: {
+      enabled: settings?.dailyDigestEnabled === true,
+      hour: settings?.dailyDigestHour ?? 20,
+    },
     senderId: settings?.senderId ?? null,
     emailProviderConfigured: isEmailProviderConfigured(),
     smsProviderConfigured: false,
@@ -80,31 +111,50 @@ export async function notificationSettingsView(storeId: string) {
  * caller is one waiting to be called wrongly (the rule product-review.service.ts
  * states for the same reason).
  */
-export async function updateNotificationPreferences(storeId: string, body: Record<string, unknown>) {
+export async function updateNotificationPreferences(
+  storeId: string,
+  body: Record<string, unknown>
+) {
   if (body.isEnabled !== undefined && typeof body.isEnabled !== "boolean") {
     throw new HttpError(422, "INVALID_INPUT", "isEnabled must be boolean.");
   }
   const rawPreferences = body.preferences === undefined ? {} : body.preferences;
-  if (typeof rawPreferences !== "object" || rawPreferences === null || Array.isArray(rawPreferences)) {
+  if (
+    typeof rawPreferences !== "object" ||
+    rawPreferences === null ||
+    Array.isArray(rawPreferences)
+  ) {
     throw new HttpError(422, "INVALID_INPUT", "preferences must be an object.");
   }
-  const allowedKeys: (keyof NotificationPreferences)[] = ["orderCreated", "orderStatusChanged", "lowStock"];
+  const allowedKeys: (keyof NotificationPreferences)[] = [
+    "orderCreated",
+    "orderStatusChanged",
+    "lowStock",
+  ];
   const requested = rawPreferences as Record<string, unknown>;
   for (const key of Object.keys(requested)) {
-    if (!allowedKeys.includes(key as keyof NotificationPreferences)) throw new HttpError(422, "INVALID_INPUT", `Unknown preference: ${key}`);
-    if (typeof requested[key] !== "boolean") throw new HttpError(422, "INVALID_INPUT", `${key} must be boolean.`);
+    if (!allowedKeys.includes(key as keyof NotificationPreferences))
+      throw new HttpError(422, "INVALID_INPUT", `Unknown preference: ${key}`);
+    if (typeof requested[key] !== "boolean")
+      throw new HttpError(422, "INVALID_INPUT", `${key} must be boolean.`);
   }
 
   // CD-1b: the courier toggle is a TOP-LEVEL body key, deliberately not a member
   // of `preferences` (see normalizeCourierDispatchSettings for why).
   if (body.courierDispatch !== undefined) {
     const requestedCourier = body.courierDispatch;
-    if (typeof requestedCourier !== "object" || requestedCourier === null || Array.isArray(requestedCourier)) {
+    if (
+      typeof requestedCourier !== "object" ||
+      requestedCourier === null ||
+      Array.isArray(requestedCourier)
+    ) {
       throw new HttpError(422, "INVALID_INPUT", "courierDispatch must be an object.");
     }
     for (const key of Object.keys(requestedCourier as Record<string, unknown>)) {
-      if (key !== "enabled") throw new HttpError(422, "INVALID_INPUT", `Unknown courierDispatch key: ${key}`);
-      if (typeof (requestedCourier as Record<string, unknown>).enabled !== "boolean") throw new HttpError(422, "INVALID_INPUT", "enabled must be boolean.");
+      if (key !== "enabled")
+        throw new HttpError(422, "INVALID_INPUT", `Unknown courierDispatch key: ${key}`);
+      if (typeof (requestedCourier as Record<string, unknown>).enabled !== "boolean")
+        throw new HttpError(422, "INVALID_INPUT", "enabled must be boolean.");
     }
   }
 
@@ -114,15 +164,26 @@ export async function updateNotificationPreferences(storeId: string, body: Recor
   let dailyDigest: { enabled?: boolean; hour?: number } | undefined;
   if (body.dailyDigest !== undefined) {
     const requestedDigest = body.dailyDigest;
-    if (typeof requestedDigest !== "object" || requestedDigest === null || Array.isArray(requestedDigest)) {
+    if (
+      typeof requestedDigest !== "object" ||
+      requestedDigest === null ||
+      Array.isArray(requestedDigest)
+    ) {
       throw new HttpError(422, "INVALID_INPUT", "dailyDigest must be an object.");
     }
     const entries = requestedDigest as Record<string, unknown>;
     for (const key of Object.keys(entries)) {
-      if (key !== "enabled" && key !== "hour") throw new HttpError(422, "INVALID_INPUT", `Unknown dailyDigest key: ${key}`);
+      if (key !== "enabled" && key !== "hour")
+        throw new HttpError(422, "INVALID_INPUT", `Unknown dailyDigest key: ${key}`);
     }
-    if (entries.enabled !== undefined && typeof entries.enabled !== "boolean") throw new HttpError(422, "INVALID_INPUT", "enabled must be boolean.");
-    if (entries.hour !== undefined && (!Number.isInteger(entries.hour) || (entries.hour as number) < 0 || (entries.hour as number) > 23)) {
+    if (entries.enabled !== undefined && typeof entries.enabled !== "boolean")
+      throw new HttpError(422, "INVALID_INPUT", "enabled must be boolean.");
+    if (
+      entries.hour !== undefined &&
+      (!Number.isInteger(entries.hour) ||
+        (entries.hour as number) < 0 ||
+        (entries.hour as number) > 23)
+    ) {
       throw new HttpError(422, "INVALID_INPUT", "hour must be an integer between 0 and 23.");
     }
     dailyDigest = entries as { enabled?: boolean; hour?: number };
@@ -131,11 +192,25 @@ export async function updateNotificationPreferences(storeId: string, body: Recor
   // WA-1 (ق-139): the templates block is a TOP-LEVEL body key like
   // courierDispatch. Validation (allow-listed keys, string, length cap, and the
   // {{token}} allow-list) lives beside the templates themselves.
-  const whatsappTemplatesInput = body.whatsappTemplates !== undefined ? validateWhatsappTemplatesInput(body.whatsappTemplates) : undefined;
+  const whatsappTemplatesInput =
+    body.whatsappTemplates !== undefined
+      ? validateWhatsappTemplatesInput(body.whatsappTemplates)
+      : undefined;
 
-  const current = await prisma.notificationSettings.findUnique({ where: { storeId }, select: { configuration: true } });
-  if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "Notification settings were not found for this store.");
-  const mergedPreferences = { ...normalizePreferences(current.configuration), ...(requested as Partial<NotificationPreferences>) };
+  const current = await prisma.notificationSettings.findUnique({
+    where: { storeId },
+    select: { configuration: true },
+  });
+  if (!current)
+    throw new HttpError(
+      404,
+      "RESOURCE_NOT_FOUND",
+      "Notification settings were not found for this store."
+    );
+  const mergedPreferences = {
+    ...normalizePreferences(current.configuration),
+    ...(requested as Partial<NotificationPreferences>),
+  };
   // Phase 20B-2: configuration now also carries the abandonedCart block —
   // spread the current object first so a preferences write never clobbers it.
   // CD-1b adds courierDispatch under the same rule; WA-1 adds whatsappTemplates.
@@ -148,7 +223,9 @@ export async function updateNotificationPreferences(storeId: string, body: Recor
   // string in the input deleted its override in validateWhatsappTemplatesInput —
   // so «revert to default» is a real deletion, not a frozen copy of today's text.
   const storedWhatsappBlock =
-    currentConfiguration.whatsappTemplates && typeof currentConfiguration.whatsappTemplates === "object" && !Array.isArray(currentConfiguration.whatsappTemplates)
+    currentConfiguration.whatsappTemplates &&
+    typeof currentConfiguration.whatsappTemplates === "object" &&
+    !Array.isArray(currentConfiguration.whatsappTemplates)
       ? (currentConfiguration.whatsappTemplates as Record<string, unknown>)
       : {};
   const currentWhatsappBlock: Record<string, string> = {};
@@ -161,7 +238,8 @@ export async function updateNotificationPreferences(storeId: string, body: Recor
     // Every key the client NAMED is either a new override (validated value) or
     // an explicit revert (empty string → dropped by the validator → deleted).
     for (const key of Object.keys(body.whatsappTemplates as Record<string, unknown>)) {
-      if (whatsappTemplatesInput[key] !== undefined) mergedWhatsappTemplates[key] = whatsappTemplatesInput[key];
+      if (whatsappTemplatesInput[key] !== undefined)
+        mergedWhatsappTemplates[key] = whatsappTemplatesInput[key];
       else delete mergedWhatsappTemplates[key];
     }
   }
@@ -171,7 +249,12 @@ export async function updateNotificationPreferences(storeId: string, body: Recor
       ...(body.isEnabled !== undefined ? { isEnabled: body.isEnabled } : {}),
       ...(dailyDigest?.enabled !== undefined ? { dailyDigestEnabled: dailyDigest.enabled } : {}),
       ...(dailyDigest?.hour !== undefined ? { dailyDigestHour: dailyDigest.hour } : {}),
-      configuration: { ...currentConfiguration, preferences: mergedPreferences, courierDispatch: mergedCourierDispatch, whatsappTemplates: mergedWhatsappTemplates },
+      configuration: {
+        ...currentConfiguration,
+        preferences: mergedPreferences,
+        courierDispatch: mergedCourierDispatch,
+        whatsappTemplates: mergedWhatsappTemplates,
+      },
     },
   });
   return notificationSettingsView(storeId);
@@ -187,7 +270,10 @@ export async function listNotificationLog(storeId: string, rawLimit: unknown, ra
   // store-scoped so a foreign id stays a 404.
   const cursor = await readListCursor(NOTIFICATION_LOG_KIND, rawCursor, {
     legacy: async (id) => {
-      const row = await prisma.notificationOutbox.findFirst({ where: { id, storeId }, select: { createdAt: true } });
+      const row = await prisma.notificationOutbox.findFirst({
+        where: { id, storeId },
+        select: { createdAt: true },
+      });
       return row ? { value: row.createdAt } : null;
     },
   });
@@ -195,9 +281,24 @@ export async function listNotificationLog(storeId: string, rawLimit: unknown, ra
     where: { storeId, ...keysetWhere("createdAt", "desc", cursor) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
-    select: { id: true, eventType: true, recipientKind: true, channel: true, recipient: true, status: true, attemptCount: true, nextAttemptAt: true, lastOutcome: true, sentAt: true, createdAt: true, payload: true },
+    select: {
+      id: true,
+      eventType: true,
+      recipientKind: true,
+      channel: true,
+      recipient: true,
+      status: true,
+      attemptCount: true,
+      nextAttemptAt: true,
+      lastOutcome: true,
+      sentAt: true,
+      createdAt: true,
+      payload: true,
+    },
   });
-  const { page, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(NOTIFICATION_LOG_KIND, last.createdAt, last.id));
+  const { page, nextCursor } = pageOf(rows, limit, (last) =>
+    encodeListCursor(NOTIFICATION_LOG_KIND, last.createdAt, last.id)
+  );
   return {
     notifications: page.map((row) => {
       const payload = (row.payload ?? {}) as Record<string, unknown>;
@@ -213,7 +314,11 @@ export async function listNotificationLog(storeId: string, rawLimit: unknown, ra
         lastOutcome: row.lastOutcome,
         sentAt: row.sentAt,
         createdAt: row.createdAt,
-        summary: { orderNumber: payload.orderNumber ?? null, productName: payload.productName ?? null, toStatus: payload.toStatus ?? null },
+        summary: {
+          orderNumber: payload.orderNumber ?? null,
+          productName: payload.productName ?? null,
+          toStatus: payload.toStatus ?? null,
+        },
       };
     }),
     nextCursor,

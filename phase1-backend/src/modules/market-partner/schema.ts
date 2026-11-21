@@ -2,4 +2,7 @@
 import { z } from "zod";
 
 export const partnerEnterSchema = z.object({ token: z.string().trim().min(20).max(4096) });
-export const partnerLinkSchema = z.object({ addressId: z.string().uuid(), fulfilment: z.enum(["delivery", "pickup"]).default("delivery") });
+export const partnerLinkSchema = z.object({
+  addressId: z.string().uuid(),
+  fulfilment: z.enum(["delivery", "pickup"]).default("delivery"),
+});

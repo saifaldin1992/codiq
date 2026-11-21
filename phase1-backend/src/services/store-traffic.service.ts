@@ -66,7 +66,10 @@ let flushing: Promise<void> | null = null;
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** One page view. `newVisitor` is what the cookie said; `productId` when the page was a product's. */
-export async function recordVisit(storeId: string, input: { day: string; newVisitor: boolean; productId?: string | null }): Promise<void> {
+export async function recordVisit(
+  storeId: string,
+  input: { day: string; newVisitor: boolean; productId?: string | null }
+): Promise<void> {
   const day = assertDay(input.day);
   if (visitBuffer.size + viewBuffer.size >= MAX_BUFFERED_KEYS) await flushVisits();
   const visitKey = `${storeId}|${day}`;
@@ -82,7 +85,10 @@ export async function recordVisit(storeId: string, input: { day: string; newVisi
   }
   if (FLUSH_MS === 0) return flushVisits();
   if (!flushTimer) {
-    flushTimer = setTimeout(() => { flushTimer = null; void flushVisits().catch(() => undefined); }, FLUSH_MS);
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      void flushVisits().catch(() => undefined);
+    }, FLUSH_MS);
     flushTimer.unref();
   }
 }
@@ -124,7 +130,10 @@ export async function flushVisits(): Promise<void> {
       for (const b of visits) {
         const key = `${b.storeId}|${b.day}`;
         const cur = visitBuffer.get(key);
-        visitBuffer.set(key, cur ? { ...cur, visits: cur.visits + b.visits, visitors: cur.visitors + b.visitors } : b);
+        visitBuffer.set(
+          key,
+          cur ? { ...cur, visits: cur.visits + b.visits, visitors: cur.visitors + b.visitors } : b
+        );
       }
       for (const b of views) {
         const key = `${b.storeId}|${b.productId}|${b.day}`;
@@ -139,34 +148,62 @@ export async function flushVisits(): Promise<void> {
   return flushing;
 }
 
-export interface DayTraffic { visits: number; visitors: number }
+export interface DayTraffic {
+  visits: number;
+  visitors: number;
+}
 
 /** Visit totals for a set of days; a day nobody came is zeros, not absent. */
-export async function trafficByDay(storeId: string, days: readonly string[]): Promise<Map<string, DayTraffic>> {
-  const out = new Map<string, DayTraffic>(days.map((day) => [assertDay(day), { visits: 0, visitors: 0 }]));
+export async function trafficByDay(
+  storeId: string,
+  days: readonly string[]
+): Promise<Map<string, DayTraffic>> {
+  const out = new Map<string, DayTraffic>(
+    days.map((day) => [assertDay(day), { visits: 0, visitors: 0 }])
+  );
   if (!days.length) return out;
-  const rows = await prisma.$queryRaw<Array<{ day: string; visits: number; visitors: number }>>(Prisma.sql`
+  const rows = await prisma.$queryRaw<
+    Array<{ day: string; visits: number; visitors: number }>
+  >(Prisma.sql`
     SELECT to_char(day, 'YYYY-MM-DD') AS day, visits, visitors
       FROM store_visits_daily
      WHERE store_id = ${storeId}::uuid AND day IN (${Prisma.join(days.map((day) => Prisma.sql`${day}::date`))})`);
-  for (const row of rows) out.set(row.day, { visits: Number(row.visits), visitors: Number(row.visitors) });
+  for (const row of rows)
+    out.set(row.day, { visits: Number(row.visits), visitors: Number(row.visitors) });
   return out;
 }
 
 /** Totals across a span of days, inclusive. */
-export async function trafficBetween(storeId: string, fromDay: string, toDay: string): Promise<DayTraffic> {
-  const [row] = await prisma.$queryRaw<Array<{ visits: bigint | number | null; visitors: bigint | number | null }>>(Prisma.sql`
+export async function trafficBetween(
+  storeId: string,
+  fromDay: string,
+  toDay: string
+): Promise<DayTraffic> {
+  const [row] = await prisma.$queryRaw<
+    Array<{ visits: bigint | number | null; visitors: bigint | number | null }>
+  >(Prisma.sql`
     SELECT SUM(visits) AS visits, SUM(visitors) AS visitors
       FROM store_visits_daily
      WHERE store_id = ${storeId}::uuid AND day BETWEEN ${assertDay(fromDay)}::date AND ${assertDay(toDay)}::date`);
   return { visits: Number(row?.visits ?? 0), visitors: Number(row?.visitors ?? 0) };
 }
 
-export interface MostViewedProduct { productId: string; name: string; views: number }
+export interface MostViewedProduct {
+  productId: string;
+  name: string;
+  views: number;
+}
 
 /** «الأكثر زيارة» — live products only, summed over the span. */
-export async function mostViewed(storeId: string, fromDay: string, toDay: string, limit = 5): Promise<MostViewedProduct[]> {
-  const rows = await prisma.$queryRaw<Array<{ product_id: string; name: string; views: bigint | number }>>(Prisma.sql`
+export async function mostViewed(
+  storeId: string,
+  fromDay: string,
+  toDay: string,
+  limit = 5
+): Promise<MostViewedProduct[]> {
+  const rows = await prisma.$queryRaw<
+    Array<{ product_id: string; name: string; views: bigint | number }>
+  >(Prisma.sql`
     SELECT v.product_id, MAX(p.name) AS name, SUM(v.views) AS views
       FROM product_views_daily v
       JOIN products p ON p.id = v.product_id AND p.store_id = v.store_id
@@ -176,5 +213,9 @@ export async function mostViewed(storeId: string, fromDay: string, toDay: string
      GROUP BY v.product_id
      ORDER BY views DESC, name ASC
      LIMIT ${Math.min(Math.max(limit, 1), 20)}`);
-  return rows.map((row) => ({ productId: row.product_id, name: row.name, views: Number(row.views) }));
+  return rows.map((row) => ({
+    productId: row.product_id,
+    name: row.name,
+    views: Number(row.views),
+  }));
 }

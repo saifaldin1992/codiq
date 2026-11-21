@@ -93,22 +93,36 @@ const API = "/api";
  * yet" is not one — that is what the legacy list is for.
  */
 const EXEMPT = {
-  "/api/health": "liveness probe for Railway and the staging healthcheck job — machines, not people",
+  "/api/health":
+    "liveness probe for Railway and the staging healthcheck job — machines, not people",
   "/api/ready": "readiness probe — same",
   "/api/openapi.json": "the contract for integrators; deliberately not a screen",
-  "/api/auth/platform/register": "owner bootstrap for `pnpm owner:create`, gated by CODIQ_ALLOW_OWNER_REGISTRATION — a console act, never a screen",
-  "/api/webhooks/resend": "Resend calls it, signed with Svix headers over the raw body (ق-182); no screen could, and none should",
-  "/api/payments/webhooks/card": "the card gateway calls it, HMAC-SHA256 over the raw body (marketplace M13a); no screen could, and none should",
-  "/api/partner/payment-links/complete": "the partner app calls it, HMAC-SHA256 over the raw body (marketplace M13b); no screen could, and none should",
-  "/api/public/brand/logo/*": "the URL is minted by the server inside the brand payload and reaches the browser as an <img src>; the client never spells it",
-  "/api/store/*/banners/*/image": "ق-198: the slide's URL is minted by the server inside the banner payload and reaches the browser as an <img src>; the client never spells it",
-  "/api/store/*/logo": "ق-199: the logo's URL is minted by the server inside public-config and reaches the browser as an <img src>; the client never spells it",
-  "/api/market/stores/*/cover": "Marketplace M1: the cover's URL is minted by the server inside every store card and page (coverUrl) and reaches the browser as an <img src>; the client never spells it",
-  "/api/market/banners/*/image": "Marketplace M3: the banner's URL is minted by the server inside GET /market/home (imageUrl) and reaches the browser as an <img src>; the client never spells it",
-  "/api/platform/dashboard": "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",
-  "/api/merchant/stores/*/dashboard": "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",
-  "/api/staff/stores/*/dashboard": "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",
-  "/api/stores/*/account": "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",
+  "/api/auth/platform/register":
+    "owner bootstrap for `pnpm owner:create`, gated by CODIQ_ALLOW_OWNER_REGISTRATION — a console act, never a screen",
+  "/api/webhooks/resend":
+    "Resend calls it, signed with Svix headers over the raw body (ق-182); no screen could, and none should",
+  "/api/payments/webhooks/card":
+    "the card gateway calls it, HMAC-SHA256 over the raw body (marketplace M13a); no screen could, and none should",
+  "/api/partner/payment-links/complete":
+    "the partner app calls it, HMAC-SHA256 over the raw body (marketplace M13b); no screen could, and none should",
+  "/api/public/brand/logo/*":
+    "the URL is minted by the server inside the brand payload and reaches the browser as an <img src>; the client never spells it",
+  "/api/store/*/banners/*/image":
+    "ق-198: the slide's URL is minted by the server inside the banner payload and reaches the browser as an <img src>; the client never spells it",
+  "/api/store/*/logo":
+    "ق-199: the logo's URL is minted by the server inside public-config and reaches the browser as an <img src>; the client never spells it",
+  "/api/market/stores/*/cover":
+    "Marketplace M1: the cover's URL is minted by the server inside every store card and page (coverUrl) and reaches the browser as an <img src>; the client never spells it",
+  "/api/market/banners/*/image":
+    "Marketplace M3: the banner's URL is minted by the server inside GET /market/home (imageUrl) and reaches the browser as an <img src>; the client never spells it",
+  "/api/platform/dashboard":
+    "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",
+  "/api/merchant/stores/*/dashboard":
+    "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",
+  "/api/staff/stores/*/dashboard":
+    "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",
+  "/api/stores/*/account":
+    "identity probe answering `{ area }` — the API-v1 contract test proves a session minted at /api/v1 is accepted at /api with it, and the demo suite lists it; for API clients, never a screen",
 };
 
 function sourceFiles(directory) {
@@ -123,14 +137,23 @@ function sourceFiles(directory) {
 
 /** `/a/:b/c` → ["api","a","*","c"] */
 function canonicalServer(route) {
-  return `${API}${route}`.split("?")[0].split("/").filter(Boolean).map((seg) => (seg.startsWith(":") ? "*" : seg));
+  return `${API}${route}`
+    .split("?")[0]
+    .split("/")
+    .filter(Boolean)
+    .map((seg) => (seg.startsWith(":") ? "*" : seg));
 }
 
 /** A client URL with `${…}` already replaced by `*` → segments; null if it is not an /api path. */
 function canonicalClient(url) {
   const at = url.indexOf(`${API}/`);
   if (at === -1) return null;
-  return url.slice(at).split("?")[0].split("/").filter(Boolean).map((seg) => (seg.includes("*") ? "*" : seg));
+  return url
+    .slice(at)
+    .split("?")[0]
+    .split("/")
+    .filter(Boolean)
+    .map((seg) => (seg.includes("*") ? "*" : seg));
 }
 
 function matches(server, client) {
@@ -145,12 +168,21 @@ const routes = [];
 for (const file of routeSourceFiles()) {
   const source = readFileSync(file, "utf8");
   for (const m of source.matchAll(/\bapp\.(get|post|put|patch|delete)\(\s*"([^"]+)"/g)) {
-    routes.push({ method: m[1].toUpperCase(), route: m[2], file: path.relative(repoRoot, file).replace(/\\/g, "/"), canon: canonicalServer(m[2]) });
+    routes.push({
+      method: m[1].toUpperCase(),
+      route: m[2],
+      file: path.relative(repoRoot, file).replace(/\\/g, "/"),
+      canon: canonicalServer(m[2]),
+    });
   }
 }
 
 // ── client side, pass 1: read every file, bind names to /api literals ────────
-const files = sourceFiles(CLIENT_SRC).map((file) => ({ file, source: readFileSync(file, "utf8"), bindings: new Map() }));
+const files = sourceFiles(CLIENT_SRC).map((file) => ({
+  file,
+  source: readFileSync(file, "utf8"),
+  bindings: new Map(),
+}));
 const byComponent = new Map(); // "VariantManager" → file record
 for (const f of files) {
   // Any name bound to a path-shaped literal — not only ones that start with
@@ -158,11 +190,14 @@ for (const f of files) {
   // and then writes `${variantsUrl}/${variant.id}`: the chain resolves only if
   // the intermediate name is bound too. `${…}` inside a binding is left for
   // `expand` to resolve in turn, so a chain of any length collapses.
-  for (const m of f.source.matchAll(/\b(?:const|let)\s+(\w+)\s*=[^;\n]*?(`[^`]*\/[^`]*`|"\/api\/[^"]*")/g)) {
+  for (const m of f.source.matchAll(
+    /\b(?:const|let)\s+(\w+)\s*=[^;\n]*?(`[^`]*\/[^`]*`|"\/api\/[^"]*")/g
+  )) {
     if (!f.bindings.has(m[1])) f.bindings.set(m[1], new Set());
     f.bindings.get(m[1]).add(m[2].slice(1, -1));
   }
-  for (const m of f.source.matchAll(/export\s+(?:default\s+)?(?:function|const)\s+([A-Z]\w*)/g)) byComponent.set(m[1], f);
+  for (const m of f.source.matchAll(/export\s+(?:default\s+)?(?:function|const)\s+([A-Z]\w*)/g))
+    byComponent.set(m[1], f);
 }
 
 // ── pass 2: props carry bindings from parent to child, to a fixed point ──────
@@ -177,7 +212,11 @@ for (let round = 0; round < 4; round += 1) {
         if (!values) continue;
         if (!child.bindings.has(attr[1])) child.bindings.set(attr[1], new Set());
         const target = child.bindings.get(attr[1]);
-        for (const v of values) if (!target.has(v)) { target.add(v); changed = true; }
+        for (const v of values)
+          if (!target.has(v)) {
+            target.add(v);
+            changed = true;
+          }
       }
     }
   }
@@ -194,30 +233,54 @@ for (const f of files) {
     const out = [];
     for (const value of f.bindings.get(m[1])) {
       // a value that names itself would recurse forever; leave it as `*`
-      if (value.includes(m[0])) { out.push(template.replace(m[0], "*")); continue; }
+      if (value.includes(m[0])) {
+        out.push(template.replace(m[0], "*"));
+        continue;
+      }
       out.push(...expand(template.replace(m[0], value), depth + 1));
     }
     return out;
   };
   const prefixes = new Set([...f.bindings.values()].flatMap((set) => [...set]));
-  for (const m of f.source.matchAll(/[`"'](\/api\/[^`"']*)[`"']/g)) prefixes.add(star(m[1]).split("?")[0]);
+  for (const m of f.source.matchAll(/[`"'](\/api\/[^`"']*)[`"']/g))
+    prefixes.add(star(m[1]).split("?")[0]);
 
   for (const m of f.source.matchAll(/`([^`]*)`/g)) {
     for (const expanded of expand(m[1])) {
       const flat = star(expanded);
-      if (flat.includes(`${API}/`)) { const c = canonicalClient(flat); if (c) clientCanon.push(c); continue; }
+      if (flat.includes(`${API}/`)) {
+        const c = canonicalClient(flat);
+        if (c) clientCanon.push(c);
+        continue;
+      }
       if (/^\*\//.test(flat)) {
         const tail = flat.slice(1);
         let hit = false;
-        for (const prefix of prefixes) { const c = canonicalClient(prefix + tail); if (c) { clientCanon.push(c); hit = true; } }
-        if (!hit) orphans.push({ file: path.relative(repoRoot, f.file).replace(/\\/g, "/"), template: m[1].slice(0, 90) });
+        for (const prefix of prefixes) {
+          const c = canonicalClient(prefix + tail);
+          if (c) {
+            clientCanon.push(c);
+            hit = true;
+          }
+        }
+        if (!hit)
+          orphans.push({
+            file: path.relative(repoRoot, f.file).replace(/\\/g, "/"),
+            template: m[1].slice(0, 90),
+          });
       }
     }
   }
-  for (const m of f.source.matchAll(/["'](\/api\/[^"']*)["']/g)) { const c = canonicalClient(m[1]); if (c) clientCanon.push(c); }
+  for (const m of f.source.matchAll(/["'](\/api\/[^"']*)["']/g)) {
+    const c = canonicalClient(m[1]);
+    if (c) clientCanon.push(c);
+  }
   // the storefront helper: path(slug, "account", "orders", orderId) → /api/store/*/account/orders/*
   for (const m of f.source.matchAll(/\bpath\(([^)]*)\)/g)) {
-    const args = m[1].split(",").map((a) => a.trim()).filter(Boolean);
+    const args = m[1]
+      .split(",")
+      .map((a) => a.trim())
+      .filter(Boolean);
     if (args.length < 2) continue;
     const segs = args.map((a) => (/^["'`]/.test(a) ? a.slice(1, -1) : "*"));
     clientCanon.push(["api", "store", ...segs].map((s) => (s.includes("*") ? "*" : s)));
@@ -233,18 +296,29 @@ if (process.argv.includes("--orphans")) {
 // ── compare ──────────────────────────────────────────────────────────────────
 const key = (r) => `${r.method} /${r.canon.join("/")}`;
 const reached = new Map();
-for (const r of routes) reached.set(key(r), clientCanon.some((c) => matches(r.canon, c)));
+for (const r of routes)
+  reached.set(
+    key(r),
+    clientCanon.some((c) => matches(r.canon, c))
+  );
 
-const exemptKeys = new Set(Object.keys(EXEMPT).map((p) => `/${canonicalServer(p.slice(API.length)).join("/")}`));
+const exemptKeys = new Set(
+  Object.keys(EXEMPT).map((p) => `/${canonicalServer(p.slice(API.length)).join("/")}`)
+);
 const isExempt = (r) => exemptKeys.has(`/${r.canon.join("/")}`);
 const misses = routes.filter((r) => !reached.get(key(r)) && !isExempt(r));
 
 if (process.argv.includes("--write")) {
   const previous = existsSync(LEGACY) ? JSON.parse(readFileSync(LEGACY, "utf8")) : {};
   const seed = {};
-  for (const r of misses) seed[key(r)] = previous[key(r)] ?? `registered in ${r.file} — no caller under client/src; build the screen, or say here why not`;
+  for (const r of misses)
+    seed[key(r)] =
+      previous[key(r)] ??
+      `registered in ${r.file} — no caller under client/src; build the screen, or say here why not`;
   writeFileSync(LEGACY, `${JSON.stringify(seed, null, 2)}\n`, "utf8");
-  console.log(`surface.legacy.json rewritten — ${misses.length} unreached of ${routes.length} routes (${orphans.length} unresolved templates; see --orphans)`);
+  console.log(
+    `surface.legacy.json rewritten — ${misses.length} unreached of ${routes.length} routes (${orphans.length} unresolved templates; see --orphans)`
+  );
   process.exit(0);
 }
 
@@ -258,33 +332,42 @@ if (born.length) {
   problems.push(
     `${born.length} route(s) with NO caller anywhere under client/src, and not in the legacy list:\n` +
       born.map((r) => `  ${key(r)}  — ${r.file}`).join("\n") +
-      `\n  A route nobody can reach answers 200 to nobody. Draw the screen, or — if it is for machines — add it to EXEMPT with the reason.`,
+      `\n  A route nobody can reach answers 200 to nobody. Draw the screen, or — if it is for machines — add it to EXEMPT with the reason.`
   );
 }
 if (stale.length) {
   problems.push(
     `${stale.length} legacy route(s) are now REACHED — remove them from surface.legacy.json so the list keeps shrinking:\n` +
-      stale.map((k) => `  ${k}`).join("\n"),
+      stale.map((k) => `  ${k}`).join("\n")
   );
 }
 if (vanished.length) {
-  problems.push(`${vanished.length} legacy route(s) no longer exist — remove them from surface.legacy.json:\n` + vanished.map((k) => `  ${k}`).join("\n"));
+  problems.push(
+    `${vanished.length} legacy route(s) no longer exist — remove them from surface.legacy.json:\n` +
+      vanished.map((k) => `  ${k}`).join("\n")
+  );
 }
 
 if (problems.length) {
   console.error(`ق-172: the server and the screens disagree.\n\n${problems.join("\n\n")}`);
   process.exitCode = 1;
 } else {
-  console.log(JSON.stringify({
-    suite: "surface",
-    status: "passed",
-    summary: {
-      routes: routes.length,
-      reached: routes.filter((r) => reached.get(key(r))).length,
-      legacy: Object.keys(legacy).length,
-      exempt: Object.keys(EXEMPT).length,
-      unresolvedTemplates: orphans.length,
-      guarantee: "no new route without a screen; the legacy list only shrinks",
-    },
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        suite: "surface",
+        status: "passed",
+        summary: {
+          routes: routes.length,
+          reached: routes.filter((r) => reached.get(key(r))).length,
+          legacy: Object.keys(legacy).length,
+          exempt: Object.keys(EXEMPT).length,
+          unresolvedTemplates: orphans.length,
+          guarantee: "no new route without a screen; the legacy list only shrinks",
+        },
+      },
+      null,
+      2
+    )
+  );
 }

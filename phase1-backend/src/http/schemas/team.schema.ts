@@ -59,7 +59,7 @@ export const membershipOverridesSchema = z.object({
         // `allow` grants a code the role lacks, `deny` removes one it holds —
         // and these two strings are also the CHECK on the `effect` column.
         effect: z.enum(["allow", "deny"]),
-      }),
+      })
     )
     // One entry per permission code is the most that can mean anything; the
     // service refuses the duplicate that would make two entries of one code.

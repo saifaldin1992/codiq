@@ -42,42 +42,78 @@
  */
 import type { Express } from "express";
 import { cancelOwnOrder } from "../../services/order-self-cancel.service.js";
-import { ORDER_TRACK_IP_RATE_LIMIT, ORDER_TRACK_RATE_LIMIT, orderTrackingQuery, trackPublicOrder } from "../../services/order-tracking.service.js";
+import {
+  ORDER_TRACK_IP_RATE_LIMIT,
+  ORDER_TRACK_RATE_LIMIT,
+  orderTrackingQuery,
+  trackPublicOrder,
+} from "../../services/order-tracking.service.js";
 import { reorderIntoCart } from "../../services/storefront.service.js";
-import { asyncRoute, limitStorefrontWrite, requireStorefrontCustomer, requireTrustedWriteOrigin, resolveStorefrontStore } from "../shared.js";
-
+import {
+  asyncRoute,
+  limitStorefrontWrite,
+  requireStorefrontCustomer,
+  requireTrustedWriteOrigin,
+  resolveStorefrontStore,
+} from "../shared.js";
+
 import { clientIp } from "../client-ip.js";
 import { assertCapabilityAvailable } from "../../services/availability.service.js";
 export function registerCustomerDelightRoutes(app: Express) {
-  app.post("/store/:storeSlug/orders/track", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const store = await resolveStorefrontStore(request.params.storeSlug);
-    await assertCapabilityAvailable("cx.tracking", store);
-    // IP bucket FIRST: this is the only unauthenticated route in the codebase,
-    // so malformed bodies get throttled too, and varying the phone can no longer
-    // hand an attacker an unlimited budget against one order number.
-    await limitStorefrontWrite(request, "order_track_ip", `ip:${clientIp(request)}`, ORDER_TRACK_IP_RATE_LIMIT);
-    const query = orderTrackingQuery(request.body ?? {});
-    // Then the per-phone bucket (limitStorefrontWrite prefixes the slug and
-    // hashes the whole key), bounding order-number guessing against one phone.
-    await limitStorefrontWrite(request, "order_track", query.rateLimitKey, ORDER_TRACK_RATE_LIMIT);
-    response.status(200).json({ order: await trackPublicOrder(store.id, query) });
-  }));
+  app.post(
+    "/store/:storeSlug/orders/track",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const store = await resolveStorefrontStore(request.params.storeSlug);
+      await assertCapabilityAvailable("cx.tracking", store);
+      // IP bucket FIRST: this is the only unauthenticated route in the codebase,
+      // so malformed bodies get throttled too, and varying the phone can no longer
+      // hand an attacker an unlimited budget against one order number.
+      await limitStorefrontWrite(
+        request,
+        "order_track_ip",
+        `ip:${clientIp(request)}`,
+        ORDER_TRACK_IP_RATE_LIMIT
+      );
+      const query = orderTrackingQuery(request.body ?? {});
+      // Then the per-phone bucket (limitStorefrontWrite prefixes the slug and
+      // hashes the whole key), bounding order-number guessing against one phone.
+      await limitStorefrontWrite(
+        request,
+        "order_track",
+        query.rateLimitKey,
+        ORDER_TRACK_RATE_LIMIT
+      );
+      response.status(200).json({ order: await trackPublicOrder(store.id, query) });
+    })
+  );
 
-  app.post("/store/:storeSlug/account/orders/:orderId/reorder", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const { store, customer } = await requireStorefrontCustomer(request);
-    await assertCapabilityAvailable("cx.reorder", store);
-    await limitStorefrontWrite(request, "cart_write", customer.id, 60);
-    response.status(200).json(await reorderIntoCart(store.id, customer.id, request.params.orderId));
-  }));
+  app.post(
+    "/store/:storeSlug/account/orders/:orderId/reorder",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const { store, customer } = await requireStorefrontCustomer(request);
+      await assertCapabilityAvailable("cx.reorder", store);
+      await limitStorefrontWrite(request, "cart_write", customer.id, 60);
+      response
+        .status(200)
+        .json(await reorderIntoCart(store.id, customer.id, request.params.orderId));
+    })
+  );
 
-  app.post("/store/:storeSlug/account/orders/:orderId/cancel", asyncRoute(async (request, response) => {
-    requireTrustedWriteOrigin(request);
-    const { store, customer } = await requireStorefrontCustomer(request);
-    // Its own bucket, and a tight one: cancelling is rare and irreversible, so a
-    // script hammering it is never legitimate traffic.
-    await limitStorefrontWrite(request, "order_self_cancel", customer.id, 20);
-    response.status(200).json(await cancelOwnOrder(store.id, customer.id, request.params.orderId, request.body ?? {}));
-  }));
+  app.post(
+    "/store/:storeSlug/account/orders/:orderId/cancel",
+    asyncRoute(async (request, response) => {
+      requireTrustedWriteOrigin(request);
+      const { store, customer } = await requireStorefrontCustomer(request);
+      // Its own bucket, and a tight one: cancelling is rare and irreversible, so a
+      // script hammering it is never legitimate traffic.
+      await limitStorefrontWrite(request, "order_self_cancel", customer.id, 20);
+      response
+        .status(200)
+        .json(
+          await cancelOwnOrder(store.id, customer.id, request.params.orderId, request.body ?? {})
+        );
+    })
+  );
 }

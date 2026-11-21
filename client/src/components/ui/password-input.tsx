@@ -67,7 +67,7 @@ export function PasswordInput({
           "absolute inset-y-0 end-0 flex w-10 items-center justify-center rounded-md text-[var(--codiq-text-muted)]",
           "transition-colors hover:text-[var(--codiq-text-secondary)]",
           "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-          "disabled:pointer-events-none disabled:opacity-50",
+          "disabled:pointer-events-none disabled:opacity-50"
         )}
         disabled={props.disabled}
       >

@@ -30,6 +30,9 @@ export const decideReturnRequestSchema = z.object({
    * arrived as a number must still hit RETURN_REJECTION_NOTE_REQUIRED, not a
    * shape error about the note's type.
    */
-  note: z.preprocess((value) => (typeof value === "string" ? value : undefined), z.string().optional()),
+  note: z.preprocess(
+    (value) => (typeof value === "string" ? value : undefined),
+    z.string().optional()
+  ),
 });
 export type DecideReturnRequestInput = z.infer<typeof decideReturnRequestSchema>;

@@ -10,7 +10,13 @@ import { useCallback, useEffect, useState } from "react";
 import { BadgeCheck, Check, CircleAlert, LoaderCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type Evidence = { code: string; label: string; value: number | null; threshold: number; met: boolean };
+type Evidence = {
+  code: string;
+  label: string;
+  value: number | null;
+  threshold: number;
+  met: boolean;
+};
 type Verification = {
   storeSlug: string;
   storeName: string;
@@ -23,7 +29,10 @@ type Verification = {
 };
 
 const number = new Intl.NumberFormat("ar-IQ");
-const day = (value: string) => new Intl.DateTimeFormat("ar-IQ", { year: "numeric", month: "long", day: "numeric" }).format(new Date(value));
+const day = (value: string) =>
+  new Intl.DateTimeFormat("ar-IQ", { year: "numeric", month: "long", day: "numeric" }).format(
+    new Date(value)
+  );
 /**
  * `completion_rate` is the only criterion measured in percent, and the only one
  * that can be null — a store with no orders has no rate. It shows as «—», not as
@@ -31,7 +40,9 @@ const day = (value: string) => new Intl.DateTimeFormat("ar-IQ", { year: "numeric
  */
 const shown = (item: Evidence) => {
   if (item.value === null) return "—";
-  return item.code === "completion_rate" ? `${number.format(item.value)}٪` : number.format(item.value);
+  return item.code === "completion_rate"
+    ? `${number.format(item.value)}٪`
+    : number.format(item.value);
 };
 
 export function StoreVerificationPanel({ storeSlug }: { storeSlug: string }) {
@@ -42,7 +53,10 @@ export function StoreVerificationPanel({ storeSlug }: { storeSlug: string }) {
 
   const load = useCallback(async () => {
     try {
-      const response = await fetch(`/api/platform/stores/${encodeURIComponent(storeSlug)}/verification`, { credentials: "same-origin" });
+      const response = await fetch(
+        `/api/platform/stores/${encodeURIComponent(storeSlug)}/verification`,
+        { credentials: "same-origin" }
+      );
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.error?.message ?? "تعذر تحميل حالة التوثيق.");
       setState(body.verification);
@@ -52,17 +66,25 @@ export function StoreVerificationPanel({ storeSlug }: { storeSlug: string }) {
       setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
     }
   }, [storeSlug]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   async function decide(verified: boolean) {
     setBusy(true);
     try {
-      const response = await fetch(`/api/platform/stores/${encodeURIComponent(storeSlug)}/verification`, {
-        method: "PUT",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ verified, ...(verified && note.trim() ? { note: note.trim() } : {}) }),
-      });
+      const response = await fetch(
+        `/api/platform/stores/${encodeURIComponent(storeSlug)}/verification`,
+        {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            verified,
+            ...(verified && note.trim() ? { note: note.trim() } : {}),
+          }),
+        }
+      );
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.error?.message ?? "تعذر حفظ القرار.");
       setState(body.verification);
@@ -75,35 +97,76 @@ export function StoreVerificationPanel({ storeSlug }: { storeSlug: string }) {
     }
   }
 
-  if (failure && !state) return <p className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold text-[var(--codiq-danger)]"><CircleAlert className="h-4 w-4" /> {failure}</p>;
-  if (!state) return <p className="text-sm text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ التحميل…</p>;
+  if (failure && !state)
+    return (
+      <p className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-danger-soft)] px-4 py-3 text-sm font-semibold text-[var(--codiq-danger)]">
+        <CircleAlert className="h-4 w-4" /> {failure}
+      </p>
+    );
+  if (!state)
+    return (
+      <p className="text-sm text-[var(--codiq-text-muted)]">
+        <LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ التحميل…
+      </p>
+    );
 
   return (
     <section className="space-y-4 rounded-3xl bg-[var(--codiq-surface)] px-5 py-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 text-sm font-black text-[var(--codiq-accent-strong)]"><BadgeCheck className="h-4 w-4" /> توثيق المتجر</p>
-          <p className="mt-0.5 text-xs text-[var(--codiq-text-secondary)]">شارة تمنحها المنصة وتظهر للزبائن في واجهة المتجر.</p>
+          <p className="flex items-center gap-2 text-sm font-black text-[var(--codiq-accent-strong)]">
+            <BadgeCheck className="h-4 w-4" /> توثيق المتجر
+          </p>
+          <p className="mt-0.5 text-xs text-[var(--codiq-text-secondary)]">
+            شارة تمنحها المنصة وتظهر للزبائن في واجهة المتجر.
+          </p>
         </div>
         {state.verified ? (
-          <span className="rounded-full bg-[var(--codiq-success-soft)] px-3 py-1 text-[11px] font-bold text-[var(--codiq-success)]">موثّق منذ {state.verifiedAt ? day(state.verifiedAt) : "—"}</span>
+          <span className="rounded-full bg-[var(--codiq-success-soft)] px-3 py-1 text-[11px] font-bold text-[var(--codiq-success)]">
+            موثّق منذ {state.verifiedAt ? day(state.verifiedAt) : "—"}
+          </span>
         ) : (
-          <span className="rounded-full bg-[var(--codiq-neutral-soft)] px-3 py-1 text-[11px] font-bold text-[var(--codiq-text-secondary)]">غير موثّق</span>
+          <span className="rounded-full bg-[var(--codiq-neutral-soft)] px-3 py-1 text-[11px] font-bold text-[var(--codiq-text-secondary)]">
+            غير موثّق
+          </span>
         )}
       </div>
 
-      {state.verified && state.verifiedBy ? <p className="text-xs text-[var(--codiq-text-secondary)]">منحها: <b className="font-bold">{state.verifiedBy.displayName}</b></p> : null}
+      {state.verified && state.verifiedBy ? (
+        <p className="text-xs text-[var(--codiq-text-secondary)]">
+          منحها: <b className="font-bold">{state.verifiedBy.displayName}</b>
+        </p>
+      ) : null}
 
       <ul className="grid gap-2 sm:grid-cols-2">
         {state.evidence.map((item) => (
-          <li key={item.code} className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--codiq-surface-sunken)] px-3.5 py-2.5">
+          <li
+            key={item.code}
+            className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--codiq-surface-sunken)] px-3.5 py-2.5"
+          >
             <span className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-[var(--codiq-text)]">
               {/* The mark is never the only signal: the figure beside it says the same thing in numbers. */}
-              {item.met ? <Check className="h-4 w-4 shrink-0 text-[var(--codiq-success)]" aria-hidden="true" /> : <X className="h-4 w-4 shrink-0 text-[var(--codiq-negative-icon)]" aria-hidden="true" />}
+              {item.met ? (
+                <Check
+                  className="h-4 w-4 shrink-0 text-[var(--codiq-success)]"
+                  aria-hidden="true"
+                />
+              ) : (
+                <X
+                  className="h-4 w-4 shrink-0 text-[var(--codiq-negative-icon)]"
+                  aria-hidden="true"
+                />
+              )}
               <span className="truncate">{item.label}</span>
             </span>
-            <span className={`shrink-0 text-[13px] font-black tabular-nums ${item.met ? "text-[var(--codiq-success)]" : "text-[var(--codiq-text-muted)]"}`}>
-              {shown(item)}<span className="sr-only"> {item.met ? "مستوفى" : item.value === null ? "لا توجد بيانات بعد" : "غير مستوفى"}</span>
+            <span
+              className={`shrink-0 text-[13px] font-black tabular-nums ${item.met ? "text-[var(--codiq-success)]" : "text-[var(--codiq-text-muted)]"}`}
+            >
+              {shown(item)}
+              <span className="sr-only">
+                {" "}
+                {item.met ? "مستوفى" : item.value === null ? "لا توجد بيانات بعد" : "غير مستوفى"}
+              </span>
             </span>
           </li>
         ))}
@@ -116,7 +179,9 @@ export function StoreVerificationPanel({ storeSlug }: { storeSlug: string }) {
       </p>
 
       <label className="block space-y-1">
-        <span className="text-[11px] font-bold text-[var(--codiq-text-secondary)]">ملاحظة (اختيارية، حتى 500 حرف)</span>
+        <span className="text-[11px] font-bold text-[var(--codiq-text-secondary)]">
+          ملاحظة (اختيارية، حتى 500 حرف)
+        </span>
         <textarea
           value={note}
           onChange={(event) => setNote(event.target.value)}
@@ -126,23 +191,53 @@ export function StoreVerificationPanel({ storeSlug }: { storeSlug: string }) {
           placeholder="مثال: زيارة ميدانية وتحقق من السجل التجاري"
         />
         {/* Said before he types it, not after: the note travels to the merchant. */}
-        <span className="block text-[11px] text-[var(--codiq-text-muted)]">تظهر هذه الملاحظة للتاجر في سجل متجره. لا تضع فيها ما لا تريده أن يقرأه.</span>
+        <span className="block text-[11px] text-[var(--codiq-text-muted)]">
+          تظهر هذه الملاحظة للتاجر في سجل متجره. لا تضع فيها ما لا تريده أن يقرأه.
+        </span>
       </label>
 
-      {failure ? <p className="flex items-center gap-2 rounded-xl bg-[var(--codiq-danger-soft)] px-3 py-2 text-[13px] font-semibold text-[var(--codiq-danger)]"><CircleAlert className="h-4 w-4" /> {failure}</p> : null}
+      {failure ? (
+        <p className="flex items-center gap-2 rounded-xl bg-[var(--codiq-danger-soft)] px-3 py-2 text-[13px] font-semibold text-[var(--codiq-danger)]">
+          <CircleAlert className="h-4 w-4" /> {failure}
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {state.verified ? (
-          <Button type="button" variant="outline" disabled={busy} onClick={() => void decide(false)} className="rounded-xl border-[var(--codiq-danger-border)] text-[var(--codiq-danger)] hover:bg-[var(--codiq-danger-soft)]">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => void decide(false)}
+            className="rounded-xl border-[var(--codiq-danger-border)] text-[var(--codiq-danger)] hover:bg-[var(--codiq-danger-soft)]"
+          >
             {busy ? <LoaderCircle className="ml-1 h-4 w-4 animate-spin" /> : null}سحب التوثيق
           </Button>
         ) : (
-          <Button type="button" disabled={busy} onClick={() => void decide(true)} className="rounded-xl bg-[var(--codiq-accent)] hover:bg-[var(--codiq-accent-hover)]">
-            {busy ? <LoaderCircle className="ml-1 h-4 w-4 animate-spin" /> : <BadgeCheck className="ml-1 h-4 w-4" />}منح التوثيق
+          <Button
+            type="button"
+            disabled={busy}
+            onClick={() => void decide(true)}
+            className="rounded-xl bg-[var(--codiq-accent)] hover:bg-[var(--codiq-accent-hover)]"
+          >
+            {busy ? (
+              <LoaderCircle className="ml-1 h-4 w-4 animate-spin" />
+            ) : (
+              <BadgeCheck className="ml-1 h-4 w-4" />
+            )}
+            منح التوثيق
           </Button>
         )}
         {state.verified ? (
-          <Button type="button" variant="ghost" disabled={busy} onClick={() => void decide(true)} className="rounded-xl text-[var(--codiq-text-secondary)]">تحديث الملاحظة</Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => void decide(true)}
+            className="rounded-xl text-[var(--codiq-text-secondary)]"
+          >
+            تحديث الملاحظة
+          </Button>
         ) : null}
       </div>
     </section>

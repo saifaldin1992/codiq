@@ -23,13 +23,26 @@ const dbUrl = assertSafeTestDatabaseUrl(process.env.CODIQ_TEST_DATABASE_URL);
 
 const web = spawn("node", ["dist/index.js"], {
   cwd: process.cwd(),
-  env: { ...process.env, NODE_ENV: "production", PORT: String(port), DATABASE_URL: dbUrl, CODIQ_POSTGRES_URL: dbUrl, CODIQ_PUBLIC_BASE_URL: base, CODIQ_NOTIFICATIONS_WORKER: "off" },
+  env: {
+    ...process.env,
+    NODE_ENV: "production",
+    PORT: String(port),
+    DATABASE_URL: dbUrl,
+    CODIQ_POSTGRES_URL: dbUrl,
+    CODIQ_PUBLIC_BASE_URL: base,
+    CODIQ_NOTIFICATIONS_WORKER: "off",
+  },
   stdio: ["ignore", "inherit", "inherit"],
 });
 
 async function waitFor(url) {
   for (let attempt = 0; attempt < 150; attempt += 1) {
-    try { const response = await fetch(url); if (response.status < 500) return; } catch { /* not up yet */ }
+    try {
+      const response = await fetch(url);
+      if (response.status < 500) return;
+    } catch {
+      /* not up yet */
+    }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`Timed out waiting for ${url}`);
@@ -38,11 +51,15 @@ async function waitFor(url) {
 let browser;
 try {
   await waitFor(`${base}/api/health`);
-  browser = await chromium.launch(process.env.CODIQ_CHROMIUM_PATH ? { executablePath: process.env.CODIQ_CHROMIUM_PATH } : {});
+  browser = await chromium.launch(
+    process.env.CODIQ_CHROMIUM_PATH ? { executablePath: process.env.CODIQ_CHROMIUM_PATH } : {}
+  );
   const context = await browser.newContext({ ...devices["iPhone 13"] });
   const page = await context.newPage();
   const consoleErrors = [];
-  page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
   page.on("pageerror", (error) => consoleErrors.push(String(error)));
 
   await page.goto(`${base}/market`);
@@ -54,7 +71,11 @@ try {
     await page.getByTestId(`market-tab-${tab}`).click();
     await page.getByTestId(`market-${tab}`).waitFor();
     assert.equal(new URL(page.url()).pathname, `/market/${tab}`);
-    assert.equal(await page.getByTestId(`market-tab-${tab}`).getAttribute("aria-current"), "page", `${tab} tab is current`);
+    assert.equal(
+      await page.getByTestId(`market-tab-${tab}`).getAttribute("aria-current"),
+      "page",
+      `${tab} tab is current`
+    );
     assert.equal(await page.getByTestId("market-tab-home").getAttribute("aria-current"), null);
   }
   await page.getByTestId("market-brand").click();
@@ -69,9 +90,17 @@ try {
   assert.match(await page.getByTestId("market-location-button").innerText(), /اختر محافظتك/);
   await page.getByTestId("market-location-button").click();
   await page.getByTestId("market-governorate-Basra").waitFor();
-  assert.equal(await page.locator('[data-testid^="market-governorate-"]').count(), 18, "all eighteen governorates are offered");
+  assert.equal(
+    await page.locator('[data-testid^="market-governorate-"]').count(),
+    18,
+    "all eighteen governorates are offered"
+  );
   await page.getByTestId("market-location-search").fill("بغد");
-  assert.equal(await page.locator('[data-testid^="market-governorate-"]').count(), 1, "search narrows the governorates");
+  assert.equal(
+    await page.locator('[data-testid^="market-governorate-"]').count(),
+    1,
+    "search narrows the governorates"
+  );
   await page.getByTestId("market-governorate-Baghdad").click();
   await page.getByTestId("market-location-search").fill("كاظم");
   const district = page.locator('[data-testid^="market-district-"]');
@@ -80,10 +109,18 @@ try {
   await page.getByTestId("market-location-picker").waitFor({ state: "detached" });
   assert.match(await page.getByTestId("market-location-button").innerText(), /بغداد · الكاظمية/);
   await page.reload();
-  assert.match(await page.getByTestId("market-location-button").innerText(), /بغداد · الكاظمية/, "the choice survives a reload");
+  assert.match(
+    await page.getByTestId("market-location-button").innerText(),
+    /بغداد · الكاظمية/,
+    "the choice survives a reload"
+  );
   await page.getByTestId("market-location-button").click();
   await page.getByRole("button", { name: "كل المحافظات" }).click();
-  assert.match(await page.getByTestId("market-location-button").innerText(), /اختر محافظتك/, "«كل المحافظات» clears it");
+  assert.match(
+    await page.getByTestId("market-location-button").innerText(),
+    /اختر محافظتك/,
+    "«كل المحافظات» clears it"
+  );
 
   // search
   await page.getByTestId("market-search-input").fill("ايفون");
@@ -94,11 +131,23 @@ try {
   assert.equal(url.searchParams.get("q"), "ايفون");
 
   // phone width: nothing scrolls sideways
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth
+  );
   assert.ok(overflow <= 0, `no horizontal scroll at phone width (overflow ${overflow}px)`);
 
   assert.deepEqual(consoleErrors, [], "no console errors");
-  console.log(JSON.stringify({ suite: "market-shell-browser", status: "passed", summary: { tabs: 5, locationPersisted: true, search: true } }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        suite: "market-shell-browser",
+        status: "passed",
+        summary: { tabs: 5, locationPersisted: true, search: true },
+      },
+      null,
+      2
+    )
+  );
 } finally {
   await browser?.close();
   await killTree(web);

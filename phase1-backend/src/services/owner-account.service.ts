@@ -38,7 +38,10 @@ export interface OwnerAccountView {
 }
 
 export async function ownerAccount(ownerId: string): Promise<OwnerAccountView> {
-  const owner = await prisma.platformOwner.findUnique({ where: { id: ownerId }, select: { email: true, displayName: true } });
+  const owner = await prisma.platformOwner.findUnique({
+    where: { id: ownerId },
+    select: { email: true, displayName: true },
+  });
   if (!owner) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الحساب غير موجود.");
   return owner;
 }
@@ -48,8 +51,14 @@ export interface ChangeOwnerEmailResult {
   previousEmail: string;
 }
 
-export async function changeOwnerEmail(ownerId: string, input: { currentPassword: unknown; email: unknown }): Promise<ChangeOwnerEmailResult> {
-  const owner = await prisma.platformOwner.findUnique({ where: { id: ownerId }, select: { email: true, passwordHash: true } });
+export async function changeOwnerEmail(
+  ownerId: string,
+  input: { currentPassword: unknown; email: unknown }
+): Promise<ChangeOwnerEmailResult> {
+  const owner = await prisma.platformOwner.findUnique({
+    where: { id: ownerId },
+    select: { email: true, passwordHash: true },
+  });
   if (!owner) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الحساب غير موجود.");
 
   if (!(await verifyPassword(input.currentPassword, owner.passwordHash))) {
@@ -62,7 +71,11 @@ export async function changeOwnerEmail(ownerId: string, input: { currentPassword
   if (email === owner.email) {
     // Refused rather than accepted-as-a-no-op: an owner who typed his existing
     // address meant to type a different one, and «تم الحفظ» would hide the typo.
-    throw new HttpError(422, "EMAIL_UNCHANGED", "هذا هو بريدك الحالي. اكتب البريد الجديد الذي تريد الدخول به.");
+    throw new HttpError(
+      422,
+      "EMAIL_UNCHANGED",
+      "هذا هو بريدك الحالي. اكتب البريد الجديد الذي تريد الدخول به."
+    );
   }
 
   await prisma.$transaction(async (tx) => {

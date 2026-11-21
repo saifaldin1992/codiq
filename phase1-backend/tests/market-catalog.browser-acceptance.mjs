@@ -29,12 +29,25 @@ const { prisma } = await import("../src/db/prisma.ts");
 
 const web = spawn("node", ["dist/index.js"], {
   cwd: process.cwd(),
-  env: { ...process.env, NODE_ENV: "production", PORT: String(port), DATABASE_URL: dbUrl, CODIQ_POSTGRES_URL: dbUrl, CODIQ_PUBLIC_BASE_URL: base, CODIQ_NOTIFICATIONS_WORKER: "off" },
+  env: {
+    ...process.env,
+    NODE_ENV: "production",
+    PORT: String(port),
+    DATABASE_URL: dbUrl,
+    CODIQ_POSTGRES_URL: dbUrl,
+    CODIQ_PUBLIC_BASE_URL: base,
+    CODIQ_NOTIFICATIONS_WORKER: "off",
+  },
   stdio: ["ignore", "inherit", "inherit"],
 });
 async function waitFor(url) {
   for (let attempt = 0; attempt < 150; attempt += 1) {
-    try { const response = await fetch(url); if (response.status < 500) return; } catch { /* not up yet */ }
+    try {
+      const response = await fetch(url);
+      if (response.status < 500) return;
+    } catch {
+      /* not up yet */
+    }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`Timed out waiting for ${url}`);
@@ -46,22 +59,54 @@ try {
   await waitFor(`${base}/api/health`);
   const merchantEmail = `${runId}.merchant@codiq.test`;
   const merchantPassword = "MarketCatalogUi123!";
-  const registered = await registerMerchantDirect({ ownerName: "تاجر", businessName: "متجر", phone: `+96479${suffix}12`.slice(0, 14), email: merchantEmail, password: merchantPassword });
+  const registered = await registerMerchantDirect({
+    ownerName: "تاجر",
+    businessName: "متجر",
+    phone: `+96479${suffix}12`.slice(0, 14),
+    email: merchantEmail,
+    password: merchantPassword,
+  });
   assert.equal(registered.status, 201, JSON.stringify(registered.payload));
-  const store = await prisma.store.create({ data: { merchantId: registered.payload.account.id, name: `هواتف ${runId}`, slug: `${runId}-a`, defaultSubdomain: `${runId}-a`, marketStatus: "listed", marketStatusAt: new Date(), marketListedAt: new Date() }, select: { id: true, slug: true } });
+  const store = await prisma.store.create({
+    data: {
+      merchantId: registered.payload.account.id,
+      name: `هواتف ${runId}`,
+      slug: `${runId}-a`,
+      defaultSubdomain: `${runId}-a`,
+      marketStatus: "listed",
+      marketStatusAt: new Date(),
+      marketListedAt: new Date(),
+    },
+    select: { id: true, slug: true },
+  });
   storeIds.push(store.id);
   const productName = `ايفون 15 ${runId}`;
-  const product = await prisma.product.create({ data: { storeId: store.id, sku: `${runId}-1`, name: productName, priceIqd: 1_500_000, stockQuantity: 9, description: "هاتف ذكي" } });
+  const product = await prisma.product.create({
+    data: {
+      storeId: store.id,
+      sku: `${runId}-1`,
+      name: productName,
+      priceIqd: 1_500_000,
+      stockQuantity: 9,
+      description: "هاتف ذكي",
+    },
+  });
 
-  browser = await chromium.launch(process.env.CODIQ_CHROMIUM_PATH ? { executablePath: process.env.CODIQ_CHROMIUM_PATH } : {});
+  browser = await chromium.launch(
+    process.env.CODIQ_CHROMIUM_PATH ? { executablePath: process.env.CODIQ_CHROMIUM_PATH } : {}
+  );
 
   // ── merchant ────────────────────────────────────────────────────────────────
-  const merchant = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+  const merchant = await (
+    await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  ).newPage();
   await merchant.goto(`${base}/merchant/login`);
   await merchant.getByLabel("البريد الإلكتروني أو رقم الهاتف").fill(merchantEmail);
   await merchant.getByLabel("كلمة المرور", { exact: true }).fill(merchantPassword);
   await merchant.getByRole("button", { name: "تسجيل الدخول" }).click();
-  await merchant.waitForURL((url) => url.pathname.startsWith(`/merchant/stores/${store.slug}/dashboard`));
+  await merchant.waitForURL((url) =>
+    url.pathname.startsWith(`/merchant/stores/${store.slug}/dashboard`)
+  );
   await merchant.goto(`${base}/merchant/stores/${store.slug}/dashboard/products/market`);
   await merchant.getByTestId(`market-catalog-edit-${product.id}`).click();
   const phones = await prisma.marketCategory.findUniqueOrThrow({ where: { slug: "phones" } });
@@ -69,7 +114,11 @@ try {
   await merchant.getByTestId("market-editor-compare").fill("1000");
   await merchant.getByTestId("market-editor-save").click();
   await merchant.getByTestId("market-catalog-error").waitFor();
-  assert.match(await merchant.getByTestId("market-catalog-error").innerText(), /أعلى من سعر المنتج/, "a «before» price below the price is refused, in words");
+  assert.match(
+    await merchant.getByTestId("market-catalog-error").innerText(),
+    /أعلى من سعر المنتج/,
+    "a «before» price below the price is refused, in words"
+  );
   await merchant.getByTestId("market-editor-compare").fill("1800000");
   await merchant.getByTestId("market-editor-max").fill("2");
   await merchant.getByTestId("market-editor-tag-warranty").check();
@@ -81,7 +130,10 @@ try {
   await merchant.getByPlaceholder("السعر").fill("5000");
   await merchant.getByTestId("market-editor-save").click();
   await merchant.getByTestId("market-catalog-notice").waitFor();
-  const saved = await prisma.product.findUniqueOrThrow({ where: { id: product.id }, include: { addons: true } });
+  const saved = await prisma.product.findUniqueOrThrow({
+    where: { id: product.id },
+    include: { addons: true },
+  });
   assert.equal(saved.compareAtPriceIqd, 1_800_000);
   assert.equal(saved.maxPerOrder, 2);
   assert.deepEqual(saved.tags, ["warranty"]);
@@ -107,7 +159,10 @@ try {
   assert.match(await card.innerText(), /مطابقة/, "the match percentage on a search result");
 
   await shopper.getByTestId("market-filters-open").click();
-  await shopper.getByTestId("market-filter-discount").getByRole("button", { name: "خصم +30%" }).click();
+  await shopper
+    .getByTestId("market-filter-discount")
+    .getByRole("button", { name: "خصم +30%" })
+    .click();
   await shopper.getByTestId("market-filter-apply").click();
   await shopper.getByTestId("market-search-results-empty").waitFor();
   await shopper.getByRole("button", { name: "مسح الفلاتر" }).click();
@@ -128,20 +183,53 @@ try {
   assert.match(await shopper.getByTestId("market-product-specs").innerText(), /256GB/);
   assert.match(await shopper.getByTestId("market-product-addons").innerText(), /تغليف هدية/);
   assert.match(await shopper.getByTestId("market-product-limit").innerText(), /٢|2/);
-  assert.equal(await shopper.getByTestId("market-product-buy").getAttribute("href"), `/store/${store.slug}/products/${product.id}`);
+  assert.equal(
+    await shopper.getByTestId("market-product-buy").getAttribute("href"),
+    `/store/${store.slug}/products/${product.id}`
+  );
 
   // The store page lists it, and «عرض الكل» opens the store's catalogue.
   await shopper.getByTestId("market-product-store").click();
-  await shopper.getByTestId("market-store-newest").getByTestId(`market-product-card-${product.id}`).waitFor();
+  await shopper
+    .getByTestId("market-store-newest")
+    .getByTestId(`market-product-card-${product.id}`)
+    .waitFor();
   await shopper.getByTestId("market-store-all-products").click();
-  await shopper.getByTestId("market-store-products-list").getByTestId(`market-product-card-${product.id}`).waitFor();
+  await shopper
+    .getByTestId("market-store-products-list")
+    .getByTestId(`market-product-card-${product.id}`)
+    .waitFor();
 
-  const overflow = await shopper.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const overflow = await shopper.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth
+  );
   assert.ok(overflow <= 0, `no horizontal scroll at phone width (overflow ${overflow}px)`);
   assert.deepEqual(errors, [], "no script errors");
-  console.log(JSON.stringify({ suite: "market-catalog-browser", status: "passed", summary: { merchantEdited: true, categoryBrowse: true, searchAndFilters: true, productPage: true, storeCatalogue: true } }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        suite: "market-catalog-browser",
+        status: "passed",
+        summary: {
+          merchantEdited: true,
+          categoryBrowse: true,
+          searchAndFilters: true,
+          productPage: true,
+          storeCatalogue: true,
+        },
+      },
+      null,
+      2
+    )
+  );
 } finally {
-  if (storeIds.length) await prisma.store.updateMany({ where: { id: { in: storeIds } }, data: { marketStatus: "unlisted", marketStatusAt: new Date() } }).catch(() => undefined);
+  if (storeIds.length)
+    await prisma.store
+      .updateMany({
+        where: { id: { in: storeIds } },
+        data: { marketStatus: "unlisted", marketStatusAt: new Date() },
+      })
+      .catch(() => undefined);
   await browser?.close();
   await killTree(web);
   await prisma.$disconnect();

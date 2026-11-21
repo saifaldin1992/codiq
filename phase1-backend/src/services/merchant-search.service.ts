@@ -73,17 +73,26 @@ export const SEARCH_SCOPE_PERMISSIONS: Record<SearchScope, PermissionCode> = {
 };
 
 /** An actor holding none of these has nothing to search and is refused outright. */
-export const SEARCH_PERMISSIONS: readonly PermissionCode[] = SEARCH_SCOPES.map((scope) => SEARCH_SCOPE_PERMISSIONS[scope]);
+export const SEARCH_PERMISSIONS: readonly PermissionCode[] = SEARCH_SCOPES.map(
+  (scope) => SEARCH_SCOPE_PERMISSIONS[scope]
+);
 
 export function authorizedSearchScopes(permissions: ReadonlySet<PermissionCode>): SearchScope[] {
   return SEARCH_SCOPES.filter((scope) => permissions.has(SEARCH_SCOPE_PERMISSIONS[scope]));
 }
 
 export function searchQuery(value: unknown): string {
-  if (typeof value !== "string") throw new HttpError(422, "INVALID_SEARCH_QUERY", `أدخل حرفين على الأقل للبحث.`);
+  if (typeof value !== "string")
+    throw new HttpError(422, "INVALID_SEARCH_QUERY", `أدخل حرفين على الأقل للبحث.`);
   const trimmed = value.trim();
-  if (trimmed.length < SEARCH_MIN_QUERY_LENGTH) throw new HttpError(422, "INVALID_SEARCH_QUERY", "أدخل حرفين على الأقل للبحث.");
-  if (trimmed.length > SEARCH_MAX_QUERY_LENGTH) throw new HttpError(422, "INVALID_SEARCH_QUERY", `الحد الأقصى لطول البحث ${SEARCH_MAX_QUERY_LENGTH} حرفاً.`);
+  if (trimmed.length < SEARCH_MIN_QUERY_LENGTH)
+    throw new HttpError(422, "INVALID_SEARCH_QUERY", "أدخل حرفين على الأقل للبحث.");
+  if (trimmed.length > SEARCH_MAX_QUERY_LENGTH)
+    throw new HttpError(
+      422,
+      "INVALID_SEARCH_QUERY",
+      `الحد الأقصى لطول البحث ${SEARCH_MAX_QUERY_LENGTH} حرفاً.`
+    );
   return trimmed;
 }
 
@@ -160,8 +169,23 @@ export interface StoreSearchResults {
   scopes: SearchScope[];
   /** Sections where more rows matched than the per-kind cap returned. */
   truncated: SearchScope[];
-  products?: Array<{ id: string; sku: string; name: string; priceIqd: number; isActive: boolean; href: string }>;
-  orders?: Array<{ id: string; orderNumber: string; status: string; customerName: string; totalIqd: number; createdAt: Date; href: string }>;
+  products?: Array<{
+    id: string;
+    sku: string;
+    name: string;
+    priceIqd: number;
+    isActive: boolean;
+    href: string;
+  }>;
+  orders?: Array<{
+    id: string;
+    orderNumber: string;
+    status: string;
+    customerName: string;
+    totalIqd: number;
+    createdAt: Date;
+    href: string;
+  }>;
   customers?: Array<{ id: string; fullName: string; phone: string | null; href: string }>;
 }
 
@@ -174,7 +198,11 @@ async function merged(pages: readonly MaybePage[]): Promise<MaybePage> {
   return mergeSearchPages(present, SEARCH_LIMIT_PER_KIND);
 }
 
-export async function searchStore(store: { id: string; slug: string }, rawQuery: unknown, scopes: readonly SearchScope[]): Promise<StoreSearchResults> {
+export async function searchStore(
+  store: { id: string; slug: string },
+  rawQuery: unknown,
+  scopes: readonly SearchScope[]
+): Promise<StoreSearchResults> {
   const query = searchQuery(rawQuery);
   const phone = phoneNeedle(query);
   const dashboard = `/merchant/stores/${encodeURIComponent(store.slug)}/dashboard`;
@@ -183,16 +211,28 @@ export async function searchStore(store: { id: string; slug: string }, rawQuery:
   // anything, so the palette can say so instead of implying "that is all".
   const request = { storeId: store.id, needle: query, limit: SEARCH_LIMIT_PER_KIND };
 
-  const [productsByName, productsBySku, ordersByNumber, ordersByCustomerName, ordersByPhone, customersByName, customersByPhone] = await Promise.all([
+  const [
+    productsByName,
+    productsBySku,
+    ordersByNumber,
+    ordersByCustomerName,
+    ordersByPhone,
+    customersByName,
+    customersByPhone,
+  ] = await Promise.all([
     allowed.has("products") ? searchEngine.search("products.name", request) : null,
     allowed.has("products") ? searchEngine.search("products.sku", request) : null,
     allowed.has("orders") ? searchEngine.search("orders.orderNumber", request) : null,
     // PG-6, NEW CAPABILITY: until now nothing searched the customer's name on an
     // order, so a merchant holding a name and no order number could not find it.
     allowed.has("orders") ? searchEngine.search("orders.customerName", request) : null,
-    allowed.has("orders") && phone ? searchEngine.search("orders.recipientPhone", { ...request, needle: phone }) : null,
+    allowed.has("orders") && phone
+      ? searchEngine.search("orders.recipientPhone", { ...request, needle: phone })
+      : null,
     allowed.has("customers") ? searchEngine.search("customers.fullName", request) : null,
-    allowed.has("customers") && phone ? searchEngine.search("customers.phone", { ...request, needle: phone }) : null,
+    allowed.has("customers") && phone
+      ? searchEngine.search("customers.phone", { ...request, needle: phone })
+      : null,
   ]);
 
   const productPage = await merged([productsByName, productsBySku]);
@@ -203,26 +243,52 @@ export async function searchStore(store: { id: string; slug: string }, rawQuery:
   // scoping (again — belt and braces) and the PG-2 LIVE filter are this file's.
   const [products, orders, customers] = await Promise.all([
     productPage
-      ? prisma.product.findMany({ where: { id: { in: productPage.hits.map((hit) => hit.id) }, storeId: store.id, ...LIVE }, select: { id: true, sku: true, name: true, priceIqd: true, isActive: true } })
+      ? prisma.product.findMany({
+          where: { id: { in: productPage.hits.map((hit) => hit.id) }, storeId: store.id, ...LIVE },
+          select: { id: true, sku: true, name: true, priceIqd: true, isActive: true },
+        })
       : null,
     orderPage
-      ? prisma.storeOrder.findMany({ where: { id: { in: orderPage.hits.map((hit) => hit.id) }, storeId: store.id }, select: { id: true, orderNumber: true, status: true, customerName: true, totalIqd: true, createdAt: true } })
+      ? prisma.storeOrder.findMany({
+          where: { id: { in: orderPage.hits.map((hit) => hit.id) }, storeId: store.id },
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            customerName: true,
+            totalIqd: true,
+            createdAt: true,
+          },
+        })
       : null,
     customerPage
-      ? prisma.customer.findMany({ where: { id: { in: customerPage.hits.map((hit) => hit.id) }, storeId: store.id }, select: { id: true, fullName: true, phoneNormalized: true } })
+      ? prisma.customer.findMany({
+          where: { id: { in: customerPage.hits.map((hit) => hit.id) }, storeId: store.id },
+          select: { id: true, fullName: true, phoneNormalized: true },
+        })
       : null,
   ]);
 
   const truncated: SearchScope[] = [];
-  const results: StoreSearchResults = { query, scopes: SEARCH_SCOPES.filter((scope) => allowed.has(scope)), truncated };
+  const results: StoreSearchResults = {
+    query,
+    scopes: SEARCH_SCOPES.filter((scope) => allowed.has(scope)),
+    truncated,
+  };
 
   if (productPage && products) {
     if (productPage.hasMore) truncated.push("products");
-    results.products = inSearchOrder(productPage.hits, products).map((product) => ({ ...product, href: `${dashboard}/products?q=${encodeURIComponent(product.sku)}` }));
+    results.products = inSearchOrder(productPage.hits, products).map((product) => ({
+      ...product,
+      href: `${dashboard}/products?q=${encodeURIComponent(product.sku)}`,
+    }));
   }
   if (orderPage && orders) {
     if (orderPage.hasMore) truncated.push("orders");
-    results.orders = inSearchOrder(orderPage.hits, orders).map((order) => ({ ...order, href: `${dashboard}/orders/${order.id}` }));
+    results.orders = inSearchOrder(orderPage.hits, orders).map((order) => ({
+      ...order,
+      href: `${dashboard}/orders/${order.id}`,
+    }));
   }
   if (customerPage && customers) {
     if (customerPage.hasMore) truncated.push("customers");
@@ -232,8 +298,15 @@ export async function searchStore(store: { id: string; slug: string }, rawQuery:
       // are enough for the directory's 4-digit phone probe to land on this exact
       // customer, and putting the full number in an href would undo the mask a
       // line above it.
-      const deepLink = customer.phoneNormalized ? customer.phoneNormalized.replace(/[^0-9]/g, "").slice(-PHONE_MIN_DIGITS) : customer.fullName;
-      return { id: customer.id, fullName: customer.fullName, phone: masked, href: `${dashboard}/customers?q=${encodeURIComponent(deepLink)}` };
+      const deepLink = customer.phoneNormalized
+        ? customer.phoneNormalized.replace(/[^0-9]/g, "").slice(-PHONE_MIN_DIGITS)
+        : customer.fullName;
+      return {
+        id: customer.id,
+        fullName: customer.fullName,
+        phone: masked,
+        href: `${dashboard}/customers?q=${encodeURIComponent(deepLink)}`,
+      };
     });
   }
   return results;

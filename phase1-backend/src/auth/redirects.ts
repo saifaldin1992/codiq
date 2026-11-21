@@ -1,7 +1,13 @@
 /**
  * codiq phase 1 identity contract: redirects are type-specific and never infer a role.
  */
-export type IdentityKind = "platform_owner" | "merchant" | "customer" | "staff" | "platform_staff" | "shopper";
+export type IdentityKind =
+  | "platform_owner"
+  | "merchant"
+  | "customer"
+  | "staff"
+  | "platform_staff"
+  | "shopper";
 
 /**
  * PS-3 — what each identity is CALLED, for the one refusal a person reads about

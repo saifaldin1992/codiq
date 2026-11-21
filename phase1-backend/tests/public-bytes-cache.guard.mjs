@@ -92,7 +92,9 @@ for (const fullPath of routeSourceFiles()) {
       seenAuthenticated.add(key);
       // An authenticated byte route must not set a PUBLIC policy of its own.
       if (/cache-control"[^)]*public/i.test(body)) {
-        violations.push(`${key} — behind a session yet sets a PUBLIC cache directive; ق-230's no-store is being overwritten`);
+        violations.push(
+          `${key} — behind a session yet sets a PUBLIC cache directive; ق-230's no-store is being overwritten`
+        );
       }
       continue;
     }
@@ -108,25 +110,37 @@ for (const fullPath of routeSourceFiles()) {
 // nothing is a stale entry and fails too (the deleted-leak-guard idiom).
 for (const key of Object.keys(AUTHENTICATED)) {
   if (!seenAuthenticated.has(key)) {
-    violations.push(`${key} — recorded as authenticated but no such byte route exists; remove the stale entry`);
+    violations.push(
+      `${key} — recorded as authenticated but no such byte route exists; remove the stale entry`
+    );
   }
 }
 
 if (!satisfied.length) {
-  violations.push("no public byte route was found at all — the detector has drifted from the routes it watches");
+  violations.push(
+    "no public byte route was found at all — the detector has drifted from the routes it watches"
+  );
 }
 
 if (violations.length) {
-  console.error(JSON.stringify({ suite: "public-bytes-cache", status: "failed", violations }, null, 2));
+  console.error(
+    JSON.stringify({ suite: "public-bytes-cache", status: "failed", violations }, null, 2)
+  );
   process.exit(1);
 }
 
-console.log(JSON.stringify({
-  suite: "public-bytes-cache",
-  status: "passed",
-  summary: {
-    publicByteRoutesCovered: satisfied.length,
-    routes: satisfied,
-    authenticatedByDesign: Object.keys(AUTHENTICATED).length,
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      suite: "public-bytes-cache",
+      status: "passed",
+      summary: {
+        publicByteRoutesCovered: satisfied.length,
+        routes: satisfied,
+        authenticatedByDesign: Object.keys(AUTHENTICATED).length,
+      },
+    },
+    null,
+    2
+  )
+);
