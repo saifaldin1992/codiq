@@ -10,7 +10,7 @@ import { MarketEmptyState } from "../MarketEmptyState";
 import { OrderRatingForm, PendingRatingsStrip, type OrderRating, type RatingTag } from "./MarketRatingPages";
 
 type OrderCard = { id: string; orderNumber: string; status: string; statusLabel: string; fulfilment: string; totalIqd: number; createdAt: string; store: { slug: string; name: string }; itemCount: number; preview: string[] };
-const TABS = [{ value: "", label: "الكل" }, { value: "active", label: "الجارية" }, { value: "completed", label: "المكتملة" }, { value: "cancelled", label: "الملغاة" }, { value: "preorder", label: "المسبقة" }];
+const TABS = [{ value: "", label: "الكل" }, { value: "active", label: "الجارية" }, { value: "done", label: "المنتهية" }];
 const TONE: Record<string, string> = {
   completed: "bg-[var(--codiq-success-soft)] text-[var(--codiq-success)]",
   cancelled: "bg-[var(--codiq-danger-soft)] text-[var(--codiq-danger)]",
@@ -29,7 +29,7 @@ export function MarketOrdersPage() {
     <div className="space-y-4" data-testid="market-orders">
       <h1 className="text-xl font-black text-[var(--codiq-text)]">طلباتي</h1>
       <PendingRatingsStrip />
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]" data-testid="market-orders-tabs">{TABS.map((entry) => <button key={entry.value} type="button" aria-pressed={tab === entry.value} onClick={() => setTab(entry.value)} data-testid={`market-orders-tab-${entry.value || "all"}`} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${tab === entry.value ? "bg-[var(--codiq-accent)] text-[var(--codiq-surface)]" : "bg-[var(--codiq-surface)] text-[var(--codiq-text-secondary)]"}`}>{entry.label}</button>)}</div>
+      <div className="flex gap-2">{TABS.map((entry) => <button key={entry.value} type="button" aria-pressed={tab === entry.value} onClick={() => setTab(entry.value)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${tab === entry.value ? "bg-[var(--codiq-accent)] text-[var(--codiq-surface)]" : "bg-[var(--codiq-surface)] text-[var(--codiq-text-secondary)]"}`}>{entry.label}</button>)}</div>
       {!list.items ? <p className="text-center text-sm text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ التحميل…</p> : null}
       {list.items?.length === 0 ? <MarketEmptyState icon={Package} title="لا توجد طلبات هنا" body="جرّب تبويباً آخر أو ابدأ التسوّق من الرئيسيّة." /> : null}
       <ul className="space-y-3">
@@ -59,7 +59,6 @@ type OrderDetail = {
   rateable: boolean;
   rating: OrderRating | null;
   pickupCode: string | null;
-  statusHint: string | null;
 };
 type CancelReason = { code: string; label: string };
 const STEPS = [{ key: "new", label: "الطلب" }, { key: "processing", label: "القبول" }, { key: "out_for_delivery", label: "التوصيل" }, { key: "completed", label: "التسليم" }];
@@ -93,7 +92,6 @@ export function MarketOrderPage() {
             {STEPS.map((step, at) => <li key={step.key} className="space-y-1 text-center"><span className={`block h-1.5 rounded-full ${at <= rank ? "bg-[var(--codiq-accent)]" : "bg-[var(--codiq-border)]"}`} /><span className={`text-[10px] ${at <= rank ? "font-bold text-[var(--codiq-text)]" : "text-[var(--codiq-text-muted)]"}`}>{step.label}</span></li>)}
           </ol>
         ) : null}
-        {order.statusHint ? <p className="text-xs leading-6 text-[var(--codiq-text-secondary)]" data-testid="market-order-status-hint">{order.statusHint}</p> : null}
         <p className="text-xs text-[var(--codiq-text-muted)]">تاريخ الطلب: {new Date(order.createdAt).toLocaleString("ar-IQ")}</p>
       </section>
       <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm">
@@ -196,30 +194,5 @@ function PickupCodeCard({ orderId, storeSlug, code }: { orderId: string; storeSl
       <p dir="ltr" className="text-3xl font-black tracking-[0.3em] text-[var(--codiq-accent)]" data-testid="market-order-pickup-code">{code}</p>
       {qr ? <img src={qr} alt="رمز QR للاستلام" className="mx-auto h-44 w-44 rounded-xl" data-testid="market-order-pickup-qr" /> : null}
     </section>
-  );
-}
-
-type CurrentOrder = { id: string; orderNumber: string; statusLabel: string; statusHint: string | null; store: { name: string } };
-
-/** «طلبك الحالي» on the front page — the newest order still on its way. Hidden for a visitor and when nothing is open. */
-export function CurrentOrderStrip() {
-  const { shopper } = useShopper();
-  const [order, setOrder] = useState<CurrentOrder | null>(null);
-  useEffect(() => {
-    if (!shopper) { setOrder(null); return; }
-    let live = true;
-    accountCall<{ order: CurrentOrder | null }>("/api/market/orders/current").then((body) => { if (live) setOrder(body.order); }).catch(() => undefined);
-    return () => { live = false; };
-  }, [shopper]);
-  if (!order) return null;
-  return (
-    <Link href={`/orders/${order.id}`} className="flex items-center gap-3 rounded-[22px] bg-[var(--codiq-accent-soft)] p-3" data-testid="market-current-order">
-      <Package className="h-6 w-6 shrink-0 text-[var(--codiq-accent)]" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-black text-[var(--codiq-text)]">طلبك من {order.store.name} — {order.statusLabel}</span>
-        {order.statusHint ? <span className="block truncate text-[11px] text-[var(--codiq-text-secondary)]">{order.statusHint}</span> : null}
-      </span>
-      <span className="text-xs font-bold text-[var(--codiq-accent)]">التفاصيل ←</span>
-    </Link>
   );
 }

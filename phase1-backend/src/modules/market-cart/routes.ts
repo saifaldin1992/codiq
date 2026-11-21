@@ -7,7 +7,7 @@ import { asyncRoute, requireTrustedWriteOrigin } from "../../http/shared.js";
 import { parseOrThrow } from "../../http/validate.js";
 import { requireShopper } from "../market-account/shopper-auth.js";
 import { acceptCartPrices, addCartLine, clearCart, marketCartView, removeCartLine, updateCartLine } from "./cart.service.js";
-import { checkoutSummary, latestOpenOrder, placeMarketOrder, shopperOrder, shopperOrders } from "./checkout.service.js";
+import { checkoutSummary, placeMarketOrder, shopperOrder, shopperOrders } from "./checkout.service.js";
 import { addItemSchema, cancelOrderSchema, placeOrderSchema, rateOrderSchema, summaryQuerySchema, updateItemSchema } from "./schema.js";
 import { cancelShopperOrder, myOrderRatings, ordersAwaitingRating, rateShopperOrder } from "./after-sale.service.js";
 
@@ -64,13 +64,6 @@ export function registerMarketCartRoutes(app: Express) {
   app.get("/market/orders", asyncRoute(async (request, response) => {
     const { shopper } = await requireShopper(request);
     response.status(200).json(await shopperOrders(shopper.id, request.query.cursor, request.query.limit, request.query.status));
-  }));
-
-  // «طلبك الحالي» — the newest open order, for the front page. Nobody signed in, nothing to show.
-  app.get("/market/orders/current", asyncRoute(async (request, response) => {
-    const { shopper } = await requireShopper(request);
-    response.setHeader("cache-control", "private, no-store");
-    response.status(200).json(await latestOpenOrder(shopper.id));
   }));
 
   app.get("/market/orders/:orderId", asyncRoute(async (request, response) => {
