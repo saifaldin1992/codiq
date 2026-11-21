@@ -309,6 +309,34 @@ try {
   assert.equal((await asMerchantPost(`${collect.id}/pickup-confirm`, { code: ready.pickupCode })).payload.error.code, "PICKUP_NOT_READY", "a second confirmation is refused");
   summary.pickupCode = true;
 
+  // ── 12. M6 «طلباتي» tabs, «طلبك الحالي», and what each state means ────────
+  const tabIds = async (tab) => (await shopper.request(`/market/orders?limit=50${tab ? `&status=${tab}` : ""}`)).payload.orders.map((row) => row.id);
+  const allIds = await tabIds("");
+  const completedIds = await tabIds("completed");
+  const cancelledIds = await tabIds("cancelled");
+  const activeIds = await tabIds("active");
+  assert.ok(completedIds.includes(order.id) && completedIds.includes(collect.id), "«المكتملة»");
+  assert.ok(cancelledIds.includes(toCancel.id) && !cancelledIds.includes(order.id), "«الملغاة»");
+  assert.ok(activeIds.every((id) => !completedIds.includes(id) && !cancelledIds.includes(id)), "«الجارية» holds neither");
+  assert.equal(new Set([...activeIds, ...completedIds, ...cancelledIds]).size, allIds.length, "the three tabs partition «الكل»");
+  await shopper.request("/market/cart/items", { method: "POST", body: { productId: a3.id, quantity: 1 } });
+  const preordered = (await shopper.request(`/market/checkout/${A.slug}`, { method: "POST", body: { addressId: home.id }, headers: { "idempotency-key": key("preorder") } })).payload.order;
+  assert.ok(preordered?.id, "a pre-order placed");
+  const preorderIds = await tabIds("preorder");
+  assert.ok(preorderIds.includes(preordered.id), "«المسبقة» holds the pre-order");
+  for (const id of preorderIds) {
+    assert.ok(await prisma.orderItem.count({ where: { orderId: id, productId: a3.id } }), "…and only orders that hold a pre-order product");
+  }
+  assert.ok(!preorderIds.includes(collect.id));
+  assert.deepEqual(await tabIds("whatever"), await tabIds(""), "an unknown tab is «الكل»");
+  const current = (await shopper.request("/market/orders/current")).payload.order;
+  assert.equal(current.id, preordered.id, "«طلبك الحالي» is the newest open order");
+  assert.match(current.statusHint, /يمكنك إلغاؤه/, "…with what it means");
+  assert.equal((await stranger.shopper.request("/market/orders/current")).payload.order, null);
+  assert.equal((await client().request("/market/orders/current")).status, 401);
+  assert.match((await shopper.request(`/market/orders/${collect.id}`)).payload.order.statusHint, /من المتجر/, "a collected pick-up speaks of the store, not a courier");
+  summary.tabs = true;
+
   console.log(JSON.stringify({ suite: "market-cart", ok: true, summary }, null, 2));
 } finally {
   setOtpProviderForTests(null);
