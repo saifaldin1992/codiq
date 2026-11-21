@@ -12,9 +12,12 @@
  * nobody on the other end — and never once it is closed. On a resolved ticket
  * he answers «هل حُلّت مشكلتك؟»: yes closes it, «ليس بعد» sends it back.
  */
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
 import { consumeStorefrontRateLimit } from "../../services/storefront.service.js";
+import { recordPlatformAuditEvent } from "../../services/platform-audit.service.js";
+import type { PlatformActor } from "../../auth/platform-permissions.js";
 import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../../services/list-page.js";
 import { deleteMarketImageObjects, getStoreLogoBytes, putMarketImage } from "../../services/product-image-storage.service.js";
 
@@ -38,6 +41,11 @@ export const TICKET_WINDOW_HOURS = 24;
 /** Pictures per side of one ticket. */
 export const TICKET_ATTACHMENTS_PER_SIDE = 3;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** How many comments a ticket's page carries — the newest ones. */
+export const TICKET_COMMENTS_SHOWN = 200;
+/** A shopper's replies across his tickets, per hour. */
+export const TICKET_REPLIES_PER_HOUR = 30;
 
 export type SupportActor = { kind: "merchant" | "staff" | "platform"; id: string };
 type Scope = { shopperId: string } | { storeId: string } | { platform: true };
@@ -135,14 +143,19 @@ async function detail(ticketId: string) {
     where: { id: ticketId },
     select: {
       ...CARD_SELECT, description: true, resolvedAt: true, closedAt: true,
-      comments: { orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 200, select: { id: true, authorKind: true, body: true, createdAt: true } },
+      // The NEWEST two hundred, shown oldest first. Taking the first two hundred
+      // in ascending order froze a long ticket at its 200th comment: every later
+      // reply — the one each side was waiting for — never reached the screen.
+      comments: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: TICKET_COMMENTS_SHOWN, select: { id: true, authorKind: true, body: true, createdAt: true } },
       attachments: { orderBy: { createdAt: "asc" }, take: 2 * TICKET_ATTACHMENTS_PER_SIDE, select: { id: true, authorKind: true, contentType: true, byteSize: true, createdAt: true } },
     },
   });
   return {
     ...cardOf(ticket),
     description: ticket.description, resolvedAt: ticket.resolvedAt, closedAt: ticket.closedAt,
-    comments: ticket.comments.map((comment) => ({ ...comment, side: comment.authorKind === "shopper" ? "shopper" : "support" })),
+    comments: ticket.comments.slice().reverse().map((comment) => ({ ...comment, side: comment.authorKind === "shopper" ? "shopper" : "support" })),
+    /** Older comments exist beyond the ones shown. */
+    earlierComments: ticket.comments.length === TICKET_COMMENTS_SHOWN,
     attachments: ticket.attachments,
   };
 }
@@ -166,6 +179,9 @@ export async function shopperTicket(shopperId: string, ticketId: string) {
 
 export async function shopperReply(shopperId: string, ticketId: string, body: string) {
   const ticket = await ticketIn({ shopperId }, ticketId);
+  // Opening is capped (five a day); replying was not, so one ticket could take
+  // replies without end — each one a row on the store's and the owner's screen.
+  await consumeStorefrontRateLimit({ scope: "market_ticket_reply", rawKey: shopperId, limit: TICKET_REPLIES_PER_HOUR, windowMs: 60 * 60 * 1000 });
   if (ticket.status === "closed") throw new HttpError(409, "TICKET_CLOSED", "التذكرة مغلقة، لا يمكن الردّ عليها.");
   if (!ticket.lastSupportAt) throw new HttpError(409, "TICKET_AWAITING_SUPPORT", "انتظر ردّ فريق الدعم أوّلاً.");
   if (ticket.status === "resolved") throw new HttpError(409, "TICKET_RESOLVED", "أخبرنا أوّلاً: هل حُلّت مشكلتك؟");
@@ -231,14 +247,24 @@ export async function supportTicket(scope: { storeId: string } | { platform: tru
   return { ticket: { ...(await detail(ticket.id)), description: ticket.description }, order, canReply: ticket.status !== "closed" };
 }
 
-export async function supportReply(scope: { storeId: string } | { platform: true }, actor: SupportActor, ticketId: string, input: { body: string; resolve?: boolean }) {
+/** The platform audit row for an owner's hand on a ticket, written in the caller's transaction. */
+function auditTicket(tx: Prisma.TransactionClient, platformActor: PlatformActor, ticket: { id: string; number: number }, action: "support_ticket_replied" | "support_ticket_escalated" | "support_ticket_closed", metadata: Prisma.InputJsonValue = {}) {
+  return recordPlatformAuditEvent(tx, { entityType: "support_ticket", entityId: ticket.id, entityLabel: `تذكرة رقم ${ticket.number}`, action, actor: platformActor, metadata });
+}
+
+/**
+ * A reply from the store or the platform. `platformActor` is the owner or staff
+ * member behind a platform reply: that reply is also written to the audit log.
+ */
+export async function supportReply(scope: { storeId: string } | { platform: true }, actor: SupportActor, ticketId: string, input: { body: string; resolve?: boolean }, platformActor?: PlatformActor) {
   const ticket = await ticketIn(scope, ticketId);
   if (ticket.status === "closed") throw new HttpError(409, "TICKET_CLOSED", "التذكرة مغلقة.");
   const now = new Date();
-  await prisma.$transaction([
-    prisma.supportTicketComment.create({ data: { ticketId: ticket.id, authorKind: actor.kind, authorId: actor.id, body: input.body.trim() } }),
-    prisma.supportTicket.update({ where: { id: ticket.id }, data: { status: input.resolve ? "resolved" : "awaiting_customer", lastSupportAt: now, ...(input.resolve ? { resolvedAt: now } : {}) } }),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.supportTicketComment.create({ data: { ticketId: ticket.id, authorKind: actor.kind, authorId: actor.id, body: input.body.trim() } });
+    await tx.supportTicket.update({ where: { id: ticket.id }, data: { status: input.resolve ? "resolved" : "awaiting_customer", lastSupportAt: now, ...(input.resolve ? { resolvedAt: now } : {}) } });
+    if (platformActor) await auditTicket(tx, platformActor, ticket, "support_ticket_replied", { resolved: Boolean(input.resolve) });
+  });
   return supportTicket(scope, ticket.id);
 }
 
@@ -251,16 +277,26 @@ export async function setTicketStatus(scope: { storeId: string } | { platform: t
 }
 
 /** The owner takes a ticket over, and only the owner closes without the shopper. */
-export async function escalateTicket(ticketId: string) {
+export async function escalateTicket(ticketId: string, platformActor: PlatformActor) {
   const ticket = await ticketIn({ platform: true }, ticketId);
   if (ticket.status === "closed") throw new HttpError(409, "TICKET_CLOSED", "التذكرة مغلقة.");
-  await prisma.supportTicket.update({ where: { id: ticket.id }, data: { escalatedAt: ticket.escalatedAt ?? new Date() } });
+  if (!ticket.escalatedAt) {
+    await prisma.$transaction(async (tx) => {
+      await tx.supportTicket.update({ where: { id: ticket.id }, data: { escalatedAt: new Date() } });
+      await auditTicket(tx, platformActor, ticket, "support_ticket_escalated");
+    });
+  }
   return supportTicket({ platform: true }, ticket.id);
 }
 
-export async function closeTicket(ticketId: string) {
+export async function closeTicket(ticketId: string, platformActor: PlatformActor) {
   const ticket = await ticketIn({ platform: true }, ticketId);
   if (ticket.status === "closed") throw new HttpError(409, "TICKET_CLOSED", "التذكرة مغلقة مسبقاً.");
-  await prisma.supportTicket.update({ where: { id: ticket.id }, data: { status: "closed", closedAt: new Date() } });
+  await prisma.$transaction(async (tx) => {
+    // The status test in the WHERE: a close racing the shopper's own confirmation writes one row, not two.
+    const closed = await tx.supportTicket.updateMany({ where: { id: ticket.id, status: { not: "closed" } }, data: { status: "closed", closedAt: new Date() } });
+    if (closed.count !== 1) throw new HttpError(409, "TICKET_CLOSED", "التذكرة مغلقة مسبقاً.");
+    await auditTicket(tx, platformActor, ticket, "support_ticket_closed", { previousStatus: ticket.status });
+  });
   return supportTicket({ platform: true }, ticket.id);
 }

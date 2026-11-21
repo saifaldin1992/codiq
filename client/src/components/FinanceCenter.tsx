@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Banknote, CircleAlert, LoaderCircle, RefreshCw, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLatestRequest } from "@/hooks/useLatestRequest";
 import { Input } from "@/components/ui/input";
 import { LoadMoreButton } from "@/components/LoadMoreButton";
 
@@ -12,7 +13,7 @@ type Totals = { completedOrders: number; reversedOrders: number; subtotalIqd: nu
 type MerchantRow = { merchantId: string; email: string; businessName: string; totals: Totals; deliveryToSubtotalBps: number | null };
 type Report = { period: { from: string; to: string }; totals: Totals; merchants: MerchantRow[] };
 type Settlement = { id: string; periodFrom: string; periodTo: string; ordersCount: number; commissionIqd: number; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number | null; netPayoutIqd: number | null; note: string | null; createdAt: string };
-type SettlementPreview = { periodFrom: string; periodTo: string; ordersCount: number; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number; commissionIqd: number; netPayoutIqd: number };
+type SettlementPreview = { periodFrom: string; periodTo: string; ordersCount: number; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number; commissionIqd: number; platformDiscountIqd?: number; netPayoutIqd: number };
 
 /**
  * Audit 17-ب: what the platform owes — the same formula as the merchant's wallet
@@ -67,16 +68,20 @@ export function FinanceCenter() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [adjustOrderId, setAdjustOrderId] = useState("");
 
+  const beginRequest = useLatestRequest();
   const load = useCallback(async () => {
+    const isCurrent = beginRequest();
     try {
       const result = await api<Report>(`/api/platform/finance/report?from=${from}T00:00:00Z&to=${to}T23:59:59Z`);
+      if (!isCurrent()) return;
       setReport(result);
       setFailure(null);
     } catch (error) {
+      if (!isCurrent()) return;
       setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
       setReport(null);
     }
-  }, [from, to]);
+  }, [beginRequest, from, to]);
   useEffect(() => { void load(); }, [load]);
 
   /**
@@ -216,6 +221,7 @@ export function FinanceCenter() {
                         <p className="mt-1 text-[11px] leading-6 text-[var(--codiq-text-muted)]">
                           مبيعات {money.format(preview.subtotalIqd)} + توصيل {money.format(preview.deliveryFeeIqd)} − نقاط {money.format(preview.loyaltyDiscountIqd)} − عمولة {money.format(preview.commissionIqd)} · {money.format(preview.ordersCount)} طلب
                         </p>
+                        {preview.platformDiscountIqd ? <p data-testid="finance-settle-platform-coupons" className="mt-1 text-[11px] leading-6 text-[var(--codiq-accent)]">منها {money.format(preview.platformDiscountIqd)} د.ع كوبونات السوق: دفعها المتسوّقون أقلّ، وتتحمّلها المنصّة للتاجر.</p> : null}
                       </div>
                     ) : <p className="text-xs text-[var(--codiq-text-muted)]"><LoaderCircle className="ml-1 inline h-4 w-4 animate-spin" /> جارٍ حساب المبلغ…</p>}
                     <div className="flex flex-wrap items-center gap-2">

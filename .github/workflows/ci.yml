@@ -409,22 +409,22 @@ jobs:
       - name: Integration — marketplace M8a (campaigns, hourly deals priced through the one live-price rule, refused after the hour)
         run: pnpm market:campaigns
 
-      - name: Integration — marketplace M8b (platform-funded coupons, points and tiers, concurrency: no double spend)
+      - name: "Integration — marketplace M8b (platform-funded coupons, points and tiers, concurrency: no double spend)"
         run: pnpm market:rewards
 
-      - name: Integration — marketplace M9 (prize wheel: server-side draw, 1000 simultaneous spins never exceed stock)
+      - name: "Integration — marketplace M9 (prize wheel: server-side draw, 1000 simultaneous spins never exceed stock)"
         run: pnpm market:wheel
 
-      - name: Integration — marketplace M10 (reels: type from the bytes, owner review, range streaming, views once a day, likes)
+      - name: "Integration — marketplace M10 (reels: type from the bytes, owner review, range streaming, views once a day, likes)"
         run: pnpm market:reels
 
-      - name: Integration — marketplace M11 (stores map by box, «على طريقك» corridor in passing order, tile proxy: key hidden, cached, grid-checked, no redirects)
+      - name: "Integration — marketplace M11 (stores map by box, «على طريقك» corridor in passing order, tile proxy: key hidden, cached, grid-checked, no redirects)"
         run: pnpm market:map
 
       - name: Unit — marketplace M12 visual fingerprint (the same product photographed differently beats every other product)
         run: pnpm image:embedding
 
-      - name: Integration — marketplace M12 (image search with pgvector: indexed on upload and by the sweep, nearest visible products, the photo not kept, look-alike)
+      - name: "Integration — marketplace M12 (image search with pgvector: indexed on upload and by the sweep, nearest visible products, the photo not kept, look-alike)"
         run: pnpm market:visual
 
       - name: Guard — every implemented merchant menu entry has a screen
@@ -998,6 +998,9 @@ jobs:
 
       - name: Browser — phase 9B cookie scope
         run: pnpm phase9b:cookie
+
+      - name: Browser — the storefront catalog follows its address bar, and only the latest one
+        run: pnpm exec tsx phase1-backend/tests/storefront-catalog.browser-acceptance.mjs
 
       - name: Browser — phase 13 store switcher
         run: pnpm phase13:browser

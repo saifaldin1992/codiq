@@ -11,6 +11,7 @@ import { accountCall, displayPhone, useShopper } from "../market-shopper";
 import { refreshCart, type CartLine } from "../market-cart";
 import { iqd } from "../market-products";
 import { MarketSignIn } from "./MarketAccountPages";
+import { useLatestRequest } from "../../hooks/useLatestRequest";
 
 type Address = { id: string; label: string; recipientName: string; phone: string; governorate: { name: string }; district: { name: string }; addressLine: string; isDefault: boolean };
 type Summary = {
@@ -44,7 +45,16 @@ export function MarketCheckoutPage() {
   const [platformCoupon, setPlatformCoupon] = useState("");
   const [payment, setPayment] = useState("cod");
   const [note, setNote] = useState("");
-  const [summary, setSummary] = useState<Summary | null>(null);
+  // The summary is kept with the selection it was computed for. Switching the
+  // address, the coupon or delivery/pick-up fires a new summary each time, and
+  // they do not come back in order: an older one landing last would show
+  // another selection's total — and its coupon would be the one ordered.
+  const [summaryState, setSummaryState] = useState<{ for: string; summary: Summary } | null>(null);
+  const selection = `${fulfilment}|${addressId ?? ""}|${coupon}|${platformCoupon ?? ""}`;
+  const summary = summaryState?.for === selection ? summaryState.summary : null;
+  // The store, its lines and its payment methods do not depend on the selection: the last summary keeps them on screen while the next loads.
+  const shown = summaryState?.summary ?? null;
+  const beginSummary = useLatestRequest();
   const [failure, setFailure] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [key, setKey] = useState(newKey);
@@ -59,8 +69,15 @@ export function MarketCheckoutPage() {
     if (addressId) params.set("addressId", addressId);
     if (coupon) params.set("coupon", coupon);
     if (platformCoupon) params.set("platformCoupon", platformCoupon);
-    try { setSummary(await accountCall<Summary>(`/api/market/checkout/${encodeURIComponent(slug)}?${params}`)); } catch (error) { setFailure((error as Error).message); }
-  }, [slug, addressId, fulfilment, coupon, platformCoupon]);
+    const isCurrent = beginSummary();
+    const forSelection = `${fulfilment}|${addressId ?? ""}|${coupon}|${platformCoupon ?? ""}`;
+    try {
+      const next = await accountCall<Summary>(`/api/market/checkout/${encodeURIComponent(slug)}?${params}`);
+      if (isCurrent()) setSummaryState({ for: forSelection, summary: next });
+    } catch (error) {
+      if (isCurrent()) setFailure((error as Error).message);
+    }
+  }, [slug, addressId, fulfilment, coupon, platformCoupon, beginSummary]);
   useEffect(() => { if (shopper && addresses) void load(); }, [shopper, addresses, load]);
 
   const fee = useMemo(() => (summary?.delivery.available ? (summary.coupon && "freeShipping" in summary.coupon && summary.coupon.freeShipping ? 0 : summary.delivery.amountIqd ?? 0) : 0), [summary]);
@@ -93,17 +110,17 @@ export function MarketCheckoutPage() {
   return (
     <div className="space-y-4" data-testid="market-checkout">
       <Link href="/cart" className="text-xs font-bold text-[var(--codiq-accent)]">← السلة</Link>
-      <h1 className="text-xl font-black text-[var(--codiq-text)]">إتمام الطلب {summary ? `من ${summary.store.name}` : ""}</h1>
+      <h1 className="text-xl font-black text-[var(--codiq-text)]">إتمام الطلب {shown ? `من ${shown.store.name}` : ""}</h1>
 
-      {summary?.store.pickupEnabled ? (
+      {shown?.store.pickupEnabled ? (
         <section className="grid grid-cols-2 gap-2" data-testid="market-checkout-fulfilment">
           {([["delivery", "توصيل إلى عنواني", Truck], ["pickup", "استلام من المتجر", Store]] as const).map(([value, label, Icon]) => (
             <button key={value} type="button" aria-pressed={fulfilment === value} onClick={() => setFulfilment(value)} className={`flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-bold ${fulfilment === value ? "border-[var(--codiq-accent)] bg-[var(--codiq-accent-soft)] text-[var(--codiq-accent)]" : "border-[var(--codiq-border)] bg-[var(--codiq-surface)] text-[var(--codiq-text)]"}`} data-testid={`market-checkout-${value}`}><Icon className="h-4 w-4" /> {label}</button>
           ))}
         </section>
       ) : null}
-      {fulfilment === "pickup" && summary?.store.location ? (
-        <a href={`https://www.openstreetmap.org/?mlat=${summary.store.location.latitude}&mlon=${summary.store.location.longitude}#map=17/${summary.store.location.latitude}/${summary.store.location.longitude}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-surface)] p-3 text-xs font-semibold text-[var(--codiq-accent)] shadow-sm"><MapPin className="h-4 w-4" /> موقع المتجر{summary.store.location.addressLine ? `: ${summary.store.location.addressLine}` : ""} — الاتجاهات</a>
+      {fulfilment === "pickup" && shown?.store.location ? (
+        <a href={`https://www.openstreetmap.org/?mlat=${shown.store.location.latitude}&mlon=${shown.store.location.longitude}#map=17/${shown.store.location.latitude}/${shown.store.location.longitude}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-2xl bg-[var(--codiq-surface)] p-3 text-xs font-semibold text-[var(--codiq-accent)] shadow-sm"><MapPin className="h-4 w-4" /> موقع المتجر{shown.store.location.addressLine ? `: ${shown.store.location.addressLine}` : ""} — الاتجاهات</a>
       ) : null}
 
       <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid="market-checkout-addresses">
@@ -118,9 +135,9 @@ export function MarketCheckoutPage() {
       </section>
 
       <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm">
-        <p className="text-sm font-black text-[var(--codiq-text)]">منتجات الطلب {summary ? `(${summary.lines.length.toLocaleString("ar-IQ")})` : ""}</p>
+        <p className="text-sm font-black text-[var(--codiq-text)]">منتجات الطلب {shown ? `(${shown.lines.length.toLocaleString("ar-IQ")})` : ""}</p>
         <ul className="space-y-2">
-          {summary?.lines.map((line) => (
+          {shown?.lines.map((line) => (
             <li key={line.id} className="flex items-center gap-2 text-xs">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--codiq-surface-sunken)]">{line.product.imageUrl ? <img src={line.product.imageUrl} alt="" className="h-full w-full object-cover" /> : <Package className="h-4 w-4 text-[var(--codiq-text-muted)]" />}</span>
               <span className="min-w-0 flex-1 truncate text-[var(--codiq-text)]">{line.product.name}{line.variant.name ? ` · ${line.variant.name}` : ""}{line.addons.length ? ` + ${line.addons.map((addon) => addon.name).join("، ")}` : ""} × {line.quantity.toLocaleString("ar-IQ")}</span>
@@ -132,7 +149,7 @@ export function MarketCheckoutPage() {
 
       <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid="market-checkout-payment">
         <p className="text-sm font-black text-[var(--codiq-text)]">طريقة الدفع</p>
-        {(summary?.paymentMethods.length ? summary.paymentMethods : [{ code: "cod", displayName: "الدفع عند الاستلام", kind: "cash" }]).map((method) => (
+        {(shown?.paymentMethods.length ? shown.paymentMethods : [{ code: "cod", displayName: "الدفع عند الاستلام", kind: "cash" }]).map((method) => (
           <label key={method.code} className="flex items-center gap-2 text-sm text-[var(--codiq-text)]"><input type="radio" name="payment" checked={payment === method.code} onChange={() => setPayment(method.code)} /> {method.displayName}</label>
         ))}
       </section>
@@ -147,10 +164,10 @@ export function MarketCheckoutPage() {
         {summary?.coupon && "code" in summary.coupon ? <p className="text-xs font-semibold text-[var(--codiq-success)]" data-testid="market-checkout-coupon-ok">طُبّق {summary.coupon.code}{summary.coupon.freeShipping ? " — توصيل مجانيّ" : ` — وفّرت ${iqd(summary.coupon.discountIqd)}`} <button type="button" onClick={() => { setCoupon(""); setCouponDraft(""); }} className="mr-2 text-[var(--codiq-danger)]">إزالة</button></p> : null}
         <textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} rows={2} placeholder="ملاحظات للمتجر (اختياريّ)" className="w-full rounded-2xl border border-[var(--codiq-border)] px-3 py-2 text-sm" />
       </section>
-      {summary?.platformCoupons.length ? (
+      {shown?.platformCoupons.length ? (
         <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm" data-testid="market-checkout-platform-coupons">
           <p className="text-sm font-black text-[var(--codiq-text)]">كوبونات السوق</p>
-          {summary.platformCoupons.map((entry) => (
+          {shown.platformCoupons.map((entry) => (
             <label key={entry.walletId} className={`flex items-center justify-between gap-2 rounded-2xl border px-3 py-2.5 text-xs ${platformCoupon === entry.walletId ? "border-[var(--codiq-accent)] bg-[var(--codiq-accent-soft)]" : "border-[var(--codiq-border)]"} ${entry.usable ? "" : "opacity-60"}`}>
               <span className="flex items-center gap-2"><input type="radio" name="platform-coupon" disabled={!entry.usable} checked={platformCoupon === entry.walletId} onChange={() => setPlatformCoupon(entry.walletId)} data-testid={`market-checkout-platform-${entry.code}`} /><span><span className="block font-bold text-[var(--codiq-text)]">{entry.title}</span>{entry.reason ? <span className="text-[11px] text-[var(--codiq-text-muted)]">{entry.reason}</span> : null}</span></span>
               {entry.usable ? <span className="font-black text-[var(--codiq-success)]">− {iqd(entry.discountIqd)}</span> : null}

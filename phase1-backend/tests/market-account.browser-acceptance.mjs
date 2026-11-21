@@ -97,6 +97,8 @@ try {
   // ── addresses ───────────────────────────────────────────────────────────────
   await page.goto(`${base}/market/account/addresses`);
   await page.getByTestId("market-address-add").click();
+  // The suggestion arrives with the shopper's own record (/me), a moment after the page: wait for it, then read it.
+  await page.waitForFunction(() => (document.querySelector('[data-testid="market-address-recipient"]')?.value ?? "") !== "", undefined, { timeout: 10_000 }).catch(() => undefined);
   assert.equal(await page.getByTestId("market-address-recipient").inputValue(), "زينب علي", "the name is suggested");
   assert.equal(await page.getByTestId("market-address-phone").inputValue(), ownPhone, "the shopper's own phone is suggested");
   assert.equal(await page.getByTestId("market-address-phone-verify").count(), 0, "her own phone needs no code");

@@ -7,7 +7,9 @@
  * order editing. Managing devices and reconciling shortfalls are MANAGEMENT
  * acts (`settings.manage`, `inventory.update`): pairing a till decides who can
  * write sales into this store, and a shortfall review rewrites what the shelf
- * count means.
+ * count means. The price-deviation queue is the OWNER's (`settings.manage`):
+ * it is how he checks what his cashiers charged, so a cashier — whose default
+ * role holds `inventory.update` — must not be the one to clear it.
  *
  * KNOWN LIMIT — devices are NAMED, not AUTHENTICATED. Any pos.sell holder
  * in the store can submit tickets under any of the store's device ids, so
@@ -35,7 +37,9 @@ import {
   createPosDevice,
   ingestPosTicket,
   listPosDevices,
+  listPosPriceDeviations,
   listPosShortfalls,
+  reviewPosPriceDeviation,
   reviewPosShortfall,
   revokePosDevice,
 } from "../../services/pos.service.js";
@@ -53,7 +57,10 @@ export function registerPosRoutes(app: Express) {
   app.get("/merchant/stores/:storeSlug/pos/devices", asyncRoute(async (request, response) => {
     const actor = await requireStoreActor(request, "pos.sell");
     await assertCapabilityAvailable("pos.devices", actor.store);
-    response.status(200).json({ storeSlug: actor.store.slug, ...(await listPosDevices(actor.store.id)) });
+    // `seller` is who this session is: the till stamps it on every sale it
+    // queues and sends a queued sale only under the session that rang it, so an
+    // offline sale is never credited to the next cashier who signs in.
+    response.status(200).json({ storeSlug: actor.store.slug, seller: { kind: actor.actor.kind, id: actor.actor.id }, ...(await listPosDevices(actor.store.id)) });
   }));
 
   app.post("/merchant/stores/:storeSlug/pos/devices/:deviceId/revoke", asyncRoute(async (request, response) => {
@@ -109,6 +116,20 @@ export function registerPosRoutes(app: Express) {
     requireTrustedWriteOrigin(request);
     const actor = await requireStoreActor(request, "inventory.update");
     await reviewPosShortfall(actor.store.id, request.params.shortfallId);
+    response.status(204).end();
+  }));
+
+  // ---- price deviations: what the till charged against the catalog ----
+  app.get("/merchant/stores/:storeSlug/pos/price-deviations", asyncRoute(async (request, response) => {
+    const actor = await requireStoreActor(request, "settings.manage");
+    const { limit, cursor } = parseOrThrow(paginationQuerySchema, request.query);
+    response.status(200).json({ storeSlug: actor.store.slug, ...(await listPosPriceDeviations(actor.store.id, limit, cursor)) });
+  }));
+
+  app.post("/merchant/stores/:storeSlug/pos/price-deviations/:deviationId/review", asyncRoute(async (request, response) => {
+    requireTrustedWriteOrigin(request);
+    const actor = await requireStoreActor(request, "settings.manage");
+    await reviewPosPriceDeviation(actor.store.id, request.params.deviationId);
     response.status(204).end();
   }));
 }

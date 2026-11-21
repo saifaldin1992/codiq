@@ -127,12 +127,26 @@ export interface RenderedImageSet {
  * slots rather than a blurred 1600 — upscaling invents detail and costs bytes to
  * do it, and the honest answer to a small source is a small picture.
  */
+/**
+ * THE PIXEL CEILING — what a byte limit cannot see.
+ *
+ * A 15 MB upload can declare a picture far larger than its bytes: a flat-colour
+ * PNG compresses a 20,000 × 20,000 canvas to almost nothing, and decoding it
+ * costs width × height × 4 bytes of memory — 1.6 GB for that one, three times
+ * over (once per variant), with eight files allowed per request. sharp's own
+ * default (268 MP) still lets one image take about a gigabyte. 100 MP covers
+ * every phone camera on sale (the 48 MP ones and the 108 MP outliers binned to
+ * 12) and caps a single decode near 400 MB; the dimensions are read from the
+ * HEADER and refused before any pixel is inflated.
+ */
+export const MAX_INPUT_PIXELS = 100_000_000;
+
 export async function renderProductImageVariants(source: Buffer): Promise<RenderedImageSet> {
   const sharp = await loadSharp();
   let base: Sharp;
   let meta: Metadata;
   try {
-    base = sharp(source, { failOn: "error" }).rotate();
+    base = sharp(source, { failOn: "error", limitInputPixels: MAX_INPUT_PIXELS }).rotate();
     meta = await base.metadata();
   } catch {
     // The magic-byte check upstream already said this is a JPEG/PNG/WebP, so a
@@ -149,6 +163,9 @@ export async function renderProductImageVariants(source: Buffer): Promise<Render
   const sourceHeight = (turned ? meta.width : meta.height) ?? 0;
   if (sourceWidth <= 0 || sourceHeight <= 0) {
     throw new HttpError(422, "INVALID_PRODUCT_IMAGE", "تعذّرت قراءة أبعاد الصورة. جرّب صورةً أخرى.");
+  }
+  if (sourceWidth * sourceHeight > MAX_INPUT_PIXELS) {
+    throw new HttpError(422, "INVALID_PRODUCT_IMAGE", "أبعاد الصورة أكبر من المسموح (١٠٠ ميغابكسل). صغّرها ثم أعد رفعها.");
   }
 
   // THE DECODE FAILS HERE, NOT ABOVE — and that cost a 500 before it was found.
@@ -168,7 +185,7 @@ export async function renderProductImageVariants(source: Buffer): Promise<Render
   try {
     for (const variant of VARIANT_NAMES) {
       const spec = IMAGE_VARIANTS[variant];
-      const body = await sharp(source, { failOn: "error" })
+      const body = await sharp(source, { failOn: "error", limitInputPixels: MAX_INPUT_PIXELS })
         .rotate()
         .resize({ width: spec.width, withoutEnlargement: true })
         .webp({ quality: spec.quality })

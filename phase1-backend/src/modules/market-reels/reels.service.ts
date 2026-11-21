@@ -12,6 +12,7 @@
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
+import { assertWithinPlanLimit } from "../../services/entitlement.service.js";
 import { HttpError } from "../../auth/auth.errors.js";
 import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../../services/list-page.js";
 import { deleteMarketImageObjects, getObjectRange, getStoreLogoBytes, putMarketImage, putReelVideo } from "../../services/product-image-storage.service.js";
@@ -134,6 +135,10 @@ export async function uploadReel(storeId: string, input: { caption?: string; pro
   if (input.productId && !(await prisma.product.findFirst({ where: { id: input.productId, storeId, deletedAt: null }, select: { id: true } }))) {
     throw new HttpError(404, "PRODUCT_NOT_FOUND", "المنتج غير موجود في متجرك.");
   }
+  // A reel is stored in the merchant's bucket like his images: it is charged to the same plan meter.
+  const owner = await prisma.store.findUniqueOrThrow({ where: { id: storeId }, select: { merchantId: true } });
+  const totalBytes = files.video.size + (files.poster?.size ?? 0);
+  await assertWithinPlanLimit(prisma, owner.merchantId, "max_image_storage_mb", Math.max(1, Math.ceil(totalBytes / (1024 * 1024))), "لرفع المقطع");
   const video = await putReelVideo(storeId, files.video);
   const poster = files.poster ? await putMarketImage("reel-posters", files.poster).catch(async (error) => { await deleteMarketImageObjects([video.objectKey]).catch(() => undefined); throw error; }) : null;
   try {

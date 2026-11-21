@@ -16,7 +16,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
 import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../../services/list-page.js";
-import { IQD_PER_POINT, POINT_TIERS, platformCouponRefusal, platformDiscountFor, pointsBalance, tierFor, yearPoints } from "../../services/platform-rewards.service.js";
+import { IQD_PER_POINT, POINT_TIERS, platformCouponRefusal, platformDiscountFor, spendablePoints, tierFor, yearPoints } from "../../services/platform-rewards.service.js";
+import { RETURN_REVERSAL_WINDOW_DAYS } from "../../services/finance.service.js";
 import { marketStoreCardsByIds } from "../market-stores/directory.service.js";
 
 const COUPON_VIEW = {
@@ -93,12 +94,15 @@ export async function redeemPoints(shopperId: string, couponId: string, now = ne
     await tx.$queryRaw`SELECT id FROM shoppers WHERE id = ${shopperId}::uuid FOR UPDATE`;
     const coupon = await tx.platformCoupon.findUnique({ where: { id: couponId }, select: { id: true, pointsCost: true } });
     if (!coupon || coupon.pointsCost <= 0) throw new HttpError(404, "COUPON_NOT_FOUND", "هذا الكوبون لا يُستبدل بالنقاط.");
-    const balance = await pointsBalance(tx, shopperId);
-    if (balance < coupon.pointsCost) throw new HttpError(409, "POINTS_NOT_ENOUGH", `تحتاج ${coupon.pointsCost.toLocaleString("en-US")} نقطة، ورصيدك ${Math.max(0, balance).toLocaleString("en-US")}.`);
+    // Only the points no return can still take back: an order's points wait out its return window.
+    const { spendable, pending } = await spendablePoints(tx, shopperId, now);
+    if (spendable < coupon.pointsCost) {
+      throw new HttpError(409, "POINTS_NOT_ENOUGH", `تحتاج ${coupon.pointsCost.toLocaleString("en-US")} نقطة، والمتاح لك ${spendable.toLocaleString("en-US")}${pending > 0 ? ` (و${pending.toLocaleString("en-US")} نقطة قيد التأكيد حتى تنتهي مهلة الإرجاع)` : ""}.`, { spendable, pending });
+    }
     await issueCoupon(tx, coupon.id, now);
     await tx.shopperPointsEntry.create({ data: { shopperId, delta: -coupon.pointsCost, reason: "spent", couponId: coupon.id } });
     const held = await tx.shopperCoupon.create({ data: { shopperId, couponId: coupon.id, source: "points" }, select: { id: true } });
-    return { walletId: held.id, balance: balance - coupon.pointsCost };
+    return { walletId: held.id, balance: spendable - coupon.pointsCost };
   });
 }
 
@@ -138,8 +142,8 @@ export async function pointsPage(shopperId: string, rawCursor: unknown, rawLimit
   const limit = parseListLimit(rawLimit, 50, 20);
   const cursor = decodeListCursor(POINTS_KIND, rawCursor);
   const at = cursor ? new Date(cursor.value) : null;
-  const [balance, year, rows] = await Promise.all([
-    pointsBalance(prisma, shopperId),
+  const [{ balance, pending, spendable, nextReleaseAt }, year, rows] = await Promise.all([
+    spendablePoints(prisma, shopperId),
     yearPoints(prisma, shopperId),
     prisma.shopperPointsEntry.findMany({
       where: { shopperId, ...(cursor && at ? { OR: [{ createdAt: { lt: at } }, { createdAt: at, id: { lt: cursor.id } }] } : {}) },
@@ -152,6 +156,11 @@ export async function pointsPage(shopperId: string, rawCursor: unknown, rawLimit
   return {
     balance: Math.max(0, balance),
     owed: balance < 0 ? -balance : 0,
+    // «قيد التأكيد»: earned on orders still inside their return window; spendable once it closes.
+    spendable,
+    pending,
+    pendingReleaseAt: nextReleaseAt,
+    holdDays: RETURN_REVERSAL_WINDOW_DAYS,
     tier: { code: tier.code, label: tier.label, multiplierPct: tier.multiplierPct },
     next: next ? { code: next.code, label: next.label, minPoints: next.minPoints, toNext } : null,
     yearPoints: year,

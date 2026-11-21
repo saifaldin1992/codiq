@@ -124,17 +124,17 @@ export function registerMarketSupportRoutes(app: Express) {
   app.post("/platform/market/support-tickets/:ticketId/replies", asyncRoute(async (request, response) => {
     requireTrustedWriteOrigin(request);
     const { actor } = await requirePlatformActor(request, "orders.oversee");
-    response.status(200).json(await supportReply({ platform: true }, { kind: "platform", id: actor.id }, request.params.ticketId, parseOrThrow(supportReplySchema, request.body ?? {})));
+    response.status(200).json(await supportReply({ platform: true }, { kind: "platform", id: actor.id }, request.params.ticketId, parseOrThrow(supportReplySchema, request.body ?? {}), actor));
   }));
   app.post("/platform/market/support-tickets/:ticketId/escalate", asyncRoute(async (request, response) => {
     requireTrustedWriteOrigin(request);
-    await requirePlatformActor(request, "orders.oversee");
-    response.status(200).json(await escalateTicket(request.params.ticketId));
+    const { actor } = await requirePlatformActor(request, "orders.oversee");
+    response.status(200).json(await escalateTicket(request.params.ticketId, actor));
   }));
   app.post("/platform/market/support-tickets/:ticketId/close", asyncRoute(async (request, response) => {
     requireTrustedWriteOrigin(request);
-    await requirePlatformActor(request, "orders.oversee");
-    response.status(200).json(await closeTicket(request.params.ticketId));
+    const { actor } = await requirePlatformActor(request, "orders.oversee");
+    response.status(200).json(await closeTicket(request.params.ticketId, actor));
   }));
   app.get("/platform/market/support-tickets/:ticketId/attachments/:attachmentId", asyncRoute(async (request, response) => {
     await requirePlatformActor(request, "orders.oversee");

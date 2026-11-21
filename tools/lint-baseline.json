@@ -3,7 +3,7 @@
   "@typescript-eslint/no-unused-vars": 82,
   "no-useless-assignment": 31,
   "prefer-const": 2,
-  "react-hooks/exhaustive-deps": 10,
+  "react-hooks/exhaustive-deps": 9,
   "security/detect-non-literal-fs-filename": 4,
   "security/detect-non-literal-regexp": 46,
   "security/detect-possible-timing-attacks": 1,

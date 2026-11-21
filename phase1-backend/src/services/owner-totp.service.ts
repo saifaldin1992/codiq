@@ -140,12 +140,12 @@ export async function disableTotp(ownerId: string, password: unknown): Promise<v
   // someone else has reached the account — and until this line, that someone
   // could grind the password with no ceiling and take the factor off. See
   // REAUTH_ATTEMPT_LIMIT for why ten, and why the key is the subject.
-  const reauthKey = { scope: "password_reverify", rawKey: `platform_owner:${ownerId}` };
-  await consumeStorefrontRateLimit({ ...reauthKey, limit: REAUTH_ATTEMPT_LIMIT, windowMs: REAUTH_WINDOW_MS });
+  const reverifyBucket = { scope: "password_reverify", rawKey: `platform_owner:${ownerId}` };
+  await consumeStorefrontRateLimit({ ...reverifyBucket, limit: REAUTH_ATTEMPT_LIMIT, windowMs: REAUTH_WINDOW_MS });
   if (!(await verifyPassword(password, owner.passwordHash))) {
     throw new HttpError(422, "INVALID_PASSWORD", "كلمة المرور غير صحيحة.");
   }
-  await refundStorefrontRateLimit(reauthKey);
+  await refundStorefrontRateLimit(reverifyBucket);
   await prisma.$transaction(async (tx) => {
     await tx.platformOwnerRecoveryCode.deleteMany({ where: { platformOwnerId: ownerId } });
     await tx.platformOwner.update({

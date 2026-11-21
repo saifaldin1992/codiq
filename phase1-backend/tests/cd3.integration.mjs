@@ -233,6 +233,94 @@ try {
   assert.equal(audit[0].metadata.reason ?? audit[0].metadata.note, "المنتج مستعمل ولا يقبل الإرجاع");
   assert.ok(audit.every((row) => row.actorKind === "merchant"));
 
+  // ============================================================
+  // 7. The decision and the order it moves commit TOGETHER.
+  //
+  // They used to be two transactions: the order went to `returned` (ledger
+  // reversal, points, stock queue) and only then was the request marked. A
+  // failure between the two left a returned order beside a request that stayed
+  // «open» forever — `returned → returned` is not an edge, so no later approval
+  // could ever clear it. The failure is injected at the LAST write of the
+  // decision (its audit row), the furthest point from the order's own write.
+  // ============================================================
+  const atomicOrder = await complete(await makeOrder(buyer.id));
+  const atomicAsk = await request(returnsPath(atomicOrder.id), { method: "POST", token: buyer.token, body: { reason: "عيب مصنعي" } });
+  assert.equal(atomicAsk.status, 201, JSON.stringify(atomicAsk.payload));
+  const atomicId = atomicAsk.payload.request.id;
+  await sql.query(`CREATE OR REPLACE FUNCTION cd3_fail_audit() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN IF NEW.entity_id = '${atomicId}'::uuid THEN RAISE EXCEPTION 'cd3 injected audit failure'; END IF; RETURN NEW; END $$`);
+  await sql.query("CREATE TRIGGER cd3_fail_audit BEFORE INSERT ON store_audit_events FOR EACH ROW EXECUTE FUNCTION cd3_fail_audit()");
+  let failedDecision;
+  try {
+    failedDecision = await request(decisionPath(atomicId), { method: "POST", token, body: { approve: true } });
+  } finally {
+    await sql.query("DROP TRIGGER cd3_fail_audit ON store_audit_events");
+    await sql.query("DROP FUNCTION cd3_fail_audit()");
+  }
+  assert.ok(failedDecision.status >= 500, `the injected failure must fail the decision · ${failedDecision.status}`);
+  assert.equal((await prisma.storeOrder.findUniqueOrThrow({ where: { id: atomicOrder.id } })).status, "completed", "a decision that failed must not have returned the order");
+  assert.equal(await prisma.ledgerEntry.count({ where: { orderId: atomicOrder.id, entryType: "order_returned" } }), 0, "…nor reversed its money");
+  assert.equal((await prisma.returnRequest.findUniqueOrThrow({ where: { id: atomicId } })).status, "requested", "…and the request is still open, so it can be answered again");
+  const retried = await request(decisionPath(atomicId), { method: "POST", token, body: { approve: true } });
+  assert.equal(retried.status, 200, `the same approval succeeds once the fault is gone · ${JSON.stringify(retried.payload)}`);
+  assert.equal((await prisma.storeOrder.findUniqueOrThrow({ where: { id: atomicOrder.id } })).status, "returned");
+
+  // Two answers racing on one request: exactly one wins, and the order agrees with it.
+  const racedOrder = await complete(await makeOrder(buyer.id));
+  const racedAsk = await request(returnsPath(racedOrder.id), { method: "POST", token: buyer.token, body: { reason: "مقاس خطأ" } });
+  const racedId = racedAsk.payload.request.id;
+  const answers = await Promise.all([
+    request(decisionPath(racedId), { method: "POST", token, body: { approve: true } }),
+    request(decisionPath(racedId), { method: "POST", token, body: { approve: false, note: "خارج الشروط" } }),
+  ]);
+  assert.equal(answers.filter((answer) => answer.status === 200).length, 1, `exactly one of two racing answers may stand · ${answers.map((answer) => answer.status)}`);
+  const racedFinal = await prisma.returnRequest.findUniqueOrThrow({ where: { id: racedId } });
+  const racedOrderFinal = await prisma.storeOrder.findUniqueOrThrow({ where: { id: racedOrder.id } });
+  assert.equal(racedOrderFinal.status === "returned", racedFinal.status === "approved", `the order is returned exactly when the request was approved · ${racedFinal.status}/${racedOrderFinal.status}`);
+  summary.cd3Atomic = { failedDecision: failedDecision.status, retried: retried.status, raced: answers.map((answer) => answer.status), racedFinal: racedFinal.status };
+
+  // ============================================================
+  // 8. A withdrawal racing an approval: one of them wins, and the request says which.
+  // ============================================================
+  // The approval returns the order and reverses its money; a withdrawal that had
+  // read «requested» used to overwrite it afterwards with «withdrawn».
+  const raceOutcomes = [];
+  for (let round = 0; round < 12; round += 1) {
+    const raceOrder = await complete(await makeOrder(buyer.id));
+    const opened = await request(returnsPath(raceOrder.id), { method: "POST", token: buyer.token, body: { reason: `سباق ${round}` } });
+    assert.equal(opened.status, 201, JSON.stringify(opened.payload));
+    const raceId = opened.payload.request.id;
+    const [approval, withdrawal] = await Promise.all([
+      request(decisionPath(raceId), { method: "POST", token, body: { approve: true } }),
+      request(`/store/${store.slug}/account/returns/${raceId}/withdraw`, { method: "POST", token: buyer.token }),
+    ]);
+    const finalRequest = await prisma.returnRequest.findUniqueOrThrow({ where: { id: raceId } });
+    const finalOrder = await prisma.storeOrder.findUniqueOrThrow({ where: { id: raceOrder.id } });
+    raceOutcomes.push([approval.status, withdrawal.status, finalRequest.status, finalOrder.status]);
+    assert.equal([approval.status, withdrawal.status].filter((status) => status === 200).length, 1, `exactly one answer wins: ${JSON.stringify(raceOutcomes.at(-1))}`);
+    assert.equal(finalOrder.status === "returned", finalRequest.status === "approved", `the order is returned exactly when the request says approved: ${JSON.stringify(raceOutcomes.at(-1))}`);
+  }
+  summary.cd3WithdrawRace = raceOutcomes;
+
+  // The narrow window, held open on purpose: the row is locked, the withdrawal
+  // reads «requested» and waits on its write, the approval commits, then the
+  // withdrawal's write runs. It must find nothing left to withdraw — a 409 the
+  // shopper can read. (Before, the write overwrote the decision; the decided-row
+  // CHECK refused it, so the shopper got a 500 instead of an answer.)
+  const heldOrder = await complete(await makeOrder(buyer.id));
+  const held = await request(returnsPath(heldOrder.id), { method: "POST", token: buyer.token, body: { reason: "نافذة ممسوكة" } });
+  const heldId = held.payload.request.id;
+  let lateWithdrawal;
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM return_requests WHERE id = ${heldId}::uuid FOR UPDATE`;
+    lateWithdrawal = request(`/store/${store.slug}/account/returns/${heldId}/withdraw`, { method: "POST", token: buyer.token });
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await tx.returnRequest.update({ where: { id: heldId }, data: { status: "approved", decidedAt: new Date(), decidedByKind: "merchant", decidedById: store.merchantId } });
+  }, { timeout: 10_000 });
+  const lateAnswer = await lateWithdrawal;
+  assert.equal(lateAnswer.status, 409, `a withdrawal that read «requested» before the approval committed is refused after it: ${JSON.stringify(lateAnswer.payload)}`);
+  assert.equal((await prisma.returnRequest.findUniqueOrThrow({ where: { id: heldId } })).status, "approved", "…and the approval stands");
+
   summary.cd3 = {
     openRequestLeavesOrder: "completed",
     ledgerEntriesAfterApproval: entries.map((row) => row.entryType),

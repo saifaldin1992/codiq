@@ -87,13 +87,16 @@ export async function merchantWallet(merchantId: string, now = new Date()): Prom
     orderBy: [{ periodTo: "desc" }, { createdAt: "desc" }],
     select: { id: true, periodTo: true, subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true, createdAt: true },
   });
-  // Strictly AFTER the settled period, so one order can never be paid twice.
+  // FROM the settled period's end, inclusive: settlements are half-open
+  // `[periodFrom, periodTo)` (finance.service.ts `draftSettlement`), so an entry
+  // stamped exactly on `periodTo` belongs to the NEXT period — this one. A `gt`
+  // here left it in no period and on no screen.
   const from = lastSettlement?.periodTo ?? null;
 
   const [groups, settledAggregate] = await Promise.all([
     prisma.ledgerEntry.groupBy({
       by: ["entryType"],
-      where: { store: { merchantId }, createdAt: { ...(from ? { gt: from } : {}), lte: now } },
+      where: { store: { merchantId }, createdAt: { ...(from ? { gte: from } : {}), lte: now } },
       _count: { _all: true },
       _sum: { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true },
     }),

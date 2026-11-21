@@ -10,6 +10,8 @@ import { governorateLabel } from "../../services/governorates.js";
 import { recomputeMarketMetrics } from "./metrics.service.js";
 import { storeLogoUrl } from "./presentation.js";
 import { MARKET_QUEUE_FILTERS } from "./schema.js";
+import { recordPlatformAuditEvent } from "../../services/platform-audit.service.js";
+import type { PlatformActor } from "../../auth/platform-permissions.js";
 
 type QueueStatus = (typeof MARKET_QUEUE_FILTERS)[number];
 
@@ -72,37 +74,57 @@ const ALLOWED_FROM: Record<"list" | "reject" | "delist", string[]> = {
 };
 const RESULT: Record<"list" | "reject" | "delist", string> = { list: "listed", reject: "rejected", delist: "delisted" };
 
-export async function decideMarketListing(storeId: string, input: { decision: "list" | "reject" | "delist"; note?: string }) {
-  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true, marketStatus: true, marketListedAt: true } });
+/**
+ * Listing, rejecting or delisting a store is a decision about a merchant's
+ * business, so it is written to the platform audit log in the same transaction
+ * as the status change: «who delisted this store, and why» is answered from
+ * the log months later, or not at all.
+ */
+export async function decideMarketListing(storeId: string, input: { decision: "list" | "reject" | "delist"; note?: string }, actor: PlatformActor) {
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true, name: true, slug: true, marketStatus: true, marketListedAt: true } });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   const now = new Date();
-  // The status test sits in the WHERE so two owners deciding at once cannot both win.
-  const moved = await prisma.store.updateMany({
-    where: { id: storeId, marketStatus: { in: ALLOWED_FROM[input.decision] } },
-    data: {
-      marketStatus: RESULT[input.decision],
-      marketStatusAt: now,
-      marketStatusNote: input.decision === "list" ? null : input.note ?? null,
-      // The first listing date survives a delist and relist: «جديد» means new to the market, once.
-      ...(input.decision === "list" && !store.marketListedAt ? { marketListedAt: now } : {}),
-    },
+  await prisma.$transaction(async (tx) => {
+    // The status test sits in the WHERE so two owners deciding at once cannot both win.
+    const moved = await tx.store.updateMany({
+      where: { id: storeId, marketStatus: { in: ALLOWED_FROM[input.decision] } },
+      data: {
+        marketStatus: RESULT[input.decision],
+        marketStatusAt: now,
+        marketStatusNote: input.decision === "list" ? null : input.note ?? null,
+        // The first listing date survives a delist and relist: «جديد» means new to the market, once.
+        ...(input.decision === "list" && !store.marketListedAt ? { marketListedAt: now } : {}),
+      },
+    });
+    if (moved.count === 0) throw new HttpError(409, "MARKET_DECISION_NOT_ALLOWED", "لا يمكن اتّخاذ هذا القرار على حالة المتجر الحاليّة.", { status: store.marketStatus });
+    await recordPlatformAuditEvent(tx, {
+      entityType: "store", entityId: storeId, entityLabel: `${store.name} (${store.slug})`, action: "store_status_changed", actor,
+      metadata: { scope: "market_listing", decision: input.decision, before: store.marketStatus, after: RESULT[input.decision], note: input.note ?? null },
+    });
   });
-  if (moved.count === 0) throw new HttpError(409, "MARKET_DECISION_NOT_ALLOWED", "لا يمكن اتّخاذ هذا القرار على حالة المتجر الحاليّة.", { status: store.marketStatus });
   if (input.decision === "list") await recomputeMarketMetrics([storeId]);
   return { storeId, status: RESULT[input.decision] };
 }
 
-export async function setMarketFlags(storeId: string, input: { isBrand?: boolean; boostedUntil?: string | null; ambassadorUntil?: string | null }) {
-  const exists = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } });
-  if (!exists) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
-  const updated = await prisma.store.update({
-    where: { id: storeId },
-    data: {
-      ...(input.isBrand !== undefined ? { isBrand: input.isBrand } : {}),
-      ...(input.boostedUntil !== undefined ? { boostedUntil: input.boostedUntil === null ? null : new Date(input.boostedUntil) } : {}),
-      ...(input.ambassadorUntil !== undefined ? { ambassadorUntil: input.ambassadorUntil === null ? null : new Date(input.ambassadorUntil) } : {}),
-    },
-    select: { id: true, isBrand: true, boostedUntil: true, ambassadorUntil: true },
+/** The platform's marks move a store up the market, so each change is audited with its before and after. */
+export async function setMarketFlags(storeId: string, input: { isBrand?: boolean; boostedUntil?: string | null; ambassadorUntil?: string | null }, actor: PlatformActor) {
+  return prisma.$transaction(async (tx) => {
+    const before = await tx.store.findUnique({ where: { id: storeId }, select: { id: true, name: true, slug: true, isBrand: true, boostedUntil: true, ambassadorUntil: true } });
+    if (!before) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
+    const updated = await tx.store.update({
+      where: { id: storeId },
+      data: {
+        ...(input.isBrand !== undefined ? { isBrand: input.isBrand } : {}),
+        ...(input.boostedUntil !== undefined ? { boostedUntil: input.boostedUntil === null ? null : new Date(input.boostedUntil) } : {}),
+        ...(input.ambassadorUntil !== undefined ? { ambassadorUntil: input.ambassadorUntil === null ? null : new Date(input.ambassadorUntil) } : {}),
+      },
+      select: { id: true, isBrand: true, boostedUntil: true, ambassadorUntil: true },
+    });
+    const view = (row: { isBrand: boolean; boostedUntil: Date | null; ambassadorUntil: Date | null }) => ({ isBrand: row.isBrand, boostedUntil: row.boostedUntil?.toISOString() ?? null, ambassadorUntil: row.ambassadorUntil?.toISOString() ?? null });
+    await recordPlatformAuditEvent(tx, {
+      entityType: "store", entityId: storeId, entityLabel: `${before.name} (${before.slug})`, action: "setting_changed", actor,
+      metadata: { setting: "market_flags", before: view(before), after: view(updated) },
+    });
+    return { storeId: updated.id, isBrand: updated.isBrand, boostedUntil: updated.boostedUntil, ambassadorUntil: updated.ambassadorUntil };
   });
-  return { storeId: updated.id, isBrand: updated.isBrand, boostedUntil: updated.boostedUntil, ambassadorUntil: updated.ambassadorUntil };
 }

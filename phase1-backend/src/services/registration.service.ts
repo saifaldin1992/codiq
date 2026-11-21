@@ -136,7 +136,12 @@ export async function decideMerchantApproval(merchantId: string, actor: Platform
   if (merchant.approvalStatus !== "pending") throw new HttpError(409, "ALREADY_DECIDED", "طلب هذا التاجر محسوم بالفعل.");
   const approve = body.action === "approve";
   await prisma.$transaction(async (tx) => {
-    await tx.merchant.update({ where: { id: merchantId }, data: { approvalStatus: approve ? "approved" : "rejected", isActive: approve } });
+    // Guarded on `pending` INSIDE the transaction: the read above is only a
+    // friendly early answer. Two operators deciding at once — one approving, one
+    // rejecting — used to both pass it, both write, and leave two contradictory
+    // `registration_decided` rows with whichever landed last as the truth.
+    const decided = await tx.merchant.updateMany({ where: { id: merchantId, approvalStatus: "pending" }, data: { approvalStatus: approve ? "approved" : "rejected", isActive: approve } });
+    if (decided.count !== 1) throw new HttpError(409, "ALREADY_DECIDED", "طلب هذا التاجر محسوم بالفعل.");
     await tx.store.updateMany({ where: { merchantId }, data: { isActive: approve } });
     // 19-ب: the decision and its record commit together.
     await recordPlatformAuditEvent(tx, {

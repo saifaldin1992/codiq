@@ -12,6 +12,7 @@
  */
 import type { Prisma } from "@prisma/client";
 import { HttpError } from "../auth/auth.errors.js";
+import { RETURN_REVERSAL_WINDOW_DAYS } from "./finance.service.js";
 
 type Tx = Prisma.TransactionClient;
 
@@ -44,6 +45,34 @@ export async function yearPoints(db: Tx, shopperId: string, now = new Date()) {
 export async function pointsBalance(db: Tx, shopperId: string) {
   const rows = await db.shopperPointsEntry.aggregate({ where: { shopperId }, _sum: { delta: true } });
   return rows._sum.delta ?? 0;
+}
+
+/**
+ * «قيد التأكيد»: points an order earned while that order can still be returned.
+ *
+ * They are his and counted toward his tier, but not yet spendable — the way
+ * marketplaces hold reward points until the return period closes. Otherwise
+ * buy → swap the points for a coupon → return the order kept the coupon and
+ * left a negative balance behind. The hold is the finance reversal window
+ * (RETURN_REVERSAL_WINDOW_DAYS), so a return the store can still accept is a
+ * return whose points have not been spent. Points clawed back already are not
+ * pending; they are gone.
+ */
+export async function pendingPoints(db: Tx, shopperId: string, now = new Date()) {
+  const since = new Date(now.valueOf() - RETURN_REVERSAL_WINDOW_DAYS * 86_400_000);
+  const [row] = await db.$queryRaw<{ pending: number; releases_at: Date | null }[]>`
+    SELECT COALESCE(sum(e.delta), 0)::int AS pending, min(e.created_at) AS releases_at
+      FROM shopper_points_entries e
+     WHERE e.shopper_id = ${shopperId}::uuid AND e.reason = 'earned' AND e.created_at > ${since}
+       AND NOT EXISTS (SELECT 1 FROM shopper_points_entries c WHERE c.order_id = e.order_id AND c.reason = 'clawback')`;
+  const pending = row?.pending ?? 0;
+  return { pending, nextReleaseAt: pending > 0 && row?.releases_at ? new Date(row.releases_at.valueOf() + RETURN_REVERSAL_WINDOW_DAYS * 86_400_000) : null };
+}
+
+/** What he may spend now: his balance less the points still held for a possible return. */
+export async function spendablePoints(db: Tx, shopperId: string, now = new Date()) {
+  const [balance, { pending, nextReleaseAt }] = await Promise.all([pointsBalance(db, shopperId), pendingPoints(db, shopperId, now)]);
+  return { balance, pending, spendable: Math.max(0, balance - pending), nextReleaseAt };
 }
 
 // ── the coupon at checkout ─────────────────────────────────────────────────

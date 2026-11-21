@@ -32,7 +32,7 @@
 import assert from "node:assert/strict";
 import sharp from "sharp";
 
-const { renderProductImageVariants, variantObjectKey, isVariantName, IMAGE_VARIANTS, DEFAULT_SERVED_VARIANT, PRODUCT_IMAGE_VARIANT_SET } =
+const { renderProductImageVariants, variantObjectKey, isVariantName, IMAGE_VARIANTS, DEFAULT_SERVED_VARIANT, PRODUCT_IMAGE_VARIANT_SET, MAX_INPUT_PIXELS } =
   await import("../src/services/image-variants.service.ts");
 
 const summary = {};
@@ -178,5 +178,47 @@ await assert.rejects(
   "a file whose header is valid and whose pixels are not must be 422, never 500",
 );
 summary.brokenPixelsAfterValidHeader = "decode failure during encoding is 422, not INTERNAL_ERROR";
+
+// ============================================================
+// THE PIXEL CEILING: a VALID image whose canvas is past the ceiling is
+// refused from its header, before a single pixel is inflated. The fixture is
+// a real 12,000 × 12,000 (144 MP) flat PNG — every row present, every CRC
+// right, a few hundred KB on the wire — which sharp's own 268 MP default
+// would decode, at ~430 MB per variant, three variants per upload.
+// ============================================================
+const { crc32, createDeflate } = await import("node:zlib");
+function pngChunk(type, data) {
+  const length = Buffer.alloc(4); length.writeUInt32BE(data.length);
+  const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body) >>> 0);
+  return Buffer.concat([length, body, crc]);
+}
+const GIANT = 12_000;
+const ihdr = Buffer.alloc(13);
+ihdr.writeUInt32BE(GIANT, 0); ihdr.writeUInt32BE(GIANT, 4);
+ihdr[8] = 8; ihdr[9] = 2; // 8-bit truecolour
+const idat = await new Promise((resolve, reject) => {
+  const deflate = createDeflate({ level: 9 });
+  const parts = [];
+  deflate.on("data", (part) => parts.push(part));
+  deflate.on("end", () => resolve(Buffer.concat(parts)));
+  deflate.on("error", reject);
+  const row = Buffer.alloc(1 + GIANT * 3); // filter byte 0 + black pixels
+  (async () => {
+    for (let y = 0; y < GIANT; y += 1) if (!deflate.write(row)) await new Promise((r) => deflate.once("drain", r));
+    deflate.end();
+  })();
+});
+const giant = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), pngChunk("IHDR", ihdr), pngChunk("IDAT", idat), pngChunk("IEND", Buffer.alloc(0))]);
+assert.ok(giant.length < 15 * 1024 * 1024, "the fixture fits under the upload byte limit — that is the whole point");
+assert.ok(GIANT * GIANT > MAX_INPUT_PIXELS, "the fixture must actually exceed the ceiling");
+const started = Date.now();
+await assert.rejects(
+  () => renderProductImageVariants(giant),
+  (error) => error.status === 422 && error.code === "INVALID_PRODUCT_IMAGE",
+  "a canvas past the pixel ceiling is a 422, refused from its header",
+);
+assert.ok(Date.now() - started < 2000, "…and refused fast: nothing was decoded");
+summary.pixelCeiling = { maxPixels: MAX_INPUT_PIXELS, declared: GIANT * GIANT, fixtureBytes: giant.length, refused: 422 };
 
 console.log(JSON.stringify({ suite: "image-variants", status: "passed", summary }, null, 2));

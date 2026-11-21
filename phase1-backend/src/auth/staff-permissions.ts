@@ -203,6 +203,10 @@ export async function requireStoreStaff(request: Request, options: { allowPasswo
   if (!store.merchant.isActive) {
     throw new HttpError(403, "MERCHANT_DISABLED", "This merchant account is disabled.");
   }
+  // Phase 19: the employee's own «جلساتي» list shows the device and last use of
+  // each session — and only the merchant's path ever stamped them, so an
+  // employee's list showed every session as «unknown device, never used».
+  touchSession(claims, request);
   return {
     claims,
     store,

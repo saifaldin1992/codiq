@@ -8,7 +8,7 @@ import { prisma } from "../db/prisma.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { createPasswordHash, normalizeEmail } from "../auth/identity.js";
 import { assertDemoWritable } from "../demo/demo-mode.js";
-import { assertPermissionCode, assertStaffRoleCode, resolvePermissionSet, PERMISSION_CODES } from "../auth/staff-permissions.js";
+import { assertPermissionCode, assertStaffRoleCode, resolvePermissionSet, PERMISSION_CODES, ROLE_PERMISSION_MATRIX, type PermissionCode, type StoreActorContext } from "../auth/staff-permissions.js";
 import { assertWithinPlanLimit } from "./entitlement.service.js";
 import type { AuditActor } from "./soft-delete/audit-log.service.js";
 import { LIVE } from "./soft-delete/constants.js";
@@ -45,6 +45,58 @@ function membershipPayload(membership: {
   };
 }
 
+/**
+ * WHO IS CHANGING THE TEAM — and the one rule that follows from it.
+ *
+ * The routes asked only «does the caller hold `team.manage`?». For the merchant
+ * that is the whole question: he owns the store and holds every code. For an
+ * EMPLOYEE it is not. A cashier the merchant trusted with `team.manage` alone
+ * could grant himself every other permission through his own overrides, promote
+ * himself to `store_manager`, or create a fresh manager account with a password
+ * he chose — `team.manage` was, in effect, every permission there is.
+ *
+ * So an employee manages the team INSIDE his own authority:
+ *   · he never changes his own membership (role, state, overrides, removal);
+ *   · he grants no role and no permission he does not hold himself;
+ *   · he does not touch a member whose permissions exceed his own.
+ * A `store_manager` holds every code, so for him nothing changes; the merchant
+ * is never constrained at all.
+ */
+export type TeamActor =
+  | { kind: "merchant" }
+  | { kind: "staff"; membershipId: string; permissions: ReadonlySet<PermissionCode> };
+
+export function teamActorOf(context: Pick<StoreActorContext, "actor" | "permissions">): TeamActor {
+  return context.actor.kind === "staff"
+    ? { kind: "staff", membershipId: context.actor.membershipId, permissions: context.permissions }
+    : { kind: "merchant" };
+}
+
+function assertGrantable(actor: TeamActor, codes: Iterable<string>) {
+  if (actor.kind === "merchant") return;
+  const beyond = Array.from(codes).filter((code) => !actor.permissions.has(code as PermissionCode));
+  if (beyond.length) {
+    throw new HttpError(403, "TEAM_GRANT_EXCEEDS_OWN", `لا يمكنك منح صلاحية لا تملكها: ${beyond.sort().join("، ")}.`);
+  }
+}
+
+/** An employee may manage a member only if it is not himself and the member does not outrank him. */
+async function assertMayManageMembership(actor: TeamActor, storeId: string, membershipId: string) {
+  if (actor.kind === "merchant") return;
+  if (membershipId === actor.membershipId) {
+    throw new HttpError(403, "TEAM_SELF_CHANGE_DENIED", "لا يمكنك تعديل عضويتك أنت — يغيّرها صاحب المتجر أو مدير آخر.");
+  }
+  const target = await prisma.storeStaffMembership.findFirst({
+    where: { id: membershipId, storeId, ...LIVE },
+    select: { roleCode: true, permissionOverrides: { select: { permissionCode: true, effect: true } } },
+  });
+  if (!target) return; // the action's own lookup answers the 404
+  const beyond = Array.from(resolvePermissionSet(target.roleCode, target.permissionOverrides)).filter((code) => !actor.permissions.has(code));
+  if (beyond.length) {
+    throw new HttpError(403, "TEAM_TARGET_OUTRANKS", "لهذا العضو صلاحيات لا تملكها، فلا يمكنك تعديله.");
+  }
+}
+
 export async function listStoreTeam(storeId: string) {
   const memberships = await prisma.storeStaffMembership.findMany({
     where: { storeId, ...LIVE },
@@ -64,7 +116,8 @@ export async function listStoreTeam(storeId: string) {
  * team; the removal revokes that membership's sessions immediately (D14-07) and
  * bumps permissionVersion, exactly like a disable.
  */
-export async function removeStoreMembership(storeId: string, membershipId: string, actor: AuditActor) {
+export async function removeStoreMembership(storeId: string, membershipId: string, actor: AuditActor, teamActor: TeamActor) {
+  await assertMayManageMembership(teamActor, storeId, membershipId);
   return softDelete("staff_membership", storeId, membershipId, actor);
 }
 
@@ -82,9 +135,12 @@ export async function restoreStoreMembership(storeId: string, membershipId: stri
  * membership for an existing staff identity needs neither it nor a password
  * (D14-06), and only the database knows which case this is.
  */
-export async function createStoreStaff(storeId: string, input: { email: unknown; displayName?: unknown; temporaryPassword?: unknown; roleCode: unknown; linkExisting?: unknown }) {
+export async function createStoreStaff(storeId: string, input: { email: unknown; displayName?: unknown; temporaryPassword?: unknown; roleCode: unknown; linkExisting?: unknown }, actor: TeamActor) {
   const email = normalizeEmail(input.email);
   const roleCode = assertStaffRoleCode(input.roleCode);
+  // A new account whose password the employee chose IS the employee — so the
+  // role he gives it is bounded by his own, like any other grant.
+  assertGrantable(actor, ROLE_PERMISSION_MATRIX[roleCode]);
   // Phase 16: team size is a plan entitlement across the merchant's stores.
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
@@ -158,13 +214,15 @@ async function requireMembershipInStore(storeId: string, membershipId: string) {
   return membership;
 }
 
-export async function updateStoreMembership(storeId: string, membershipId: string, input: { roleCode?: unknown; isActive?: unknown }) {
+export async function updateStoreMembership(storeId: string, membershipId: string, input: { roleCode?: unknown; isActive?: unknown }, actor: TeamActor) {
   const current = await requireMembershipInStore(storeId, membershipId);
+  await assertMayManageMembership(actor, storeId, membershipId);
   // P27-7: disabling this membership revokes its sessions immediately (D14-07),
   // which would kill the demo staff login documented for prospects until the
   // nightly reseed. The seeded member is refused; members the visitor adds are not.
   assertDemoWritable("demo_staff", current.staff.email);
   const nextRole = input.roleCode === undefined ? undefined : assertStaffRoleCode(input.roleCode);
+  if (nextRole !== undefined) assertGrantable(actor, ROLE_PERMISSION_MATRIX[nextRole]);
   const nextActive = input.isActive === undefined ? undefined : input.isActive === true;
   if (nextRole === undefined && nextActive === undefined) {
     throw new HttpError(400, "EMPTY_MEMBERSHIP_UPDATE", "roleCode or isActive is required.");
@@ -198,8 +256,9 @@ export async function updateStoreMembership(storeId: string, membershipId: strin
   return membershipPayload(membership);
 }
 
-export async function setMembershipOverrides(storeId: string, membershipId: string, input: { overrides: unknown }) {
+export async function setMembershipOverrides(storeId: string, membershipId: string, input: { overrides: unknown }, actor: TeamActor) {
   await requireMembershipInStore(storeId, membershipId);
+  await assertMayManageMembership(actor, storeId, membershipId);
   if (!Array.isArray(input.overrides) || input.overrides.length > PERMISSION_CODES.length) {
     throw new HttpError(400, "INVALID_OVERRIDES", "overrides must be an array with at most one entry per permission code.");
   }
@@ -213,6 +272,8 @@ export async function setMembershipOverrides(storeId: string, membershipId: stri
     seen.add(permissionCode);
     return { permissionCode, effect: entry.effect as "allow" | "deny" };
   });
+  // A deny only ever narrows; an allow is a grant, bounded like any other.
+  assertGrantable(actor, entries.filter((entry) => entry.effect === "allow").map((entry) => entry.permissionCode));
 
   const membership = await prisma.$transaction(async (tx) => {
     await tx.staffMembershipPermissionOverride.deleteMany({ where: { membershipId } });

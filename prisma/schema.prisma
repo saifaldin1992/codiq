@@ -285,6 +285,7 @@ model Store {
   posDevices           PosDevice[]
   posTickets           PosTicket[]
   posTicketShortfalls  PosTicketShortfall[]
+  posPriceDeviations   PosPriceDeviation[]
   inventoryReservations InventoryReservation[]
   staffMemberships     StoreStaffMembership[]
   notificationOutbox   NotificationOutbox[]
@@ -664,6 +665,7 @@ model ProductVariant {
   cartItems         CartItem[]
   inventoryReservations InventoryReservation[]
   posShortfalls        PosTicketShortfall[]
+  posPriceDeviations   PosPriceDeviation[]
   orderItems        OrderItem[]
   inventoryMovements InventoryMovement[]
 
@@ -1850,6 +1852,7 @@ model PosTicket {
   device             PosDevice            @relation(fields: [deviceId, storeId], references: [id, storeId], onDelete: Restrict)
   order              StoreOrder?          @relation(fields: [orderId, storeId], references: [id, storeId], onDelete: Restrict)
   shortfalls         PosTicketShortfall[]
+  priceDeviations    PosPriceDeviation[]
 
   @@unique([storeId, deviceId, ticketId])
   @@unique([id, storeId])
@@ -1876,6 +1879,28 @@ model PosTicketShortfall {
   variant      ProductVariant @relation(fields: [variantId, storeId], references: [id, storeId], onDelete: Restrict)
 
   @@map("pos_ticket_shortfalls")
+}
+
+/// A till price that differed from the catalog at sync time, or a ticket-level
+/// discount — written beside the sale, never refusing it, reviewed by the owner.
+model PosPriceDeviation {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId             String          @map("store_id") @db.Uuid
+  posTicketId         String          @map("pos_ticket_id") @db.Uuid
+  variantId           String?         @map("variant_id") @db.Uuid
+  kind                String          @db.Text
+  quantity            Int
+  soldUnitPriceIqd    Int             @map("sold_unit_price_iqd")
+  catalogUnitPriceIqd Int             @map("catalog_unit_price_iqd")
+  amountIqd           Int             @map("amount_iqd")
+  reviewedAt          DateTime?       @map("reviewed_at") @db.Timestamptz(6)
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  store               Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  ticket              PosTicket       @relation(fields: [posTicketId, storeId], references: [id, storeId], onDelete: Cascade)
+  variant             ProductVariant? @relation(fields: [variantId, storeId], references: [id, storeId], onDelete: Restrict)
+
+  @@index([posTicketId], map: "pos_price_deviations_ticket_idx")
+  @@map("pos_price_deviations")
 }
 
 /// ق-202: daily visit totals per store — no identity, no IP, no path; Baghdad

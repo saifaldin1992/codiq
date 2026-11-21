@@ -79,8 +79,8 @@ export async function changeOwnPassword(
   // 19-د: the ceiling lives HERE, in the service, not on the route — an
   // unavoidable gate for any future caller, and ahead of the bcrypt compare so
   // a grinder is refused before he spends the CPU. See REAUTH_ATTEMPT_LIMIT.
-  const reauthKey = { scope: "password_reverify", rawKey: `${claims.identityKind}:${claims.subjectId}` };
-  await consumeStorefrontRateLimit({ ...reauthKey, limit: REAUTH_ATTEMPT_LIMIT, windowMs: REAUTH_WINDOW_MS });
+  const reverifyBucket = { scope: "password_reverify", rawKey: `${claims.identityKind}:${claims.subjectId}` };
+  await consumeStorefrontRateLimit({ ...reverifyBucket, limit: REAUTH_ATTEMPT_LIMIT, windowMs: REAUTH_WINDOW_MS });
 
   if (!(await verifyPassword(input.currentPassword, row.passwordHash))) {
     throw new HttpError(422, "INVALID_PASSWORD", "كلمة المرور الحالية غير صحيحة.");
@@ -88,7 +88,7 @@ export async function changeOwnPassword(
   // Refunded the moment he proves the password is his: the budget exists to slow
   // GUESSING, and a person who typed his own password must never be walking
   // toward a lockout on his own account.
-  await refundStorefrontRateLimit(reauthKey);
+  await refundStorefrontRateLimit(reverifyBucket);
 
   // Refused BEFORE hashing, so the message is about what he did rather than
   // about a policy he did not break. A "change" that changes nothing leaves a

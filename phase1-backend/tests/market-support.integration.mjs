@@ -203,6 +203,13 @@ try {
   assert.ok((await owner.request("/platform/market/support-tickets?escalated=1")).payload.tickets.some((row) => row.id === second.id));
   assert.equal((await owner.request(`/platform/market/support-tickets/${second.id}/replies`, { method: "POST", body: { body: "تولّينا طلبك وسنتابع مع المتجر." } })).payload.ticket.comments[0].authorKind, "platform");
   assert.equal((await owner.request(`/platform/market/support-tickets/${second.id}/close`, { method: "POST" })).payload.ticket.status, "closed");
+  // Every hand the owner puts on a ticket is in the platform audit log, with who did it.
+  const ticketAudit = await prisma.platformAuditEvent.findMany({ where: { entityType: "support_ticket", entityId: second.id }, orderBy: { createdAt: "asc" } });
+  assert.ok(ticketAudit.some((row) => row.action === "support_ticket_escalated"), "the escalation is audited");
+  assert.ok(ticketAudit.some((row) => row.action === "support_ticket_replied"), "…the owner's reply");
+  assert.ok(ticketAudit.some((row) => row.action === "support_ticket_closed" && row.actorKind === "platform_owner"), "…and the close, with its actor");
+  assert.equal((await owner.request(`/platform/market/support-tickets/${second.id}/close`, { method: "POST" })).status, 409, "a closed ticket is not closed twice");
+  assert.equal(await prisma.platformAuditEvent.count({ where: { entityType: "support_ticket", entityId: second.id, action: "support_ticket_closed" } }), 1, "…nor audited twice");
   summary.owner = true;
 
   // ── 6. tabs ──────────────────────────────────────────────────────────────
@@ -210,6 +217,18 @@ try {
   const closedTab = (await shopper.request(t("?tab=closed&limit=1"))).payload;
   assert.deepEqual([openTab.tickets.length, openTab.summary.closed, closedTab.tickets.length, Boolean(closedTab.nextCursor)], [0, 2, 1, true]);
   summary.tabs = true;
+
+  // ── a long ticket still shows its latest message ──────────────────────────
+  // Two hundred and five comments: the page carries the NEWEST two hundred.
+  const long = await prisma.supportTicket.findUniqueOrThrow({ where: { id: ticketId } });
+  const base = Date.now() + 60_000; // after every comment the ticket already has
+  await prisma.supportTicketComment.createMany({ data: Array.from({ length: 205 }, (_, i) => ({ ticketId: long.id, authorKind: i % 2 ? "shopper" : "merchant", body: `رسالة ${i + 1}`, createdAt: new Date(base + i * 60_000) })) });
+  const longView = (await shopper.request(t(`/${ticketId}`))).payload.ticket;
+  assert.equal(longView.comments.at(-1).body, "رسالة 205", "the newest message is on the page");
+  assert.equal(longView.comments.length, 200);
+  assert.equal(longView.earlierComments, true, "…and the page says older ones exist");
+  assert.ok(new Date(longView.comments[0].createdAt) < new Date(longView.comments.at(-1).createdAt), "still read oldest to newest");
+  summary.longTicket = true;
 
   console.log(JSON.stringify({ suite: "market-support", ok: true, summary }, null, 2));
 } finally {

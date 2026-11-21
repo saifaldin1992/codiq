@@ -25,6 +25,50 @@ function commissionFor(subtotalIqd: number, commissionBps: number): number {
 }
 
 /**
+ * ONE CLOCK AND ONE GATE FOR EVERY LEDGER ENTRY AND EVERY SETTLEMENT.
+ *
+ * A settlement closes its period at «now» and sums what it can see. A ledger
+ * entry used to take its `createdAt` at INSERT — before its own transaction
+ * committed. So a completion that stamped 14:03:00.100 and committed at
+ * 14:03:00.400 was invisible to a settlement that read at 14:03:00.200 and
+ * closed at that instant: not in that settlement (not yet committed), not in
+ * the next one (it starts at 14:03:00.200, after the stamp), not in the wallet
+ * (which opens at the same instant). Money on no screen — the hole ق-233 closed
+ * for gaps between periods, reopened by concurrency. Settlements are immutable,
+ * so nothing could ever recover it.
+ *
+ * The cure is ordering, not a safety margin. Every ledger write takes a SHARED
+ * advisory lock on its merchant before stamping, and every settlement (preview
+ * included) takes the EXCLUSIVE one before reading the clock. Writers never wait
+ * for each other; a settlement waits for the writers already in flight to commit
+ * — so it sees them — and every writer that arrives after it waits for it to
+ * finish, then stamps a time after its `periodTo`. Both stamps come from the
+ * DATABASE clock (`clock_timestamp()`), so two app instances whose clocks
+ * disagree by a few milliseconds cannot reopen the hole either.
+ *
+ * The key is distinct from `codiq_settlement:` (the contiguity trigger's lock),
+ * so the two never contend in a way that could deadlock.
+ */
+async function ledgerClock(tx: DbClient, merchantId: string, mode: "write" | "settle"): Promise<Date> {
+  const key = `codiq_ledger:${merchantId}`;
+  if (mode === "write") await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtext(${key}))`;
+  else await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
+  // Truncated to the MILLISECOND, which is all a JavaScript Date carries. The
+  // column keeps microseconds; a `periodTo` of 14:03:00.200417 read back into
+  // JS as 14:03:00.200 and sent as the next `periodFrom` would start 417µs
+  // BEFORE the period it must abut — refused as an overlap by
+  // `settlements_no_overlap`, on every settlement after the first.
+  const rows = await tx.$queryRaw<Array<{ now: Date }>>`SELECT date_trunc('milliseconds', clock_timestamp()) AS now`;
+  return rows[0]!.now;
+}
+
+async function merchantIdOfStore(tx: DbClient, storeId: string): Promise<string> {
+  const store = await tx.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
+  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+  return store.merchantId;
+}
+
+/**
  * 19-د: `loyaltyDiscountIqd` is REQUIRED, not optional with a zero default.
  *
  * The defect this closes was exactly an omission — the caller had the number in
@@ -48,12 +92,17 @@ function commissionFor(subtotalIqd: number, commissionBps: number): number {
  * Do not make it without a new owner decision replacing the one above.
  */
 export async function recordOrderCompletion(tx: DbClient, input: { storeId: string; orderId: string; subtotalIqd: number; deliveryFeeIqd: number; loyaltyDiscountIqd: number; platformDiscountIqd?: number }) {
+  // Inline rather than `merchantIdOfStore`: the OpenAPI scanner follows two
+  // hops from a route, and this refusal is reachable from the order-status door.
   const store = await tx.store.findUnique({ where: { id: input.storeId }, select: { merchantId: true } });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
-  const plan = await activePlanForMerchant(tx, store.merchantId);
+  const merchantId = store.merchantId;
+  const plan = await activePlanForMerchant(tx, merchantId);
   const bps = plan.commissionBps;
+  const createdAt = await ledgerClock(tx, merchantId, "write");
   await tx.ledgerEntry.create({
     data: {
+      createdAt,
       storeId: input.storeId,
       orderId: input.orderId,
       entryType: "order_completed",
@@ -82,8 +131,10 @@ export async function recordOrderReturn(tx: DbClient, input: { storeId: string; 
   const now = input.now ?? new Date();
   const windowMs = RETURN_REVERSAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   if (now.valueOf() - completion.createdAt.valueOf() > windowMs) return "outside_window";
+  const createdAt = await ledgerClock(tx, await merchantIdOfStore(tx, completion.storeId), "write");
   await tx.ledgerEntry.create({
     data: {
+      createdAt,
       storeId: completion.storeId,
       orderId: completion.orderId,
       entryType: "order_returned",
@@ -110,8 +161,10 @@ export async function createManualReturnAdjustment(actor: PlatformActor, input: 
     if (reversed) throw new HttpError(409, "ALREADY_REVERSED", "هذا الطلب معكوس مالياً بالفعل.");
     const order = await tx.storeOrder.findUnique({ where: { id: input.orderId }, select: { status: true, orderNumber: true } });
     if (order?.status !== "returned") throw new HttpError(422, "ORDER_NOT_RETURNED", "التسوية اليدوية متاحة للطلبات المرتجعة فقط.");
+    const createdAt = await ledgerClock(tx, await merchantIdOfStore(tx, completion.storeId), "write");
     const entry = await tx.ledgerEntry.create({
       data: {
+        createdAt,
         storeId: completion.storeId,
         orderId: completion.orderId,
         entryType: "manual_adjustment",
@@ -177,6 +230,15 @@ function settlementPeriod(body: Record<string, unknown>, now: Date) {
   const to = requested > now ? now : requested;
   if (to <= from) throw new HttpError(400, "INVALID_DATE_FILTER", "لا يمكن تسوية فترة لم تبدأ بعد.");
   return { from, to };
+}
+
+/**
+ * The settlement's half of `ledgerClock`: the exclusive gate first, THEN «now»
+ * from the database clock, so the clamp above can never land on an instant a
+ * still-uncommitted entry was stamped before.
+ */
+async function lockedSettlementPeriod(tx: Prisma.TransactionClient, merchantId: string, body: Record<string, unknown>) {
+  return settlementPeriod(body, await ledgerClock(tx, merchantId, "settle"));
 }
 
 
@@ -368,8 +430,13 @@ async function draftSettlement(tx: Prisma.TransactionClient, merchant: { id: str
   // Summed in the database rather than read row by row: a busy merchant's
   // month is thousands of entries, and the preview runs on every form open.
   // The one-type-adds rule, as two filters: completions add, every other type subtracts.
-  const period = { store: { merchantId: merchant.id }, createdAt: { gte: from, lte: to } };
-  const sum = { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true } as const;
+  //
+  // HALF-OPEN, `[from, to)` — the semantics `settlements_no_overlap` and the
+  // contiguity trigger already speak. The next period must start at exactly this
+  // `to`, so an inclusive `lte` here paid an entry stamped on that instant in
+  // BOTH settlements. The wallet's pending window is the matching `gte`.
+  const period = { store: { merchantId: merchant.id }, createdAt: { gte: from, lt: to } };
+  const sum = { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true, platformDiscountIqd: true } as const;
   const [added, subtracted] = await Promise.all([
     tx.ledgerEntry.aggregate({ where: { ...period, entryType: "order_completed" }, _count: { _all: true }, _sum: sum }),
     tx.ledgerEntry.aggregate({ where: { ...period, entryType: { not: "order_completed" } }, _count: { _all: true }, _sum: sum }),
@@ -381,6 +448,11 @@ async function draftSettlement(tx: Prisma.TransactionClient, merchant: { id: str
     deliveryFeeIqd: (added._sum.deliveryFeeIqd ?? 0) - (subtracted._sum.deliveryFeeIqd ?? 0),
     loyaltyDiscountIqd: (added._sum.loyaltyDiscountIqd ?? 0) - (subtracted._sum.loyaltyDiscountIqd ?? 0),
     commissionIqd: (added._sum.commissionIqd ?? 0) - (subtracted._sum.commissionIqd ?? 0),
+    // Marketplace M8b: market coupons the PLATFORM paid in this period. Not a term
+    // of the payout (the store is paid as if the shopper had paid it) — stated so
+    // the merchant sees why the payout is more than the cash his courier
+    // collected, and the owner sees what his coupons cost in this settlement.
+    platformDiscountIqd: (added._sum.platformDiscountIqd ?? 0) - (subtracted._sum.platformDiscountIqd ?? 0),
   };
   const netPayoutIqd = totals.subtotalIqd + totals.deliveryFeeIqd - totals.loyaltyDiscountIqd - totals.commissionIqd;
   return { totals, netPayoutIqd };
@@ -389,10 +461,14 @@ async function draftSettlement(tx: Prisma.TransactionClient, merchant: { id: str
 /** Audit 17-ب: what confirming this settlement would record and transfer — read only. */
 export async function previewSettlement(body: Record<string, unknown>) {
   if (typeof body.merchantId !== "string") throw new HttpError(422, "INVALID_INPUT", "merchantId مطلوب.");
-  const { from, to } = settlementPeriod(body, new Date());
+  // Validated before any lock is taken, so a malformed range costs nothing.
+  settlementPeriod(body, new Date());
   const merchant = await prisma.merchant.findUnique({ where: { id: body.merchantId }, select: { id: true } });
   if (!merchant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "التاجر غير موجود.");
-  const { totals, netPayoutIqd } = await prisma.$transaction((tx) => draftSettlement(tx, merchant, from, to));
+  const { from, to, totals, netPayoutIqd } = await prisma.$transaction(async (tx) => {
+    const period = await lockedSettlementPeriod(tx, merchant.id, body);
+    return { ...period, ...(await draftSettlement(tx, merchant, period.from, period.to)) };
+  });
   return {
     // `periodTo` is the CLAMPED instant: the confirm must send this exact value
     // back, so the write settles the same period the operator was shown.
@@ -403,17 +479,19 @@ export async function previewSettlement(body: Record<string, unknown>) {
     deliveryFeeIqd: totals.deliveryFeeIqd,
     loyaltyDiscountIqd: totals.loyaltyDiscountIqd,
     commissionIqd: totals.commissionIqd,
+    platformDiscountIqd: totals.platformDiscountIqd,
     netPayoutIqd,
   };
 }
 
 export async function createSettlement(actor: PlatformActor, body: Record<string, unknown>) {
   if (typeof body.merchantId !== "string") throw new HttpError(422, "INVALID_INPUT", "merchantId مطلوب.");
-  const { from, to } = settlementPeriod(body, new Date());
+  settlementPeriod(body, new Date());
   const merchant = await prisma.merchant.findUnique({ where: { id: body.merchantId }, select: { id: true, businessName: true, email: true } });
   if (!merchant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "التاجر غير موجود.");
   const note = typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 500) : null;
   const settlement = await prisma.$transaction(async (tx) => {
+    const { from, to } = await lockedSettlementPeriod(tx, merchant.id, body);
     const { totals, netPayoutIqd } = await draftSettlement(tx, merchant, from, to);
     // Audit 17-ب: the operator confirms an AMOUNT, not a date range. If the
     // ledger moved between the preview he read and this write (a completion or

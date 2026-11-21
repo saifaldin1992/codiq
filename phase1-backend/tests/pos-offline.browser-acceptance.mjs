@@ -35,6 +35,7 @@
  * TRUNCATE fixture reset, screenshots into the artifacts dir.
  */
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { ownProvisionedPassword } from "./helpers/own-provisioned-password.ts";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -396,6 +397,51 @@ try {
   await page.getByLabel("البحث برقم الطلب").waitFor();
   assertConsoleClean("landing and dashboard with the SW registered origin-wide");
 
+  // ----------- 6b: a sale rung under ANOTHER user waits for that user
+  // The server credits a sale to the session that SENDS it, so a queue that
+  // flushed whatever it held would credit one cashier's offline sales to the
+  // next one who signs in — and the owner's price-deviation queue names the
+  // seller. A queued sale is sent only under the session that rang it.
+  //
+  // The sale is PLANTED in the device's queue rather than rung offline here:
+  // with the service worker controlling the page, Chromium's offline emulation
+  // reports the ring-time POST as failed while the request can still reach the
+  // server, which made «was it sent?» depend on timing instead of on the queue.
+  await page.goto(`${base}/merchant/stores/${store.slug}/till`);
+  await page.getByTestId(`till-add-${defaultVariant.id}`).waitFor();
+  const ordersBeforeOwnership = await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } });
+  const plantedTicketId = randomUUID();
+  // Writes one pending sale into the till's own queue store; `null` owner means
+  // «the user signed in on this device» (the till caches it under kv/owner).
+  const plantRecord = (ownerKey) => page.evaluate(async ({ slug, ticketId, variantId, ownerKey }) => {
+    const db = await new Promise((resolve, reject) => { const open = indexedDB.open(`codiq-till:${slug}`); open.onsuccess = () => resolve(open.result); open.onerror = () => reject(open.error); });
+    const read = (key) => new Promise((resolve) => { const r = db.transaction("kv").objectStore("kv").get(key); r.onsuccess = () => resolve(r.result); });
+    const device = await read("device");
+    const owner = ownerKey ?? await read("owner");
+    const payload = JSON.stringify({ deviceId: device.id, ticketId, lines: [{ variantId, quantity: 1, unitPriceIqd: 10000 }], discountIqd: 0, totalIqd: 10000, deviceReportedAt: new Date().toISOString() });
+    await new Promise((resolve) => {
+      const tx = db.transaction("queue", "readwrite");
+      tx.objectStore("queue").put({ ticketId, deviceId: device.id, payload, state: "pending", createdAt: Date.now(), attempts: 0, lastError: null, labels: [], totalIqd: 10000, changeDue: 0, result: null, ownerKey: owner });
+      tx.oncomplete = resolve;
+    });
+    db.close();
+    return owner;
+  }, { slug: store.slug, ticketId: plantedTicketId, variantId: defaultVariant.id, ownerKey });
+  await plantRecord("staff:00000000-0000-4000-8000-000000000000");
+  await page.reload();
+  await page.getByTestId("till-queue-others").waitFor({ timeout: 30000 });
+  await sleep(6000);
+  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), ordersBeforeOwnership, "a sale rung by another user is NOT sent under this session");
+  assert.equal(await prisma.posTicket.count({ where: { storeId: store.id, ticketId: plantedTicketId } }), 0, "…not even as a refused attempt");
+  await page.screenshot({ path: `${artifactsDir}/pos-offline-other-owner.png`, fullPage: true });
+  // Handed back to the signed-in user, it is his sale and it goes.
+  const merchantOwner = await plantRecord(null);
+  await page.reload();
+  await page.waitForFunction(() => !document.querySelector('[data-testid="till-queue-others"]'), undefined, { timeout: 30000 });
+  for (let tries = 0; tries < 60 && await prisma.posTicket.count({ where: { storeId: store.id, ticketId: plantedTicketId } }) === 0; tries += 1) await sleep(1000);
+  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), ordersBeforeOwnership + 1, `…and under its own session it syncs (${merchantOwner})`);
+  assertConsoleClean("queued sales wait for the user who rang them");
+
   // -------------------- 7: revoked mid-queue — LAST, revocation is forever
   await page.goto(`${base}/merchant/stores/${store.slug}/till`);
   await page.getByTestId(`till-add-${defaultVariant.id}`).waitFor();
@@ -407,7 +453,7 @@ try {
   await prisma.posDevice.update({ where: { id: device.id }, data: { revokedAt: new Date() } });
   await context.setOffline(false);
   await page.getByTestId("till-queue-revoked-count").waitFor({ timeout: 90000 });
-  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), 7, "a revoked device commits nothing new");
+  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), 8, "a revoked device commits nothing new");
   // The retained sale must survive a reboot — IDB, not React state.
   await page.reload();
   await page.getByTestId("till-queue-revoked-count").waitFor({ timeout: 90000 });
@@ -421,7 +467,7 @@ try {
   const replay = await json(`/api/merchant/stores/${store.slug}/pos/tickets`, { method: "POST", headers: { cookie: replayCookie, origin: base }, body: baselinePayload });
   assert.equal(replay.response.status, 200, `committed tickets replay from a revoked device: ${JSON.stringify(replay.body)}`);
   assert.equal(replay.body.replayed, true, "the replay says so honestly");
-  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), 7, "the replay minted nothing");
+  assert.equal(await prisma.storeOrder.count({ where: { storeId: store.id, source: "pos" } }), 8, "the replay minted nothing");
   assertConsoleClean("revoked-device drill");
 
   console.log("pos-offline OK");

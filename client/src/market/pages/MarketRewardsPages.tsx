@@ -119,7 +119,7 @@ export function MarketCouponPage() {
 }
 
 type Points = {
-  balance: number; owed: number; yearPoints: number;
+  balance: number; owed: number; yearPoints: number; spendable: number; pending: number; pendingReleaseAt: string | null; holdDays: number;
   tier: { code: string; label: string; multiplierPct: number };
   next: { code: string; label: string; minPoints: number; toNext: number } | null;
   tiers: { code: string; label: string; minPoints: number; multiplierPct: number }[];
@@ -156,6 +156,7 @@ export function MarketPointsPage() {
       <section className="space-y-2 rounded-[26px] bg-[var(--codiq-accent)] p-5 text-[var(--codiq-surface)] shadow-sm">
         <p className="inline-flex items-center gap-1 text-xs font-bold opacity-90"><Crown className="h-4 w-4" /> مستوى {points.tier.label}{points.tier.multiplierPct > 100 ? ` — نقاطك ×${(points.tier.multiplierPct / 100).toLocaleString("ar-IQ")}` : ""}</p>
         <p className="text-3xl font-black" data-testid="market-points-balance">{points.balance.toLocaleString("ar-IQ")} <span className="text-sm font-bold">نقطة</span></p>
+        {points.pending > 0 ? <p className="text-xs" data-testid="market-points-pending">منها {points.pending.toLocaleString("ar-IQ")} نقطة قيد التأكيد — تصير متاحة بعد انتهاء مهلة الإرجاع ({points.holdDays.toLocaleString("ar-IQ")} يوماً من التسليم){points.pendingReleaseAt ? `، أوّلها في ${new Date(points.pendingReleaseAt).toLocaleDateString("ar-IQ")}` : ""}.</p> : null}
         {points.owed ? <p className="text-xs">عليك {points.owed.toLocaleString("ar-IQ")} نقطة من طلب مُرجع، تُخصم من نقاطك القادمة.</p> : null}
         {points.next ? (
           <div className="space-y-1">
@@ -170,7 +171,7 @@ export function MarketPointsPage() {
       {shop.length ? (
         <section className="space-y-2">
           <h2 className="text-base font-black text-[var(--codiq-text)]">استبدل نقاطك</h2>
-          {shop.map((coupon) => <CouponCard key={coupon.id} coupon={coupon} action={<button type="button" disabled={points.balance < coupon.pointsCost} onClick={() => void redeem(coupon)} className="rounded-full bg-[var(--codiq-accent)] px-4 py-1.5 text-xs font-bold text-[var(--codiq-surface)] disabled:opacity-50" data-testid={`market-points-redeem-${coupon.code}`}>استبدل بـ {coupon.pointsCost.toLocaleString("ar-IQ")} نقطة</button>} />)}
+          {shop.map((coupon) => <CouponCard key={coupon.id} coupon={coupon} action={<button type="button" disabled={points.spendable < coupon.pointsCost} onClick={() => void redeem(coupon)} className="rounded-full bg-[var(--codiq-accent)] px-4 py-1.5 text-xs font-bold text-[var(--codiq-surface)] disabled:opacity-50" data-testid={`market-points-redeem-${coupon.code}`}>استبدل بـ {coupon.pointsCost.toLocaleString("ar-IQ")} نقطة</button>} />)}
         </section>
       ) : null}
       <section className="space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-4 shadow-sm">

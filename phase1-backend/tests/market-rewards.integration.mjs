@@ -98,6 +98,7 @@ try {
   const onlyB = await make({ code: `B${tag}`, title: "٣٠٠٠ دينار في متجر ب", kind: "fixed", amountOffIqd: 3000, allStores: false });
   assert.deepEqual((await owner.request(`/platform/market/coupons/${onlyB.id}/stores`, { method: "PUT", body: { storeSlugs: [B.store.slug] } })).payload.storeSlugs, [B.store.slug]);
   const forPoints = await make({ code: `P${tag}`, title: "٥٠٠٠ دينار بالنقاط", kind: "fixed", amountOffIqd: 5000, pointsCost: 100, totalLimit: 3 });
+  const cheap = await make({ code: `Q${tag}`, title: "١٠٠٠ دينار بالنقاط", kind: "fixed", amountOffIqd: 1000, pointsCost: 250 });
   summary.owner = true;
 
   // ── 2. claiming ──────────────────────────────────────────────────────────
@@ -158,6 +159,12 @@ try {
   const entry = await prisma.ledgerEntry.findFirstOrThrow({ where: { orderId: order.id, entryType: "order_completed" } });
   assert.deepEqual([entry.subtotalIqd, entry.platformDiscountIqd, entry.loyaltyDiscountIqd], [40000, 4000, 0], "full commission base; the platform's cost recorded, not deducted");
   assert.equal(entry.commissionIqd, Math.round((40000 * entry.commissionBps) / 10000));
+  // The settlement says what the platform pays: the payout is more than the cash collected by exactly this.
+  const settleFrom = new Date(entry.createdAt.valueOf() - 60_000).toISOString();
+  const settleTo = new Date(Date.now() + 60_000).toISOString();
+  const settlePreview = (await owner.request(`/platform/finance/settlements/${A.merchantId}/preview?periodFrom=${encodeURIComponent(settleFrom)}&periodTo=${encodeURIComponent(settleTo)}`)).payload.preview;
+  assert.equal(settlePreview.platformDiscountIqd, 4000, "the settlement states the platform's coupon cost");
+  assert.equal(settlePreview.netPayoutIqd, settlePreview.subtotalIqd + settlePreview.deliveryFeeIqd - settlePreview.loyaltyDiscountIqd - settlePreview.commissionIqd, "…and it is not a term of the payout");
   const points = (await shopper.request("/market/me/points")).payload;
   assert.deepEqual([points.balance, points.tier.code], [36, "bronze"], "one point per 1,000 paid in money for goods (36,000)");
   summary.completion = true;
@@ -186,6 +193,28 @@ try {
   assert.equal(limited.filter((result) => result.status === 201).length, 2, "a limit of three, one already gone");
   assert.equal(limited.find((result) => result.status !== 201).payload.error.code, "COUPON_EXHAUSTED");
   assert.equal((await prisma.platformCoupon.findUniqueOrThrow({ where: { id: forPoints.id } })).issuedCount, 3);
+
+  // Points an order earned wait out its return window before they can be spent
+  // («قيد التأكيد»): buy → spend the points → return the order kept the coupon.
+  const holder = others[0];
+  const earnedOrder = (await import("node:crypto")).randomUUID();
+  const fresh = await prisma.shopperPointsEntry.create({ data: { shopperId: holder.id, delta: 300, reason: "earned", orderId: earnedOrder } });
+  const holding = (await holder.shopper.request("/market/me/points")).payload;
+  assert.equal(holding.pending, 300, "an order's fresh points are pending");
+  assert.ok(holding.spendable < 300 && holding.balance >= 300, "…counted in the balance, not yet spendable");
+  assert.ok(holding.pendingReleaseAt, "…with the day they become spendable");
+  const tooSoon = await holder.shopper.request("/market/points/redeem", { method: "POST", body: { couponId: cheap.id } });
+  assert.equal(tooSoon.payload.error.code, "POINTS_NOT_ENOUGH", "pending points buy nothing");
+  assert.match(tooSoon.payload.error.message, /قيد التأكيد/, "…and the refusal says why");
+  // The window closes: the same points are spendable.
+  await prisma.shopperPointsEntry.update({ where: { id: fresh.id }, data: { createdAt: new Date(Date.now() - 16 * 86_400_000) } });
+  const released = (await holder.shopper.request("/market/me/points")).payload;
+  assert.equal(released.pending, 0);
+  assert.equal((await holder.shopper.request("/market/points/redeem", { method: "POST", body: { couponId: cheap.id } })).status, 201, "after the return window, they spend");
+  // A clawed-back order is not pending: its points are gone, not waiting.
+  const clawed = (await import("node:crypto")).randomUUID();
+  await prisma.shopperPointsEntry.createMany({ data: [{ shopperId: holder.id, delta: 80, reason: "earned", orderId: clawed }, { shopperId: holder.id, delta: -80, reason: "clawback", orderId: clawed }] });
+  assert.equal((await holder.shopper.request("/market/me/points")).payload.pending, 0);
   summary.points = true;
 
   // ── 7. tiers ─────────────────────────────────────────────────────────────

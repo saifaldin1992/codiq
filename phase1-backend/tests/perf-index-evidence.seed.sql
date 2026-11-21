@@ -24,7 +24,7 @@ ALTER TABLE settlements DISABLE TRIGGER settlements_immutable;
 ALTER TABLE platform_owners DISABLE TRIGGER platform_owners_guard_owner_merchant_staff_email;
 
 TRUNCATE TABLE order_notes, wishlist_items, cart_items, platform_owners, pos_devices, pos_tickets, merchants, stores, customers, products, product_variants, store_orders,
-  wishlist_items, inventory_reservations, pos_ticket_shortfalls, shopping_carts,
+  wishlist_items, inventory_reservations, pos_ticket_shortfalls, pos_price_deviations, shopping_carts,
   plan_upgrade_requests, notification_outbox, settlements, return_requests,
   store_audit_events, platform_audit_events, coupons CASCADE;
 
@@ -141,6 +141,12 @@ SELECT d.store_id, d.id, gen_random_uuid(), 'perf', 'succeeded', now() FROM pos_
 
 INSERT INTO pos_ticket_shortfalls (store_id, pos_ticket_id, variant_id, sold_qty, available_qty, shortfall_qty, reviewed_at, created_at)
 SELECT v.store_id, t.id, v.id, 3, 1, 2,
+       CASE WHEN v.n % 4 = 0 THEN now() END, now() - (v.n || ' seconds')::interval
+FROM perf_v v JOIN pos_tickets t ON t.store_id = v.store_id;
+
+-- ------------------------------------------------------- pos_price_deviations
+INSERT INTO pos_price_deviations (store_id, pos_ticket_id, variant_id, kind, quantity, sold_unit_price_iqd, catalog_unit_price_iqd, amount_iqd, reviewed_at, created_at)
+SELECT v.store_id, t.id, v.id, 'price_below_catalog', 1, 500, 1000, 500,
        CASE WHEN v.n % 4 = 0 THEN now() END, now() - (v.n || ' seconds')::interval
 FROM perf_v v JOIN pos_tickets t ON t.store_id = v.store_id;
 

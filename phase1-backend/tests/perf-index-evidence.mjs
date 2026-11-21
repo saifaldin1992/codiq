@@ -105,6 +105,10 @@ const LISTS = [
     where: { storeId: bigStore, reviewedAt: null }, field: "createdAt", dir: "desc",
     orderBy: [{ createdAt: "desc" }, { id: "desc" }] },
 
+  { id: "merchant.pos.price-deviations", src: "pos.service.ts#listPosPriceDeviations", model: "posPriceDeviation", table: "pos_price_deviations",
+    where: { storeId: bigStore, reviewedAt: null }, field: "createdAt", dir: "desc",
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }] },
+
   { id: "merchant.abandoned-carts", src: "abandoned-cart.service.ts:124", model: "shoppingCart", table: "shopping_carts",
     where: { storeId: bigStore, status: "active", lastActivityAt: { lt: cartCutoff }, items: { some: {} } },
     field: "lastActivityAt", dir: "desc", orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }] },
