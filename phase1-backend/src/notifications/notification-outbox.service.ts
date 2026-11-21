@@ -162,6 +162,9 @@ export async function enqueueCourierDispatched(tx: OutboxWriter, input: {
   orderId: string;
   orderNumber: string;
   customerEmail: string | null;
+  /** True only for a cash-on-delivery order — a prepaid shopper is not asked to pay again. */
+  cashAtDoor: boolean;
+  totalIqd: number;
 }) {
   const policy = await storeNotificationPolicy(tx, input.storeId);
   if (!policy || !policy.enabled || !policy.courierDispatch.enabled) return;
@@ -184,6 +187,8 @@ export async function enqueueCourierDispatched(tx: OutboxWriter, input: {
           storeName: policy.storeName,
           storeSlug: policy.storeSlug,
           trackingUrl: `/store/${encodeURIComponent(policy.storeSlug)}/track`,
+          cashAtDoor: input.cashAtDoor,
+          totalIqd: input.totalIqd,
         },
       },
     });

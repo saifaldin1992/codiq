@@ -37,6 +37,7 @@ import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
 import { keysetWhere } from "./list-page.js";
 import { CSV_UTF8_BOM, csvGuardedLine, csvLine } from "./csv.js";
+import { CASH_AT_DOOR_CODES, collectsCashOnDelivery } from "./payment-methods.service.js";
 import type { Prisma } from "@prisma/client";
 
 export const COURIER_NAME_MAX_LENGTH = 120;
@@ -164,6 +165,7 @@ export const MANIFEST_CSV_COLUMNS = [
   "cod_amount_iqd",
   "status",
   "customer_note",
+  "payment_method",
 ] as const;
 
 /**
@@ -191,7 +193,7 @@ export async function courierManifestCsv(storeId: string, query: Record<string, 
       take: MANIFEST_PAGE_SIZE,
       select: {
         id: true, orderNumber: true, createdAt: true, status: true, customerName: true, recipientPhone: true,
-        shippingGovernorate: true, shippingAddressLine1: true, shippingAddressLine2: true, totalIqd: true, customerNote: true,
+        shippingGovernorate: true, shippingAddressLine1: true, shippingAddressLine2: true, totalIqd: true, customerNote: true, paymentMethodCode: true,
         ...deliverySelect,
       },
     });
@@ -207,9 +209,12 @@ export async function courierManifestCsv(storeId: string, query: Record<string, 
         order.shippingGovernorate ?? "",
         order.shippingAddressLine1 ?? "",
         order.shippingAddressLine2 ?? "",
-        order.totalIqd,
+        // Cash the courier collects: the total for a cash-on-delivery order, and
+        // nothing for one the shopper already paid by transfer.
+        collectsCashOnDelivery(order.paymentMethodCode) ? order.totalIqd : 0,
         order.status,
         order.customerNote ?? "",
+        order.paymentMethodCode,
       ]));
     }
     if (page.length < MANIFEST_PAGE_SIZE) break;
@@ -254,17 +259,22 @@ export async function codReconciliation(storeId: string, query: Record<string, u
       },
       orderBy: [{ handedOverAt: "desc" }, { id: "desc" }],
       take: MANIFEST_PAGE_SIZE,
-      select: { id: true, orderNumber: true, createdAt: true, status: true, totalIqd: true, version: true, ...deliverySelect },
+      select: { id: true, orderNumber: true, createdAt: true, status: true, totalIqd: true, version: true, paymentMethodCode: true, ...deliverySelect },
     });
     for (const order of page) {
       const name = order.courierName ?? "—";
       const row = byCourier.get(name) ?? { courierName: name, handedOver: 0, delivered: 0, returned: 0, inTransit: 0, collectedIqd: 0, receivedIqd: 0, outstandingIqd: 0 };
       row.handedOver += 1;
+      // A prepaid order is delivered like any other, but the courier never held
+      // its money — so it is neither collected nor outstanding.
+      const cashAtDoor = collectsCashOnDelivery(order.paymentMethodCode);
       if (order.status === "completed") {
         row.delivered += 1;
-        row.collectedIqd += order.totalIqd;
-        if (order.codCollectedAt) row.receivedIqd += order.totalIqd;
-        else outstanding.push({ id: order.id, orderNumber: order.orderNumber, courierName: name, trackingNumber: order.trackingNumber, handedOverAt: order.handedOverAt!, totalIqd: order.totalIqd, version: order.version });
+        if (cashAtDoor) {
+          row.collectedIqd += order.totalIqd;
+          if (order.codCollectedAt) row.receivedIqd += order.totalIqd;
+          else outstanding.push({ id: order.id, orderNumber: order.orderNumber, courierName: name, trackingNumber: order.trackingNumber, handedOverAt: order.handedOverAt!, totalIqd: order.totalIqd, version: order.version });
+        }
       } else if (order.status === "returned") {
         row.returned += 1;
       } else {
@@ -312,7 +322,7 @@ export async function markCodCollected(storeId: string, body: Record<string, unk
     // Tenant, delivered, handed over, and not yet marked — the CHECK below the
     // table says the third one too, but a predicate that names its own rule is
     // one a reader does not have to go and find.
-    where: { id: { in: orderIds }, storeId, status: "completed", handedOverAt: { not: null }, codCollectedAt: null },
+    where: { id: { in: orderIds }, storeId, status: "completed", handedOverAt: { not: null }, codCollectedAt: null, paymentMethodCode: { in: [...CASH_AT_DOOR_CODES] } },
     data: { codCollectedAt: new Date() },
   });
   return { requested: orderIds.length, marked: result.count };

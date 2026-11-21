@@ -21,7 +21,7 @@ const WHATSAPP_TEMPLATE_ROWS = [
   { key: "courierDispatched", testid: "whatsapp-template-courier-dispatched", label: "المندوب في الطريق" },
   { key: "orderCompleted", testid: "whatsapp-template-order-completed", label: "شكر بعد التسليم" },
 ] as const;
-const WHATSAPP_VARIABLES = ["{{اسم_الزبون}}", "{{رقم_الطلب}}", "{{اسم_المتجر}}", "{{المبلغ}}", "{{رابط_التتبع}}"];
+const WHATSAPP_VARIABLES = ["{{اسم_الزبون}}", "{{رقم_الطلب}}", "{{اسم_المتجر}}", "{{المبلغ}}", "{{رابط_التتبع}}", "{{تعليمات_الدفع}}"];
 type LogRow = {
   id: string;
   eventType: string;

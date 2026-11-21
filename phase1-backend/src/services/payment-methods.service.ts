@@ -49,6 +49,20 @@ export const PAYMENT_METHOD_CATALOG: readonly PaymentMethodDefinition[] = [
   { code: "card", displayName: "فيزا / ماستركارد", kind: "gateway", available: false, unavailableReason: "بوابة الدفع تُربط في المرحلة 25أ.", hint: "" },
 ];
 
+/**
+ * Does the courier collect this order's money at the door?
+ *
+ * Only a cash-on-delivery order does. A shopper who paid by transfer (zaincash,
+ * asiahawala, fib) or through a gateway has ALREADY paid: a manifest, a courier
+ * mail or a WhatsApp line that asks him for the total again charges him twice.
+ * Orders older than the payment-method column carry "legacy" and were cash.
+ */
+export const CASH_AT_DOOR_CODES: readonly string[] = ["legacy", ...PAYMENT_METHOD_CATALOG.filter((method) => method.kind === "cod").map((method) => method.code)];
+
+export function collectsCashOnDelivery(paymentMethodCode: string | null | undefined): boolean {
+  return !paymentMethodCode || CASH_AT_DOOR_CODES.includes(paymentMethodCode);
+}
+
 /** What a manual transfer needs the shopper to know. */
 export interface TransferConfiguration { walletNumber?: string; holderName?: string; instructions?: string }
 

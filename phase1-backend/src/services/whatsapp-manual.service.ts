@@ -28,6 +28,7 @@ import { HttpError } from "../auth/auth.errors.js";
 import { toE164 } from "../auth/identity.js";
 import { prisma } from "../db/prisma.js";
 import { publicUrl } from "../notifications/messaging-compliance.service.js";
+import { collectsCashOnDelivery } from "./payment-methods.service.js";
 
 export const WHATSAPP_TEMPLATE_KEYS = ["orderCreated", "courierDispatched", "orderCompleted"] as const;
 export type WhatsappTemplateKey = (typeof WHATSAPP_TEMPLATE_KEYS)[number];
@@ -56,13 +57,13 @@ const TEMPLATE_DEFAULTS: Record<WhatsappTemplateKey, string> = {
   orderCreated:
     "مرحباً {{اسم_الزبون}}، استلمنا طلبك {{رقم_الطلب}} من {{اسم_المتجر}} بمبلغ {{المبلغ}}. يرجى الرد بكلمة «تأكيد» لنباشر التجهيز.\n{{رابط_التتبع}}",
   courierDispatched:
-    "خرج طلبك {{رقم_الطلب}} من {{اسم_المتجر}} مع مندوب التوصيل وهو الآن في طريقه إليك. يرجى تجهيز مبلغ الدفع عند الاستلام: {{المبلغ}}.\n{{رابط_التتبع}}",
+    "خرج طلبك {{رقم_الطلب}} من {{اسم_المتجر}} مع مندوب التوصيل وهو الآن في طريقه إليك. {{تعليمات_الدفع}}\n{{رابط_التتبع}}",
   orderCompleted:
     "شكراً لك {{اسم_الزبون}}! تم تسليم طلبك {{رقم_الطلب}} من {{اسم_المتجر}}. يسعدنا خدمتك مجدداً.",
 };
 
 /** The five variables a template may use — anything else in a saved template is a 422. */
-const TEMPLATE_VARIABLES = ["اسم_الزبون", "رقم_الطلب", "اسم_المتجر", "المبلغ", "رابط_التتبع"] as const;
+const TEMPLATE_VARIABLES = ["اسم_الزبون", "رقم_الطلب", "اسم_المتجر", "المبلغ", "رابط_التتبع", "تعليمات_الدفع"] as const;
 
 export const WHATSAPP_TEMPLATE_MAX_LENGTH = 1000;
 
@@ -125,6 +126,8 @@ type RenderContext = {
   storeName: string;
   storeSlug: string;
   totalIqd: number;
+  /** Cash on delivery? A prepaid shopper is told he owes the courier nothing. */
+  cashAtDoor: boolean;
 };
 
 /**
@@ -140,6 +143,9 @@ export function renderWhatsappTemplate(template: string, context: RenderContext)
     "اسم_المتجر": context.storeName,
     "المبلغ": `${money.format(context.totalIqd)} د.ع`,
     "رابط_التتبع": trackingUrl ?? "",
+    "تعليمات_الدفع": context.cashAtDoor
+      ? `يرجى تجهيز مبلغ الدفع عند الاستلام: ${money.format(context.totalIqd)} د.ع.`
+      : "طلبك مدفوع مسبقاً — لا تدفع شيئاً للمندوب.",
   };
   const lines = template.split("\n").flatMap((line) => {
     if (!trackingUrl && line.includes("{{رابط_التتبع}}")) return [];
@@ -157,7 +163,7 @@ async function scopedOrder(storeId: string, orderId: string) {
   // from a missing one (the order-notes idiom).
   const order = await prisma.storeOrder.findFirst({
     where: { id: orderId, storeId },
-    select: { id: true, orderNumber: true, customerName: true, recipientPhone: true, totalIqd: true, status: true },
+    select: { id: true, orderNumber: true, customerName: true, recipientPhone: true, totalIqd: true, status: true, paymentMethodCode: true },
   });
   if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
   return order;
@@ -212,6 +218,7 @@ export async function whatsappPanelForOrder(storeId: string, orderId: string) {
     storeName: store.name,
     storeSlug: store.slug,
     totalIqd: order.totalIqd,
+    cashAtDoor: collectsCashOnDelivery(order.paymentMethodCode),
   };
   const sends = await prisma.orderWhatsappSend.findMany({
     where: { storeId, orderId },
@@ -262,6 +269,7 @@ export async function recordWhatsappSend(
     storeName: store.name,
     storeSlug: store.slug,
     totalIqd: order.totalIqd,
+    cashAtDoor: collectsCashOnDelivery(order.paymentMethodCode),
   });
   const send = await prisma.orderWhatsappSend.create({
     data: {

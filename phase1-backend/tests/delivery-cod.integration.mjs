@@ -150,7 +150,7 @@ try {
   assert.match(manifest.headers.get("content-type") ?? "", /text\/csv/);
   assert.deepEqual([...manifest.bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], "BOM first — Excel in Arabic Windows reads UTF-8 only with it");
   const lines = manifest.text.replace(/^\uFEFF/, "").trim().split(/\r?\n/);
-  assert.equal(lines[0], "order_number,handed_over_at,courier_name,tracking_number,customer_name,recipient_phone,shipping_governorate,shipping_address_line1,shipping_address_line2,cod_amount_iqd,status,customer_note");
+  assert.equal(lines[0], "order_number,handed_over_at,courier_name,tracking_number,customer_name,recipient_phone,shipping_governorate,shipping_address_line1,shipping_address_line2,cod_amount_iqd,status,customer_note,payment_method");
   assert.equal(lines.length - 1, 2, `two parcels went to this courier from this store (DLV-1001, DLV-1004): ${manifest.text}`);
   assert.ok(lines.some((line) => line.includes("DLV-1001") && line.includes("FHD-78") && line.includes(",45000,")), "the row carries the corrected waybill and the cash to collect");
   assert.ok(!manifest.text.includes("DLV-2001"), "store B's parcel with the SAME courier is not in store A's manifest");
@@ -203,6 +203,28 @@ try {
   const readOnly = await request(`${ordersA}/cod-collected`, { token: tokenA, method: "POST", body: { orderIds: [] } });
   assert.equal(readOnly.status, 422, "an empty batch is a 422, not a silent success");
   summary.markCollected = "idempotent, delivered-only, tenant-bound, empty batch refused";
+
+  // ============================================================
+  // 7. A prepaid parcel: the shopper already transferred the money.
+  // ============================================================
+  // The courier must not be told to collect it again, and the merchant must not
+  // chase the courier for cash he never held.
+  const prepaid = await order(storeA.id, "1005", { paymentMethodCode: "zaincash", paymentStatus: "paid" });
+  const prepaidHanded = await status(tokenA, ordersA, prepaid.id, "out_for_delivery", prepaid.version, { courierName: "شركة الفهد", trackingNumber: "FHD-90" });
+  assert.equal(prepaidHanded.status, 200, JSON.stringify(prepaidHanded.payload));
+  const prepaidManifest = await request(`${ordersA}/manifest.csv?courier=${encodeURIComponent("شركة الفهد")}`, { token: tokenA });
+  const prepaidLine = prepaidManifest.text.split(/\r?\n/).find((line) => line.includes("DLV-1005"));
+  assert.ok(prepaidLine, prepaidManifest.text);
+  assert.ok(prepaidLine.includes(",0,out_for_delivery,") && prepaidLine.endsWith(",zaincash"), `a prepaid parcel carries 0 cash to collect and says why: ${prepaidLine}`);
+  assert.ok(prepaidManifest.text.split(/\r?\n/).some((line) => line.includes("DLV-1001") && line.includes(",45000,") && line.endsWith(",legacy")), "a cash parcel still carries its total");
+  await status(tokenA, ordersA, prepaid.id, "completed", prepaidHanded.payload.order.version);
+  const withPrepaid = await request(`${ordersA}/cod-reconciliation`, { token: tokenA });
+  const fahdPrepaid = withPrepaid.payload.couriers.find((row) => row.courierName === "شركة الفهد");
+  assert.deepEqual({ delivered: fahdPrepaid.delivered, collectedIqd: fahdPrepaid.collectedIqd, outstandingIqd: fahdPrepaid.outstandingIqd }, { delivered: 2, collectedIqd: 45000, outstandingIqd: 0 }, "delivered, but neither collected nor outstanding");
+  assert.ok(!withPrepaid.payload.outstanding.some((row) => row.orderNumber === "DLV-1005"));
+  const markPrepaid = await request(`${ordersA}/cod-collected`, { token: tokenA, method: "POST", body: { orderIds: [prepaid.id] } });
+  assert.deepEqual(markPrepaid.payload, { requested: 1, marked: 0 }, "there is no cash to receive for a prepaid parcel");
+  summary.prepaid = "manifest 0 + payment_method, not collected, not outstanding, cannot be marked";
 
   console.log(JSON.stringify({ suite: "delivery-cod", status: "passed", summary }, null, 2));
 } finally {

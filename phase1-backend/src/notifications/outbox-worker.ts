@@ -99,7 +99,11 @@ export function renderMessage(row: { eventType: string; recipientKind: string; p
       subject: `مندوبك في الطريق — الطلب ${orderNumber}`,
       body: `خرج طلبك ${orderNumber} من ${storeName} مع مندوب التوصيل، وهو الآن في طريقه إليك.`
         + linkLine("تابع حالة طلبك في أي وقت من هنا:", payload.trackingUrl)
-        + `\nيرجى تجهيز مبلغ الدفع عند الاستلام.`,
+        // Only a cash-on-delivery order is asked for money: a shopper who already
+        // transferred it must not be told to pay the courier again.
+        + (payload.cashAtDoor === true
+          ? `\nيرجى تجهيز مبلغ الدفع عند الاستلام${typeof payload.totalIqd === "number" ? `: ${payload.totalIqd} د.ع` : ""}.`
+          : payload.cashAtDoor === false ? `\nطلبك مدفوع مسبقاً — لا تدفع شيئاً للمندوب.` : ""),
     };
   }
   // Phase 20B-2: abandoned-cart recovery message (customers with email only).

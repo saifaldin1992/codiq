@@ -8,6 +8,7 @@ import { phoneNeedle } from "./merchant-search.service.js";
 import { mergeSearchPages, searchEngine, type SearchPage } from "./search/index.js";
 import { awardLoyaltyPoints, reverseLoyaltyForReturn } from "./loyalty.service.js";
 import { enqueueCourierDispatched, enqueueOrderStatusChanged } from "../notifications/notification-outbox.service.js";
+import { collectsCashOnDelivery } from "./payment-methods.service.js";
 import { recordOrderCompletion, recordOrderReturn } from "./finance.service.js";
 import { settleStorefrontReservations } from "./storefront.service.js";
 import { restockPosReturn } from "./pos.service.js";
@@ -275,7 +276,7 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
   const note = orderTransitionNote(input.note);
   let fromStatusForEvent: OrderStatus = toStatus;
   const work = async (tx: Prisma.TransactionClient) => {
-    const current = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, status: true, version: true, source: true, orderNumber: true, customerEmail: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, prescriptionStatus: true, customerId: true, loyaltyDiscountIqd: true, platformDiscountIqd: true } });
+    const current = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, status: true, version: true, source: true, orderNumber: true, customerEmail: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, prescriptionStatus: true, customerId: true, loyaltyDiscountIqd: true, platformDiscountIqd: true, paymentMethodCode: true, totalIqd: true } });
     if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
     if (current.version !== expectedVersion) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "The order was changed by another request.");
     const fromStatus = orderStatus(current.status);
@@ -304,7 +305,7 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
     // transition that produced it. Only this one edge fires it, and the dedupe
     // key makes a repeat structurally impossible.
     if (toStatus === "out_for_delivery") {
-      await enqueueCourierDispatched(tx, { storeId, orderId, orderNumber: current.orderNumber, customerEmail: current.customerEmail });
+      await enqueueCourierDispatched(tx, { storeId, orderId, orderNumber: current.orderNumber, customerEmail: current.customerEmail, cashAtDoor: collectsCashOnDelivery(current.paymentMethodCode), totalIqd: current.totalIqd });
     }
     // Phase 17: the financial ledger rides the same transaction — completion books the
     // commission snapshot; a return reverses it automatically inside the approved window.
