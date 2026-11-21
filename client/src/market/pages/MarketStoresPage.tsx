@@ -13,7 +13,6 @@ import { StoreShelf } from "../components/StoreShelf";
 import { StoreListRow } from "../components/StoreCards";
 import { RankingSheet } from "../components/RankingSheet";
 import { MarketEmptyState } from "../MarketEmptyState";
-import { useShopper } from "../market-shopper";
 
 const SORTS: { value: Exclude<MarketStoreSort, "nearest">; label: string }[] = [
   { value: "recommended", label: "المقترحة" },
@@ -28,7 +27,6 @@ type Position = { lat: number; lng: number };
 
 export function MarketStoresPage() {
   const [location] = useMarketLocation();
-  const { shopper } = useShopper();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Exclude<MarketStoreSort, "nearest">>("recommended");
   const [verified, setVerified] = useState(false);
@@ -80,8 +78,6 @@ export function MarketStoresPage() {
       {!focused ? (
         <>
           <StoreShelf testId="market-shelf-recommended" title="متاجر مقترحة" subtitle="الأفضل أداءً مع الزبائن" url={shelf("recommended")} />
-          {/* «اشتريت منها»: a signed-in shopper's own stores, most recent purchase first. Hidden when there are none. */}
-          {shopper ? <StoreShelf testId="market-shelf-bought" title="اشتريت منها" subtitle="متاجر طلبت منها من قبل" url="/api/market/me/stores" /> : null}
           <section className="space-y-2" data-testid="market-shelf-nearby">
             {position ? (
               <StoreShelf testId="market-shelf-nearest" title="بالقرب منك" subtitle="متاجر قريبة لتسريع التوصيل أو الاستلام" url={shelf("nearest", { lat: position.lat.toFixed(5), lng: position.lng.toFixed(5) })} />

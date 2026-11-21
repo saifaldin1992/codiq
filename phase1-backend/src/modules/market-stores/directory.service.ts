@@ -131,30 +131,6 @@ export async function listMarketStores(query: MarketStoreQuery) {
   return { stores: page.map((row) => cardOf(row, now)), nextCursor, sort: query.sort };
 }
 
-/**
- * «اشتريت منها» — the listed stores this shopper has a completed order from,
- * the most recent purchase first. Bounded: a shelf holds twenty. Private to the
- * shopper, so never cached publicly.
- */
-export async function storesBoughtFrom(shopperId: string) {
-  const rows = await prisma.$queryRaw<DirectoryRow[]>`
-    SELECT ${SELECT_CARD}, NULL::float8 AS distance_km, extract(epoch FROM bought.last_at)::float8 AS sort_key
-    ${FROM_LISTED}
-    JOIN (
-      SELECT o.store_id, max(o.created_at) AS last_at
-        FROM store_orders o
-        JOIN customers c ON c.id = o.customer_id AND c.store_id = o.store_id
-       WHERE c.shopper_id = ${shopperId}::uuid AND o.status = 'completed'
-       GROUP BY o.store_id
-    ) bought ON bought.store_id = st.id
-    WHERE ${LISTED}
-    ORDER BY bought.last_at DESC, st.id DESC
-    LIMIT 20`;
-  const now = new Date();
-  // One bounded shelf, not a paged list: no cursor.
-  return { stores: rows.map((row) => cardOf(row, now)) };
-}
-
 async function listedStoreRow(slug: string): Promise<DirectoryRow> {
   const [row] = await prisma.$queryRaw<DirectoryRow[]>`
     SELECT ${SELECT_CARD}, NULL::float8 AS distance_km, 0::float8 AS sort_key

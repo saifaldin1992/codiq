@@ -26,7 +26,7 @@ export function useMarketStores(url: string | null) {
     setStores(null);
     setFailure(null); setNextCursor(null);
     marketGet<MarketStoresPage>(url, { signal: controller.signal })
-      .then((page) => { if (mine === generation.current) { setStores(page.stores); setNextCursor(page.nextCursor ?? null); } })
+      .then((page) => { if (mine === generation.current) { setStores(page.stores); setNextCursor(page.nextCursor); } })
       .catch((error: Error) => { if (mine === generation.current && error.name !== "AbortError") setFailure(error.message); });
     return () => controller.abort();
   }, [url]);

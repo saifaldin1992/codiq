@@ -48,7 +48,7 @@ function client() {
         body: body ? JSON.stringify(body) : undefined,
       });
       for (const line of response.headers.getSetCookie?.() ?? []) { const [pair] = line.split(";"); const eq = pair.indexOf("="); jar.set(pair.slice(0, eq).trim(), pair.slice(eq + 1)); }
-      return { status: response.status, headers: response.headers, payload: await response.json().catch(() => null) };
+      return { status: response.status, payload: await response.json().catch(() => null) };
     },
   };
 }
@@ -199,18 +199,6 @@ try {
   assert.equal((await stranger.shopper.request(`/market/orders/${order.id}`)).status, 404, "another shopper's order is a 404");
   assert.deepEqual((await stranger.shopper.request("/market/orders")).payload.orders, []);
   summary.orders = true;
-
-  // ── 8. «اشتريت منها» ─────────────────────────────────────────────────────
-  // Only a COMPLETED order makes a store «bought from»; open ones do not.
-  assert.deepEqual((await shopper.request("/market/me/stores")).payload.stores, [], "no completed order yet, no store");
-  await prisma.storeOrder.update({ where: { id: order.id }, data: { status: "completed" } });
-  const bought = await shopper.request("/market/me/stores");
-  assert.equal(bought.status, 200);
-  assert.deepEqual(bought.payload.stores.map((store) => store.slug), [A.slug], "the store with a completed order, and only it");
-  assert.match(bought.headers.get("cache-control") ?? "", /private/, "a shopper's own history is never cached publicly");
-  assert.deepEqual((await stranger.shopper.request("/market/me/stores")).payload.stores, [], "another shopper's purchases are not his");
-  assert.equal((await client().request("/market/me/stores")).status, 401);
-  summary.boughtFrom = true;
 
   console.log(JSON.stringify({ suite: "market-cart", ok: true, summary }, null, 2));
 } finally {
