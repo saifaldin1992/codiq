@@ -42,7 +42,7 @@ async function stale(limit: number, productId?: string) {
     JOIN merchants m_acc ON m_acc.id = st.merchant_id
     JOIN LATERAL (SELECT i.id, i.object_key, i.variant_set FROM product_images i WHERE i.product_id = p.id ORDER BY i.sort_order ASC, i.id ASC LIMIT 1) img ON true
     LEFT JOIN product_image_embeddings e ON e.product_id = p.id
-    WHERE ${VISIBLE}
+    WHERE ${VISIBLE} AND p.deleted_at IS NULL
       AND (e.product_id IS NULL OR e.image_id <> img.id OR e.model <> ${IMAGE_EMBEDDING_MODEL})
       ${productId ? Prisma.sql`AND p.id = ${productId}::uuid` : Prisma.empty}
     ORDER BY p.created_at DESC, p.id DESC
@@ -90,7 +90,7 @@ export async function imageIndexStatus() {
     JOIN merchants m_acc ON m_acc.id = st.merchant_id
     JOIN LATERAL (SELECT i.id FROM product_images i WHERE i.product_id = p.id ORDER BY i.sort_order ASC, i.id ASC LIMIT 1) img ON true
     LEFT JOIN product_image_embeddings e ON e.product_id = p.id
-    WHERE ${VISIBLE}`;
+    WHERE ${VISIBLE} AND p.deleted_at IS NULL`;
   return { model: IMAGE_EMBEDDING_MODEL, indexed: Number(counts?.indexed ?? 0), pending: Number(counts?.pending ?? 0) };
 }
 
@@ -110,7 +110,7 @@ async function nearest(vector: string, limit: number, excludeProductId?: string)
       JOIN products p ON p.id = c.product_id
       JOIN stores st ON st.id = p.store_id
       JOIN merchants m_acc ON m_acc.id = st.merchant_id
-      WHERE ${VISIBLE} AND c.similarity >= ${SIMILARITY_FLOOR}
+      WHERE ${VISIBLE} AND p.deleted_at IS NULL AND c.similarity >= ${SIMILARITY_FLOOR}
         ${excludeProductId ? Prisma.sql`AND c.product_id <> ${excludeProductId}::uuid` : Prisma.empty}
       ORDER BY c.similarity DESC, c.product_id
       LIMIT ${limit}`;
@@ -135,11 +135,11 @@ export async function lookAlike(productId: string) {
     JOIN products p ON p.id = e.product_id
     JOIN stores st ON st.id = p.store_id
     JOIN merchants m_acc ON m_acc.id = st.merchant_id
-    WHERE ${VISIBLE} AND e.product_id = ${productId}::uuid AND e.model = ${IMAGE_EMBEDDING_MODEL}`;
+    WHERE ${VISIBLE} AND p.deleted_at IS NULL AND e.product_id = ${productId}::uuid AND e.model = ${IMAGE_EMBEDDING_MODEL}`;
   if (!own) {
     const exists = await prisma.$queryRaw<{ id: string }[]>`
       SELECT p.id FROM products p JOIN stores st ON st.id = p.store_id JOIN merchants m_acc ON m_acc.id = st.merchant_id
-      WHERE ${VISIBLE} AND p.id = ${productId}::uuid`;
+      WHERE ${VISIBLE} AND p.deleted_at IS NULL AND p.id = ${productId}::uuid`;
     if (!exists.length) throw new HttpError(404, "PRODUCT_NOT_FOUND", "هذا المنتج غير موجود في السوق.");
     return { products: [] };
   }
