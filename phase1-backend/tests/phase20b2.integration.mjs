@@ -442,7 +442,7 @@ try {
   assert.ok(recoveryEmail.body.includes("SAVE10"), "body carries the recovery coupon code");
   assert.ok(recoveryEmail.body.includes("20000"), "body carries the cart total");
   // PG-3: a marketing message never leaves without a way out of it.
-  assert.ok(recoveryEmail.body.includes("https://b2.codiqos.test/unsubscribe/"), "the marketing message carries an unsubscribe link");
+  assert.ok(recoveryEmail.body.split(/\s+/).some((token) => { try { const url = new URL(token); return url.origin === "https://b2.codiqos.test" && url.pathname.startsWith("/unsubscribe/"); } catch { return false; } }), "the marketing message carries an unsubscribe link");
   summary.workerDelivery = { subject: recoveryEmail.subject };
 
   // restore the shared plan so later suites see the seeded default

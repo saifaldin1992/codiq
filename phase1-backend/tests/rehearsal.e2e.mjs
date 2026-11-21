@@ -47,7 +47,11 @@ const flag = (name, fallback = null) => {
   return index !== -1 && args[index + 1] && !args[index + 1].startsWith("--") ? args[index + 1] : fallback;
 };
 const BASE = (flag("base") ?? "https://staging.codiqos.com").replace(/\/$/, "");
-if (BASE.includes("codiqos.com") && !BASE.includes("staging") && !args.includes("--i-know")) {
+// The HOST decides, not a substring of the URL: `https://codiqos.com/?staging`
+// contains both words and used to walk straight past this gate into production.
+const baseHost = (() => { try { return new URL(BASE).hostname.toLowerCase(); } catch { return ""; } })();
+const looksLikeProduction = (baseHost === "codiqos.com" || baseHost.endsWith(".codiqos.com")) && !baseHost.startsWith("staging.");
+if ((looksLikeProduction || !baseHost) && !args.includes("--i-know")) {
   console.error(
     `[rehearsal] refusing to write rehearsal rows into what looks like PRODUCTION (${BASE}).\n` +
       `[rehearsal] the gate this exists for names staging; pass --i-know only if you mean it.`,

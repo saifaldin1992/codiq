@@ -34,9 +34,6 @@ const fail = (message) => {
 if (!existsSync(manifestPath)) {
   fail(`dist/public/.vite/manifest.json not found — \`build.manifest: true\` must stay set in vite.config.ts (looked at ${manifestPath})`);
 }
-if (!existsSync(swPath)) {
-  fail("dist/public/sw.js not found — client/public/sw.js should be copied verbatim by the Vite build");
-}
 
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
@@ -89,7 +86,15 @@ for (const url of unique) {
 
 const buildHash = createHash("sha256").update(unique.join("\n")).digest("hex").slice(0, 16);
 
-const sw = readFileSync(swPath, "utf8");
+// Read once and handle absence here, rather than an existsSync check far above
+// whose answer the read could no longer rely on.
+let sw;
+try {
+  sw = readFileSync(swPath, "utf8");
+} catch (error) {
+  if (error?.code === "ENOENT") fail("dist/public/sw.js not found — client/public/sw.js should be copied verbatim by the Vite build");
+  throw error;
+}
 if (sw.indexOf("self.__PRECACHE__ = []") === -1) {
   fail("placeholder `self.__PRECACHE__ = []` not found in dist/public/sw.js — already rewritten (run a full `pnpm build`), or client/public/sw.js drifted");
 }

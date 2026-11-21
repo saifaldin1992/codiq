@@ -22,6 +22,9 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 
+/** A CSP directive is a LIST of sources; membership is exact, never a substring. */
+const hasSource = (sources, source) => Array.isArray(sources) && sources.some((value) => value === source);
+
 // This guard boots the real app but never issues a query, so the two values
 // `config.ts` demands at import are supplied here rather than requiring a
 // database to assert a header. The URL points at a host that cannot resolve, so
@@ -110,14 +113,14 @@ for (const [name, directives] of [["platform", platform], ["storefront", storefr
   assert.deepEqual(directives["form-action"], ["'self'"], `${name}: a rewritten form action must not post the customer's address elsewhere`);
 
   // Google Fonts, verified in client/index.html and in the SW's font cache.
-  assert.ok(directives["style-src"].includes("https://fonts.googleapis.com"), `${name}: the font stylesheet <link> in index.html`);
-  assert.ok(directives["font-src"].includes("https://fonts.gstatic.com"), `${name}: the font files that stylesheet names`);
+  assert.ok(hasSource(directives["style-src"], "https://fonts.googleapis.com"), `${name}: the font stylesheet <link> in index.html`);
+  assert.ok(hasSource(directives["font-src"], "https://fonts.gstatic.com"), `${name}: the font files that stylesheet names`);
   // The till's SW revalidates both hosts with fetch() from INSIDE the worker,
   // and a worker runs under the CSP served with its own script. Which fetch
   // directive an engine charges that to is not consistent, so both are allowed
   // under connect-src as well.
-  assert.ok(directives["connect-src"].includes("https://fonts.googleapis.com"), `${name}: sw.js fontResponse() revalidates the stylesheet from inside the worker`);
-  assert.ok(directives["connect-src"].includes("https://fonts.gstatic.com"), `${name}: …and the font files`);
+  assert.ok(hasSource(directives["connect-src"], "https://fonts.googleapis.com"), `${name}: sw.js fontResponse() revalidates the stylesheet from inside the worker`);
+  assert.ok(hasSource(directives["connect-src"], "https://fonts.gstatic.com"), `${name}: …and the font files`);
   assert.ok(directives["connect-src"].includes("'self'"), `${name}: the SPA and the till queue both talk to /api on this origin`);
 
   // No wildcard, anywhere, in any directive. The whole point of reading the
@@ -140,8 +143,8 @@ assert.deepEqual(platform["script-src"], ["'self'"], "a dashboard gets exactly o
 
 // Allowing a pixel to load and then blocking its beacon is the same silent
 // failure as blocking it outright — a configured pixel that records nothing.
-assert.ok(storefront["connect-src"].includes("https://www.facebook.com"), "storefront: the Meta pixel's beacon host");
-assert.ok(storefront["connect-src"].includes("https://www.google-analytics.com"), "storefront: GA4 /g/collect");
+assert.ok(hasSource(storefront["connect-src"], "https://www.facebook.com"), "storefront: the Meta pixel's beacon host");
+assert.ok(hasSource(storefront["connect-src"], "https://www.google-analytics.com"), "storefront: GA4 /g/collect");
 assert.ok(!platform["connect-src"].some((value) => PIXEL_SCRIPTS.includes(value) || value.includes("facebook") || value.includes("google-analytics")),
   "dashboard: no third-party telemetry origin at all");
 
