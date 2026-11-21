@@ -287,6 +287,12 @@ export async function registerCustomer(input: { storeSlug: string; email?: unkno
       ? "هذا الرقم اشترى من هنا سابقاً. لحماية طلباته لا نفتح حساباً عليه بالرقم وحده — استعمل «نسيت كلمة المرور» بالبريد المسجّل لديك، أو اطلب من المتجر ربط حسابك."
       : "هذا الرقم اشترى من هنا سابقاً. لحماية طلباته لا نفتح حساباً عليه بالرقم وحده — اطلب من المتجر ربط حسابك.");
   }
+  // The number is this store's customer through the MARKET: his orders live on
+  // that row and he signs in there. Say so, instead of a bare «number taken».
+  const marketRow = await prisma.customer.findFirst({ where: { storeId: store.id, phoneNormalized, shopperId: { not: null } }, select: { id: true } });
+  if (marketRow) {
+    throw new HttpError(409, "DUPLICATE_CUSTOMER_PHONE", "هذا الرقم يطلب من هذا المتجر عبر السوق — سجّل الدخول من السوق برقمك لتجد طلباتك.");
+  }
   const customer = await prisma.customer.create({ data: { storeId: store.id, ...data, phoneNormalized }, select });
   domainEvents.emit("customer.registered", { storeId: store.id, customerId: customer.id });
   return customer;

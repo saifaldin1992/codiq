@@ -180,7 +180,16 @@ try {
   const atB = await shopper.request(`/market/checkout/${B.slug}`, { method: "POST", body: { addressId: basra.id }, headers: { "idempotency-key": key("b-basra") } });
   assert.equal(atB.status, 201, JSON.stringify(atB.payload));
   const bOrder = await prisma.storeOrder.findUniqueOrThrow({ where: { id: atB.payload.order.id } });
-  assert.equal(bOrder.customerId, knownAtB.id, "the store's existing customer row is linked, not duplicated");
+  // Store B's row took the number as typed, with a password nobody verified.
+  // Linking it would let whoever registered that number read this order — so
+  // the shopper gets his own row, and the store's row is left untouched.
+  assert.notEqual(bOrder.customerId, knownAtB.id, "an unverified storefront account is NOT handed the shopper's market order");
+  const ownRow = await prisma.customer.findUniqueOrThrow({ where: { id: bOrder.customerId } });
+  assert.equal(ownRow.shopperId, shopperId);
+  assert.equal(ownRow.phone, phone, "the merchant still reads the phone");
+  assert.equal(ownRow.phoneNormalized, null, "…but the store's phone key stays with the row that already held it");
+  assert.ok(ownRow.phoneVerifiedAt, "the market row is the verified one");
+  assert.equal((await prisma.customer.findUniqueOrThrow({ where: { id: knownAtB.id } })).shopperId, null, "the storefront account is not linked");
   assert.equal(await prisma.customer.count({ where: { storeId: B.id, phoneNormalized: phone } }), 1);
   assert.deepEqual((await shopper.request("/market/cart")).payload.stores, [], "the cart is empty");
   summary.linkedCustomer = true;

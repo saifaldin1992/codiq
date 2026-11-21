@@ -11,6 +11,7 @@
  * customers row with shopper_id set (or, if the store already knew his phone,
  * that existing row is linked — his phone is proven by the one-time code).
  */
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
 import { checkout, priorSucceededCheckout } from "../../services/storefront.service.js";
@@ -32,29 +33,66 @@ async function shopperAddress(shopperId: string, addressId: string) {
 }
 
 /** The store's customer row for this shopper, created or linked on first use. */
+/**
+ * The store's own customer row for a market shopper — found, claimed or made.
+ *
+ * The shopper's phone is PROVEN (OTP at the market door). A store's row with the
+ * same phone usually is NOT: storefront registration and guest checkout take the
+ * number as typed. Claiming such a row would hand the shopper's market orders —
+ * address, phone, what he bought — to whoever typed his number into that store
+ * first, and would let that person sign in and read them. So:
+ *
+ *   · a row already linked to this shopper is his;
+ *   · a row with the same phone that the platform VERIFIED (a market row whose
+ *     shopper link was cleared) is claimed;
+ *   · a row the merchant switched off refuses, whatever kind it is — the
+ *     merchant's block on a number holds in the market too;
+ *   · any other row with that phone (a storefront account, a guest shadow row, a
+ *     customer the merchant added by hand) is left exactly as it is, and the
+ *     shopper gets his OWN row beside it. That row records the phone for the
+ *     merchant to read but does not claim `phone_normalized`, the store's
+ *     unique key — the unproven row keeps it, and neither can reach the other.
+ */
 export async function customerForShopper(storeId: string, shopper: ShopperRef, nameFallback: string) {
   const linked = await prisma.customer.findFirst({ where: { storeId, shopperId: shopper.id }, select: { id: true, isActive: true } });
   if (linked) {
     if (!linked.isActive) throw new HttpError(403, "CUSTOMER_DISABLED", "لا يمكنك الطلب من هذا المتجر حالياً. تواصل مع المتجر.");
     return linked.id;
   }
-  const known = await prisma.customer.findFirst({ where: { storeId, phoneNormalized: shopper.phoneNormalized, shopperId: null, isGuest: false, isActive: true }, orderBy: { createdAt: "asc" }, select: { id: true } });
-  if (known) {
-    const claimed = await prisma.customer.updateMany({ where: { id: known.id, shopperId: null }, data: { shopperId: shopper.id } });
-    if (claimed.count === 1) return known.id;
+  const samePhone = await prisma.customer.findFirst({ where: { storeId, phoneNormalized: shopper.phoneNormalized }, select: { id: true, isActive: true, shopperId: true, phoneVerifiedAt: true } });
+  if (samePhone && !samePhone.isActive) throw new HttpError(403, "CUSTOMER_DISABLED", "لا يمكنك الطلب من هذا المتجر حالياً. تواصل مع المتجر.");
+  if (samePhone && samePhone.shopperId === null && samePhone.phoneVerifiedAt !== null) {
+    const claimed = await prisma.customer.updateMany({ where: { id: samePhone.id, shopperId: null }, data: { shopperId: shopper.id } });
+    if (claimed.count === 1) return samePhone.id;
   }
+  // The phone stays the store's key only where nobody holds it yet.
+  const ownsPhone = samePhone === null;
   try {
-    const created = await prisma.customer.create({ data: { storeId, shopperId: shopper.id, fullName: shopper.fullName ?? nameFallback, phoneNormalized: shopper.phoneNormalized, phoneVerifiedAt: new Date() }, select: { id: true } });
+    const created = await prisma.customer.create({
+      data: {
+        storeId,
+        shopperId: shopper.id,
+        fullName: shopper.fullName ?? nameFallback,
+        phone: shopper.phoneNormalized,
+        phoneNormalized: ownsPhone ? shopper.phoneNormalized : null,
+        phoneVerifiedAt: new Date(),
+      },
+      select: { id: true },
+    });
     return created.id;
   } catch (error) {
-    // Two first orders at once: the other request created the row; use it.
     const raced = await prisma.customer.findFirst({ where: { storeId, shopperId: shopper.id }, select: { id: true } });
     if (raced) return raced.id;
+    // Two first orders raced for the free phone key: the loser takes a row
+    // without it rather than failing the shopper's checkout.
+    if (ownsPhone && error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const created = await prisma.customer.create({ data: { storeId, shopperId: shopper.id, fullName: shopper.fullName ?? nameFallback, phone: shopper.phoneNormalized, phoneNormalized: null, phoneVerifiedAt: new Date() }, select: { id: true } });
+      return created.id;
+    }
     throw error;
   }
 }
 
-/** What paying this store would cost, before committing to it. Advisory: checkout re-decides everything under lock. */
 export async function checkoutSummary(shopper: ShopperRef, storeSlug: string, input: { addressId?: string; fulfilment: "delivery" | "pickup"; coupon?: string; platformCoupon?: string }) {
   const store = await listedStoreTenant(storeSlug);
   const [view, storeRow, methods, anyRate] = await Promise.all([
