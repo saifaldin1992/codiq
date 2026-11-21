@@ -393,6 +393,9 @@ jobs:
       - name: Integration — marketplace M4 (shopper phone sign-in, one-time codes, profile, addresses)
         run: pnpm market:account
 
+      - name: Integration — marketplace M5 (one cart, per-store checkout through the store's own checkout, my orders)
+        run: pnpm market:cart
+
       - name: Guard — every implemented merchant menu entry has a screen
         run: pnpm screens:guard
 
@@ -1017,6 +1020,9 @@ jobs:
 
       - name: Browser — marketplace shopper account (sign-in by code, profile, addresses)
         run: node --import tsx phase1-backend/tests/market-account.browser-acceptance.mjs
+
+      - name: Browser — marketplace cart and checkout (two stores, add-on, coupon, delivery and pick-up)
+        run: node --import tsx phase1-backend/tests/market-cart.browser-acceptance.mjs
 
       # PG-2: the sheet's ق-10 promise («the movement count comes from the
       # server or is not shown») and the no-silent-rename rule are UI contracts,

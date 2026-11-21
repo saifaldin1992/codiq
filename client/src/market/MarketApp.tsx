@@ -7,7 +7,10 @@
 import { Route, Switch } from "wouter";
 import { MarketShell } from "./MarketShell";
 import { MarketHomePage } from "./pages/MarketHomePage";
-import { MarketCartPage, MarketNotFoundPage } from "./pages/MarketPlaceholderPages";
+import { MarketNotFoundPage } from "./pages/MarketNotFoundPage";
+import { MarketCartPage } from "./pages/MarketCartPage";
+import { MarketCheckoutPage } from "./pages/MarketCheckoutPage";
+import { MarketOrderPage, MarketOrdersPage } from "./pages/MarketOrdersPages";
 import { MarketAccountInfoPage, MarketAccountPage, MarketAddressesPage, MarketAddressFormPage } from "./pages/MarketAccountPages";
 import { MarketCategoriesPage } from "./pages/MarketCategoriesPage";
 import { MarketCategoryPage } from "./pages/MarketCategoryPage";
@@ -35,6 +38,9 @@ export default function MarketApp() {
         <Route path="/collection/:slug" component={MarketCollectionPage} />
         <Route path="/mall/:slug" component={MarketMallPage} />
         <Route path="/cart" component={MarketCartPage} />
+        <Route path="/checkout/:slug" component={MarketCheckoutPage} />
+        <Route path="/orders" component={MarketOrdersPage} />
+        <Route path="/orders/:id" component={MarketOrderPage} />
         <Route path="/account" component={MarketAccountPage} />
         <Route path="/account/info" component={MarketAccountInfoPage} />
         <Route path="/account/addresses" component={MarketAddressesPage} />

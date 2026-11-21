@@ -94,7 +94,8 @@ function orderCursor(kind: string, raw: unknown): Promise<ListCursor | undefined
 
 const orderInclude = {
   store: { select: { id: true, slug: true, name: true, merchant: { select: { id: true, businessName: true } } } },
-  items: { select: { id: true, productId: true, variantId: true, sku: true, productName: true, variantName: true, quantity: true, unitPriceIqd: true, lineTotalIqd: true } },
+  // Marketplace M5: `addons` names the paid extras inside each line's price, so the merchant packs them.
+  items: { select: { id: true, productId: true, variantId: true, sku: true, productName: true, variantName: true, quantity: true, unitPriceIqd: true, lineTotalIqd: true, addons: true } },
   statusEvents: { select: { id: true, fromStatus: true, toStatus: true, actorKind: true, actorId: true, note: true, createdAt: true }, orderBy: { createdAt: "asc" as const } },
 } as const;
 
@@ -121,6 +122,8 @@ function orderPayload(order: any) {
     // whether its cash came back. NULL until the merchant records them.
     courierName: order.courierName ?? null, trackingNumber: order.trackingNumber ?? null,
     handedOverAt: order.handedOverAt ?? null, codCollectedAt: order.codCollectedAt ?? null,
+    // Marketplace M5: a counter pick-up — no courier, no delivery fee; the store hands it over itself.
+    fulfilment: order.fulfilment ?? "delivery",
     paymentStatus: order.paymentStatus, source: order.source, version: order.version, statusUpdatedAt: order.statusUpdatedAt, createdAt: order.createdAt,
     ...(order.store ? { store: order.store } : {}), ...(order.items ? { items: order.items } : {}), ...(order.statusEvents ? { statusEvents: order.statusEvents } : {}),
   };

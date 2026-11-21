@@ -223,7 +223,7 @@ function BadgeSheet({ badges, tier, score, onClose }: { badges: BadgeView[]; tie
           <button type="button" aria-label="إغلاق" className="rounded-full p-2 text-[var(--codiq-text-muted)]" onClick={onClose}><X className="h-5 w-5" /></button>
         </div>
         <p className="mb-4 text-xs text-[var(--codiq-text-muted)]">
-          {score !== null ? `النتيجة العامّة ${Math.round(score).toLocaleString("ar-IQ")} من ١٠٠${tier ? ` · المستوى ${tier}` : ""}` : "النتيجة العامّة لم تُحتسب بعد"} · {badges.filter((badge) => badge.earned).length.toLocaleString("ar-IQ")} من {badges.length.toLocaleString("ar-IQ")} شارة
+          {score !== null ? `النتيجة العامّة ${Math.round(score).toLocaleString("ar-IQ")} من ١٠٠${tier ? `، المستوى ${tier}` : ""}` : "النتيجة العامّة لم تُحتسب بعد"} — {badges.filter((badge) => badge.earned).length.toLocaleString("ar-IQ")} من {badges.length.toLocaleString("ar-IQ")} شارة
         </p>
         <ul className="space-y-2">
           {badges.map((badge) => {

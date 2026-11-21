@@ -30,7 +30,7 @@ const MAX_CART_QUANTITY = 99;
 const CART_STATUS_ACTIVE = "active";
 
 type CartContext = { customerId?: string; guestToken?: string };
-type CheckoutInput = { idempotencyKey?: unknown; cartVersion?: unknown; addressId?: unknown; address?: unknown; paymentMethodCode?: unknown; couponCode?: unknown; note?: unknown; loyaltyPoints?: unknown };
+type CheckoutInput = { idempotencyKey?: unknown; cartVersion?: unknown; addressId?: unknown; address?: unknown; paymentMethodCode?: unknown; couponCode?: unknown; note?: unknown; loyaltyPoints?: unknown; fulfilment?: unknown };
 
 /**
  * PG-5 (ق-73) — what the customer asks for at checkout: «اتصل قبل الوصول»,
@@ -731,7 +731,9 @@ export function checkoutFingerprint(input: CheckoutInput, cartVersion: number) {
   // IDEMPOTENCY_KEY_REUSED is honest, where silently returning the original
   // order would spend points the shopper did not agree to spend this time.
   const loyaltyPoints = Number.isInteger(Number(input.loyaltyPoints)) && Number(input.loyaltyPoints) > 0 ? Number(input.loyaltyPoints) : 0;
-  return hash(JSON.stringify({ cartVersion, addressId: typeof input.addressId === "string" ? input.addressId : null, address: input.address ?? null, paymentMethodCode: input.paymentMethodCode ?? "cod", ...(couponCode ? { couponCode } : {}), ...(note ? { note } : {}), ...(loyaltyPoints ? { loyaltyPoints } : {}) }));
+  // Marketplace M5: pick-up joins CONDITIONALLY too — delivery, the default, leaves every earlier fingerprint unchanged.
+  const pickup = input.fulfilment === "pickup";
+  return hash(JSON.stringify({ cartVersion, addressId: typeof input.addressId === "string" ? input.addressId : null, address: input.address ?? null, paymentMethodCode: input.paymentMethodCode ?? "cod", ...(couponCode ? { couponCode } : {}), ...(note ? { note } : {}), ...(loyaltyPoints ? { loyaltyPoints } : {}), ...(pickup ? { fulfilment: "pickup" } : {}) }));
 }
 
 function orderNumber() { return `SF-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`; }
@@ -779,8 +781,8 @@ function refusedLine(
   };
 }
 
-class CartPriceMoved extends Error {
-  constructor(readonly cartId: string, readonly lines: { id: string; livePriceIqd: number }[]) {
+export class CartPriceMoved extends Error {
+  constructor(readonly cartId: string, readonly lines: { id: string; livePriceIqd: number; liveAddonsIqd: number }[]) {
     super("CART_PRICE_CHANGED");
     this.name = "CartPriceMoved";
   }
@@ -799,10 +801,10 @@ class CartPriceMoved extends Error {
  * the client already refreshes and mints a new idempotency key on exactly that
  * class of refusal (`CART_VERSION_CONFLICT`).
  */
-async function repriceStaleCartLines(storeId: string, cartId: string, lines: { id: string; livePriceIqd: number }[]) {
+async function repriceStaleCartLines(storeId: string, cartId: string, lines: { id: string; livePriceIqd: number; liveAddonsIqd: number }[]) {
   await prisma.$transaction(async (tx) => {
     for (const line of lines) {
-      await tx.cartItem.updateMany({ where: { id: line.id, cartId, storeId }, data: { priceSnapshotIqd: line.livePriceIqd } });
+      await tx.cartItem.updateMany({ where: { id: line.id, cartId, storeId }, data: { priceSnapshotIqd: line.livePriceIqd, addonsSnapshotIqd: line.liveAddonsIqd } });
     }
     await tx.shoppingCart.update({ where: { id: cartId }, data: { version: { increment: 1 }, lastActivityAt: new Date() } });
   });
@@ -895,7 +897,17 @@ export async function checkout(storeId: string, customerId: string, input: Check
       throw error;
     }
     const address = await addressForCheckout(tx, storeId, customerId, input);
-    const deliveryRate = await deliveryRateForGovernorate(tx, storeId, address.governorate);
+    // Marketplace M5: a counter pick-up needs no courier — no rate, no fee — and
+    // only a store that offers it (stores.pickup_enabled, which itself requires
+    // the store's place on the map) may take one. The address still carries the
+    // shopper's name and phone, which is how the store calls him to collect.
+    const pickup = input.fulfilment === "pickup";
+    if (input.fulfilment !== undefined && input.fulfilment !== "pickup" && input.fulfilment !== "delivery") throw new HttpError(422, "INVALID_FULFILMENT", "طريقة الاستلام غير معروفة.");
+    if (pickup) {
+      const offers = await tx.store.findUnique({ where: { id: storeId }, select: { pickupEnabled: true } });
+      if (!offers?.pickupEnabled) throw new HttpError(422, "PICKUP_NOT_AVAILABLE", "هذا المتجر لا يتيح الاستلام من المتجر.");
+    }
+    const deliveryRate = pickup ? { governorate: toGovernorateKey(address.governorate) ?? address.governorate, amountIqd: 0 } : await deliveryRateForGovernorate(tx, storeId, address.governorate);
     // ق-209: any method the merchant switched on — cash at the door, or a
       // manual wallet transfer he named. `undefined` still means cash.
       const paymentMethod = await paymentMethodForCheckout(tx, storeId, input.paymentMethodCode);
@@ -925,8 +937,8 @@ export async function checkout(storeId: string, customerId: string, input: Check
     // that decides money must be read under the SAME lock as the stock that
     // decides availability — a price read outside it is a price that can move
     // between the read and the order.
-    const lockedVariants = await tx.$queryRaw<Array<{ id: string; product_id: string; sku: string; name: string; is_default: boolean; product_name: string; variant_active: boolean; product_active: boolean; requires_prescription: boolean; stock_quantity: number; price_iqd: number; max_per_order: number | null }>>(Prisma.sql`
-      SELECT v.id, v.product_id, v.sku, v.name, v.is_default, p.name AS product_name, v.is_active AS variant_active, p.is_active AS product_active, p.requires_prescription, v.stock_quantity, v.price_iqd, p.max_per_order
+    const lockedVariants = await tx.$queryRaw<Array<{ id: string; product_id: string; sku: string; name: string; is_default: boolean; product_name: string; variant_active: boolean; product_active: boolean; requires_prescription: boolean; stock_quantity: number; price_iqd: number; max_per_order: number | null; is_preorder: boolean }>>(Prisma.sql`
+      SELECT v.id, v.product_id, v.sku, v.name, v.is_default, p.name AS product_name, v.is_active AS variant_active, p.is_active AS product_active, p.requires_prescription, v.stock_quantity, v.price_iqd, p.max_per_order, p.is_preorder
       FROM product_variants v
       JOIN products p ON p.id = v.product_id AND p.store_id = v.store_id
       WHERE v.store_id = ${storeId}::uuid
@@ -935,7 +947,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
       ORDER BY v.product_id ASC, v.id ASC
       FOR UPDATE OF v, p
     `);
-    const variants = lockedVariants.map((variant) => ({ id: variant.id, productId: variant.product_id, sku: variant.sku, name: variant.name, isDefault: variant.is_default, productName: variant.product_name, variantActive: variant.variant_active, productActive: variant.product_active, requiresPrescription: variant.requires_prescription, stockQuantity: variant.stock_quantity, priceIqd: variant.price_iqd, maxPerOrder: variant.max_per_order }));
+    const variants = lockedVariants.map((variant) => ({ id: variant.id, productId: variant.product_id, sku: variant.sku, name: variant.name, isDefault: variant.is_default, productName: variant.product_name, variantActive: variant.variant_active, productActive: variant.product_active, requiresPrescription: variant.requires_prescription, stockQuantity: variant.stock_quantity, priceIqd: variant.price_iqd, maxPerOrder: variant.max_per_order, isPreorder: variant.is_preorder }));
     const variantById = new Map(variants.map((variant) => [variant.id, variant]));
     // ق-221 — THE REFUSAL NAMES THE LINE.
     //
@@ -961,6 +973,10 @@ export async function checkout(storeId: string, customerId: string, input: Check
     const reservedByVariant = new Map(activeReservations.map((reservation) => [reservation.variantId, reservation._sum.quantity ?? 0]));
     const short = cart.items.flatMap((item) => {
       const variant = variantById.get(item.variantId)!;
+      // Marketplace M5: a pre-order is ordered BEFORE the stock arrives — that is
+      // what it is. Its reservation is still written, so the units are spoken
+      // for, and the order completes only once the merchant has the stock.
+      if (variant.isPreorder) return [];
       const available = Math.max(0, variant.stockQuantity - (reservedByVariant.get(item.variantId) ?? 0));
       return available < item.quantity ? [refusedLine(item, variant, "insufficient_stock", available)] : [];
     });
@@ -1007,11 +1023,27 @@ export async function checkout(storeId: string, customerId: string, input: Check
      * a sentence naming the action, and `repriceStaleCartLines` has already
      * made the next tap succeed.
      */
+    // Marketplace M5: paid add-ons, read inside the same transaction and held to
+    // the same rule as the price — a removed add-on refuses the line by name, a
+    // re-priced one is a moved price.
+    const addonIds = Array.from(new Set(cart.items.flatMap((item) => item.addonIds)));
+    const addonRows = addonIds.length ? await tx.productAddon.findMany({ where: { id: { in: addonIds }, storeId, isActive: true }, select: { id: true, productId: true, name: true, priceIqd: true } }) : [];
+    const addonById = new Map(addonRows.map((row) => [row.id, row]));
+    const missingAddons = cart.items.filter((item) => item.addonIds.some((id) => addonById.get(id)?.productId !== item.productId));
+    if (missingAddons.length) {
+      throw new HttpError(422, "ADDON_UNAVAILABLE", "لم تعد بعض الإضافات المختارة متاحة. عدّل خياراتك ثم أكّد الطلب.", {
+        lines: missingAddons.map((item) => refusedLine(item, variantById.get(item.variantId), "unavailable", 0)),
+      });
+    }
+    const liveAddons = (item: { addonIds: string[] }) => item.addonIds.reduce((sum, id) => sum + (addonById.get(id)?.priceIqd ?? 0), 0);
     const movedLines = cart.items
-      .map((item) => ({ id: item.id, snapshotIqd: item.priceSnapshotIqd, livePriceIqd: variantById.get(item.variantId)!.priceIqd }))
-      .filter((line) => line.livePriceIqd !== line.snapshotIqd);
+      .map((item) => ({ id: item.id, snapshotIqd: item.priceSnapshotIqd, livePriceIqd: variantById.get(item.variantId)!.priceIqd, addonsSnapshotIqd: item.addonsSnapshotIqd, liveAddonsIqd: liveAddons(item) }))
+      .filter((line) => line.livePriceIqd !== line.snapshotIqd || line.liveAddonsIqd !== line.addonsSnapshotIqd);
     if (movedLines.length) throw new CartPriceMoved(cart.id, movedLines);
-    const subtotalIqd = cart.items.reduce((sum, item) => sum + item.quantity * item.priceSnapshotIqd, 0);
+    // The add-ons are inside the line's unit price: one number the ledger, the
+    // commission and every receipt already know how to read.
+    const unitPrice = (item: { priceSnapshotIqd: number; addonsSnapshotIqd: number }) => item.priceSnapshotIqd + item.addonsSnapshotIqd;
+    const subtotalIqd = cart.items.reduce((sum, item) => sum + item.quantity * unitPrice(item), 0);
     // Phase 20B-1: discount = floor(subtotal*p/100) | min(amount, subtotal) | 0.
     // free_shipping zeroes the delivery fee ONLY (the waived amount is
     // snapshotted on the redemption) and never touches discount_iqd.
@@ -1039,7 +1071,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
     // Phase 20B-1: a product requiring a prescription stamps the order into the
     // pending_upload state at creation; the upload itself happens after checkout.
     const requiresPrescription = variants.some((variant) => variant.requiresPrescription);
-    const order = await tx.storeOrder.create({ data: { storeId, customerId, loyaltyPointsSpent: loyaltyPreview.points, loyaltyDiscountIqd: loyaltyPreview.discountIqd, orderNumber: orderNumber(), status: "new", customerName: address.recipientName || customer.fullName, customerEmail: customer.email, customerNote: normalizeCustomerNote(input.note), recipientPhone: address.phoneContactNormalized, shippingGovernorate: address.governorate, shippingAddressLine1: address.fullAddress, shippingAddressLine2: address.city, subtotalIqd, deliveryFeeIqd, discountIqd, couponId: coupon?.id ?? null, couponCode: coupon?.code ?? null, prescriptionStatus: requiresPrescription ? "pending_upload" : null, totalIqd, paymentStatus: paymentMethod.kind === "manual_transfer" ? "awaiting_transfer" : "unpaid", paymentMethodCode: paymentMethod.code, source: "storefront", updatedByKind: "customer", items: { create: cart.items.map((item) => { const variant = variantById.get(item.variantId)!; return { productId: item.productId, variantId: item.variantId, sku: variant.sku, productName: variant.productName, variantName: variant.name, quantity: item.quantity, unitPriceIqd: item.priceSnapshotIqd, lineTotalIqd: item.quantity * item.priceSnapshotIqd }; }) }, statusEvents: { create: { storeId, fromStatus: null, toStatus: "new", actorKind: "customer", actorId: customerId, note: null } } }, include: { items: true, statusEvents: true } });
+    const order = await tx.storeOrder.create({ data: { storeId, customerId, loyaltyPointsSpent: loyaltyPreview.points, loyaltyDiscountIqd: loyaltyPreview.discountIqd, orderNumber: orderNumber(), status: "new", fulfilment: pickup ? "pickup" : "delivery", customerName: address.recipientName || customer.fullName, customerEmail: customer.email, customerNote: normalizeCustomerNote(input.note), recipientPhone: address.phoneContactNormalized, shippingGovernorate: address.governorate, shippingAddressLine1: address.fullAddress, shippingAddressLine2: address.city, subtotalIqd, deliveryFeeIqd, discountIqd, couponId: coupon?.id ?? null, couponCode: coupon?.code ?? null, prescriptionStatus: requiresPrescription ? "pending_upload" : null, totalIqd, paymentStatus: paymentMethod.kind === "manual_transfer" ? "awaiting_transfer" : "unpaid", paymentMethodCode: paymentMethod.code, source: "storefront", updatedByKind: "customer", items: { create: cart.items.map((item) => { const variant = variantById.get(item.variantId)!; return { productId: item.productId, variantId: item.variantId, sku: variant.sku, productName: variant.productName, variantName: variant.name, quantity: item.quantity, unitPriceIqd: unitPrice(item), lineTotalIqd: item.quantity * unitPrice(item), addons: item.addonIds.map((id) => { const addon = addonById.get(id)!; return { id, name: addon.name, priceIqd: addon.priceIqd }; }) }; }) }, statusEvents: { create: { storeId, fromStatus: null, toStatus: "new", actorKind: "customer", actorId: customerId, note: null } } }, include: { items: true, statusEvents: true } });
     // CD-5: the spend row is written the moment the order it belongs to exists,
     // inside the same transaction that priced it — so a checkout that fails
     // later can never leave a shopper charged points for an order he has not got.

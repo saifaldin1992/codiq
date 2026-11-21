@@ -15,6 +15,7 @@ import { marketStoresModule } from "./market-stores/index.js";
 import { marketCatalogModule } from "./market-catalog/index.js";
 import { marketHomeModule } from "./market-home/index.js";
 import { marketAccountModule } from "./market-account/index.js";
+import { marketCartModule } from "./market-cart/index.js";
 
 /** New modules, appended after the core so the core's matching order never moves. */
 export const EXTENSION_MODULES: readonly PlatformModule[] = [
@@ -24,6 +25,7 @@ export const EXTENSION_MODULES: readonly PlatformModule[] = [
   marketCatalogModule,
   marketHomeModule,
   marketAccountModule,
+  marketCartModule,
 ];
 
 export const PLATFORM_MODULES: readonly PlatformModule[] = [...CORE_MODULES, ...EXTENSION_MODULES];

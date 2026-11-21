@@ -8,6 +8,7 @@ import { Link, useLocation } from "wouter";
 import { ChevronDown, Grid2x2, House, MapPin, Search, ShoppingBag, Store, UserRound } from "lucide-react";
 import { LocationPicker } from "./LocationPicker";
 import { useMarketLocation } from "./market-location";
+import { useMarketCart } from "./market-cart";
 
 const TABS = [
   { href: "/", label: "الرئيسية", icon: House, testId: "home" },
@@ -26,6 +27,7 @@ export function MarketShell({ children }: { children: ReactNode }) {
   const [marketLocation, setMarketLocation] = useMarketLocation();
   const [picking, setPicking] = useState(false);
   const [query, setQuery] = useState("");
+  const cart = useMarketCart();
 
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -64,7 +66,10 @@ export function MarketShell({ children }: { children: ReactNode }) {
                 <li key={tab.href}>
                   <Link href={tab.href} aria-current={active ? "page" : undefined} data-testid={`market-tab-${tab.testId}`}
                     className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold ${active ? "text-[var(--codiq-accent)]" : "text-[var(--codiq-text-muted)]"}`}>
-                    <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 1.8} />
+                    <span className="relative">
+                      <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 1.8} />
+                      {tab.testId === "cart" && cart && cart.count > 0 ? <span className="absolute -left-2 -top-1.5 min-w-4 rounded-full bg-[var(--codiq-danger)] px-1 text-center text-[9px] font-black leading-4 text-[var(--codiq-surface)]" data-testid="market-cart-badge">{cart.count > 99 ? "99+" : cart.count.toLocaleString("ar-IQ")}</span> : null}
+                    </span>
                     {tab.label}
                   </Link>
                 </li>

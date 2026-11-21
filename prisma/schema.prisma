@@ -649,6 +649,7 @@ model ProductVariant {
   deletedAt        DateTime? @map("deleted_at")         @db.Timestamptz(6)
   deletedEventId   String?   @map("deleted_event_id")   @db.Uuid
   deletedWasActive Boolean?  @map("deleted_was_active")
+  marketCartItems   MarketCartItem[]
   product           Product  @relation(fields: [productId, storeId], references: [id, storeId], onDelete: Cascade, map: "product_variants_product_store_fk")
   deletedEvent      StoreAuditEvent? @relation("VariantDeletedEvent", fields: [deletedEventId], references: [id], onDelete: Restrict)
   cartItems         CartItem[]
@@ -766,6 +767,8 @@ model StoreOrder {
   customerId        String?            @map("customer_id") @db.Uuid
   orderNumber       String             @map("order_number") @db.Text
   status            String             @db.Text
+  /// Marketplace M5: delivery | pickup (at the store's counter, no delivery fee).
+  fulfilment        String             @default("delivery") @db.Text
   customerName      String             @map("customer_name") @db.Text
   /// PG-6 (ق-74): GENERATED ALWAYS AS (codiq_ar_normalize_v1(order_number)) STORED — migration 20260904090000.
   /// Read-only. NEVER name this field in a `data:` object; Postgres rejects a write to a generated column.
@@ -868,6 +871,8 @@ model OrderItem {
   quantity     Int
   unitPriceIqd Int        @map("unit_price_iqd")
   lineTotalIqd Int        @map("line_total_iqd")
+  /// Marketplace M5: [{id, name, priceIqd}] — the add-ons already inside unitPriceIqd, by name.
+  addons       Json       @default("[]") @db.JsonB
   createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   order        StoreOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product      Product?   @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -943,6 +948,9 @@ model CartItem {
   variantId        String       @map("variant_id") @db.Uuid
   quantity         Int
   priceSnapshotIqd Int          @map("price_snapshot_iqd")
+  /// Marketplace M5: chosen paid add-ons and their sum when added; priced into the order line at checkout.
+  addonIds         String[]     @default([]) @map("addon_ids") @db.Uuid
+  addonsSnapshotIqd Int         @default(0) @map("addons_snapshot_iqd")
   createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   cart             ShoppingCart @relation(fields: [cartId, storeId], references: [id, storeId], onDelete: Cascade)
@@ -2299,6 +2307,7 @@ model Shopper {
   otpChallenges     ShopperOtpChallenge[]
   addresses         ShopperAddress[]
   customers         Customer[]
+  marketCart        MarketCart?
 
   @@map("shoppers")
 }
@@ -2355,4 +2364,38 @@ model ShopperAddress {
 
   @@index([shopperId, createdAt], map: "shopper_addresses_shopper_idx")
   @@map("shopper_addresses")
+}
+
+/// Marketplace M5: the shopper's basket across every store.
+model MarketCart {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopperId String           @unique @map("shopper_id") @db.Uuid
+  version   Int              @default(1)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  shopper   Shopper          @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  items     MarketCartItem[]
+
+  @@map("market_carts")
+}
+
+model MarketCartItem {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cartId            String         @map("cart_id") @db.Uuid
+  storeId           String         @map("store_id") @db.Uuid
+  productId         String         @map("product_id") @db.Uuid
+  variantId         String         @map("variant_id") @db.Uuid
+  quantity          Int
+  addonIds          String[]       @default([]) @map("addon_ids") @db.Uuid
+  priceSnapshotIqd  Int            @map("price_snapshot_iqd")
+  addonsSnapshotIqd Int            @default(0) @map("addons_snapshot_iqd")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  cart              MarketCart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant           ProductVariant @relation(fields: [variantId, productId, storeId], references: [id, productId, storeId], onDelete: Cascade, map: "market_cart_items_variant_fk")
+
+  @@unique([cartId, variantId], map: "market_cart_items_cart_variant_key")
+  @@index([cartId, storeId, createdAt], map: "market_cart_items_cart_idx")
+  @@index([variantId], map: "market_cart_items_variant_idx")
+  @@map("market_cart_items")
 }

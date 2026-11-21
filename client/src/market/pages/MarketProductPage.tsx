@@ -6,13 +6,15 @@
  * cart (M5); the button goes there.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "wouter";
-import { BadgeCheck, CalendarClock, ChevronLeft, Flame, LoaderCircle, Package, Share2, ShieldCheck, ShoppingBag, Star, Store, X } from "lucide-react";
+import { Link, useLocation, useParams } from "wouter";
+import { BadgeCheck, CalendarClock, ChevronLeft, CircleAlert, CircleCheck, Flame, LoaderCircle, Minus, Package, Plus, Share2, ShieldCheck, ShoppingBag, Star, Store, X } from "lucide-react";
 import { marketGet, MarketApiError } from "../market-api";
 import { CONDITION_LABELS, iqd, rememberProduct, TAG_LABELS, type MarketProductDetail } from "../market-products";
 import { queryString } from "../use-market-list";
 import { ProductShelf } from "../components/ProductShelf";
 import { DeliveryToMe } from "../components/DeliveryToMe";
+import { useShopper } from "../market-shopper";
+import { cartWrite } from "../market-cart";
 import { MarketEmptyState } from "../MarketEmptyState";
 
 const day = (value: string | null) => (value ? new Date(`${value}T00:00:00Z`).toLocaleDateString("ar-IQ", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }) : null);
@@ -26,10 +28,17 @@ export function MarketProductPage() {
   const [zoom, setZoom] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [addonIds, setAddonIds] = useState<string[]>([]);
+  const [quantity, setQuantity] = useState(1);
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState<string | null>(null);
+  const [addFailure, setAddFailure] = useState<string | null>(null);
+  const { shopper } = useShopper();
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     const controller = new AbortController();
-    setProduct(null); setMissing(false); setFailure(null); setVariantId(null); setExpanded(false);
+    setProduct(null); setMissing(false); setFailure(null); setVariantId(null); setExpanded(false); setAddonIds([]); setQuantity(1); setAdded(null); setAddFailure(null);
     marketGet<{ product: MarketProductDetail }>(`/api/market/products/${encodeURIComponent(id)}`, { signal: controller.signal })
       .then((body) => { setProduct(body.product); setVariantId(body.product.variants[0]?.id ?? null); rememberProduct(body.product.id); window.scrollTo(0, 0); })
       .catch((error: Error) => { if (error.name === "AbortError") return; if (error instanceof MarketApiError && error.status === 404) setMissing(true); else setFailure(error.message); });
@@ -49,6 +58,17 @@ export function MarketProductPage() {
   const discount = compare ? Math.round(((compare - price) / compare) * 100) : 0;
   const images = product.images.length ? product.images : product.imageUrl ? [product.imageUrl] : [];
   const long = (product.description?.length ?? 0) > 240;
+  const addonsTotal = product.addons.filter((addon) => addonIds.includes(addon.id)).reduce((sum, addon) => sum + addon.priceIqd, 0);
+  const maxQuantity = Math.min(99, product.maxPerOrder ?? 99);
+  const addToCart = async () => {
+    if (!shopper) { navigate("/account"); return; }
+    if (!variant) return;
+    setAdding(true); setAddFailure(null); setAdded(null);
+    try {
+      await cartWrite("/api/market/cart/items", { method: "POST", body: JSON.stringify({ variantId: variant.id, quantity, addonIds }) });
+      setAdded("تمت الإضافة إلى السلة");
+    } catch (error) { setAddFailure((error as Error).message); } finally { setAdding(false); }
+  };
 
   const share = async () => {
     try {
@@ -120,15 +140,33 @@ export function MarketProductPage() {
       {product.addons.length ? (
         <section className="space-y-2" data-testid="market-product-addons">
           <h2 className="text-sm font-black text-[var(--codiq-text)]">إضافات اختياريّة</h2>
-          <ul className="space-y-1.5">{product.addons.map((addon) => <li key={addon.id} className="flex justify-between rounded-xl bg-[var(--codiq-surface)] px-3 py-2 text-xs shadow-sm"><span className="text-[var(--codiq-text)]">{addon.name}</span><span className="font-bold text-[var(--codiq-text)]">+ {iqd(addon.priceIqd)}</span></li>)}</ul>
+          <ul className="space-y-1.5">{product.addons.map((addon) => (
+            <li key={addon.id}>
+              <label className="flex cursor-pointer items-center justify-between gap-2 rounded-xl bg-[var(--codiq-surface)] px-3 py-2 text-xs shadow-sm">
+                <span className="flex items-center gap-2 text-[var(--codiq-text)]"><input type="checkbox" checked={addonIds.includes(addon.id)} onChange={(event) => setAddonIds(event.target.checked ? [...addonIds, addon.id] : addonIds.filter((id) => id !== addon.id))} data-testid={`market-product-addon-${addon.id}`} /> {addon.name}</span>
+                <span className="font-bold text-[var(--codiq-text)]">+ {iqd(addon.priceIqd)}</span>
+              </label>
+            </li>
+          ))}</ul>
         </section>
       ) : null}
 
-      <div className="sticky bottom-20 z-10 space-y-1">
-        <a href={product.storefrontPath} className={`flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-black shadow-lg ${product.isAvailable ? "bg-[var(--codiq-accent)] text-[var(--codiq-surface)]" : "pointer-events-none bg-[var(--codiq-neutral-soft)] text-[var(--codiq-text-muted)]"}`} data-testid="market-product-buy">
-          <ShoppingBag className="h-4 w-4" /> {product.isAvailable ? (product.isPreorder ? "احجزه من المتجر" : "اشترِ من المتجر") : "غير متوفّر حالياً"}
-        </a>
+      <div className="sticky bottom-20 z-10 space-y-2 rounded-[24px] bg-[var(--codiq-surface)] p-3 shadow-lg" data-testid="market-product-buy-box">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-full border border-[var(--codiq-border)] px-1">
+            <button type="button" aria-label="زيادة" disabled={quantity >= maxQuantity} onClick={() => setQuantity(quantity + 1)} className="p-2 disabled:opacity-30" data-testid="market-product-plus"><Plus className="h-4 w-4" /></button>
+            <span className="min-w-6 text-center text-sm font-black" data-testid="market-product-quantity">{quantity.toLocaleString("ar-IQ")}</span>
+            <button type="button" aria-label="إنقاص" disabled={quantity <= 1} onClick={() => setQuantity(quantity - 1)} className="p-2 disabled:opacity-30"><Minus className="h-4 w-4" /></button>
+          </div>
+          <button type="button" onClick={() => void addToCart()} disabled={!product.isAvailable || adding} className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[var(--codiq-accent)] py-3 text-sm font-black text-[var(--codiq-surface)] disabled:bg-[var(--codiq-neutral-soft)] disabled:text-[var(--codiq-text-muted)]" data-testid="market-product-add">
+            {adding ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />} {product.isAvailable ? `${product.isPreorder ? "احجز" : "أضف إلى السلة"} · ${iqd((price + addonsTotal) * quantity)}` : "غير متوفّر حالياً"}
+          </button>
+        </div>
+        {added ? <p className="flex items-center justify-between gap-2 text-xs font-semibold text-[var(--codiq-success)]" data-testid="market-product-added"><span className="flex items-center gap-1"><CircleCheck className="h-4 w-4" /> {added}</span><Link href="/cart" className="font-bold text-[var(--codiq-accent)]">افتح السلة</Link></p> : null}
+        {addFailure ? <p className="flex items-center gap-1 text-xs font-semibold text-[var(--codiq-danger)]" data-testid="market-product-add-error"><CircleAlert className="h-4 w-4" /> {addFailure}</p> : null}
+        {!shopper && product.isAvailable ? <p className="text-center text-[11px] text-[var(--codiq-text-muted)]">ستُطلب منك رقم هاتفك لحفظ السلة.</p> : null}
         {product.maxPerOrder ? <p className="text-center text-[11px] text-[var(--codiq-text-muted)]" data-testid="market-product-limit">الحدّ الأقصى {product.maxPerOrder.toLocaleString("ar-IQ")} لكل طلب</p> : null}
+        <a href={product.storefrontPath} className="block text-center text-[11px] font-semibold text-[var(--codiq-text-muted)] underline" data-testid="market-product-buy">أو تسوّق من صفحة المتجر</a>
       </div>
 
       <DeliveryToMe storeSlug={product.store.slug} />

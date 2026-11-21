@@ -399,5 +399,18 @@
       }
     ],
     "missingStoreSlug": []
+  },
+  "modules/market-cart/routes.ts": {
+    "unpaginated": [
+      {
+        "route": "GET /market/cart",
+        "reason": "BOUNDED — one shopper's own basket, capped at a hundred lines by the cart service; a basket is shown whole, grouped by store, with its totals."
+      },
+      {
+        "route": "GET /market/checkout/:storeSlug",
+        "reason": "NOT A LIST — one store's checkout summary: its lines from the shopper's basket (within the same hundred-line cap), the delivery fee, the coupon and the total."
+      }
+    ],
+    "missingStoreSlug": []
   }
 }
