@@ -18,7 +18,7 @@ import { MarketSignIn } from "../MarketAccountPages";
 import { MarketEmptyState } from "../../MarketEmptyState";
 import { iqd } from "../../market-products";
 import { OrderTicketLink } from "../MarketTicketsPages";
-import { OnlinePaymentCard, Line } from "./parts";
+import { OnlinePaymentCard, OrderTotals } from "./parts";
 
 export type OrderDetail = {
   id: string;
@@ -229,29 +229,7 @@ export function MarketOrderPage() {
       {order.onlinePayment ? (
         <OnlinePaymentCard payment={order.onlinePayment} deliveryFeeIqd={order.deliveryFeeIqd} />
       ) : null}
-      <section
-        className="space-y-1.5 rounded-[24px] bg-[var(--codiq-surface)] p-4 text-sm shadow-sm"
-        data-testid="market-order-totals"
-      >
-        <Line label="المجموع الفرعيّ" value={iqd(order.subtotalIqd)} />
-        {order.discountIqd ? (
-          <Line
-            label={`خصم الكوبون${order.couponCode ? ` (${order.couponCode})` : ""}`}
-            value={`− ${iqd(order.discountIqd)}`}
-          />
-        ) : null}
-        {order.loyaltyDiscountIqd ? (
-          <Line label="خصم النقاط" value={`− ${iqd(order.loyaltyDiscountIqd)}`} />
-        ) : null}
-        <Line
-          label={order.fulfilment === "pickup" ? "الاستلام من المتجر" : "رسوم التوصيل"}
-          value={order.deliveryFeeIqd ? iqd(order.deliveryFeeIqd) : "مجاناً"}
-        />
-        <div className="flex justify-between border-t border-[var(--codiq-border)] pt-2 text-base font-black text-[var(--codiq-text)]">
-          <span>الإجماليّ</span>
-          <span>{iqd(order.totalIqd)}</span>
-        </div>
-      </section>
+      <OrderTotals order={order} />
       <section className="space-y-1 rounded-[24px] bg-[var(--codiq-surface)] p-4 text-xs text-[var(--codiq-text-secondary)] shadow-sm">
         <p className="text-sm font-black text-[var(--codiq-text)]">
           {order.fulfilment === "pickup" ? "الاستلام من المتجر" : "التوصيل إلى"}
