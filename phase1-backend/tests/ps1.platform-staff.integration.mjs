@@ -763,6 +763,16 @@ try {
     supervisor: () => supToken,
   };
   const staffIdsByRole = { registrations_admin: regId, accountant: accId, supervisor: supId };
+  // Review batch 3, ت-٣: the market's online-payments ledger is FINANCE — the accountant reads
+  // it; the registrations admin (who approves sign-ups) does not.
+  assert.deepEqual(
+    [
+      (await request("/platform/market/payments", { token: accToken })).status,
+      (await request("/platform/market/payments", { token: regToken })).status,
+    ],
+    [200, 403],
+    "the payments ledger is behind finance.view, not merchants.manage"
+  );
 
   async function probe(code, token) {
     const spec = PROBES[code];

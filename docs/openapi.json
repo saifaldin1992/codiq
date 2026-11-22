@@ -37651,7 +37651,7 @@
           "market-payments"
         ],
         "summary": "GET /platform/market/payments",
-        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `merchants.manage`.\n\n**قائمة**: تُجيب بمَغلَّف المرحلة 20-2 — `{ <resource>: T[], nextCursor, …facets }` مع مؤشر معتم واحد.",
+        "description": "**الباب**: platform_owner أو platform_staff.\n\n**الصلاحية**: `finance.view`.\n\n**قائمة**: تُجيب بمَغلَّف المرحلة 20-2 — `{ <resource>: T[], nextCursor, …facets }` مع مؤشر معتم واحد.",
         "parameters": [
           {
             "name": "status",
@@ -37779,7 +37779,7 @@
         ],
         "x-codiq-source": "phase1-backend/src/modules/market-payments/routes.ts",
         "x-codiq-permissions": [
-          "merchants.manage"
+          "finance.view"
         ],
         "x-codiq-list-envelope": true,
         "security": [

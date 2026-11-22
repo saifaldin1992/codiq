@@ -73,7 +73,8 @@ export function registerMarketPaymentsRoutes(app: Express) {
   app.get(
     "/platform/market/payments",
     asyncRoute(async (request, response) => {
-      await requirePlatformActor(request, "merchants.manage");
+      // The ledger of online payments is finance — the accountant's (review batch 3, ت-٣).
+      await requirePlatformActor(request, "finance.view");
       const query = parseOrThrow(ownerPaymentsQuerySchema, request.query ?? {});
       response.status(200).json(await paymentsForOwner(query));
     })
