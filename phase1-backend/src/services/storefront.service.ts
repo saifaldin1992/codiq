@@ -1354,6 +1354,25 @@ export function checkoutFingerprint(input: CheckoutInput, cartVersion: number) {
   );
 }
 
+/**
+ * What an order's payment status is the moment it is placed (review batch 2, ر-٢ — this
+ * was a five-level nested condition inside the order write).
+ *   - a manual transfer waits for the merchant to confirm it;
+ *   - the market's card waits for the gateway's signed notification;
+ *   - the market's instalments are covered by the lender (delivery is cash);
+ *   - the partner app has already taken the money;
+ *   - everything else (cash at the door) is unpaid until delivery.
+ */
+const MARKET_PAYMENT_STATUS: Record<string, string> = {
+  market_card: "awaiting_payment",
+  market_instalments: "instalments",
+  market_partner: "paid",
+};
+function initialPaymentStatus(method: { kind: string; code: string }): string {
+  if (method.kind === "manual_transfer") return "awaiting_transfer";
+  return MARKET_PAYMENT_STATUS[method.code] ?? "unpaid";
+}
+
 function orderNumber() {
   return `SF-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
 }
@@ -1975,16 +1994,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
                 couponCode: coupon?.code ?? null,
                 prescriptionStatus: requiresPrescription ? "pending_upload" : null,
                 totalIqd,
-                paymentStatus:
-                  paymentMethod.kind === "manual_transfer"
-                    ? "awaiting_transfer"
-                    : paymentMethod.code === "market_card"
-                      ? "awaiting_payment"
-                      : paymentMethod.code === "market_instalments"
-                        ? "instalments"
-                        : paymentMethod.code === "market_partner"
-                          ? "paid"
-                          : "unpaid",
+                paymentStatus: initialPaymentStatus(paymentMethod),
                 paymentMethodCode: paymentMethod.code,
                 source: "storefront",
                 updatedByKind: "customer",
