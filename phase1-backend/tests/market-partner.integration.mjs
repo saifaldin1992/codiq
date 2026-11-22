@@ -334,10 +334,23 @@ try {
     amountIqd: 39_000,
     paymentRef: `${testId}-p-6`,
   });
+  // Review batch 2, ح-٢: the SAME report again (its first answer was lost) is told the order is
+  // paid — «refund» here would return money for an order that stands.
   assert.deepEqual(
-    [replay.payload.reason, replay.payload.orderId],
-    ["LINK_USED", order.id],
-    "a link pays once"
+    [replay.payload.ok, replay.payload.refund ?? false, replay.payload.orderId],
+    [true, false, order.id],
+    "the same report twice: paid, once"
+  );
+  const second = await report({
+    token: tokenOf(link.deepLink),
+    partnerAccountId: account,
+    amountIqd: 39_000,
+    paymentRef: `${testId}-p-7`,
+  });
+  assert.deepEqual(
+    [second.payload.refund, second.payload.reason, second.payload.orderId],
+    [true, "LINK_USED", order.id],
+    "a link pays once: a second payment for it goes back"
   );
   // Two reports at once for one link: one pays, the other is told to retry — never «paid» twice, never «used» without an order.
   await add(1);

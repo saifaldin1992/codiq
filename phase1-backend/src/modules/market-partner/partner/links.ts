@@ -168,8 +168,18 @@ export async function completePaymentLink(rawBody: Buffer, signature: string | u
     include: { shopper: true, store: { select: { slug: true } } },
   });
   if (!row || row.partner !== config.id) return { ok: false, refund: true, reason: "LINK_UNKNOWN" };
-  if (row.status === "used")
+  if (row.status === "used") {
+    // The SAME report again — its first answer was lost — is paid, not refunded: «refund» means
+    // nothing was placed, and this order stands (review batch 2, ح-٢). Another payment goes back.
+    const paid =
+      row.orderId &&
+      (await prisma.marketPayment.findFirst({
+        where: { orderId: row.orderId, provider: config.id, providerRef: body.paymentRef },
+        select: { id: true },
+      }));
+    if (paid) return { ok: true, duplicate: true, orderId: row.orderId };
     return { ok: false, refund: true, reason: "LINK_USED", orderId: row.orderId };
+  }
   // Review 2026-11-21: a report already being handled (or one interrupted by a crash) is not
   // «used» — the partner must not take it for paid. Retry later; long after the link's life it is refused.
   if (row.status === "using") {
