@@ -354,6 +354,38 @@ try {
   await prisma.store.update({ where: { id: store.id }, data: { guestCheckoutEnabled: true } });
   summary.switch = "GUEST_CHECKOUT_DISABLED";
 
+  // Review batch 2, ت-١٦: a new guest taps «اطلب» twice at once. Both requests create his
+  // customer row; the loser's unique violation (on the PHONE) used to be told «email taken».
+  const twice = browser();
+  const addedTwice = await twice.request(`/store/${slug}/cart/items`, {
+    method: "POST",
+    body: { productId: product.id, quantity: 1 },
+  });
+  const tap = () =>
+    twice.request(`/store/${slug}/checkout/guest`, {
+      method: "POST",
+      headers: { "idempotency-key": `${testId}-k5` },
+      body: {
+        cartVersion: addedTwice.payload.cart.version,
+        fullName: "ضيف مستعجل",
+        phone: "07744455566",
+        address: address("ضيف مستعجل", "07744455566"),
+        paymentMethodCode: "cod",
+      },
+    });
+  const taps = await Promise.all([tap(), tap()]);
+  assert.ok(
+    taps.every((reply) => reply.payload?.error?.code !== "EMAIL_TAKEN"),
+    `no email was given, so none is «taken» · ${JSON.stringify(taps.map((r) => r.payload))}`
+  );
+  const placed = taps.filter((reply) => reply.status === 201);
+  assert.ok(placed.length >= 1, JSON.stringify(taps.map((r) => r.payload)));
+  assert.ok(
+    placed.every((reply) => reply.payload.order.id === placed[0].payload.order.id),
+    "one order, however many taps"
+  );
+  summary.doubleTap = "one order";
+
   // ── 6. a guest chooses a password and becomes an account, orders included ─
   // From the browser that CREATED the row — the one door that proved something
   // (ق-232): the session minted at creation is his because the row was empty

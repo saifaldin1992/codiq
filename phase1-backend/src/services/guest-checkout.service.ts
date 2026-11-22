@@ -142,6 +142,13 @@ export async function guestCustomerFor(
   } catch (error) {
     // `customers_store_email_present_uq`: the email he typed is somebody's account here.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      // Two taps at once: the other request created this guest a moment ago — the clash was on
+      // the PHONE, not an email, so it is his row (review batch 2, ت-١٦).
+      const twin = await prisma.customer.findFirst({
+        where: { storeId, phoneNormalized, isGuest: true, passwordHash: null, isActive: true },
+        select: GUEST_SELECT,
+      });
+      if (twin) return { customer: twin, created: false };
       throw new HttpError(
         409,
         "EMAIL_TAKEN",
