@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2583,
-  "oversizeFiles": 109,
+  "oversizeFiles": 108,
   "longFunctions": 441
  },
  "files": {
@@ -291,9 +291,19 @@
    "oversize": 0,
    "longFunctions": 1
   },
-  "phase1-backend/src/modules/market-cart/cart.service.ts": {
-   "longLines": 7,
-   "oversize": 60,
+  "phase1-backend/src/modules/market-cart/cart/lines.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-cart/cart/rules.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-cart/cart/view.ts": {
+   "longLines": 4,
+   "oversize": 0,
    "longFunctions": 1
   },
   "phase1-backend/src/modules/market-cart/checkout/orders.ts": {
