@@ -13,25 +13,25 @@
 | `phase1-backend/src/modules/market-rewards/rewards.service.ts` | 489 | 2026-11-22 (كاملاً) | م-١٣، ت-١٣ (قُسّم) |
 | `phase1-backend/src/modules/market-cart/cart.service.ts` | 460 | 2026-11-22 (كاملاً) | ت-١٤، ت-١٥ (قُسّم) |
 | `phase1-backend/src/modules/market-partner/partner.service.ts` | 459 | 2026-11-22 (كاملاً) | ح-٢، م-٨، ت-٩ (قُسّم)، إصلاح اختبار |
-| `phase1-backend/src/services/coupon.service.ts` | 445 | — | لم يُقرأ |
-| `phase1-backend/src/services/payment-methods.service.ts` | 282 | — | لم يُقرأ |
-| `phase1-backend/src/services/platform-rewards.service.ts` | 222 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-payments/providers.ts` | 221 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-cart/routes.ts` | 195 | — | لم يُقرأ |
-| `phase1-backend/src/services/guest-checkout.service.ts` | 183 | — | لم يُقرأ |
-| `phase1-backend/src/services/merchant-wallet.service.ts` | 170 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-rewards/routes.ts` | 134 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-partner/routes.ts` | 97 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-payments/routes.ts` | 76 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-cart/schema.ts` | 53 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-rewards/schema.ts` | 38 | — | لم يُقرأ |
-| `phase1-backend/src/services/live-price.ts` | 30 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-payments/schema.ts` | 20 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-payments/index.ts` | 13 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-rewards/index.ts` | 9 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-partner/index.ts` | 9 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-cart/index.ts` | 9 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-partner/schema.ts` | 7 | — | لم يُقرأ |
+| `phase1-backend/src/services/coupon.service.ts` | 445 | 2026-11-22 (كاملاً) | ملاحظتان |
+| `phase1-backend/src/services/payment-methods.service.ts` | 282 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/services/platform-rewards.service.ts` | 222 | 2026-11-22 (كاملاً) | لا نتيجة (فرضيّة سُحبت) |
+| `phase1-backend/src/modules/market-payments/providers.ts` | 221 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-cart/routes.ts` | 195 | 2026-11-22 (كاملاً) | م-١٤ |
+| `phase1-backend/src/services/guest-checkout.service.ts` | 183 | 2026-11-22 (كاملاً) | ت-١٦ |
+| `phase1-backend/src/services/merchant-wallet.service.ts` | 170 | 2026-11-22 (كاملاً) | ملاحظة (نسخة من `totalsFromGroups`) |
+| `phase1-backend/src/modules/market-rewards/routes.ts` | 134 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-partner/routes.ts` | 97 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-payments/routes.ts` | 76 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-cart/schema.ts` | 53 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-rewards/schema.ts` | 38 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/services/live-price.ts` | 30 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-payments/schema.ts` | 20 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-payments/index.ts` | 13 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-rewards/index.ts` | 9 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-partner/index.ts` | 9 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-cart/index.ts` | 9 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-partner/schema.ts` | 7 | 2026-11-22 (كاملاً) | لا نتيجة |
 
 ## النتائج
 
@@ -213,3 +213,16 @@
 
 ### [ت-١٣] و[ت-١٥] تقسيم ملفّي المكافآت وسلّة السوق — تحسين
 - `4e25eff`: `rewards.service.ts` ← `market-rewards/rewards/{view,coupons,points,owner}.ts`. و`8973cbe`: `cart.service.ts` ← `market-cart/cart/{rules,lines,view}.ts`. نقلٌ حرفيّ.
+
+### [م-١٤] تقديم طلب السوق بلا حدّ محاولات — مهمّ
+- المكان: `POST /market/checkout/:storeSlug`. ملخّص الدفع يحدّ تخمين القسائم (٣٠/١٠ دقائق)، لكنّ تقديم الطلب يأخذ `couponCode` ويجيب «غير صالح» بلا أيّ حدّ — فتُخمَّن الرموز من هنا وتُنشأ طلبات وهميّة بلا سقف. متجر الواجهة عليه ١٢ للزبون و٤٠ للعنوان منذ ق-194.
+- الحالة: **مُصلَح** — `5df7042`: الدلوان نفساهما (`market_checkout`)، ويُعادان عند الإعادة (ق-224). الاختبار (`market:cart`): ١٣ محاولة — لا رفض قبل؛ ١٢ ثمّ ٤٢٩ بعد.
+
+### [ت-١٦] نقرتا ضيف جديد معاً تُجابان «البريد مستعمل» — تحسين
+- المكان: `guestCustomerFor`. كلّ تعارض فريد صار «هذا البريد مستخدم» — حتى حين كان التعارض على الهاتف ولم يُكتب بريد.
+- الحالة: **مُصلَح** — `4c140e7`: يُقرأ صفّ الضيف بالهاتف أوّلاً ويُستعمل. الاختبار (`guest:checkout`): نقرتان معاً — فشل مرّة من ثلاث قبل، ونجح ستّ مرّات متتالية بعد؛ طلب واحد.
+
+### ملاحظات من بقيّة الملفّات (لا إصلاح)
+- `coupon.service.ts`: `updateCoupon` لا يرفض `code` فارغاً (يصل القاعدة فيعود ٥٠٠)، وإنشاءان متزامنان بالرمز نفسه يُجاب أحدهما «مزدحم» بدل «الرمز موجود». جهة التاجر، نادر.
+- `platform-rewards.service.ts`: افترضتُ أنّ معرّف المحفظة غير الصالح يصل `::uuid` فيعود ٥٠٠ — **خطأ**: المخطّط يرفضه بـ٤٢٢ قبل ذلك. سُحبت.
+- `merchant-wallet.service.ts`: `signedTotals` نسخة من `totalsFromGroups`؛ حارس إشارة الدفتر يراقبهما معاً، والمكرّر محسوب في خطّ الأساس.
