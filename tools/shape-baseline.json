@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2584,
-  "oversizeFiles": 115,
+  "oversizeFiles": 114,
   "longFunctions": 441
  },
  "files": {
@@ -446,10 +446,25 @@
    "oversize": 0,
    "longFunctions": 0
   },
-  "phase1-backend/src/modules/market-payments/payments.service.ts": {
-   "longLines": 5,
-   "oversize": 214,
-   "longFunctions": 2
+  "phase1-backend/src/modules/market-payments/payments/after-order.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-payments/payments/card.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-payments/payments/instalments.ts": {
+   "longLines": 0,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-payments/payments/options.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
   },
   "phase1-backend/src/modules/market-payments/providers.ts": {
    "longLines": 2,
@@ -748,7 +763,7 @@
   },
   "phase1-backend/src/services/order-lifecycle.service.ts": {
    "longLines": 4,
-   "oversize": 315,
+   "oversize": 313,
    "longFunctions": 3
   },
   "phase1-backend/src/services/order-print.service.ts": {
