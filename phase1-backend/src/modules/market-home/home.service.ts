@@ -51,7 +51,7 @@ export async function activeMalls() {
       JOIN stores st ON st.id = ms.store_id
       JOIN merchants m_acc ON m_acc.id = st.merchant_id
      WHERE ms.mall_id = ANY(${malls.map((mall) => mall.id)}::uuid[])
-       AND st.market_status = 'listed' AND st.is_active AND m_acc.is_active
+       AND st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND st.status NOT IN ('suspended', 'closed')
      ORDER BY ms.mall_id, ms.sort_order, st.name`;
   return malls.map((mall) => {
     const stores = members.filter((row) => row.mall_id === mall.id);
@@ -106,7 +106,7 @@ export async function mallPage(slug: string) {
       FROM market_mall_stores ms
       JOIN stores st ON st.id = ms.store_id
       JOIN merchants m_acc ON m_acc.id = st.merchant_id
-     WHERE ms.mall_id = ${mall.id}::uuid AND st.market_status = 'listed' AND st.is_active AND m_acc.is_active
+     WHERE ms.mall_id = ${mall.id}::uuid AND st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND st.status NOT IN ('suspended', 'closed')
      ORDER BY ms.sort_order, st.name`;
   return {
     mall: { slug: mall.slug, name: mall.name, description: mall.description },

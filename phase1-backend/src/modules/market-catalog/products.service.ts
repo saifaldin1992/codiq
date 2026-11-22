@@ -124,7 +124,7 @@ const BASE_FROM = Prisma.sql`
   ) img ON true`;
 
 /** Visible in the market: listed store, active store and merchant, live product. */
-const VISIBLE = Prisma.sql`st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND p.is_active AND p.deleted_at IS NULL`;
+const VISIBLE = Prisma.sql`st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND st.status NOT IN ('suspended', 'closed') AND p.is_active AND p.deleted_at IS NULL`;
 
 /** The «before» price: the store's compare-at, or during an hourly deal at least the list price. */
 const COMPARE = Prisma.sql`(CASE WHEN dl.deal_percent IS NOT NULL THEN GREATEST(COALESCE(p.compare_at_price_iqd, 0), v.list_min_price) ELSE p.compare_at_price_iqd END)`;

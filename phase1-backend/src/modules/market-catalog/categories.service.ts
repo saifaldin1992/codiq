@@ -58,7 +58,7 @@ export async function marketCategoryPage(slug: string) {
       JOIN merchants m_acc ON m_acc.id = st.merchant_id
       LEFT JOIN product_categories pc ON pc.id = p.category_id AND pc.store_id = p.store_id
       LEFT JOIN store_market_metrics m ON m.store_id = st.id
-     WHERE st.market_status = 'listed' AND st.is_active AND m_acc.is_active
+     WHERE st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND st.status NOT IN ('suspended', 'closed')
        AND p.is_active AND p.deleted_at IS NULL
        AND COALESCE(p.market_category_id, pc.market_category_id) = ANY(${ids}::int[])
      GROUP BY st.id, st.slug, st.name, st.logo_object_key, st.is_brand, m.score

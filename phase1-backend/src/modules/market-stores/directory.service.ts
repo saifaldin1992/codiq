@@ -22,7 +22,9 @@ import { CRITERIA, MIN_ORDERS_FOR_SCORE, shrunkRating, type MarketTier } from ".
 import { badgeViews, grantedMarks, hoursView, parseEarnedBadges, storeCoverUrl, storeLogoUrl, TIER_LABELS } from "./presentation.js";
 import type { MarketStoreQuery, MarketStoreSort } from "./schema.js";
 
-const LISTED = Prisma.sql`st.market_status = 'listed' AND st.is_active AND m_acc.is_active`;
+// The store's own status counts too: a store the platform SUSPENDED or the
+// merchant CLOSED is out of the market, as the header says.
+const LISTED = Prisma.sql`st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND st.status NOT IN ('suspended', 'closed')`;
 const DIRECTORY_LIMIT_MAX = 50;
 
 /** Distance in km from (lat, lng), haversine on a 6371 km sphere. */
@@ -168,7 +170,7 @@ export async function marketStorePage(slug: string) {
   const row = await listedStoreRow(slug);
   const now = new Date();
   const [store, hours, methods, metrics] = await Promise.all([
-    prisma.store.findUniqueOrThrow({ where: { id: row.id }, select: { headline: true, subline: true, supportWhatsapp: true, supportPhone: true, addressLine: true, createdAt: true, vacationMode: true, vacationMessage: true } }),
+    prisma.store.findUniqueOrThrow({ where: { id: row.id }, select: { headline: true, subline: true, supportWhatsapp: true, supportPhone: true, addressLine: true, createdAt: true, vacationMode: true, vacationMessage: true, status: true, statusMessage: true, maintenanceUntil: true } }),
     prisma.storeOpeningHour.findMany({ where: { storeId: row.id }, select: { weekday: true, opensAt: true, closesAt: true } }),
     prisma.paymentMethod.findMany({ where: { storeId: row.id, isEnabled: true }, select: { code: true, displayName: true }, orderBy: { code: "asc" } }),
     prisma.storeMarketMetrics.findUnique({ where: { storeId: row.id }, select: { completedOrders: true, cancelRate: true, repeatRate: true, computedAt: true } }),
@@ -184,7 +186,13 @@ export async function marketStorePage(slug: string) {
       whatsapp: store.supportWhatsapp,
       phone: store.supportPhone,
       joinedAt: store.createdAt,
-      closedForOrders: store.vacationMode ? (store.vacationMessage?.trim() || "المتجر لا يستقبل طلبات حالياً.") : null,
+      // A paused store or one under maintenance is browsable but takes no orders —
+      // the checkout refuses both, so the page says it first.
+      closedForOrders: store.vacationMode || store.status === "paused"
+        ? (store.vacationMessage?.trim() || store.statusMessage?.trim() || "المتجر لا يستقبل طلبات حالياً.")
+        : store.status === "maintenance" && !(store.maintenanceUntil && store.maintenanceUntil <= now)
+          ? (store.statusMessage?.trim() || "المتجر مغلق للصيانة.")
+          : null,
       storefrontPath: `/store/${encodeURIComponent(row.slug)}`,
     },
     reputation: {

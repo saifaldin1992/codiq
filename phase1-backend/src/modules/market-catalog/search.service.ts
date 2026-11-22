@@ -44,12 +44,12 @@ export async function searchSuggestions(raw: string) {
     prisma.$queryRaw<Array<{ id: string; name: string }>>`
       SELECT p.id, p.name FROM products p
         JOIN stores st ON st.id = p.store_id JOIN merchants m_acc ON m_acc.id = st.merchant_id
-       WHERE st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND p.is_active AND p.deleted_at IS NULL AND ${match.where}
+       WHERE st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND st.status NOT IN ('suspended', 'closed') AND p.is_active AND p.deleted_at IS NULL AND ${match.where}
        ORDER BY (CASE WHEN ${match.exact} THEN 1 ELSE 0 END + ${match.rank}) DESC, p.id DESC
        LIMIT 5`,
     prisma.$queryRaw<Array<{ slug: string; name: string }>>`
       SELECT st.slug, st.name FROM stores st JOIN merchants m_acc ON m_acc.id = st.merchant_id
-       WHERE st.market_status = 'listed' AND st.is_active AND m_acc.is_active
+       WHERE st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND st.status NOT IN ('suspended', 'closed')
          AND (codiq_ar_normalize_v1(st.name) LIKE '%' || ${match.like} || '%' OR ${match.normalized} <% codiq_ar_normalize_v1(st.name))
        ORDER BY word_similarity(${match.normalized}, codiq_ar_normalize_v1(st.name)) DESC, st.id LIMIT 3`,
     prisma.$queryRaw<Array<{ slug: string; name: string }>>`

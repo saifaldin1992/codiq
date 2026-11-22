@@ -499,9 +499,14 @@ export async function setStoreStatusByMerchant(storeId: string, input: { status?
     const current = await tx.store.findUnique({ where: { id: storeId }, select: { status: true } });
     if (!current) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر المطلوب غير موجود.");
     if (current.status === "suspended") throw new HttpError(409, "STORE_SUSPENDED", "المتجر موقوف من المنصّة — تواصل مع الدعم.");
-    const data: Prisma.StoreUpdateInput = { status, maintenanceUntil: status === "maintenance" ? until : null };
+    const data: Prisma.StoreUpdateManyMutationInput = { status, maintenanceUntil: status === "maintenance" ? until : null };
     if (message !== undefined) { data.statusMessage = message; data.vacationMessage = message; }
-    const store = await tx.store.update({ where: { id: storeId }, data, select: { status: true, statusMessage: true, maintenanceUntil: true } });
+    // Guarded: the read above and this write are two statements, and a platform
+    // suspension landing between them must not be overwritten by the merchant's
+    // «active». The predicate re-checks it at the moment of the write.
+    const written = await tx.store.updateMany({ where: { id: storeId, status: { not: "suspended" } }, data });
+    if (written.count !== 1) throw new HttpError(409, "STORE_SUSPENDED", "المتجر موقوف من المنصّة — تواصل مع الدعم.");
+    const store = await tx.store.findUniqueOrThrow({ where: { id: storeId }, select: { status: true, statusMessage: true, maintenanceUntil: true } });
     return { status: store.status as StoreStatus, message: store.statusMessage, maintenanceUntil: store.maintenanceUntil?.toISOString() ?? null };
   });
 }
@@ -530,8 +535,10 @@ function parseStatusMessage(value: unknown): string | null | undefined {
 /** What the shopper's shell reads — always present, so the client never guesses. */
 export interface PublicStoreAvailability { status: StoreStatus; message?: string; until?: string }
 
-export function publicStoreAvailability(store: { status: string; statusMessage: string | null; maintenanceUntil: Date | null }): PublicStoreAvailability {
-  const status = store.status as StoreStatus;
+export function publicStoreAvailability(store: { status: string; statusMessage: string | null; maintenanceUntil: Date | null }, now: Date = new Date()): PublicStoreAvailability {
+  // The same clock effectiveStoreState reads: maintenance whose «until» has
+  // passed is over, whether or not anyone has switched it off yet.
+  const status = (store.status === "maintenance" && store.maintenanceUntil && store.maintenanceUntil.valueOf() <= now.valueOf() ? "active" : store.status) as StoreStatus;
   if (status === "maintenance") return { status, message: store.statusMessage?.trim() || CUSTOMER_MESSAGES.STORE_MAINTENANCE.ar, ...(store.maintenanceUntil ? { until: store.maintenanceUntil.toISOString() } : {}) };
   if (status === "paused") return { status, message: store.statusMessage?.trim() || "المتجر في إجازة مؤقتة — يمكنك التصفّح، وسنستأنف استقبال الطلبات قريباً." };
   return { status };

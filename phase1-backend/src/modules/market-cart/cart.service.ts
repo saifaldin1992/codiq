@@ -15,6 +15,8 @@ import { HttpError } from "../../auth/auth.errors.js";
 
 export const MAX_LINE_QUANTITY = 99;
 const MAX_LINES = 100;
+/** A suspended or closed store is out of the market, whatever its listing says. */
+const CLOSED_STORE_STATUSES = new Set(["suspended", "closed"]);
 
 async function cartFor(shopperId: string, client: Prisma.TransactionClient | typeof prisma = prisma) {
   return client.marketCart.upsert({ where: { shopperId }, update: {}, create: { shopperId }, select: { id: true, version: true } });
@@ -22,12 +24,12 @@ async function cartFor(shopperId: string, client: Prisma.TransactionClient | typ
 
 type VariantFacts = {
   id: string; productId: string; storeId: string; priceIqd: number; stockQuantity: number; isActive: boolean;
-  product: { isActive: boolean; deletedAt: Date | null; maxPerOrder: number | null; isPreorder: boolean; name: string; store: { marketStatus: string; isActive: boolean } };
+  product: { isActive: boolean; deletedAt: Date | null; maxPerOrder: number | null; isPreorder: boolean; name: string; store: { marketStatus: string; isActive: boolean; status: string } };
 };
 
 const VARIANT_FACTS = {
   id: true, productId: true, storeId: true, priceIqd: true, stockQuantity: true, isActive: true,
-  product: { select: { isActive: true, deletedAt: true, maxPerOrder: true, isPreorder: true, name: true, store: { select: { marketStatus: true, isActive: true } } } },
+  product: { select: { isActive: true, deletedAt: true, maxPerOrder: true, isPreorder: true, name: true, store: { select: { marketStatus: true, isActive: true, status: true } } } },
 } as const;
 
 /** Stock that is not already spoken for by an open order. */
@@ -37,7 +39,7 @@ async function availableOf(client: Prisma.TransactionClient | typeof prisma, var
 }
 
 function assertSellable(variant: VariantFacts | null): asserts variant is VariantFacts {
-  if (!variant || !variant.isActive || !variant.product.isActive || variant.product.deletedAt || variant.product.store.marketStatus !== "listed" || !variant.product.store.isActive) {
+  if (!variant || !variant.isActive || !variant.product.isActive || variant.product.deletedAt || variant.product.store.marketStatus !== "listed" || !variant.product.store.isActive || CLOSED_STORE_STATUSES.has(variant.product.store.status)) {
     throw new HttpError(404, "PRODUCT_NOT_FOUND", "هذا المنتج غير متوفّر حالياً.");
   }
 }
@@ -146,7 +148,7 @@ export async function marketCartView(shopperId: string, onlyStoreId?: string) {
               id: true, name: true, isActive: true, deletedAt: true, maxPerOrder: true, isPreorder: true,
               images: { select: { id: true }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], take: 1 },
               addons: { where: { isActive: true }, select: { id: true, name: true, priceIqd: true } },
-              store: { select: { id: true, slug: true, name: true, logoObjectKey: true, marketStatus: true, isActive: true, pickupEnabled: true } },
+              store: { select: { id: true, slug: true, name: true, logoObjectKey: true, marketStatus: true, isActive: true, status: true, pickupEnabled: true } },
             },
           },
         },
@@ -162,7 +164,7 @@ export async function marketCartView(shopperId: string, onlyStoreId?: string) {
   for (const line of lines) {
     const product = line.variant.product;
     const store = product.store;
-    const live = line.variant.isActive && !line.variant.deletedAt && product.isActive && !product.deletedAt && store.marketStatus === "listed" && store.isActive;
+    const live = line.variant.isActive && !line.variant.deletedAt && product.isActive && !product.deletedAt && store.marketStatus === "listed" && store.isActive && !CLOSED_STORE_STATUSES.has(store.status);
     const addonById = new Map(product.addons.map((addon) => [addon.id, addon]));
     const addons = line.addonIds.map((id) => addonById.get(id)).filter((addon): addon is { id: string; name: string; priceIqd: number } => Boolean(addon));
     const liveAddons = addons.reduce((sum, addon) => sum + addon.priceIqd, 0);

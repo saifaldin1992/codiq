@@ -21,7 +21,7 @@ import type { MarketProductQuery } from "../market-catalog/schema.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_PENDING_PER_STORE = 10;
-const VISIBLE = { status: "approved", store: { marketStatus: "listed", isActive: true } } as const;
+const VISIBLE = { status: "approved" as const, store: { marketStatus: "listed" as const, isActive: true as const, status: { notIn: ["suspended", "closed"] } } };
 
 const videoUrl = (id: string) => `/api/market/reels/${id}/video`;
 const posterUrl = (id: string, key: string | null) => (key ? `/api/market/reels/${id}/poster` : null);

@@ -241,6 +241,14 @@ try {
   assert.deepEqual(reviews.payload.reviews, []);
   assert.equal(reviews.payload.nextCursor, null);
   assert.equal((await request(`/market/stores/${a.slug}/cover`)).status, 404, "no cover uploaded");
+  // A store the platform SUSPENDS leaves the market though it is still listed;
+  // a paused one stays browsable but says it takes no orders.
+  await prisma.store.update({ where: { id: a.id }, data: { status: "suspended" } });
+  assert.equal((await request(`/market/stores/${a.slug}`)).status, 404, "a suspended store is not in the market");
+  assert.ok(!ours((await request(`/market/stores?q=${encodeURIComponent(testId)}`)).payload.stores, slugs).includes(a.slug), "…nor in the directory");
+  await prisma.store.update({ where: { id: a.id }, data: { status: "paused" } });
+  assert.ok((await request(`/market/stores/${a.slug}`)).payload.store.closedForOrders, "a paused store says it takes no orders");
+  await prisma.store.update({ where: { id: a.id }, data: { status: "active" } });
   const ranking = await request("/market/ranking");
   assert.equal(ranking.payload.criteria.reduce((sum, row) => sum + row.weight, 0), 100);
 

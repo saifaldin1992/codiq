@@ -29,7 +29,7 @@ const SEARCH_LIMIT = 40;
 const LOOK_ALIKE_LIMIT = 12;
 
 /** Products a shopper can see — the same rule as the market's product list. */
-const VISIBLE = Prisma.sql`st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND p.is_active AND p.deleted_at IS NULL`;
+const VISIBLE = Prisma.sql`st.market_status = 'listed' AND st.is_active AND m_acc.is_active AND st.status NOT IN ('suspended', 'closed') AND p.is_active AND p.deleted_at IS NULL`;
 
 type MainImage = { product_id: string; store_id: string; image_id: string; object_key: string; variant_set: number | null };
 
