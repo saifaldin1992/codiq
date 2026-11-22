@@ -4,6 +4,8 @@
 النطاق (الخطّة §٣، الدفعة ٥): `notifications` و`jobs` و`backup` و`logging` و`config`، والمهامّ المجدولة المؤجّلة من الدفعة ٤ (`retention-job`، `reservation-expiry-job`، `purge-job`، `retention`، `config.service`) — وأُضيف ما لم تشمله أيّ دفعة: `db` و`observability` و`events` و`demo` و`src/config.ts` و`src/index.ts` و`server/index.ts`. 35 ملفّاً، 7,470 سطراً.
 التقسيم المسمّى في الخطّة لهذه الدفعة: `outbox-worker.ts`.
 
+**أُغلق ٢٠٢٦-١١-٢٢.** قُرئت الـ٣٥ كلّها سطراً بسطر؛ CI كامل محلّيّ ٢٠٣/٢٠٣؛ التقرير: [batch-05-report.md](batch-05-report.md).
+
 | الملفّ | الأسطر | قُرئ في | النتائج |
 |---|---|---|---|
 | `phase1-backend/src/notifications/outbox-worker.ts` | 802 | 2026-11-22 (كاملاً) | ت-١ (قُسّم ← outbox/{render,batch,loop}.ts). batch: ت-٢. الترتيب بالأولويّة ثمّ الموعد؛ بوّابات الحدود وإلغاء الاشتراك قبل المزوّد؛ إعادة المحاولة أسّيّة ثمّ dead_letter. ملاحظات أدناه |
