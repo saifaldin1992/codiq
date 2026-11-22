@@ -163,7 +163,6 @@ const orderInclude = {
   },
 } as const;
 
-/** Lists pass the bare row (the platform list adds `store`); detail reads add every relation. */
 function orderPayload(
   order: StoreOrder & { store?: object; items?: object[]; statusEvents?: object[] }
 ) {
@@ -625,8 +624,9 @@ export async function transitionOrderStatus(
       // CD-5: both sides. Without the clawback, buy → return prints points;
       // without the refund, points spent on a returned order are simply kept.
       await reverseLoyaltyForReturn(tx, { storeId, orderId });
-      // Marketplace M8b: and the platform's points too. The coupon is not given back — it was used.
+      // M8b: the platform's points too; refused at the door, the coupon comes back (م-٤).
       await clawbackPlatformPoints(tx, orderId);
+      if (fromStatus === "out_for_delivery") await releasePlatformCoupon(tx, orderId);
       await revokeWheelSpins(tx, orderId);
     } else if (toStatus === "cancelled" || toStatus === "rejected") {
       // ق-191 — the order dies before it is paid, and the points must come back.

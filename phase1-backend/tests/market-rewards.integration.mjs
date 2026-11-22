@@ -362,6 +362,18 @@ try {
     where: { orderId: order.id, entryType: "order_returned" },
   });
   assert.equal(returnEntry.platformDiscountIqd, 4000, "the reversal mirrors the platform's cost");
+  // Owner decision 2026-11-22 (review batch 2, م-٤): refused at the door — returned before it
+  // was ever completed — the shopper paid nothing, so the coupon comes back too.
+  await add(A);
+  const refused = await place(A, w20);
+  assert.equal(refused.status, 201, JSON.stringify(refused.payload));
+  await move(A, refused.payload.order.id, "processing", "preparation", "out_for_delivery");
+  await move(A, refused.payload.order.id, "returned");
+  assert.equal(
+    (await prisma.shopperCoupon.findUniqueOrThrow({ where: { id: w20 } })).usedOrderId,
+    null,
+    "refused at the door: the coupon comes back"
+  );
   summary.cancelReturn = true;
 
   // ── 6. points ────────────────────────────────────────────────────────────
