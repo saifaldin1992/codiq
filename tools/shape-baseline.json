@@ -6,8 +6,8 @@
   "fn": 60
  },
  "totals": {
-  "longLines": 2582,
-  "oversizeFiles": 104,
+  "longLines": 2579,
+  "oversizeFiles": 103,
   "longFunctions": 440
  },
  "files": {
@@ -642,8 +642,8 @@
    "longFunctions": 0
   },
   "phase1-backend/src/notifications/outbox-worker.ts": {
-   "longLines": 11,
-   "oversize": 393,
+   "longLines": 9,
+   "oversize": 375,
    "longFunctions": 3
   },
   "phase1-backend/src/notifications/resend-webhook.ts": {
@@ -676,10 +676,25 @@
    "oversize": 0,
    "longFunctions": 1
   },
-  "phase1-backend/src/services/availability.service.ts": {
-   "longLines": 8,
-   "oversize": 624,
-   "longFunctions": 3
+  "phase1-backend/src/services/availability/overrides.ts": {
+   "longLines": 0,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "phase1-backend/src/services/availability/resolve.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/availability/states.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/availability/store-status.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
   },
   "phase1-backend/src/services/config.service.ts": {
    "longLines": 9,
@@ -762,8 +777,8 @@
    "longFunctions": 1
   },
   "phase1-backend/src/services/maintenance.service.ts": {
-   "longLines": 11,
-   "oversize": 328,
+   "longLines": 10,
+   "oversize": 302,
    "longFunctions": 0
   },
   "phase1-backend/src/services/manual-provisioning.service.ts": {

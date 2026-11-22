@@ -65,7 +65,7 @@
       "index": "plan_upgrade_requests_created_id_idx"
     },
     {
-      "key": "services/availability.service.ts#listAvailabilityOverrides",
+      "key": "services/availability/overrides.ts#listAvailabilityOverrides",
       "model": "AvailabilityOverride",
       "column": "created_at",
       "index": "availability_overrides_created_id_idx"
