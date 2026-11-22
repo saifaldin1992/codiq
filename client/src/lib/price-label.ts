@@ -16,5 +16,7 @@ export function priceLabel(
   ) {
     return `${formatIqd.format(product.minPriceIqd)}–${formatIqd.format(product.maxPriceIqd)}`;
   }
-  return formatIqd.format(product.priceIqd);
+  // The variants' LIVE price when the list carries it — during an hourly deal that is the
+  // price at checkout, not the stored one (م-٢). An older payload without it: the stored price.
+  return formatIqd.format(product.minPriceIqd ?? product.priceIqd);
 }

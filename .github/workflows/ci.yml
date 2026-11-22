@@ -126,6 +126,9 @@ jobs:
       - name: Guard — no new duplicated code (ratchet)
         run: pnpm duplicates:guard
 
+      - name: "Unit — the storefront card shows the price at checkout, a deal's included (review batch 2, م-٢)"
+        run: pnpm price:label
+
       - name: Generate Prisma Client
         run: pnpm phase1:db:generate
 
