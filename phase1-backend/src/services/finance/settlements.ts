@@ -135,7 +135,10 @@ async function draftSettlement(
   // Summed in the database rather than read row by row: a busy merchant's
   // month is thousands of entries, and the preview runs on every form open.
   // The one-type-adds rule, as two filters: completions add, every other type subtracts.
-  const period = { store: { merchantId: merchant.id }, createdAt: { gte: from, lte: to } };
+  // After the first, a period starts at the last one's end — an entry AT that instant was summed
+  // there (`lte`), so here it opens after it, as the wallet does (review batch 2, م-١١).
+  const createdAt = previous ? { gt: from, lte: to } : { gte: from, lte: to };
+  const period = { store: { merchantId: merchant.id }, createdAt };
   const sum = {
     subtotalIqd: true,
     deliveryFeeIqd: true,

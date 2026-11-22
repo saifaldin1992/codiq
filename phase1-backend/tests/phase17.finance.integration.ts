@@ -621,6 +621,23 @@ try {
   // …while the period that CONTINUES where the last one stopped is accepted, and
   // pays exactly what was pending — so the two halves together account for every
   // ledger entry the merchant has, with nothing counted twice and nothing lost.
+  // Review batch 2, م-١١: an entry stamped at EXACTLY the last period's end belongs to that
+  // period (it is summed `≤ periodTo`). The next settlement starts at that instant and used to
+  // sum it again (`≥ periodFrom`): paid twice, while the wallet (`> periodTo`) never showed it.
+  await prisma.ledgerEntry.create({
+    data: {
+      storeId,
+      orderId: lateOrder.id,
+      entryType: "order_completed",
+      subtotalIqd: 10_000,
+      deliveryFeeIqd: 0,
+      commissionIqd: 0,
+      commissionBps: 0,
+      planCode: "boundary",
+      note: "review batch 2: on the boundary",
+      createdAt: lastEnd,
+    },
+  });
   const walletBeforeSecond = await walletNow();
   const pendingBeforeSecond = walletBeforeSecond.pending.netPayoutIqd;
   const settledCountBefore = walletBeforeSecond.lifetime.settledCount;
