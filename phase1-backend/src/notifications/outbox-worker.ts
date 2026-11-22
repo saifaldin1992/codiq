@@ -28,6 +28,7 @@ import { storeSupportReplyTo } from "../services/storefront-config.service.js";
 import { runJobPass } from "../logging/context.js";
 import { logger } from "../logging/logger.js";
 import { courierDispatchedMessage } from "./courier-message.js";
+import { MAINTENANCE_NOTICE_EVENTS, maintenanceMessage } from "./maintenance-message.js";
 
 /**
  * ق-184 + ق-199: who a reply to this message should reach. The platform's own
@@ -153,28 +154,9 @@ export function renderMessage(row: {
         `\n\nإن لم تطلب هذا، فلا حاجة لأي إجراء — لم يتغير شيء في حسابك، والرابط ينتهي وحده.`,
     };
   }
-  // ق-250: a maintenance window that touches this merchant — when it is scheduled,
-  // and when it is over. Times are Baghdad's, written out; the merchant's stores
-  // and orders are named as untouched because that is the question he will have.
-  if (row.eventType === "maintenance.scheduled" || row.eventType === "maintenance.ended") {
-    const subject = String(payload.subject ?? "المنصّة");
-    const from = String(payload.startsAtLocal ?? "");
-    const to = String(payload.endsAtLocal ?? "");
-    const message = String(payload.messageAr ?? "");
-    if (row.eventType === "maintenance.scheduled") {
-      return {
-        subject: `صيانة مجدولة — ${subject}`,
-        body:
-          `ستتوقّف «${subject}» للصيانة من ${from} إلى ${to} (بتوقيت بغداد).` +
-          (message ? `\n\n${message}` : ``) +
-          `\n\nمتجرك وطلباتك وزبائنك لا يُمسّون؛ ما يتوقّف هو ما سُمّي أعلاه، وللمدّة المذكورة فقط. تصلك رسالة حين ينتهي.`,
-      };
-    }
-    return {
-      subject: `انتهت الصيانة — ${subject}`,
-      body: `انتهت صيانة «${subject}» التي كانت مجدولة من ${from} إلى ${to}، وعاد كلّ شيء إلى العمل.\n\nشكراً لصبرك.`,
-    };
-  }
+  // ق-250: a maintenance window that touches this merchant (scheduled, ended, cancelled).
+  if ((MAINTENANCE_NOTICE_EVENTS as readonly string[]).includes(row.eventType))
+    return maintenanceMessage(row.eventType, payload);
   // ق-186 (D-90): the trial is ending. The one message that turns a silent
   // downgrade into a decision he was actually offered.
   //

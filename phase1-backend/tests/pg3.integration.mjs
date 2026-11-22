@@ -222,6 +222,8 @@ try {
       // (storeless rows, like the two account types above). Drained AFTER order mail, before marketing.
       "maintenance.scheduled": "operational",
       "maintenance.ended": "operational",
+      // Review batch 4 (owner decision): told it was scheduled, told when it is cancelled.
+      "maintenance.cancelled": "operational",
     },
     "every event type in use carries an explicit kind"
   );

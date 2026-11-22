@@ -29,6 +29,7 @@ import {
   parseListLimit,
   readListCursor,
 } from "./list-page.js";
+import { windowAudience } from "./maintenance-audience.js";
 import { recordPlatformAuditEvent } from "./platform-audit.service.js";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
@@ -223,7 +224,7 @@ const windowSelect = {
   merchant: { select: { id: true, email: true, businessName: true } },
   store: { select: { id: true, slug: true, name: true } },
 } satisfies Prisma.MaintenanceWindowSelect;
-type WindowRow = Prisma.MaintenanceWindowGetPayload<{ select: typeof windowSelect }>;
+export type WindowRow = Prisma.MaintenanceWindowGetPayload<{ select: typeof windowSelect }>;
 
 /** What the window is about, in words a person reads off the list or the mail. */
 export function windowSubjectLabel(
@@ -398,6 +399,8 @@ export async function cancelMaintenanceWindow(
     });
     return row;
   });
+  // Owner decision 2026-11-22: told it was coming, told it is off (or over early).
+  await enqueueMaintenanceNotices(window, "maintenance.cancelled", windowPhase(existing, now));
   return windowView(window, now);
 }
 
@@ -643,39 +646,7 @@ export async function livePlatformWideWindow(
 }
 
 // ─────────────────────────────────────────────────────────── notices
-type NoticeEvent = "maintenance.scheduled" | "maintenance.ended";
-type Recipient = { id: string; email: string; businessName: string };
-
-async function windowAudience(window: WindowRow): Promise<Recipient[]> {
-  if (window.scope === "merchant") return window.merchant ? [window.merchant] : [];
-  if (window.scope === "store") {
-    if (!window.storeId) return [];
-    const store = await prisma.store.findUnique({
-      where: { id: window.storeId },
-      select: { merchant: { select: { id: true, email: true, businessName: true } } },
-    });
-    return store ? [store.merchant] : [];
-  }
-  // platform / service / capability: every merchant who can be affected, in pages — never one unbounded read.
-  const audience: Recipient[] = [];
-  let after: string | null = null;
-  for (;;) {
-    const page: Recipient[] = await prisma.merchant.findMany({
-      where: {
-        isActive: true,
-        approvalStatus: "approved",
-        ...(after ? { id: { gt: after } } : {}),
-      },
-      select: { id: true, email: true, businessName: true },
-      orderBy: { id: "asc" },
-      take: 500,
-    });
-    audience.push(...page);
-    if (page.length < 500) break;
-    after = page[page.length - 1].id;
-  }
-  return audience;
-}
+type NoticeEvent = "maintenance.scheduled" | "maintenance.ended" | "maintenance.cancelled";
 
 /**
  * One outbox row per merchant per event — storeless, because the notice is about
@@ -684,7 +655,8 @@ async function windowAudience(window: WindowRow): Promise<Recipient[]> {
  */
 export async function enqueueMaintenanceNotices(
   window: WindowRow,
-  eventType: NoticeEvent
+  eventType: NoticeEvent,
+  phaseAtCancel?: MaintenancePhase
 ): Promise<number> {
   if (
     window.scope === "store" &&
@@ -719,6 +691,7 @@ export async function enqueueMaintenanceNotices(
     messageAr: window.messageAr,
     messageEn: window.messageEn ?? null,
     affects: affectsOf(window.affects),
+    ...(phaseAtCancel ? { phaseAtCancel } : {}),
   };
   const rows = audience
     .filter((merchant) => !existing.has(keyFor(merchant.id)))

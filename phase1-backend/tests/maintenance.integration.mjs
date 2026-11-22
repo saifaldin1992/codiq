@@ -47,7 +47,10 @@ const { tickMaintenanceWindows, windowPhase, formatBaghdad } = await import(
 // suite ever registered, and those rows would drain ahead of the next suite's batch. Taken out at both ends.
 const sweepMaintenanceMail = () =>
   prisma.notificationOutbox.deleteMany({
-    where: { eventType: { in: ["maintenance.scheduled", "maintenance.ended"] }, status: "pending" },
+    where: {
+      eventType: { in: ["maintenance.scheduled", "maintenance.ended", "maintenance.cancelled"] },
+      status: "pending",
+    },
   });
 await sweepMaintenanceMail();
 await prisma.$executeRawUnsafe("TRUNCATE TABLE storefront_rate_limits");
@@ -340,6 +343,42 @@ try {
   assert.equal(cancelled.status, 200, JSON.stringify(cancelled.payload));
   assert.equal(cancelled.payload.window.phase, "cancelled");
   assert.equal((await manifestA()).status, 200, "cancelling reopens at once");
+  // Review batch 4 (owner decision): the merchants told it was coming are told it is off.
+  const cancelledMails = await prisma.notificationOutbox.findMany({
+    where: {
+      eventType: "maintenance.cancelled",
+      dedupeKey: { startsWith: `maintenance.cancelled:${nowWindow.payload.window.id}:` },
+    },
+    select: { storeId: true, recipient: true, payload: true, eventType: true, recipientKind: true },
+  });
+  const cancelledTo = new Set(cancelledMails.map((row) => row.recipient));
+  assert.ok(
+    cancelledTo.has(`${testId}.a@codiq.test`) && cancelledTo.has(`${testId}.b@codiq.test`),
+    "both merchants told of the window are told it was cancelled"
+  );
+  assert.ok(
+    cancelledMails.every((row) => row.storeId === null),
+    "storeless, like the first notice"
+  );
+  const { renderMessage } = await import("../src/notifications/outbox-worker.ts");
+  const cancelledText = renderMessage(cancelledMails[0]);
+  assert.ok(
+    // The window was running when cancelled: it is over early, not «cancelled».
+    cancelledText.subject.startsWith("انتهت الصيانة مبكراً"),
+    `the subject says it is off · ${cancelledText.subject}`
+  );
+  assert.ok(cancelledText.body.includes(nowWindow.payload.window.startsAtLocal));
+  const { maintenanceMessage } = await import("../src/notifications/maintenance-message.ts");
+  const beforeItBegan = maintenanceMessage("maintenance.cancelled", {
+    ...cancelledMails[0].payload,
+    phaseAtCancel: "upcoming",
+  });
+  assert.ok(beforeItBegan.subject.startsWith("أُلغيت الصيانة"), beforeItBegan.subject);
+  assert.ok(
+    beforeItBegan.body.includes("لن يتوقّف شيء"),
+    "cancelled before it began: nothing stops"
+  );
+  summary.cancelNotice = "every merchant told of a platform window is told when it is cancelled";
   assert.equal(
     (
       await request(`/platform/maintenance-windows/${nowWindow.payload.window.id}`, {
