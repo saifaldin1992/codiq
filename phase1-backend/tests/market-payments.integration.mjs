@@ -467,6 +467,30 @@ try {
   );
   summary.refusals = true;
 
+  // ── 4b. review batch 2: money that must move once, and only once ─────────
+  // م-٧: an instalment order cancelled before delivery — the plan is recorded as cancelled.
+  await fill(shopper.api, [[phone, 1]]);
+  const plan3 = (await start({ lender: "fake-instalments-a", months: 6 })).payload;
+  const row3 = await prisma.marketPayment.findUniqueOrThrow({ where: { id: plan3.paymentId } });
+  const inst3 = await place(
+    shopper.api,
+    {
+      paymentMethodCode: "market_instalments",
+      instalmentPaymentId: row3.id,
+      instalmentCode: fakeCodeForTests(row3.providerRef),
+    },
+    "inst-3"
+  );
+  assert.equal(inst3.status, 201, JSON.stringify(inst3.payload));
+  await move(inst3.payload.order.id, "cancelled");
+  assert.equal(
+    (await prisma.marketPayment.findUniqueOrThrow({ where: { id: row3.id } })).status,
+    "cancelled",
+    "a cancelled instalment order cancels its plan here too, not only at the lender"
+  );
+  summary.once = true;
+  await fill(shopper.api, [[phone, 1]]); // what section 5 checks out with
+
   // ── 5. the product page; and with payments off ───────────────────────────
   const page = (id) =>
     client()(`/market/products/${id}`).then((r) => r.payload.product.instalments);

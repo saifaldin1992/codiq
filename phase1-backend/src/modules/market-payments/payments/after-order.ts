@@ -57,7 +57,12 @@ export async function onOrderStatusChanged(payload: { orderId: string; to: strin
     });
   } else {
     await provider.cancelPlan({ planRef: payment.providerRef });
-    await prisma.marketPayment.update({ where: { id: payment.id }, data: { status: "cancelled" } });
+    // `paidAt` goes with `approved`: market_payments_paid_dated refused «cancelled» with a date,
+    // so the row stayed «approved» after the lender had cancelled (review batch 2, م-٧).
+    await prisma.marketPayment.update({
+      where: { id: payment.id },
+      data: { status: "cancelled", paidAt: null },
+    });
     await event(payment.id, "plan_cancelled");
   }
 }
