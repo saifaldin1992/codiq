@@ -17,6 +17,7 @@ import {
   type ListCursor,
 } from "./list-page.js";
 import { phoneNeedle } from "./merchant-search.service.js";
+import { normalizeTagKey } from "./order-notes.service.js";
 import { mergeSearchPages, searchEngine, type SearchPage } from "./search/index.js";
 import { awardLoyaltyPoints, reverseLoyaltyForReturn } from "./loyalty.service.js";
 import {
@@ -351,9 +352,9 @@ export async function listStoreOrders(storeId: string, query: Record<string, unk
   };
 }
 
-/** Mirrors `normalizeTagKey` in order-notes.service.ts — same key, same DB column. */
+/** The same key as order-notes.service.ts writes (`normalizeTagKey`) — one definition. */
 function orderTagFilter(value: string): string {
-  const normalized = value.trim().replace(/\s+/g, " ").toLocaleLowerCase("ar-IQ");
+  const normalized = normalizeTagKey(value);
   if (normalized.length > 24)
     throw new HttpError(422, "INVALID_ORDER_TAG_FILTER", "طول الوسم يجب ألا يتجاوز 24 حرفاً.");
   return normalized;
@@ -592,35 +593,28 @@ export async function transitionOrderStatus(
       // ledger books: the merchant's commission is charged on the sale, and the
       // shopper's reward is earned on his spending. They are different questions
       // about the same order.
+      const paidGoodsIqd =
+        current.subtotalIqd -
+        current.discountIqd -
+        current.loyaltyDiscountIqd -
+        current.platformDiscountIqd;
       await awardLoyaltyPoints(tx, {
         storeId,
         orderId,
         customerId: current.customerId ?? null,
-        subtotalIqd:
-          current.subtotalIqd -
-          current.discountIqd -
-          current.loyaltyDiscountIqd -
-          current.platformDiscountIqd,
+        subtotalIqd: paidGoodsIqd,
       });
       // Marketplace M8b: the platform's points, on the same money-paid base, once per order.
       await awardPlatformPoints(tx, {
         orderId,
         customerId: current.customerId ?? null,
-        paidGoodsIqd:
-          current.subtotalIqd -
-          current.discountIqd -
-          current.loyaltyDiscountIqd -
-          current.platformDiscountIqd,
+        paidGoodsIqd,
       });
       // Marketplace M9: and extra spins on the prize wheel, on the same base, once per order.
       await grantWheelSpins(tx, {
         orderId,
         customerId: current.customerId ?? null,
-        paidGoodsIqd:
-          current.subtotalIqd -
-          current.discountIqd -
-          current.loyaltyDiscountIqd -
-          current.platformDiscountIqd,
+        paidGoodsIqd,
       });
     } else if (toStatus === "returned") {
       await recordOrderReturn(tx, { storeId, orderId });
