@@ -538,6 +538,29 @@ try {
   assert.deepEqual((await stranger.shopper.request("/market/orders")).payload.orders, []);
   summary.orders = true;
 
+  // Review batch 2, م-١٤: placing an order is rate-limited like the storefront's checkout — the
+  // summary's coupon budget meant nothing while each POST could try one more code.
+  const attempts = [];
+  for (let n = 0; n < 13; n += 1)
+    attempts.push(
+      (
+        await tapper.request(`/market/checkout/${A.slug}`, {
+          method: "POST",
+          headers: { "idempotency-key": `${digits}-guess-${n}` },
+          body: {
+            addressId: "00000000-0000-4000-8000-000000000000",
+            paymentMethodCode: "cod",
+            couponCode: `GUESS${n}`,
+          },
+        })
+      ).status
+    );
+  assert.deepEqual(
+    [attempts.slice(0, 12).includes(429), attempts[12]],
+    [false, 429],
+    `twelve tries, then «try later» · ${attempts.join(",")}`
+  );
+  summary.checkoutLimited = true;
   console.log(JSON.stringify({ suite: "market-cart", ok: true, summary }, null, 2));
 } finally {
   setOtpProviderForTests(null);

@@ -15186,7 +15186,7 @@
           "market-cart"
         ],
         "summary": "POST /market/checkout/{storeSlug}",
-        "description": "**الباب**: shopper.",
+        "description": "**الباب**: shopper.\n\n**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً.",
         "parameters": [
           {
             "name": "storeSlug",
@@ -15345,7 +15345,7 @@
             ]
           },
           "429": {
-            "description": "`INSTALMENT_CODE_LOCKED`",
+            "description": "`INSTALMENT_CODE_LOCKED` · `RATE_LIMITED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -15354,7 +15354,8 @@
               }
             },
             "x-codiq-error-codes": [
-              "INSTALMENT_CODE_LOCKED"
+              "INSTALMENT_CODE_LOCKED",
+              "RATE_LIMITED"
             ]
           },
           "500": {
@@ -15381,6 +15382,7 @@
           "shopper"
         ],
         "x-codiq-source": "phase1-backend/src/modules/market-cart/routes.ts",
+        "x-codiq-rate-limited": true,
         "security": [
           {
             "sessionCookie": []

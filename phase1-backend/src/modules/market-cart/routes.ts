@@ -3,7 +3,12 @@
  * All require a shopper session; every write checks its origin.
  */
 import type { Express } from "express";
-import { asyncRoute, requireTrustedWriteOrigin } from "../../http/shared.js";
+import {
+  asyncRoute,
+  limitStorefrontWriteWithAddressCeiling,
+  refundStorefrontWriteWithAddressCeiling,
+  requireTrustedWriteOrigin,
+} from "../../http/shared.js";
 import { parseOrThrow } from "../../http/validate.js";
 import { clientIp } from "../../http/client-ip.js";
 import { consumeStorefrontRateLimit } from "../../services/storefront.service.js";
@@ -130,6 +135,9 @@ export function registerMarketCartRoutes(app: Express) {
     asyncRoute(async (request, response) => {
       requireTrustedWriteOrigin(request);
       const { shopper } = await requireShopper(request);
+      // The storefront checkout's budget (12 per shopper, 40 per address): each POST can try a
+      // coupon code, so the summary's limit meant nothing without this (review batch 2, م-١٤).
+      await limitStorefrontWriteWithAddressCeiling(request, "market_checkout", shopper.id, 12, 40);
       const input = parseOrThrow(placeOrderSchema, request.body ?? {});
       const result = await placeMarketOrder(
         shopper,
@@ -137,19 +145,20 @@ export function registerMarketCartRoutes(app: Express) {
         input,
         request.header("idempotency-key")
       );
-      response
-        .status(result.replayed ? 200 : 201)
-        .json({
-          storeSlug: request.params.storeSlug,
-          replayed: result.replayed,
-          order: {
-            id: result.order.id,
-            orderNumber: result.order.orderNumber,
-            totalIqd: result.order.totalIqd,
-            status: result.order.status,
-          },
-          ...("payment" in result && result.payment ? { payment: result.payment } : {}),
-        });
+      // ق-224: a replay reads an order that exists — its budget goes back.
+      if (result.replayed)
+        await refundStorefrontWriteWithAddressCeiling(request, "market_checkout", shopper.id);
+      response.status(result.replayed ? 200 : 201).json({
+        storeSlug: request.params.storeSlug,
+        replayed: result.replayed,
+        order: {
+          id: result.order.id,
+          orderNumber: result.order.orderNumber,
+          totalIqd: result.order.totalIqd,
+          status: result.order.status,
+        },
+        ...("payment" in result && result.payment ? { payment: result.payment } : {}),
+      });
     })
   );
 
@@ -168,14 +177,12 @@ export function registerMarketCartRoutes(app: Express) {
       });
       const store = await listedStoreTenant(request.params.storeSlug);
       const goods = await goodsToCover(shopper, request.params.storeSlug, input);
-      response
-        .status(201)
-        .json(
-          await startInstalmentPlan(shopper, store.id, goods, {
-            lender: input.lender,
-            months: input.months,
-          })
-        );
+      response.status(201).json(
+        await startInstalmentPlan(shopper, store.id, goods, {
+          lender: input.lender,
+          months: input.months,
+        })
+      );
     })
   );
 
