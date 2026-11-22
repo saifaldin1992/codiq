@@ -1538,9 +1538,18 @@ export async function checkout(storeId: string, customerId: string, input: Check
             // measured in milliseconds. The merchant's own mental model ("orders already
             // in flight still land") matches the behaviour.
             // ق-249: the named status decides; `paused` keeps the MD-1 answer word for word.
+            // One read of the store for the whole checkout: its status here, its owner for
+            // the plan limit, and whether it offers pick-up (review batch 2, ت-١).
             const gateRow = await tx.store.findFirst({
               where: { id: storeId },
-              select: { id: true, status: true, statusMessage: true, maintenanceUntil: true },
+              select: {
+                id: true,
+                status: true,
+                statusMessage: true,
+                maintenanceUntil: true,
+                merchantId: true,
+                pickupEnabled: true,
+              },
             });
             // ق-250: the same clock the shell reads — a window that began refuses checkout with its own sentence.
             const gate = gateRow ? await effectiveStoreState(gateRow, new Date(), tx) : null;
@@ -1604,11 +1613,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
             // runs out and a shopper sees TRANSACTION_CONTENTION. A read-only capacity
             // check belongs before the write locks, the same discipline the coupon
             // lock-order comment below applies to itself.
-            const storeOwner = await tx.store.findUnique({
-              where: { id: storeId },
-              select: { merchantId: true },
-            });
-            if (!storeOwner)
+            if (!gateRow)
               throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
             // ق-216 — THE SHOPPER MUST NOT BE HANDED THE MERCHANT'S INVOICE.
             //
@@ -1623,7 +1628,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
             // right now and to contact it. What the merchant is told is his own screens'
             // job, and every one of them still reads the true reason.
             try {
-              await assertWithinPlanLimit(tx, storeOwner.merchantId, "max_monthly_orders");
+              await assertWithinPlanLimit(tx, gateRow.merchantId, "max_monthly_orders");
             } catch (error) {
               if (error instanceof HttpError && error.code === "PLAN_LIMIT_EXCEEDED") {
                 throw new HttpError(
@@ -1647,11 +1652,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
             )
               throw new HttpError(422, "INVALID_FULFILMENT", "طريقة الاستلام غير معروفة.");
             if (pickup) {
-              const offers = await tx.store.findUnique({
-                where: { id: storeId },
-                select: { pickupEnabled: true },
-              });
-              if (!offers?.pickupEnabled)
+              if (!gateRow.pickupEnabled)
                 throw new HttpError(
                   422,
                   "PICKUP_NOT_AVAILABLE",
@@ -1932,6 +1933,18 @@ export async function checkout(storeId: string, customerId: string, input: Check
                     couponDiscountIqd: discountIqd,
                   })
                 : { points: 0, discountIqd: 0 };
+            // One read of the customer: the boundary check, his name and email for the
+            // order, and his market account for a platform coupon (review batch 2, ت-٢).
+            const customer = await tx.customer.findFirst({
+              where: { id: customerId, storeId },
+              select: { fullName: true, email: true, shopperId: true },
+            });
+            if (!customer)
+              throw new HttpError(
+                403,
+                "STORE_BOUNDARY_DENIED",
+                "Customer does not belong to this store."
+              );
             // Marketplace M8b: a PLATFORM coupon, on what is left after the store's own
             // coupon and points. The platform's cost — kept out of `discountIqd`, so it
             // lowers neither the commission base nor the store's payout. Its wallet row
@@ -1943,13 +1956,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
             const platformCoupon = platformWalletId
               ? await lockPlatformCouponForCheckout(tx, {
                   walletId: platformWalletId,
-                  shopperId:
-                    (
-                      await tx.customer.findFirst({
-                        where: { id: customerId, storeId },
-                        select: { shopperId: true },
-                      })
-                    )?.shopperId ?? null,
+                  shopperId: customer.shopperId,
                   storeId,
                   baseIqd: subtotalIqd - discountIqd - loyaltyPreview.discountIqd,
                   now: new Date(),
@@ -1973,16 +1980,6 @@ export async function checkout(storeId: string, customerId: string, input: Check
                 "مبلغ الطلب أكبر من المسموح لطلبٍ واحد — قسّمه على أكثر من طلب."
               );
             }
-            const customer = await tx.customer.findFirst({
-              where: { id: customerId, storeId },
-              select: { fullName: true, email: true },
-            });
-            if (!customer)
-              throw new HttpError(
-                403,
-                "STORE_BOUNDARY_DENIED",
-                "Customer does not belong to this store."
-              );
             // Phase 20B-1: a product requiring a prescription stamps the order into the
             // pending_upload state at creation; the upload itself happens after checkout.
             const requiresPrescription = variants.some((variant) => variant.requiresPrescription);
