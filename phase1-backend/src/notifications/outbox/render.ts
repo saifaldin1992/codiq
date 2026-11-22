@@ -3,6 +3,7 @@
  * (review batch 5, ت-١); outbox-worker.ts re-exports what it always exported.
  */
 import { publicUrl } from "../messaging-compliance.service.js";
+import { ORDER_STATUS_LABELS_AR } from "../../services/order-status-labels.js";
 import { courierDispatchedMessage } from "../courier-message.js";
 import { openSecret } from "../../auth/secret-box.js";
 import { MAINTENANCE_NOTICE_EVENTS, maintenanceMessage } from "../maintenance-message.js";
@@ -27,6 +28,12 @@ interface RenderedMessage {
  * link; a marketing message without its unsubscribe link is not, and the send
  * guard below refuses it.
  */
+// Review batch 5, ت-٤: the shopper's words, not the database codes.
+function statusLabel(code: unknown): string {
+  const text = String(code ?? "");
+  return ORDER_STATUS_LABELS_AR[text] ?? text;
+}
+
 function linkLine(prefix: string, relativePath: unknown): string {
   const path = typeof relativePath === "string" && relativePath ? relativePath : null;
   const absolute = path ? publicUrl(path) : null;
@@ -57,7 +64,7 @@ export function renderMessage(row: {
     const orderNumber = String(payload.orderNumber ?? "");
     return {
       subject: `تحديث حالة الطلب ${orderNumber}`,
-      body: `تغيرت حالة الطلب ${orderNumber} في ${storeName} من ${String(payload.fromStatus ?? "")} إلى ${String(payload.toStatus ?? "")}.`,
+      body: `تغيرت حالة الطلب ${orderNumber} في ${storeName} من ${statusLabel(payload.fromStatus)} إلى ${statusLabel(payload.toStatus)}.`,
     };
   }
   // CD-1b: «مندوبك في الطريق» — the courier-dispatched notice, customers only.

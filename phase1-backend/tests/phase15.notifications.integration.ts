@@ -18,6 +18,7 @@ import {
   processOutboxBatch,
   retryDelaySeconds,
   STALE_CLAIM_RECOVERY_MS,
+  renderMessage,
 } from "../src/notifications/outbox-worker.js";
 import { createStoreFoundation } from "../src/services/store-bootstrap.service.js";
 import { FakeNotificationProvider } from "./helpers/fake-notification-provider.js";
@@ -605,6 +606,27 @@ try {
   ]);
   assert.equal(batchOne.sent + batchTwo.sent, 6, JSON.stringify({ batchOne, batchTwo }));
   assert.equal(racer.sent.length, 6, "each row must be delivered exactly once");
+
+  // Review batch 5, ت-٤: the status mail is read by a shopper — in Arabic, not in the codes the
+  // database stores («من processing إلى out_for_delivery»).
+  const statusMail = renderMessage({
+    eventType: "order.status_changed",
+    recipientKind: "customer",
+    payload: {
+      orderNumber: "SF-1",
+      fromStatus: "preparation",
+      toStatus: "out_for_delivery",
+      storeName: "متجر",
+    },
+  });
+  assert.ok(
+    statusMail.body.includes("قيد التجهيز") && statusMail.body.includes("في الطريق إليك"),
+    statusMail.body
+  );
+  assert.ok(
+    !/[a-z_]{4,}/.test(statusMail.body),
+    `no status code left in the text · ${statusMail.body}`
+  );
 
   // Review batch 5, ت-٢: a batch that outlives the stale-claim window. Production runs two
   // instances, each with a worker; a provider answering at its 20-second timeout makes a

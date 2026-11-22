@@ -2,6 +2,7 @@
  * Market checkout — orders. Split verbatim from checkout.service.ts (review batch 2, ت-١٢);
  * checkout.service.ts re-exports what it always exported.
  */
+import { ORDER_STATUS_LABELS_AR } from "../../../services/order-status-labels.js";
 import {
   parseListLimit,
   decodeListCursor,
@@ -16,17 +17,6 @@ import { governorateLabel } from "../../../services/governorates.js";
 // ── طلباتي ───────────────────────────────────────────────────────────────────
 
 const ORDERS_KIND = "market-shopper-orders";
-
-const STATUS_LABELS: Record<string, string> = {
-  new: "قيد المراجعة",
-  processing: "تم القبول",
-  preparation: "قيد التجهيز",
-  out_for_delivery: "في الطريق إليك",
-  completed: "تم التسليم",
-  cancelled: "ملغي",
-  rejected: "مرفوض",
-  returned: "مُرجع",
-};
 
 /** Every order the shopper placed, across every store, newest first. */
 export async function shopperOrders(
@@ -74,7 +64,7 @@ export async function shopperOrders(
       id: row.id,
       orderNumber: row.orderNumber,
       status: row.status,
-      statusLabel: STATUS_LABELS[row.status] ?? row.status,
+      statusLabel: ORDER_STATUS_LABELS_AR[row.status] ?? row.status,
       fulfilment: row.fulfilment,
       totalIqd: row.totalIqd,
       createdAt: row.createdAt,
@@ -145,13 +135,13 @@ export async function shopperOrder(shopperId: string, orderId: string) {
     afterSales: await afterSalesState(order),
     order: {
       ...shown,
-      statusLabel: STATUS_LABELS[order.status] ?? order.status,
+      statusLabel: ORDER_STATUS_LABELS_AR[order.status] ?? order.status,
       governorateName: order.shippingGovernorate
         ? governorateLabel(order.shippingGovernorate)
         : null,
       timeline: order.statusEvents.map((event) => ({
         status: event.toStatus,
-        label: STATUS_LABELS[event.toStatus] ?? event.toStatus,
+        label: ORDER_STATUS_LABELS_AR[event.toStatus] ?? event.toStatus,
         at: event.createdAt,
       })),
       // Marketplace M13a: how it is paid online, if it is.
