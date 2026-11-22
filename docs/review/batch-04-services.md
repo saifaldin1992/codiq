@@ -7,14 +7,14 @@
 
 | الملفّ | الأسطر | قُرئ في | النتائج |
 |---|---|---|---|
-| `phase1-backend/src/services/pos.service.ts` | 669 | — | لم يُقرأ |
-| `phase1-backend/src/services/entitlement.service.ts` | 1,028 | — | لم يُقرأ |
-| `phase1-backend/src/services/return-request.service.ts` | 285 | — | لم يُقرأ |
-| `phase1-backend/src/services/return-inspection.service.ts` | 342 | — | لم يُقرأ |
-| `phase1-backend/src/services/order-self-cancel.service.ts` | 108 | — | لم يُقرأ |
-| `phase1-backend/src/services/order-bulk.service.ts` | 173 | — | لم يُقرأ |
+| `phase1-backend/src/services/pos.service.ts` | 669 | 2026-11-22 (كاملاً) | لا نتيجة (ملاحظة) |
+| `phase1-backend/src/services/entitlement.service.ts` | 1,028 | 2026-11-22 (كاملاً) | ت-١، ت-٢ (قُسّم)، ت-٣ |
+| `phase1-backend/src/services/return-request.service.ts` | 285 | 2026-11-22 (كاملاً) | ملاحظتان |
+| `phase1-backend/src/services/return-inspection.service.ts` | 342 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/services/order-self-cancel.service.ts` | 108 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/services/order-bulk.service.ts` | 173 | 2026-11-22 (كاملاً) | لا نتيجة |
 | `phase1-backend/src/services/platform-staff.service.ts` | 335 | — | لم يُقرأ |
-| `phase1-backend/src/services/staff.service.ts` | 310 | — | لم يُقرأ |
+| `phase1-backend/src/services/staff.service.ts` | 310 | 2026-11-22 (كاملاً) | م-١ |
 | `phase1-backend/src/services/registration.service.ts` | 318 | — | لم يُقرأ |
 | `phase1-backend/src/services/manual-provisioning.service.ts` | 223 | — | لم يُقرأ |
 | `phase1-backend/src/services/merchant-suspension.service.ts` | 185 | — | لم يُقرأ |
@@ -79,3 +79,22 @@
 ## النتائج
 
 (تُضاف بالترتيب الذي تُكتشف به: ح = حرج، م = مهمّ، ت = تحسين، ر = ترتيب)
+
+### [م-١] موظّف يدير الفريق يرقّي نفسه — مهمّ (أمان: تصعيد صلاحيّات)
+- المكان: مسارات الفريق (`http/routes/team.ts`) و`staff.service.ts`. `team.manage` صلاحيّة مدير المتجر ويمكن للتاجر منحها لموظّف عاديّ؛ المسارات تتحقّق من حملها فقط. فالموظّف العاديّ الممنوح إيّاها كان يغيّر دوره هو إلى مدير متجر (كلّ الصلاحيّات، `settings.manage` منها)، أو يسمح لنفسه بأيّ صلاحيّة، أو ينشئ مديراً جديداً، أو يمنح زميلاً ما لا يملك.
+- الحالة: **مُصلَح** — `27ea17a`: `assertCanDelegate` — لا يغيّر الموظّف عضويّته (٤٠٣ `CANNOT_CHANGE_OWN_MEMBERSHIP`)، ولا يمنح بدور أو استثناء صلاحيّةً لا يملكها (٤٠٣ `DELEGATION_EXCEEDS_OWN`). التاجر لا يتأثّر. الاختبار (`phase14`): أربع طرق للصعود — ترقية النفس ٢٠٠ قبل؛ كلّها ٤٠٣ بعد، وإضافة زميل عاديّ ما زالت تعمل. (طاقم المنصّة: إدارته للمالك وحده — لا ثغرة مماثلة.)
+
+### [ت-١] صورة الغلاف خارج عدّاد التخزين — تحسين
+- المكان: `merchantUsage`. رفع الغلاف يفحص حدّ التخزين، والعدّاد لم يجمع أحجام الأغلفة.
+- الحالة: **مُصلَح** — `5c00cbc`. الاختبار (`market:stores`): غلاف ٣ ميغابايت — لم يتحرّك العدّاد قبل (١ ← ١)، ويزيد ٣ بعد.
+
+### [ت-٢] تقسيم ملفّ الخطط والاشتراكات — تحسين
+- `379343f`: `entitlement.service.ts` ← `services/entitlement/{plans,usage,subscribe,catalog,merchants}.ts`، نقلٌ حرفيّ (من تقسيمات الخطّة المسمّاة لهذه الدفعة).
+
+### [ت-٣] طلب الترقية يُحسم مرّتين بمديرين معاً — تحسين
+- المكان: `decideUpgradeRequest`. «قيد الانتظار» يُقرأ خارج المعاملة: موافقة ورفض معاً يمرّان كلاهما — الاشتراك يتغيّر والطلب قد يُسجَّل «مرفوضاً».
+- الحالة: **مُصلَح** — `33118af`: الحسم يُحجز أوّلاً بتحديث مشروط. الاختبار (`plans`): موافقة ورفض معاً — كلاهما ٢٠٠ قبل (٣ من ٣)؛ واحد ٢٠٠ وواحد ٤٠٩ بعد، والاشتراك يطابق القرار الفائز.
+
+### ملاحظات
+- `pos.service.ts`: سعر السطر يحدّده الكاشير (مقصود — بيع في المحلّ خلف `pos.sell`).
+- `return-request.service.ts`: الموافقة (انتقال الطلب) وتحديث طلب الإرجاع في خطوتين؛ وطلبا إرجاع متزامنان قد يُفتحان. بلا ضرر ماليّ — الانتقال محميّ بالنسخة.
