@@ -7,40 +7,40 @@
 | الملفّ | الأسطر | قُرئ في | النتائج |
 |---|---|---|---|
 | `phase1-backend/src/notifications/outbox-worker.ts` | 802 | 2026-11-22 (كاملاً) | ت-١ (قُسّم ← outbox/{render,batch,loop}.ts). batch: ت-٢. الترتيب بالأولويّة ثمّ الموعد؛ بوّابات الحدود وإلغاء الاشتراك قبل المزوّد؛ إعادة المحاولة أسّيّة ثمّ dead_letter. ملاحظات أدناه |
-| `phase1-backend/src/services/config.service.ts` | 582 | — | لم يُقرأ |
-| `phase1-backend/src/config/environment-report.ts` | 423 | — | لم يُقرأ |
+| `phase1-backend/src/services/config.service.ts` | 582 | 2026-11-22 (كاملاً) | سجلّ إعدادات مغلق؛ «سقف» يأخذ الأصغر، و«سماح» يُرفض إن رفضه أيّ مستوى؛ التاجر لا يتجاوز سقف المنصّة والخطّة، وتغيير المنصّة بسجلّ تدقيق |
+| `phase1-backend/src/config/environment-report.ts` | 423 | 2026-11-22 (كاملاً) | تقرير الجاهزيّة: ما ينقص الإنتاج، والمفاتيح القصيرة، ومفاتيح الاختبار المتروكة، واتّصال القاعدة بلا TLS؛ بيئة بلا NODE_ENV تُعامَل منشورة |
 | `phase1-backend/src/notifications/notification-provider.ts` | 401 | 2026-11-22 (كاملاً) | Resend عبر HTTP بمهلة ٢٠ ثانية و`redirect: error`؛ SMTP بعنوان IPv4 مع `servername`. ملاحظات أدناه |
-| `phase1-backend/src/backup/backup-envelope.ts` | 393 | — | لم يُقرأ |
+| `phase1-backend/src/backup/backup-envelope.ts` | 393 | 2026-11-22 (كاملاً) | AES-256-GCM بإطارات، والترويسة والرقم و«الأخير» داخل البيانات الموثَّقة — القطع والترتيب والتلاعب تُكشف؛ تدوير المفتاح. ملاحظة أدناه |
 | `phase1-backend/src/notifications/notification-outbox.service.ts` | 353 | 2026-11-22 (كاملاً) | كلّ صفّ يُكتب في معاملة الحدث نفسه؛ إشعار تغيّر الحالة لا يُرسل للتاجر عمّا فعله هو. ملاحظة أدناه |
-| `phase1-backend/src/services/soft-delete/purge-job.ts` | 349 | — | لم يُقرأ |
+| `phase1-backend/src/services/soft-delete/purge-job.ts` | 349 | 2026-11-22 (كاملاً) | الحذف النهائيّ مشروط (ما زال محذوفاً وتجاوز المدّة) وبسجلّ تدقيق؛ الصور تُحذف بعد الالتزام؛ المحجوب بمفتاح أجنبيّ يُختم بسببه. ملاحظة أدناه |
 | `phase1-backend/src/notifications/messaging-compliance.service.ts` | 336 | 2026-11-22 (كاملاً) | رابط إلغاء الاشتراك موقَّع ويُتحقَّق منه بزمن ثابت مع مفتاح سابق للتدوير؛ النوع المجهول يُعامَل تسويقاً (الأحوط)؛ الحدود يوميّة. ملاحظة أدناه |
-| `server/index.ts` | 322 | — | لم يُقرأ |
-| `phase1-backend/src/backup/backup-storage.ts` | 314 | — | لم يُقرأ |
-| `phase1-backend/src/logging/logger.ts` | 252 | — | لم يُقرأ |
-| `phase1-backend/src/services/retention-job.ts` | 220 | — | لم يُقرأ |
+| `server/index.ts` | 322 | 2026-11-22 (كاملاً) | العامل عمليّة مستقلّة يُعاد تشغيلها بتراجع أسّيّ؛ HTTPS فقط ورؤوس الأمان قبل كلّ شيء؛ الملفّات الثابتة بتخزين طويل للأصول فقط؛ مسار شكله ملفّ أو يبدأ بنقطة ← ٤٠٤ |
+| `phase1-backend/src/backup/backup-storage.ts` | 314 | 2026-11-22 (كاملاً) | لا ينتقل للحاوية المشتركة إن كانت المخصّصة ناقصة؛ النصّ المشفّر وحده يُكتب مؤقّتاً؛ الحذف يُرفض خارج البادئة؛ ١٤ نسخة على الأقلّ تبقى |
+| `phase1-backend/src/logging/logger.ts` | 252 | 2026-11-22 (كاملاً) | كلّ حقل وسياق يُقنَّع بالمفتاح والنصّ، بحدود للعمق والطول والسطر؛ فشل التسلسل لا يُسقط السجلّ |
+| `phase1-backend/src/services/retention-job.ts` | 220 | 2026-11-22 (كاملاً) | حذف بدفعات محدودة لكلّ جدول؛ فشل جدول لا يوقف غيره. حذف الرسائل المرسلة بعد ٩٠ يوماً لا يعيد فتح مفتاح تكرار يهمّ |
 | `phase1-backend/src/notifications/trial-expiry-scanner.ts` | 219 | 2026-11-22 (كاملاً) | إنهاء التجربة بتحديث مشروط ونقلٌ للخطّة المجانيّة في المعاملة نفسها؛ التذكير بمفتاح فريد ودون متجر. ملاحظة أدناه |
 | `phase1-backend/src/notifications/abandoned-cart-scanner.ts` | 218 | 2026-11-22 (كاملاً) | المتاجر المفعّلة فقط، وكلّ سلّة تُختم في معاملة الإدراج نفسها. ملاحظة أدناه |
 | `phase1-backend/src/notifications/worker-entry.ts` | 212 | 2026-11-22 (كاملاً) | عامل الإشعارات والمهامّ المجدولة؛ في الإنتاج نسختان كلّ منهما بعاملها — المهامّ ليست مقفلة بين العمليّتين، لكنّ تكرار رسائلها يمنعه فهرس `dedupe` الفريد (بمتجر وبلا متجر) |
-| `phase1-backend/src/services/reservation-expiry-job.ts` | 203 | — | لم يُقرأ |
+| `phase1-backend/src/services/reservation-expiry-job.ts` | 203 | 2026-11-22 (كاملاً) | تحرير الحجز قلب حالة فقط — المخزون لم يُخصم أصلاً قبل الاكتمال؛ قفل الطلب أوّلاً، وتحديث مشروط يجعله مرّة واحدة |
 | `phase1-backend/src/notifications/merchant-digest-scanner.ts` | 180 | 2026-11-22 (كاملاً) | يوم بغداد؛ لا ملخّص حين لا شيء يُقال؛ واحد في اليوم بمفتاح فريد |
 | `phase1-backend/src/notifications/resend-webhook.ts` | 164 | 2026-11-22 (كاملاً) | التوقيع بنمط Svix بنافذة ٥ دقائق ومقارنة ثابتة الزمن، والحدث يُسجَّل مرّة؛ الشكوى تُنسب لمتجر أرسل فعلاً. ملاحظة أدناه |
-| `phase1-backend/src/observability/sentry.ts` | 154 | — | لم يُقرأ |
-| `phase1-backend/src/demo/demo-mode.ts` | 150 | — | لم يُقرأ |
+| `phase1-backend/src/observability/sentry.ts` | 154 | 2026-11-22 (كاملاً) | لا PII ولا جسم ولا كوكيز ولا ترويسات؛ أخطاء ٤xx لا تُرسل. ملاحظة: `release` يقرأ `RAILWAY_GIT_COMMIT_SHA` والنشر على Cloudflare |
+| `phase1-backend/src/demo/demo-mode.ts` | 150 | 2026-11-22 (كاملاً) | بيئة العرض تحجب مسارات المنصّة والتسجيل، وتحمي متجر العرض وحساباته من التعديل |
 | `phase1-backend/src/notifications/restock-scanner.ts` | 139 | 2026-11-22 (كاملاً) | ت-٣. المرشّحون يُصفّون في الاستعلام (المتجر مفعّل، الزبون ببريد) فلا يتراكمون |
-| `phase1-backend/src/logging/redact.ts` | 133 | — | لم يُقرأ |
+| `phase1-backend/src/logging/redact.ts` | 133 | 2026-11-22 (كاملاً) | تقنيع JWT والأسرار المختومة وBearer والبريد والهاتف؛ المفاتيح الحسّاسة بالاسم |
 | `phase1-backend/src/jobs/scheduler.ts` | 127 | 2026-11-22 (كاملاً) | نبضة واحدة كلّ ٣٠ دقيقة والمهامّ متتالية فيها (لكي يغفو Neon)؛ لا تداخل داخل العمليّة، وفشل مهمّة لا يمنع غيرها |
-| `phase1-backend/src/events/domain-events.ts` | 112 | — | لم يُقرأ |
-| `phase1-backend/src/services/retention.ts` | 110 | — | لم يُقرأ |
-| `phase1-backend/src/config.ts` | 107 | — | لم يُقرأ |
-| `phase1-backend/src/backup/backup-policy.ts` | 100 | — | لم يُقرأ |
-| `phase1-backend/src/logging/context.ts` | 87 | — | لم يُقرأ |
-| `phase1-backend/src/db/serializable-retry.ts` | 73 | — | لم يُقرأ |
-| `phase1-backend/src/db/database-url.ts` | 70 | — | لم يُقرأ |
-| `phase1-backend/src/jobs/outbox-signal.ts` | 65 | — | لم يُقرأ |
-| `phase1-backend/src/notifications/maintenance-message.ts` | 50 | — | لم يُقرأ |
-| `phase1-backend/src/notifications/courier-message.ts` | 26 | — | لم يُقرأ |
-| `phase1-backend/src/index.ts` | 17 | — | لم يُقرأ |
-| `phase1-backend/src/db/prisma.ts` | 7 | — | لم يُقرأ |
+| `phase1-backend/src/events/domain-events.ts` | 112 | 2026-11-22 (كاملاً) | الأحداث بعد الالتزام، كلّ معالج مستقلّ وفشله لا يمسّ غيره؛ `drain` عند الإيقاف |
+| `phase1-backend/src/services/retention.ts` | 110 | 2026-11-22 (كاملاً) | مُدد الحفظ، وما لا يُحذف آليّاً أبداً (الدفاتر والتدقيق والمخزون) |
+| `phase1-backend/src/config.ts` | 107 | 2026-11-22 (كاملاً) | الإعداد عند الإقلاع؛ مفتاح الجلسة القصير تحذير هنا وعدم جاهزيّة في التقرير |
+| `phase1-backend/src/backup/backup-policy.ts` | 100 | 2026-11-22 (كاملاً) | كلّ ٦ ساعات، ٣٠ يوماً، ١٤ نسخة على الأقلّ |
+| `phase1-backend/src/logging/context.ts` | 87 | 2026-11-22 (كاملاً) | معرّف طلب لكلّ طلب ولكلّ مرور مهمّة (AsyncLocalStorage) |
+| `phase1-backend/src/db/serializable-retry.ts` | 73 | 2026-11-22 (كاملاً) | إعادة المحاولة للتعارض والمهلة — و P2002 أيضاً (لسباق مفتاح عدم التكرار في الدفع) |
+| `phase1-backend/src/db/database-url.ts` | 70 | 2026-11-22 (كاملاً) | رابط PostgreSQL فقط؛ الهجرات على الاتّصال غير المجمَّع |
+| `phase1-backend/src/jobs/outbox-signal.ts` | 65 | 2026-11-22 (كاملاً) | إيقاظ العامل عبر IPC بلا قاعدة؛ الفشل صامت عن قصد |
+| `phase1-backend/src/notifications/maintenance-message.ts` | 50 | 2026-11-22 (كاملاً) | رسائل الصيانة الثلاث (نُقلت من العامل بعد إغلاق الدفعة ٤) |
+| `phase1-backend/src/notifications/courier-message.ts` | 26 | 2026-11-22 (كاملاً) | رسالة المندوب بالنقد المتبقّي (م-٣ من الدفعة ٤) |
+| `phase1-backend/src/index.ts` | 17 | 2026-11-22 (كاملاً) | خادم الواجهة البرمجيّة وحده للتطوير |
+| `phase1-backend/src/db/prisma.ts` | 7 | 2026-11-22 (كاملاً) | عميل Prisma واحد |
 
 ## النتائج
 
@@ -62,6 +62,8 @@
 - الحالة: **مُصلَح** — الحالتان بكلمات الزبون («قيد التجهيز»، «في الطريق إليك»…) من خريطة واحدة نُقلت من «طلباتي» في السوق إلى `services/order-status-labels.ts` ويقرؤها الاثنان (فقلّ التكرار بدل أن يزيد)؛ رمز مجهول يبقى كما هو. الاختبار (`phase15`): الرموز في النصّ قبل؛ العربيّة ولا رمز بعد (مرّتان).
 
 ### ملاحظات
+- `backup-envelope.ts`: فكّ التشفير يُخرج الإطارات قبل أن يتحقّق من علامة النهاية — ملفّ مقطوع يُكتشف في آخره، بعد أن يكون جزء منه قد خرج. أداة الاستعادة يجب أن تفكّ إلى ملفّ أوّلاً ثمّ تستعيد.
+- `purge-job.ts`: في المرور الأوّل، خطأ غير «مفتاح أجنبيّ» يوقف المرور كلّه؛ صفّ يفشل بسبب آخر دائماً يُقرأ أوّلاً كلّ مرّة فيوقف الحذف النهائيّ للجميع. نادر؛ يُترك ملاحظةً.
 - `trial-expiry-scanner.ts`: الحلقة تعيد القراءة من البداية في كلّ دورة؛ اشتراك تفشل معاملته باستمرار يبقى «فعّالاً» ويُقرأ ثانيةً. لو بلغت هذه الصفوف ٢٠٠ لما انتهت الحلقة، ولأنّ المهامّ متتالية لتوقّفت معها كلّ المهامّ المجدولة. نادر جدّاً (الخطّة المجانيّة المفقودة تُفحص قبل الحلقة)؛ يُترك ملاحظةً.
 - `abandoned-cart-scanner.ts`: زبون حظره التاجر يصله «سلّتك بانتظارك» (لا يُفحص `isActive`)؛ وقسيمة الاسترداد تُفحص «مفعّلة» لا «سارية» — قد تُعرض قسيمة انتهت فيرفضها الدفع. أثرهما صغير؛ يُعرضان على المالك.
 - `messaging-compliance.service.ts`: حدود المستلم تُقارن العنوان كما خُزّن لا موحَّداً — عنوان بحروف كبيرة وصغيرة مختلفة يُعدّ اثنين. العناوين تُوحَّد عند التسجيل، فالأثر ضئيل.
