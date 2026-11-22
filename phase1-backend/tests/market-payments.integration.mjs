@@ -488,6 +488,29 @@ try {
     "cancelled",
     "a cancelled instalment order cancels its plan here too, not only at the lender"
   );
+  // ح-١: the code approves the plan ONCE — a second order cannot ride the same plan.
+  const svc = await import("../src/modules/market-payments/payments.service.ts");
+  const me = { id: shopper.id, phoneNormalized: shopper.phone };
+  await fill(shopper.api, [[phone, 1]]);
+  const solo = await svc.startInstalmentPlan(me, store.id, 600_000, {
+    lender: "fake-instalments-a",
+    months: 6,
+  });
+  const soloCode = fakeCodeForTests(
+    (await prisma.marketPayment.findUniqueOrThrow({ where: { id: solo.paymentId } })).providerRef
+  );
+  await svc.confirmInstalmentPlan(me, store.id, solo.paymentId, soloCode, 600_000);
+  await assert.rejects(
+    svc.confirmInstalmentPlan(me, store.id, solo.paymentId, soloCode, 600_000),
+    (error) => error.code === "INSTALMENT_PLAN_REQUIRED",
+    "one approved plan pays for one order, not two"
+  );
+  await svc.abandonInstalmentPlan(solo.paymentId);
+  assert.equal(
+    (await prisma.marketPayment.findUniqueOrThrow({ where: { id: solo.paymentId } })).status,
+    "cancelled",
+    "a claimed plan whose order failed is let go"
+  );
   summary.once = true;
   await fill(shopper.api, [[phone, 1]]); // what section 5 checks out with
 

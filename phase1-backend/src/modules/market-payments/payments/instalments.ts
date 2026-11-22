@@ -130,6 +130,15 @@ export async function confirmInstalmentPlan(
     await event(payment.id, "code_wrong");
     throw new HttpError(422, "INSTALMENT_CODE_WRONG", "الرمز غير صحيح.");
   }
+  // Claimed HERE, not when the order attaches: two checkouts sent at once both passed the code
+  // while the plan was still «code_sent», and two orders rode one plan — the second shipped
+  // unpaid (review batch 2, ح-١). Only the request that claims it may place the order.
+  const claimed = await prisma.marketPayment.updateMany({
+    where: { id: payment.id, status: "code_sent" },
+    data: { status: "approved", paidAt: new Date() },
+  });
+  if (claimed.count !== 1)
+    throw new HttpError(422, "INSTALMENT_PLAN_REQUIRED", "اختر جهة التقسيط والمدّة من جديد.");
   return payment;
 }
 
@@ -146,7 +155,10 @@ export async function attachInstalmentPlan(paymentId: string, orderId: string) {
 export async function abandonInstalmentPlan(paymentId: string) {
   const payment = await prisma.marketPayment.findUnique({ where: { id: paymentId } });
   if (!payment || payment.orderId) return;
-  await prisma.marketPayment.update({ where: { id: paymentId }, data: { status: "cancelled" } });
+  await prisma.marketPayment.update({
+    where: { id: paymentId },
+    data: { status: "cancelled", paidAt: null },
+  });
   if (payment.providerRef)
     await lender(payment.provider)
       ?.cancelPlan({ planRef: payment.providerRef })
