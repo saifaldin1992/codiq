@@ -10,6 +10,7 @@ import {
   MANIFEST_PAGE_SIZE,
   deliverySelect,
   COD_COLLECT_BATCH_LIMIT,
+  cashToCollectIqd,
 } from "./fields.js";
 
 export interface CourierReconciliationRow {
@@ -18,7 +19,7 @@ export interface CourierReconciliationRow {
   delivered: number;
   returned: number;
   inTransit: number;
-  /** Cash the courier collected from shoppers: Σ totalIqd over delivered orders. */
+  /** Cash the courier collected from shoppers: Σ cashToCollectIqd over delivered orders. */
   collectedIqd: number;
   /** Of that, what the merchant has marked as received from the courier. */
   receivedIqd: number;
@@ -33,6 +34,8 @@ type OutstandingParcel = {
   trackingNumber: string | null;
   handedOverAt: Date;
   totalIqd: number;
+  /** The cash this parcel brings back — what the merchant ticks off. */
+  codIqd: number;
   version: number;
 };
 
@@ -45,6 +48,8 @@ function foldOrder(
     orderNumber: string;
     status: string;
     totalIqd: number;
+    deliveryFeeIqd: number;
+    paymentStatus: string;
     version: number;
     courierName: string | null;
     trackingNumber: string | null;
@@ -66,9 +71,10 @@ function foldOrder(
   row.handedOver += 1;
   if (order.status === "completed") {
     row.delivered += 1;
-    row.collectedIqd += order.totalIqd;
-    if (order.codCollectedAt) row.receivedIqd += order.totalIqd;
-    else
+    const cash = cashToCollectIqd(order);
+    row.collectedIqd += cash;
+    if (order.codCollectedAt) row.receivedIqd += cash;
+    else if (cash > 0)
       outstanding.push({
         id: order.id,
         orderNumber: order.orderNumber,
@@ -76,6 +82,7 @@ function foldOrder(
         trackingNumber: order.trackingNumber,
         handedOverAt: order.handedOverAt!,
         totalIqd: order.totalIqd,
+        codIqd: cash,
         version: order.version,
       });
   } else if (order.status === "returned") {
@@ -132,6 +139,8 @@ export async function codReconciliation(storeId: string, query: Record<string, u
         createdAt: true,
         status: true,
         totalIqd: true,
+        deliveryFeeIqd: true,
+        paymentStatus: true,
         version: true,
         ...deliverySelect,
       },

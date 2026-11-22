@@ -437,6 +437,57 @@ try {
   assert.equal(readOnly.status, 422, "an empty batch is a 422, not a silent success");
   summary.markCollected = "idempotent, delivered-only, tenant-bound, empty batch refused";
 
+  // ============================================================
+  // Review batch 4, م-٢: the cash at the door is what is still owed, not the order total.
+  // A card (or partner) order is paid before it leaves; an instalment plan pays the goods
+  // and leaves only the delivery fee. The manifest told the courier to collect 45,000 from
+  // both — the shopper who already paid was asked to pay again.
+  // ============================================================
+  const prepaidCourier = "ناقل الدفع المسبق";
+  const handedOverAt = new Date();
+  for (const [tag, paymentStatus] of [
+    ["1101", "paid"],
+    ["1102", "instalments"],
+  ]) {
+    await order(storeA.id, tag, {
+      status: "completed",
+      courierName: prepaidCourier,
+      handedOverAt,
+      paymentStatus,
+    });
+  }
+  const prepaidManifest = await request(
+    `${ordersA}/manifest.csv?courier=${encodeURIComponent(prepaidCourier)}`,
+    { token: tokenA }
+  );
+  const cashFor = (orderNumber) =>
+    prepaidManifest.text
+      .split(/\r?\n/)
+      .find((line) => line.startsWith(orderNumber))
+      ?.split(",")[9];
+  assert.deepEqual(
+    { card: cashFor("DLV-1101"), instalments: cashFor("DLV-1102") },
+    { card: "0", instalments: "5000" },
+    "paid → nothing to collect; instalments → the delivery fee alone"
+  );
+  const prepaidReconciliation = await request(
+    `${ordersA}/cod-reconciliation?courier=${encodeURIComponent(prepaidCourier)}`,
+    { token: tokenA }
+  );
+  const prepaidRow = prepaidReconciliation.payload.couriers[0];
+  assert.deepEqual(
+    { delivered: prepaidRow.delivered, collectedIqd: prepaidRow.collectedIqd },
+    { delivered: 2, collectedIqd: 5000 },
+    "the courier owes the merchant the cash he collected — 5,000, not 90,000"
+  );
+  assert.deepEqual(
+    prepaidReconciliation.payload.outstanding.map((row) => [row.orderNumber, row.codIqd]),
+    [["DLV-1102", 5000]],
+    "an order with nothing to collect is not outstanding"
+  );
+  summary.prepaidCash =
+    "paid → 0, instalments → delivery fee, in the manifest and the reconciliation";
+
   console.log(JSON.stringify({ suite: "delivery-cod", status: "passed", summary }, null, 2));
 } finally {
   server.close();

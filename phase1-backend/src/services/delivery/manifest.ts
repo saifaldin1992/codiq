@@ -5,7 +5,7 @@
 import { CSV_UTF8_BOM, csvLine, csvGuardedLine } from "../csv.js";
 import { prisma } from "../../db/prisma.js";
 import { keysetWhere } from "../list-page.js";
-import { windowFrom, MANIFEST_PAGE_SIZE, deliverySelect } from "./fields.js";
+import { windowFrom, MANIFEST_PAGE_SIZE, deliverySelect, cashToCollectIqd } from "./fields.js";
 
 export const MANIFEST_CSV_COLUMNS = [
   "order_number",
@@ -21,6 +21,39 @@ export const MANIFEST_CSV_COLUMNS = [
   "status",
   "customer_note",
 ] as const;
+
+/** One parcel's manifest row — the cash column is what is still owed (review batch 4, م-٢). */
+function manifestLine(order: {
+  orderNumber: string;
+  status: string;
+  customerName: string;
+  recipientPhone: string | null;
+  shippingGovernorate: string | null;
+  shippingAddressLine1: string | null;
+  shippingAddressLine2: string | null;
+  totalIqd: number;
+  deliveryFeeIqd: number;
+  paymentStatus: string;
+  customerNote: string | null;
+  courierName: string | null;
+  trackingNumber: string | null;
+  handedOverAt: Date | null;
+}) {
+  return csvGuardedLine([
+    order.orderNumber,
+    order.handedOverAt?.toISOString() ?? "",
+    order.courierName ?? "",
+    order.trackingNumber ?? "",
+    order.customerName,
+    order.recipientPhone ?? "",
+    order.shippingGovernorate ?? "",
+    order.shippingAddressLine1 ?? "",
+    order.shippingAddressLine2 ?? "",
+    cashToCollectIqd(order),
+    order.status,
+    order.customerNote ?? "",
+  ]);
+}
 
 /**
  * The manifest: one row per parcel handed over in the window, with the cash the
@@ -65,28 +98,15 @@ export async function courierManifestCsv(
         shippingAddressLine1: true,
         shippingAddressLine2: true,
         totalIqd: true,
+        deliveryFeeIqd: true,
+        paymentStatus: true,
         customerNote: true,
         ...deliverySelect,
       },
     });
     for (const order of page) {
       rows += 1;
-      write(
-        csvGuardedLine([
-          order.orderNumber,
-          order.handedOverAt?.toISOString() ?? "",
-          order.courierName ?? "",
-          order.trackingNumber ?? "",
-          order.customerName,
-          order.recipientPhone ?? "",
-          order.shippingGovernorate ?? "",
-          order.shippingAddressLine1 ?? "",
-          order.shippingAddressLine2 ?? "",
-          order.totalIqd,
-          order.status,
-          order.customerNote ?? "",
-        ])
-      );
+      write(manifestLine(order));
     }
     if (page.length < MANIFEST_PAGE_SIZE) break;
     const last = page[page.length - 1]!;

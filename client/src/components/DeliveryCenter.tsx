@@ -36,7 +36,7 @@ type OutstandingRow = {
   courierName: string;
   trackingNumber: string | null;
   handedOverAt: string;
-  totalIqd: number;
+  codIqd: number;
 };
 type Report = {
   window: { from: string; to: string; courier: string | null };
@@ -364,7 +364,7 @@ export function DeliveryCenter({ storeSlug }: { storeSlug?: string }) {
                       {new Date(row.handedOverAt).toLocaleDateString("ar-IQ")}
                     </span>
                     <span className="font-bold" dir="ltr">
-                      {iqd(row.totalIqd)}
+                      {iqd(row.codIqd)}
                     </span>
                   </li>
                 ))}

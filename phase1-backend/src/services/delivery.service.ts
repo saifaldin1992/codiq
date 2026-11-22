@@ -27,8 +27,9 @@
  * replacement of the data source, not a redesign: the columns and the screen
  * are the ones an integration would fill.
  *
- * The expected cash for a delivered order is `totalIqd` — what the shopper
- * paid the courier. Courier fees, delivery-fee splits and shortfalls are the
+ * The expected cash for a delivered order is `cashToCollectIqd` — what the
+ * shopper still owed at the door (the total, unless he paid online first).
+ * Courier fees, delivery-fee splits and shortfalls are the
  * merchant's arrangement with the courier and are deliberately NOT modelled in
  * v1: a wrong number the platform asserts is worse than a number the merchant
  * reconciles himself against the total he can see.

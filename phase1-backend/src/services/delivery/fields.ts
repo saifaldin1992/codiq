@@ -97,3 +97,19 @@ export function windowFrom(query: Record<string, unknown>): {
   const courier = optionalDeliveryText(query.courier, "courier", COURIER_NAME_MAX_LENGTH) ?? null;
   return { from, to, courier };
 }
+
+/**
+ * Review batch 4, م-٢ — the cash the courier collects at the door: what is STILL OWED, not the
+ * order total. A card or partner order was paid before it left the shelf; an instalment plan
+ * paid the goods and left the delivery fee to be paid in cash (M13a). Everything else — cash on
+ * delivery, a transfer nobody has confirmed — is the whole total.
+ */
+export function cashToCollectIqd(order: {
+  paymentStatus: string;
+  totalIqd: number;
+  deliveryFeeIqd: number;
+}): number {
+  if (order.paymentStatus === "paid" || order.paymentStatus === "refunded") return 0;
+  if (order.paymentStatus === "instalments") return order.deliveryFeeIqd;
+  return order.totalIqd;
+}
