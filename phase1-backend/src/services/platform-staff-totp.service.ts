@@ -108,9 +108,11 @@ export async function verifyPlatformStaffSecondFactor(
     lastUsedStep: staff.totpLastStep === null ? null : Number(staff.totpLastStep),
   });
   if (!check.ok) return false;
-  await prisma.platformStaff.update({
-    where: { id: staffId },
-    data: { totpLastStep: BigInt(check.step!) },
+  // Spent in ONE conditional write — two sign-ins with one code both passed (review batch 3, م-٢).
+  const step = BigInt(check.step!);
+  const spent = await prisma.platformStaff.updateMany({
+    where: { id: staffId, OR: [{ totpLastStep: null }, { totpLastStep: { lt: step } }] },
+    data: { totpLastStep: step },
   });
-  return true;
+  return spent.count === 1;
 }

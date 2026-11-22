@@ -564,6 +564,36 @@ try {
     "INVALID_SECOND_FACTOR",
     "19-ب: a code is single-use"
   );
+  // Review batch 3, م-٢: the same code sent by two sign-ins at once is still one sign-in.
+  await prisma.platformStaff.update({
+    where: { id: regId },
+    data: { totpLastStep: BigInt(currentStep() - 2) },
+  });
+  const twins = await Promise.all(
+    [1, 2].map(() =>
+      request(loginUrl, {
+        method: "POST",
+        body: { email: regEmail, password: staffPassword, totpCode: codeFor(regSecret) },
+      })
+    )
+  );
+  assert.deepEqual(
+    twins.map((reply) => reply.status).sort(),
+    [200, 401],
+    "a code signs in once, even twice at once"
+  );
+  // …and at the factor itself, with no password hash in front to space the two apart.
+  const { verifyPlatformStaffSecondFactor } = await import(
+    "../src/services/platform-staff-totp.service.ts"
+  );
+  await prisma.platformStaff.update({
+    where: { id: regId },
+    data: { totpLastStep: BigInt(currentStep() - 2) },
+  });
+  const bothAtOnce = await Promise.all(
+    [1, 2].map(() => verifyPlatformStaffSecondFactor(regId, codeFor(regSecret)))
+  );
+  assert.deepEqual(bothAtOnce.sort(), [false, true], "one code, one pass");
 
   // The owner's reset: clears the factor, kills the sessions, forces re-enrolment.
   const reset = await request(`${teamUrl}/${regId}/totp/reset`, {
