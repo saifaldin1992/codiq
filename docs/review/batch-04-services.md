@@ -5,6 +5,8 @@
 المهامّ المجدولة (`retention-job`، `reservation-expiry-job`، `purge-job`، `retention`) و`config.service` للدفعة ٥ كما في الخطّة.
 الترتيب: ما يمسّ المال والصلاحيّات أوّلاً.
 
+**أُغلق ٢٠٢٦-١١-٢٢.** قُرئت الـ٦٨ كلّها سطراً بسطر؛ CI كامل محلّيّ ٢٠٣/٢٠٣؛ التقرير: [batch-04-report.md](batch-04-report.md).
+
 | الملفّ | الأسطر | قُرئ في | النتائج |
 |---|---|---|---|
 | `phase1-backend/src/services/pos.service.ts` | 669 | 2026-11-22 (كاملاً) | لا نتيجة (ملاحظة) |
