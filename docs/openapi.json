@@ -243,6 +243,7 @@
                   "CAMPAIGN_NOT_FOUND",
                   "CAMPAIGN_SLOTS_OUTSIDE",
                   "CAMPAIGN_SLUG_TAKEN",
+                  "CANNOT_CHANGE_OWN_MEMBERSHIP",
                   "CANNOT_REVOKE_CURRENT_SESSION",
                   "CAPABILITY_NOT_FOUND",
                   "CAPABILITY_UNAVAILABLE",
@@ -297,6 +298,7 @@
                   "DEFAULT_PLAN_MISSING",
                   "DEFAULT_PLAN_PROTECTED",
                   "DEFAULT_VARIANT_PROTECTED",
+                  "DELEGATION_EXCEEDS_OWN",
                   "DELIVERY_NOT_APPLICABLE",
                   "DELIVERY_RATE_TOO_HIGH",
                   "DELIVERY_STAGE_NOT_APPLICABLE",
@@ -10958,7 +10960,7 @@
             ]
           },
           "403": {
-            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CANNOT_CHANGE_OWN_MEMBERSHIP` · `CSRF_ORIGIN_DENIED` · `DELEGATION_EXCEEDS_OWN` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -10967,7 +10969,9 @@
               }
             },
             "x-codiq-error-codes": [
+              "CANNOT_CHANGE_OWN_MEMBERSHIP",
               "CSRF_ORIGIN_DENIED",
+              "DELEGATION_EXCEEDS_OWN",
               "IDENTITY_BOUNDARY_DENIED",
               "MERCHANT_DISABLED",
               "PLAN_LIMIT_EXCEEDED",
@@ -32884,7 +32888,7 @@
             ]
           },
           "403": {
-            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CANNOT_CHANGE_OWN_MEMBERSHIP` · `CSRF_ORIGIN_DENIED` · `DELEGATION_EXCEEDS_OWN` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -32893,7 +32897,9 @@
               }
             },
             "x-codiq-error-codes": [
+              "CANNOT_CHANGE_OWN_MEMBERSHIP",
               "CSRF_ORIGIN_DENIED",
+              "DELEGATION_EXCEEDS_OWN",
               "IDENTITY_BOUNDARY_DENIED",
               "MERCHANT_DISABLED",
               "PLAN_LIMIT_EXCEEDED",
@@ -68229,7 +68235,7 @@
             ]
           },
           "403": {
-            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CANNOT_CHANGE_OWN_MEMBERSHIP` · `CSRF_ORIGIN_DENIED` · `DELEGATION_EXCEEDS_OWN` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -68238,7 +68244,9 @@
               }
             },
             "x-codiq-error-codes": [
+              "CANNOT_CHANGE_OWN_MEMBERSHIP",
               "CSRF_ORIGIN_DENIED",
+              "DELEGATION_EXCEEDS_OWN",
               "IDENTITY_BOUNDARY_DENIED",
               "MERCHANT_DISABLED",
               "STAFF_PERMISSION_DENIED",
@@ -70778,6 +70786,14 @@
         "يوجد حملة بهذا المعرّف."
       ]
     },
+    "CANNOT_CHANGE_OWN_MEMBERSHIP": {
+      "statuses": [
+        403
+      ],
+      "messages": [
+        "لا يغيّر الموظّف دوره ولا صلاحيّاته بنفسه — يطلب ذلك من التاجر."
+      ]
+    },
     "CANNOT_REVOKE_CURRENT_SESSION": {
       "statuses": [
         422
@@ -71206,6 +71222,12 @@
       "messages": [
         "The default variant of a product cannot be deleted."
       ]
+    },
+    "DELEGATION_EXCEEDS_OWN": {
+      "statuses": [
+        403
+      ],
+      "messages": []
     },
     "DELIVERY_NOT_APPLICABLE": {
       "statuses": [

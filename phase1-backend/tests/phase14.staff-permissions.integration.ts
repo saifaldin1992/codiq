@@ -1098,6 +1098,87 @@ try {
     restored: 200,
   };
 
+  // Review batch 4, م-١: a staff member the merchant trusts with team.manage may run the team —
+  // but not hand himself, or anyone, more than he holds. He promoted himself to store_manager
+  // (every permission, settings.manage included) and allowed himself whatever he liked.
+  const climber = await request(teamUrl("phase14-a-one"), {
+    method: "POST",
+    headers: bearer(tokenMerchantA1),
+    body: JSON.stringify({
+      email: "staff.climber.phase14@codiq.test",
+      displayName: "موظّف يدير الفريق",
+      temporaryPassword: "climber-temp-password-14",
+      roleCode: "store_staff",
+    }),
+  });
+  assert.equal(climber.status, 201, JSON.stringify(climber.body));
+  const climberMembershipId: string = climber.body.membership.id;
+  await ownStaffPassword(
+    base,
+    "phase14-a-one",
+    "staff.climber.phase14@codiq.test",
+    "climber-temp-password-14"
+  );
+  await putOverrides(climberMembershipId, [{ permissionCode: "team.manage", effect: "allow" }]);
+  const climberLogin = await request("/auth/staff/stores/phase14-a-one/login", {
+    method: "POST",
+    body: JSON.stringify({
+      email: "staff.climber.phase14@codiq.test",
+      password: "climber-temp-password-14",
+    }),
+  });
+  assert.equal(climberLogin.status, 200, JSON.stringify(climberLogin.body));
+  const asClimber = bearer(climberLogin.body.accessToken);
+  const attempts = {
+    promoteSelf: await request(`${teamUrl("phase14-a-one")}/${climberMembershipId}`, {
+      method: "PATCH",
+      headers: asClimber,
+      body: JSON.stringify({ roleCode: "store_manager" }),
+    }),
+    allowSelf: await request(`${teamUrl("phase14-a-one")}/${climberMembershipId}/overrides`, {
+      method: "PUT",
+      headers: asClimber,
+      body: JSON.stringify({
+        overrides: [
+          { permissionCode: "team.manage", effect: "allow" },
+          { permissionCode: "settings.manage", effect: "allow" },
+        ],
+      }),
+    }),
+    createManager: await request(teamUrl("phase14-a-one"), {
+      method: "POST",
+      headers: asClimber,
+      body: JSON.stringify({
+        email: "staff.accomplice.phase14@codiq.test",
+        displayName: "شريك",
+        temporaryPassword: "accomplice-temp-password-14",
+        roleCode: "store_manager",
+      }),
+    }),
+    allowOther: await request(`${teamUrl("phase14-a-one")}/${lifecycleMembershipId}/overrides`, {
+      method: "PUT",
+      headers: asClimber,
+      body: JSON.stringify({ overrides: [{ permissionCode: "settings.manage", effect: "allow" }] }),
+    }),
+  };
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(attempts).map(([key, reply]) => [key, reply.status])),
+    { promoteSelf: 403, allowSelf: 403, createManager: 403, allowOther: 403 },
+    JSON.stringify(Object.fromEntries(Object.entries(attempts).map(([k, r]) => [k, r.body])))
+  );
+  const peer = await request(teamUrl("phase14-a-one"), {
+    method: "POST",
+    headers: asClimber,
+    body: JSON.stringify({
+      email: "staff.peer.phase14@codiq.test",
+      displayName: "زميل",
+      temporaryPassword: "peer-temp-password-14",
+      roleCode: "store_staff",
+    }),
+  });
+  assert.equal(peer.status, 201, "…while he still runs the team within what he holds");
+  summary.noSelfEscalation = Object.keys(attempts);
+
   console.log(JSON.stringify(summary, null, 2));
 } finally {
   await new Promise<void>((resolve) => server.close(() => resolve()));

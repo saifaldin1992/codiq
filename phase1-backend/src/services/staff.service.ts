@@ -13,6 +13,10 @@ import {
   assertStaffRoleCode,
   resolvePermissionSet,
   PERMISSION_CODES,
+  ROLE_PERMISSION_MATRIX,
+  type PermissionCode,
+  type StaffRoleCode,
+  type StoreActorContext,
 } from "../auth/staff-permissions.js";
 import { assertWithinPlanLimit } from "./entitlement.service.js";
 import type { AuditActor } from "./soft-delete/audit-log.service.js";
@@ -307,4 +311,32 @@ export async function setMembershipOverrides(
     });
   });
   return membershipPayload(membership);
+}
+
+/**
+ * Review batch 4, م-١ — what a staff member who runs the team (team.manage) may hand out. The
+ * merchant holds every permission, so this never limits him. A staff member may not change his
+ * OWN role or overrides — he promoted himself to store_manager — and may not grant, by role or by
+ * an allow override, a permission he does not hold himself.
+ */
+export function assertCanDelegate(
+  context: Pick<StoreActorContext, "actor" | "permissions">,
+  change: { membershipId?: string; roleCode?: unknown; allows?: readonly unknown[] }
+) {
+  if (context.actor.kind !== "staff") return;
+  if (change.membershipId && change.membershipId === context.actor.membershipId)
+    throw new HttpError(
+      403,
+      "CANNOT_CHANGE_OWN_MEMBERSHIP",
+      "لا يغيّر الموظّف دوره ولا صلاحيّاته بنفسه — يطلب ذلك من التاجر."
+    );
+  const byRole = ROLE_PERMISSION_MATRIX[change.roleCode as StaffRoleCode] ?? [];
+  const granted = [...byRole, ...((change.allows ?? []) as PermissionCode[])];
+  const beyond = granted.filter((code) => !context.permissions.has(code));
+  if (beyond.length)
+    throw new HttpError(
+      403,
+      "DELEGATION_EXCEEDS_OWN",
+      `لا يمنح الموظّف صلاحيّة لا يملكها هو: ${Array.from(new Set(beyond)).join("، ")}.`
+    );
 }

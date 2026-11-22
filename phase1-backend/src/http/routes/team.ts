@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { assertCapabilityAvailable } from "../../services/availability.service.js";
 import { requireStoreActor, requireStoreStaff } from "../../auth/staff-permissions.js";
 import {
+  assertCanDelegate,
   createStoreStaff,
   listStoreTeam,
   removeStoreMembership,
@@ -48,41 +49,50 @@ export function registerTeamRoutes(app: Express) {
     "/merchant/stores/:storeSlug/team",
     asyncRoute(async (request, response) => {
       requireTrustedWriteOrigin(request);
-      const { store } = await requireStoreActor(request, "team.manage");
+      const context = await requireStoreActor(request, "team.manage");
+      const { store } = context;
       await assertCapabilityAvailable("team.staff", store);
-      response
-        .status(201)
-        .json(
-          await createStoreStaff(store.id, parseOrThrow(createStoreStaffSchema, request.body ?? {}))
-        );
+      const input = parseOrThrow(createStoreStaffSchema, request.body ?? {});
+      assertCanDelegate(context, { roleCode: input.roleCode });
+      response.status(201).json(await createStoreStaff(store.id, input));
     })
   );
   app.patch(
     "/merchant/stores/:storeSlug/team/:membershipId",
     asyncRoute(async (request, response) => {
       requireTrustedWriteOrigin(request);
-      const { store } = await requireStoreActor(request, "team.manage");
+      const context = await requireStoreActor(request, "team.manage");
+      const { store } = context;
       await assertCapabilityAvailable("team.staff", store);
       const input = parseOrThrow(updateStoreMembershipSchema, request.body ?? {});
-      response
-        .status(200)
-        .json({
-          membership: await updateStoreMembership(store.id, request.params.membershipId, input),
-        });
+      assertCanDelegate(context, {
+        membershipId: request.params.membershipId,
+        roleCode: input.roleCode,
+      });
+      response.status(200).json({
+        membership: await updateStoreMembership(store.id, request.params.membershipId, input),
+      });
     })
   );
   app.put(
     "/merchant/stores/:storeSlug/team/:membershipId/overrides",
     asyncRoute(async (request, response) => {
       requireTrustedWriteOrigin(request);
-      const { store } = await requireStoreActor(request, "team.manage");
+      const context = await requireStoreActor(request, "team.manage");
+      const { store } = context;
       await assertCapabilityAvailable("team.staff", store);
       const input = parseOrThrow(membershipOverridesSchema, request.body ?? {});
-      response
-        .status(200)
-        .json({
-          membership: await setMembershipOverrides(store.id, request.params.membershipId, input),
-        });
+      const overrides = (Array.isArray(input.overrides) ? input.overrides : []) as Array<{
+        permissionCode?: unknown;
+        effect?: unknown;
+      }>;
+      assertCanDelegate(context, {
+        membershipId: request.params.membershipId,
+        allows: overrides.filter((entry) => entry?.effect === "allow").map((e) => e.permissionCode),
+      });
+      response.status(200).json({
+        membership: await setMembershipOverrides(store.id, request.params.membershipId, input),
+      });
     })
   );
   // PG-2: «إزالة من الفريق» — distinct from the PATCH above, which is «إيقاف».
@@ -108,11 +118,9 @@ export function registerTeamRoutes(app: Express) {
       requireTrustedWriteOrigin(request);
       const { store, actor } = await requireStoreActor(request, "team.manage");
       await assertCapabilityAvailable("team.staff", store);
-      response
-        .status(200)
-        .json({
-          membership: await restoreStoreMembership(store.id, request.params.membershipId, actor),
-        });
+      response.status(200).json({
+        membership: await restoreStoreMembership(store.id, request.params.membershipId, actor),
+      });
     })
   );
 }
