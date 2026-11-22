@@ -220,11 +220,13 @@ try {
   await page.getByTestId("market-tab-cart").click();
   await page.getByTestId(`market-cart-checkout-${B.slug}`).click();
   await page.getByTestId("market-checkout-pickup").click();
-  await page.waitForFunction(() =>
-    /الاستلام من المتجر/.test(
-      document.querySelector('[data-testid="market-checkout-totals"]')?.textContent ?? ""
-    )
-  );
+  // The label flips on the click; the TOTAL waits for the server's new summary — wait for the
+  // total itself (review batch 2: the label-only wait read the old total one run in two).
+  await page.waitForFunction(() => {
+    const totals = document.querySelector('[data-testid="market-checkout-totals"]')?.textContent;
+    const total = document.querySelector('[data-testid="market-checkout-total"]')?.textContent;
+    return /الاستلام من المتجر/.test(totals ?? "") && /١٥٬٠٠٠|15,000/.test(total ?? "");
+  });
   assert.match(
     await page.getByTestId("market-checkout-total").innerText(),
     /١٥٬٠٠٠|15,000/,
