@@ -10,8 +10,8 @@
 | `phase1-backend/src/modules/market-payments/payments.service.ts` | 614 | 2026-11-22 (كاملاً) | ح-١، م-٥، م-٦، م-٧، ت-٨ (قُسّم)، م-٩ |
 | `phase1-backend/src/services/finance.service.ts` | 608 | 2026-11-22 (كاملاً) | م-١٠، م-١١، ت-١٠ (قُسّم)، ملاحظة |
 | `phase1-backend/src/modules/market-cart/checkout.service.ts` | 596 | 2026-11-22 (كاملاً) | م-١٢، ت-١٢ (قُسّم)، ملاحظة |
-| `phase1-backend/src/modules/market-rewards/rewards.service.ts` | 489 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-cart/cart.service.ts` | 460 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-rewards/rewards.service.ts` | 489 | 2026-11-22 (كاملاً) | م-١٣، ت-١٣ (قُسّم) |
+| `phase1-backend/src/modules/market-cart/cart.service.ts` | 460 | 2026-11-22 (كاملاً) | ت-١٤، ت-١٥ (قُسّم) |
 | `phase1-backend/src/modules/market-partner/partner.service.ts` | 459 | 2026-11-22 (كاملاً) | ح-٢، م-٨، ت-٩ (قُسّم)، إصلاح اختبار |
 | `phase1-backend/src/services/coupon.service.ts` | 445 | — | لم يُقرأ |
 | `phase1-backend/src/services/payment-methods.service.ts` | 282 | — | لم يُقرأ |
@@ -202,3 +202,14 @@
 
 ### ملاحظة
 - إعادة طلب بطاقة بمفتاح التكرار نفسه تعيد الطلب بلا كائن `payment`، فلا يُعاد توجيه الزبون إلى صفحة الدفع من الإعادة. صفحة الطلب تعرض الدفع وتسمح بإكماله؛ يُترك.
+
+### [م-١٣] متاجر كوبون موزَّع يمكن حذفها — مهمّ
+- المكان: `setCouponStores` (`market-rewards/rewards/owner.ts`). `updateCoupon` يمنع تغيير قيمة كوبون وُزّع، لكنّ هذه الدالّة قرأت `issuedCount` ولم تستعمله: يمكن حذف متجر من كوبون في محافظ الزبائن (بعضهم دفع نقاطاً).
+- الحالة: **مُصلَح** — `43e5d8f`: بعد التوزيع يُسمح بإضافة متاجر لا حذفها (٤٠٩ `COUPON_ALREADY_ISSUED`). الاختبار (`market:rewards`): تضييق كوبون مستلَم نجح قبل ويُرفض بعد؛ التوسيع ينجح.
+
+### [ت-١٤] نقرتان معاً في سلّة السوق تُجابان «مزدحم» — تحسين (أثره كبير)
+- المكان: `addCartLine`/`updateCartLine`. معاملات `SERIALIZABLE` بلا إعادة: ثماني إضافات معاً → ٦–٧ منها ٥٠٣.
+- الحالة: **مُصلَح** — `9d91bca`: قفل صفّ السلّة (`FOR UPDATE`) بعزل `READ COMMITTED` — فحوص السلّة استشاريّة والدفع يقرّر تحت أقفاله. جُرّبت الإعادة وحدها أوّلاً فبقيت تخسر نقرة من ثمانٍ. الاختبار (`market:cart`): ثماني إضافات معاً — فشل قبل، و٨ × ٢٠٠ بعد، خمس مرّات متتالية.
+
+### [ت-١٣] و[ت-١٥] تقسيم ملفّي المكافآت وسلّة السوق — تحسين
+- `4e25eff`: `rewards.service.ts` ← `market-rewards/rewards/{view,coupons,points,owner}.ts`. و`8973cbe`: `cart.service.ts` ← `market-cart/cart/{rules,lines,view}.ts`. نقلٌ حرفيّ.
