@@ -567,6 +567,40 @@ try {
   assert.deepEqual(await card5Now(), ["new", "pending"], "not cancelled, so not expired yet");
   await svc.expireStalePayments();
   assert.deepEqual(await card5Now(), ["cancelled", "expired"], "the next sweep finishes it");
+  // م-٩: the gateway is down when the order is cancelled — the refund is owed, not forgotten.
+  const { cardGateway } = await import("../src/modules/market-payments/providers.ts");
+  await fill(shopper.api, [[phone, 1]]);
+  const card6 = (await place(shopper.api, { paymentMethodCode: "market_card" }, "card-6")).payload;
+  const row6 = await prisma.marketPayment.findUniqueOrThrow({
+    where: { id: card6.payment.paymentId },
+  });
+  await notify({
+    eventId: "evt-6",
+    type: "payment.succeeded",
+    providerRef: row6.providerRef,
+    amountIqd: row6.amountIqd,
+  });
+  const gateway = cardGateway();
+  const realRefund = gateway.refund;
+  gateway.refund = async () => {
+    throw new Error("the gateway is down (test)");
+  };
+  try {
+    await move(card6.order.id, "cancelled");
+  } finally {
+    gateway.refund = realRefund;
+  }
+  const card6Now = async () => {
+    const row = await prisma.marketPayment.findUniqueOrThrow({ where: { id: row6.id } });
+    return [row.status, row.refundedIqd];
+  };
+  assert.deepEqual(
+    await card6Now(),
+    ["paid", 0],
+    "the gateway refused: nothing recorded as paid back"
+  );
+  await svc.expireStalePayments();
+  assert.deepEqual(await card6Now(), ["refunded", row6.amountIqd], "the next sweep pays it back");
   summary.once = true;
   await fill(shopper.api, [[phone, 1]]); // what section 5 checks out with
 

@@ -203,10 +203,35 @@ export async function expireStalePayments(now = new Date()) {
       });
     }
   }
+  await retryOwedRefunds();
   // Plans whose code was never entered simply lapse.
   await prisma.marketPayment.updateMany({
     where: { method: "instalments", status: "code_sent", expiresAt: { lt: now } },
     data: { status: "expired" },
   });
   return stale.length;
+}
+
+/**
+ * A refund the gateway refused (it was down) is still owed: the order is gone, the money is not
+ * back, and the order event that asked for it does not come again. Every sweep tries once more;
+ * the claim in refundCard keeps it to one refund (review batch 2, م-٩).
+ */
+async function retryOwedRefunds() {
+  const owed = await prisma.marketPayment.findMany({
+    where: {
+      method: "card",
+      status: "paid",
+      order: { status: { in: ["cancelled", "rejected", "returned"] } },
+    },
+    take: 100,
+    select: { id: true, order: { select: { status: true } } },
+  });
+  for (const payment of owed)
+    await refundCard(
+      payment.id,
+      payment.order?.status === "returned" ? "أُرجع الطلب." : "أُلغي الطلب."
+    ).catch((error: Error) =>
+      logger.warn("payments.refund_retry_failed", { paymentId: payment.id, reason: error.message })
+    );
 }
