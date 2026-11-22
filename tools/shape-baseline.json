@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2584,
-  "oversizeFiles": 112,
+  "oversizeFiles": 111,
   "longFunctions": 441
  },
  "files": {
@@ -296,10 +296,20 @@
    "oversize": 60,
    "longFunctions": 1
   },
-  "phase1-backend/src/modules/market-cart/checkout.service.ts": {
-   "longLines": 5,
-   "oversize": 196,
-   "longFunctions": 3
+  "phase1-backend/src/modules/market-cart/checkout/orders.ts": {
+   "longLines": 0,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-cart/checkout/place.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-cart/checkout/summary.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 1
   },
   "phase1-backend/src/modules/market-cart/index.ts": {
    "longLines": 1,
