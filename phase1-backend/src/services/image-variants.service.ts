@@ -200,3 +200,17 @@ export async function renderProductImageVariants(source: Buffer): Promise<Render
     totalBytes: variants.reduce((sum, rendered) => sum + rendered.byteSize, 0),
   };
 }
+
+/**
+ * Review batch 3, م-٤ — a store's own images (banner, logo, cover) and the market's (banner,
+ * avatar, ticket photo, reel poster) are public, and were stored byte for byte: a phone photo's
+ * EXIF — its GPS among it — went out with them. Re-encoded in the same format, upright, with
+ * no metadata (sharp writes none unless asked), as the product variants already are.
+ */
+export async function stripImageMetadata(bytes: Buffer, contentType: string): Promise<Buffer> {
+  const sharp = await loadSharp();
+  const image = sharp(bytes, { failOn: "error" }).rotate();
+  if (contentType === "image/jpeg") return image.jpeg({ quality: 90, mozjpeg: true }).toBuffer();
+  if (contentType === "image/png") return image.png().toBuffer();
+  return image.webp({ quality: 90 }).toBuffer();
+}

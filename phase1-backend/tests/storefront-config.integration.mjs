@@ -384,7 +384,15 @@ try {
   const bytes = await fetch(`${base}${withLogo.payload.logoUrl.replace(/^\/api/, "")}`);
   assert.equal(bytes.status, 200);
   assert.equal(bytes.headers.get("content-type"), "image/png");
-  assert.equal((await bytes.arrayBuffer()).byteLength, PNG.length, "the same bytes come back");
+  // Review batch 3, م-٤: the same picture, re-encoded without its EXIF — not the same bytes.
+  const sharpCheck = (await import("sharp")).default;
+  const servedMeta = await sharpCheck(Buffer.from(await bytes.arrayBuffer())).metadata();
+  const sentMeta = await sharpCheck(PNG).metadata();
+  assert.deepEqual(
+    [servedMeta.format, servedMeta.width, servedMeta.height],
+    [sentMeta.format, sentMeta.width, sentMeta.height],
+    "the same picture comes back"
+  );
   const usageAfter = (await merchantUsage(prisma, merchantA.payload.account.id))
     .max_image_storage_mb;
   assert.ok(

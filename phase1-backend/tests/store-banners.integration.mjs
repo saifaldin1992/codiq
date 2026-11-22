@@ -89,9 +89,10 @@ async function request(path, { method = "GET", body, token, headers = {} } = {})
   return { status: response.status, payload, headers: response.headers };
 }
 
-async function upload(slug, token, { linkUrl, altText, placement } = {}) {
+async function upload(slug, token, { linkUrl, altText, placement, image } = {}) {
   const form = new FormData();
-  form.append("image", new Blob([PNG], { type: "image/png" }), "slide.png");
+  const file = image ?? { bytes: PNG, type: "image/png", name: "slide.png" };
+  form.append("image", new Blob([file.bytes], { type: file.type }), file.name);
   if (linkUrl !== undefined) form.append("linkUrl", linkUrl);
   if (altText !== undefined) form.append("altText", altText);
   if (placement !== undefined) form.append("placement", placement);
@@ -198,10 +199,15 @@ try {
     /immutable/,
     "the object key carries a uuid, so the bytes under one id never change"
   );
-  assert.equal(
-    (await bytes.arrayBuffer()).byteLength,
-    PNG.length,
-    "the same image comes back, byte for byte"
+  // Review batch 3, م-٤: the SAME PICTURE comes back — not the same bytes, which carried the
+  // uploader's EXIF; it is re-encoded in its own format, so its type and size are kept.
+  const sharpCheck = (await import("sharp")).default;
+  const servedMeta = await sharpCheck(Buffer.from(await bytes.arrayBuffer())).metadata();
+  const sentMeta = await sharpCheck(PNG).metadata();
+  assert.deepEqual(
+    [servedMeta.format, servedMeta.width, servedMeta.height],
+    [sentMeta.format, sentMeta.width, sentMeta.height],
+    "the same picture comes back"
   );
   summary.bytesServed = true;
 
@@ -385,6 +391,32 @@ try {
     movesWithoutReupload: true,
     unknownRefused: 422,
   };
+
+  // Review batch 3, م-٤: a phone photo carries EXIF — its GPS among it. A banner is public, so
+  // what the merchant uploads must not tell the world where he stood. Product images were
+  // re-encoded for exactly this; the store's own images were stored byte for byte.
+  const sharp = (await import("sharp")).default;
+  const MARKER = "CODIQ-REVIEW-GPS-31.5N-44.3E";
+  const photo = await sharp({
+    create: { width: 64, height: 32, channels: 3, background: { r: 200, g: 30, b: 30 } },
+  })
+    .jpeg()
+    .withMetadata({ exif: { IFD0: { Copyright: MARKER, Artist: MARKER } } })
+    .toBuffer();
+  assert.ok(photo.includes(Buffer.from(MARKER)), "the test photo does carry the marker");
+  const withExif = await upload(storeA.slug, tokenA, {
+    placement: "mid",
+    image: { bytes: photo, type: "image/jpeg", name: "phone.jpg" },
+  });
+  assert.equal(withExif.status, 201, JSON.stringify(withExif.payload));
+  const served = Buffer.from(
+    await (
+      await fetch(`${base}/store/${storeA.slug}/banners/${withExif.payload.banner.id}/image`)
+    ).arrayBuffer()
+  );
+  assert.ok(served.length > 0);
+  assert.ok(!served.includes(Buffer.from(MARKER)), "the public banner carries no EXIF");
+  summary.metadataStripped = true;
 
   console.log(JSON.stringify({ suite: "store-banners", status: "passed", summary }, null, 2));
 } finally {
