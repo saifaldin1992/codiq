@@ -92,13 +92,13 @@ export function normalizeWhatsappTemplates(configuration: unknown): Record<Whats
  */
 export function validateWhatsappTemplatesInput(raw: unknown): Record<string, string> {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    throw new HttpError(422, "INVALID_INPUT", "whatsappTemplates must be an object.");
+    throw new HttpError(422, "INVALID_INPUT", "قوالب واتساب غير صالحة.");
   }
   const entries = raw as Record<string, unknown>;
   const stored: Record<string, string> = {};
   for (const key of Object.keys(entries)) {
     if (!WHATSAPP_TEMPLATE_KEYS.includes(key as WhatsappTemplateKey)) {
-      throw new HttpError(422, "INVALID_INPUT", `Unknown whatsappTemplates key: ${key}`);
+      throw new HttpError(422, "INVALID_INPUT", `قالب واتساب غير معروف: ${key}`);
     }
     const value = entries[key];
     if (typeof value !== "string") throw new HttpError(422, "INVALID_INPUT", `${key} must be a string.`);
@@ -165,13 +165,13 @@ async function scopedOrder(storeId: string, orderId: string) {
     where: { id: orderId, storeId },
     select: { id: true, orderNumber: true, customerName: true, recipientPhone: true, totalIqd: true, status: true, paymentMethodCode: true },
   });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود في هذا المتجر.");
   return order;
 }
 
 async function storeContext(storeId: string) {
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true, slug: true } });
-  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "Store not found.");
+  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المتجر غير موجود.");
   return store;
 }
 
@@ -253,7 +253,7 @@ export async function recordWhatsappSend(
 ) {
   const key = body.templateKey;
   if (typeof key !== "string" || !WHATSAPP_TEMPLATE_KEYS.includes(key as WhatsappTemplateKey)) {
-    throw new HttpError(422, "INVALID_INPUT", "templateKey must be one of the known WhatsApp templates.");
+    throw new HttpError(422, "INVALID_INPUT", "قالب واتساب غير معروف.");
   }
   const templateKey = key as WhatsappTemplateKey;
   const [order, store] = await Promise.all([scopedOrder(storeId, orderId), storeContext(storeId)]);

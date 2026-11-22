@@ -53,25 +53,37 @@ export function normalizeCustomerNote(value: unknown): string | null {
   return note;
 }
 
+/** The most addresses one customer keeps in one store's book. */
+export const MAX_SAVED_ADDRESSES = 20;
+
 function hash(value: string) { return crypto.createHash("sha256").update(value).digest("hex"); }
 function randomGuestToken() { return crypto.randomBytes(32).toString("base64url"); }
 function nowPlusGuestLifetime() { return new Date(Date.now() + GUEST_CART_LIFETIME_MS); }
+/** What the shopper reads for each address field he got wrong. */
+const ADDRESS_FIELD_LABELS: Record<string, string> = {
+  recipientName: "اسم المستلم",
+  fullAddress: "العنوان",
+  city: "المدينة",
+  governorate: "المحافظة",
+};
 function requiredText(value: unknown, field: string, max = 500) {
-  if (typeof value !== "string" || !value.trim() || value.trim().length > max) throw new HttpError(400, "INVALID_ADDRESS", `${field} is invalid.`);
+  if (typeof value !== "string" || !value.trim() || value.trim().length > max) {
+    throw new HttpError(400, "INVALID_ADDRESS", `${ADDRESS_FIELD_LABELS[field] ?? field}: اكتبه كاملاً بما لا يزيد على ${max} حرف.`, { field });
+  }
   return value.trim();
 }
 function quantity(value: unknown) {
   const parsed = Number(value ?? 1);
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_CART_QUANTITY) throw new HttpError(422, "INVALID_CART_QUANTITY", `quantity must be an integer between 1 and ${MAX_CART_QUANTITY}.`);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_CART_QUANTITY) throw new HttpError(422, "INVALID_CART_QUANTITY", `الكمية عدد صحيح من 1 إلى ${MAX_CART_QUANTITY}.`);
   return parsed;
 }
 function expectedCartVersion(value: unknown) {
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1) throw new HttpError(400, "INVALID_CART_VERSION", "cartVersion must be a positive integer.");
+  if (!Number.isInteger(parsed) || parsed < 1) throw new HttpError(400, "INVALID_CART_VERSION", "نسخة السلة غير صالحة. حدّث الصفحة ثم أعد المحاولة.");
   return parsed;
 }
 function idempotencyKey(value: unknown) {
-  if (typeof value !== "string" || value.length < 16 || value.length > 200) throw new HttpError(400, "INVALID_IDEMPOTENCY_KEY", "Idempotency-Key must contain 16 to 200 characters.");
+  if (typeof value !== "string" || value.length < 16 || value.length > 200) throw new HttpError(400, "INVALID_IDEMPOTENCY_KEY", "مفتاح الطلب (Idempotency-Key) بين 16 و200 حرف.");
   return value;
 }
 /**
@@ -86,7 +98,7 @@ function idempotencyKey(value: unknown) {
  */
 function optionalProductQuery(value: unknown) {
   if (value === undefined || value === null || value === "") return undefined;
-  if (typeof value !== "string" || value.trim().length > 120) throw new HttpError(400, "INVALID_PRODUCT_FILTER", "Search query is invalid.");
+  if (typeof value !== "string" || value.trim().length > 120) throw new HttpError(400, "INVALID_PRODUCT_FILTER", "نص البحث غير صالح.");
   const trimmed = value.trim();
   if (!trimmed) return undefined;
   if (trimmed.length < 2) throw new HttpError(422, "INVALID_SEARCH_QUERY", "أدخل حرفين على الأقل للبحث.");
@@ -94,7 +106,7 @@ function optionalProductQuery(value: unknown) {
 }
 function optionalCategoryId(value: unknown) {
   if (value === undefined || value === null || value === "") return undefined;
-  if (typeof value !== "string" || !UUID_PATTERN.test(value)) throw new HttpError(400, "INVALID_PRODUCT_FILTER", "Category filter is invalid.");
+  if (typeof value !== "string" || !UUID_PATTERN.test(value)) throw new HttpError(400, "INVALID_PRODUCT_FILTER", "التصنيف المختار غير صالح.");
   return value;
 }
 // 19-د: the shape rule this function WAS is now the shared one every list uses;
@@ -129,7 +141,7 @@ type PublicProductSort = "newest" | "best_selling" | "top_rated";
 function optionalProductSort(raw: unknown): PublicProductSort {
   if (raw === undefined || raw === null || raw === "" || raw === "newest") return "newest";
   if (raw === "best_selling" || raw === "top_rated") return raw;
-  throw new HttpError(422, "INVALID_PRODUCT_SORT", "sort must be newest, best_selling or top_rated.");
+  throw new HttpError(422, "INVALID_PRODUCT_SORT", "الترتيب: الأحدث أو الأكثر مبيعاً أو الأعلى تقييماً.");
 }
 
 function categorySql(categoryIds: readonly string[] | undefined) {
@@ -248,7 +260,7 @@ export async function consumeStorefrontRateLimit(input: { scope: string; rawKey:
         updated_at = NOW()
     RETURNING attempt_count
   `);
-  if ((rows[0]?.attempt_count ?? input.limit + 1) > input.limit) throw new HttpError(429, "RATE_LIMITED", "Too many requests. Please try again later.");
+  if ((rows[0]?.attempt_count ?? input.limit + 1) > input.limit) throw new HttpError(429, "RATE_LIMITED", "محاولات كثيرة. حاول مرة أخرى بعد قليل.");
 }
 
 async function expireGuestCartIfNeeded(cart: any) {
@@ -445,7 +457,7 @@ function orderProductsBySearch<T extends { id: string }>(ids: readonly string[],
 
 export async function publicProduct(storeId: string, productId: string) {
   const product = await prisma.product.findFirst({ where: { id: productId, storeId, isActive: true }, include: { category: { select: { id: true, name: true, parentCategoryId: true } }, images: { select: { id: true, contentType: true, byteSize: true, sortOrder: true }, orderBy: { sortOrder: "asc" } }, variants: { where: { isActive: true }, orderBy: [{ isDefault: "desc" }, { position: "asc" }, { createdAt: "asc" }] } } });
-  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in this store.");
+  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود في هذا المتجر.");
   // Phase 20A: each variant reports its own availability without exposing raw
   // stock quantities to the public storefront.
   const reservations = product.variants.length ? await prisma.inventoryReservation.groupBy({ by: ["variantId"], where: { storeId, variantId: { in: product.variants.map((variant) => variant.id) }, status: "active" }, _sum: { quantity: true } }) : [];
@@ -483,20 +495,20 @@ export async function addCartItem(storeId: string, context: CartContext, input: 
   // without any client change.
   const requestedVariantId = typeof input.variantId === "string" ? input.variantId : undefined;
   const requestedProductId = typeof input.productId === "string" ? input.productId : undefined;
-  if (!requestedVariantId && !requestedProductId) throw new HttpError(400, "INVALID_PRODUCT", "productId or variantId is required.");
+  if (!requestedVariantId && !requestedProductId) throw new HttpError(400, "INVALID_PRODUCT", "اختر المنتج.");
   const requestedQuantity = quantity(input.quantity);
   const variant = await prisma.productVariant.findFirst({
     where: requestedVariantId
       ? { id: requestedVariantId, storeId, isActive: true, ...(requestedProductId ? { productId: requestedProductId } : {}), product: { isActive: true } }
       : { productId: requestedProductId, storeId, isDefault: true, isActive: true, product: { isActive: true } },
   });
-  if (!variant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in this store.");
+  if (!variant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود في هذا المتجر.");
   const { cart, issuedGuestToken } = await activeCartForContext(storeId, context, true);
-  if (!cart) throw new HttpError(500, "CART_CREATION_FAILED", "Cart could not be created.");
+  if (!cart) throw new HttpError(500, "CART_CREATION_FAILED", "تعذّر إنشاء السلة. حاول مرة أخرى.");
   const updated = await prisma.$transaction(async (tx) => {
     const existing = await tx.cartItem.findUnique({ where: { cartId_variantId: { cartId: cart.id, variantId: variant.id } } });
     const nextQuantity = (existing?.quantity ?? 0) + requestedQuantity;
-    if (nextQuantity > MAX_CART_QUANTITY) throw new HttpError(422, "INVALID_CART_QUANTITY", `quantity cannot exceed ${MAX_CART_QUANTITY}.`);
+    if (nextQuantity > MAX_CART_QUANTITY) throw new HttpError(422, "INVALID_CART_QUANTITY", `الكمية لا تتجاوز ${MAX_CART_QUANTITY}.`);
     await assertWithinOrderLimit(tx, cart.id, variant.productId, requestedQuantity);
     // 19-د: adding to an existing line ALWAYS raises its quantity, so the line
     // is re-priced from the variant that was just read. See `updateCartItem`
@@ -513,9 +525,9 @@ export async function addCartItem(storeId: string, context: CartContext, input: 
 export async function updateCartItem(storeId: string, context: CartContext, itemId: string, rawQuantity: unknown) {
   const requestedQuantity = quantity(rawQuantity);
   const { cart } = await activeCartForContext(storeId, context, false);
-  if (!cart) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested cart item was not found.");
+  if (!cart) throw new HttpError(404, "RESOURCE_NOT_FOUND", "هذا المنتج لم يعد في سلتك.");
   const item = await prisma.cartItem.findFirst({ where: { id: itemId, cartId: cart.id, storeId } });
-  if (!item) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested cart item was not found.");
+  if (!item) throw new HttpError(404, "RESOURCE_NOT_FOUND", "هذا المنتج لم يعد في سلتك.");
   /**
    * 19-د — THE SNAPSHOT COVERS THE UNITS IT WAS TAKEN FOR.
    *
@@ -555,9 +567,9 @@ export async function updateCartItem(storeId: string, context: CartContext, item
 
 export async function removeCartItem(storeId: string, context: CartContext, itemId: string) {
   const { cart } = await activeCartForContext(storeId, context, false);
-  if (!cart) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested cart item was not found.");
+  if (!cart) throw new HttpError(404, "RESOURCE_NOT_FOUND", "هذا المنتج لم يعد في سلتك.");
   const item = await prisma.cartItem.findFirst({ where: { id: itemId, cartId: cart.id, storeId } });
-  if (!item) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested cart item was not found.");
+  if (!item) throw new HttpError(404, "RESOURCE_NOT_FOUND", "هذا المنتج لم يعد في سلتك.");
   await prisma.$transaction(async (tx) => {
     await tx.cartItem.delete({ where: { id: item.id } });
     await tx.shoppingCart.update({ where: { id: cart.id }, data: { version: { increment: 1 }, lastActivityAt: new Date(), ...(cart.ownerKind === "guest" ? { expiresAt: nowPlusGuestLifetime() } : {}) } });
@@ -583,7 +595,7 @@ export async function mergeGuestCartIntoCustomer(storeId: string, customerId: st
       const variant = await tx.productVariant.findFirst({ where: { id: guestItem.variantId, storeId }, select: { id: true, isActive: true, priceIqd: true, product: { select: { isActive: true } } } });
       const existing = await tx.cartItem.findUnique({ where: { cartId_variantId: { cartId: customerCart.id, variantId: guestItem.variantId } } });
       const mergedQuantity = (existing?.quantity ?? 0) + guestItem.quantity;
-      if (mergedQuantity > MAX_CART_QUANTITY) throw new HttpError(422, "INVALID_CART_QUANTITY", `Merged quantity cannot exceed ${MAX_CART_QUANTITY}.`);
+      if (mergedQuantity > MAX_CART_QUANTITY) throw new HttpError(422, "INVALID_CART_QUANTITY", `الكمية بعد الدمج لا تتجاوز ${MAX_CART_QUANTITY}.`);
       const snapshot = variant?.isActive && variant.product.isActive ? await livePriceOf(tx, variant.id, variant.priceIqd) : guestItem.priceSnapshotIqd;
       if (existing) await tx.cartItem.update({ where: { id: existing.id }, data: { quantity: mergedQuantity, priceSnapshotIqd: snapshot } });
       else await tx.cartItem.create({ data: { cartId: customerCart.id, storeId, productId: guestItem.productId, variantId: guestItem.variantId, quantity: guestItem.quantity, priceSnapshotIqd: snapshot } });
@@ -616,15 +628,17 @@ export async function createAddress(storeId: string, customerId: string, body: R
   const phoneContactNormalized = normalizePhone(body.phoneContact);
   const isDefault = body.isDefault === true;
   return prisma.$transaction(async (tx) => {
-    if (isDefault) await tx.customerAddress.updateMany({ where: { storeId, customerId, isDefault: true }, data: { isDefault: false } });
     const hasAddress = await tx.customerAddress.count({ where: { storeId, customerId } });
+    // A book, not a log: the same ceiling the market's address book keeps.
+    if (hasAddress >= MAX_SAVED_ADDRESSES) throw new HttpError(422, "ADDRESS_BOOK_FULL", `لديك ${MAX_SAVED_ADDRESSES} عنواناً محفوظاً — احذف واحداً قبل إضافة آخر.`);
+    if (isDefault) await tx.customerAddress.updateMany({ where: { storeId, customerId, isDefault: true }, data: { isDefault: false } });
     return tx.customerAddress.create({ data: { storeId, customerId, recipientName, fullAddress, city, governorate, phoneContactNormalized, isDefault: isDefault || hasAddress === 0 } });
   });
 }
 
 export async function updateAddress(storeId: string, customerId: string, addressId: string, body: Record<string, unknown>) {
   const existing = await prisma.customerAddress.findFirst({ where: { id: addressId, storeId, customerId } });
-  if (!existing) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested address was not found.");
+  if (!existing) throw new HttpError(404, "RESOURCE_NOT_FOUND", "العنوان غير موجود.");
   const data: Record<string, unknown> = {};
   if (body.recipientName !== undefined) data.recipientName = requiredText(body.recipientName, "recipientName", 240);
   if (body.fullAddress !== undefined) data.fullAddress = requiredText(body.fullAddress, "fullAddress", 1000);
@@ -642,19 +656,24 @@ export async function updateAddress(storeId: string, customerId: string, address
 
 export async function deleteAddress(storeId: string, customerId: string, addressId: string) {
   const existing = await prisma.customerAddress.findFirst({ where: { id: addressId, storeId, customerId } });
-  if (!existing) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested address was not found.");
+  if (!existing) throw new HttpError(404, "RESOURCE_NOT_FOUND", "العنوان غير موجود.");
   await prisma.customerAddress.delete({ where: { id: existing.id } });
 }
 
 async function addressForCheckout(tx: Prisma.TransactionClient, storeId: string, customerId: string, input: CheckoutInput) {
   if (typeof input.addressId === "string") {
     const address = await tx.customerAddress.findFirst({ where: { id: input.addressId, storeId, customerId } });
-    if (!address) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested address was not found.");
+    if (!address) throw new HttpError(404, "RESOURCE_NOT_FOUND", "العنوان غير موجود.");
     return address;
   }
-  if (!input.address || typeof input.address !== "object") throw new HttpError(400, "INVALID_ADDRESS", "A saved address or address payload is required.");
+  if (!input.address || typeof input.address !== "object") throw new HttpError(400, "INVALID_ADDRESS", "اختر عنواناً محفوظاً أو اكتب عنوان التوصيل.");
   const address = input.address as Record<string, unknown>;
-  return tx.customerAddress.create({ data: { storeId, customerId, recipientName: requiredText(address.recipientName, "recipientName", 240), fullAddress: requiredText(address.fullAddress, "fullAddress", 1000), city: requiredText(address.city, "city", 120), governorate: requiredText(address.governorate, "governorate", 120), phoneContactNormalized: normalizePhone(address.phoneContact), isDefault: false } });
+  const fields = { recipientName: requiredText(address.recipientName, "recipientName", 240), fullAddress: requiredText(address.fullAddress, "fullAddress", 1000), city: requiredText(address.city, "city", 120), governorate: requiredText(address.governorate, "governorate", 120), phoneContactNormalized: normalizePhone(address.phoneContact) };
+  // The same address typed again — every market order sends its address
+  // inline — is the row already on file, not a new one per order.
+  const same = await tx.customerAddress.findFirst({ where: { storeId, customerId, ...fields } });
+  if (same) return same;
+  return tx.customerAddress.create({ data: { storeId, customerId, ...fields, isDefault: false } });
 }
 
 /**
@@ -706,7 +725,7 @@ async function deliveryRateForGovernorate(tx: Prisma.TransactionClient, storeId:
 
 export async function deliveryQuote(storeId: string, customerId: string, addressId: string) {
   const address = await prisma.customerAddress.findFirst({ where: { id: addressId, storeId, customerId }, select: { governorate: true } });
-  if (!address) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested address was not found.");
+  if (!address) throw new HttpError(404, "RESOURCE_NOT_FOUND", "العنوان غير موجود.");
   return deliveryRateForGovernorate(prisma, storeId, address.governorate);
 }
 
@@ -846,7 +865,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
       return await prisma.$transaction(async (tx) => {
     const prior = await tx.checkoutRequest.findUnique({ where: { storeId_customerId_keyHash: { storeId, customerId, keyHash } }, include: { order: { include: { items: true, statusEvents: true } } } });
     if (prior?.status === "succeeded" && prior.order) {
-      if (prior.requestFingerprint !== fingerprint) throw new HttpError(409, "IDEMPOTENCY_KEY_REUSED", "This idempotency key was used with different checkout data.");
+      if (prior.requestFingerprint !== fingerprint) throw new HttpError(409, "IDEMPOTENCY_KEY_REUSED", "استُعمل مفتاح هذا الطلب لطلب مختلف. حدّث الصفحة ثم أعد المحاولة.");
       return { replayed: true, order: prior.order };
     }
     // MD-1: vacation mode refuses NEW checkouts only — browsing, the cart, and
@@ -868,13 +887,13 @@ export async function checkout(storeId: string, customerId: string, input: Check
     const gate = gateRow ? await effectiveStoreState(gateRow, new Date(), tx) : null;
     if (gate?.status === "paused") throw new HttpError(422, "STORE_ON_VACATION", "المتجر في إجازة مؤقتة ولا يستقبل طلبات جديدة حالياً.");
     if (gate?.status === "maintenance") throw new HttpError(423, "STORE_IN_MAINTENANCE", gate.message?.trim() || "المتجر مغلق للصيانة.", { until: gate.until?.toISOString() ?? null });
-    if (gate && gate.status !== "active") throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
-    if (prior && prior.requestFingerprint !== fingerprint) throw new HttpError(409, "IDEMPOTENCY_KEY_REUSED", "This idempotency key was used with different checkout data.");
+    if (gate && gate.status !== "active") throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
+    if (prior && prior.requestFingerprint !== fingerprint) throw new HttpError(409, "IDEMPOTENCY_KEY_REUSED", "استُعمل مفتاح هذا الطلب لطلب مختلف. حدّث الصفحة ثم أعد المحاولة.");
     const request = prior ?? await tx.checkoutRequest.create({ data: { storeId, customerId, keyHash, requestFingerprint: fingerprint, status: "processing" } });
     const cart = await tx.shoppingCart.findFirst({ where: { storeId, customerId, ownerKind: "customer", status: CART_STATUS_ACTIVE }, include: { items: true } });
-    if (!cart) throw new HttpError(409, "CART_ALREADY_CHECKED_OUT", "No active customer cart is available for checkout.");
-    if (cart.version !== cartVersion) throw new HttpError(409, "CART_VERSION_CONFLICT", "The cart was changed by another request.");
-    if (!cart.items.length) throw new HttpError(422, "CART_EMPTY", "Cart is empty.");
+    if (!cart) throw new HttpError(409, "CART_ALREADY_CHECKED_OUT", "لا توجد سلة جاهزة لإتمام الطلب — ربما أُتمّ الطلب للتو.");
+    if (cart.version !== cartVersion) throw new HttpError(409, "CART_VERSION_CONFLICT", "تغيّرت السلة من نافذة أخرى. حدّث الصفحة ثم أعد المحاولة.");
+    if (!cart.items.length) throw new HttpError(422, "CART_EMPTY", "السلة فارغة.");
     // Phase 16: monthly order volume is a plan entitlement enforced server-side.
     //
     // ق-222 — CHECKED HERE, BEFORE ANY LOCK IS TAKEN. This used to run AFTER the
@@ -887,7 +906,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
     // check belongs before the write locks, the same discipline the coupon
     // lock-order comment below applies to itself.
     const storeOwner = await tx.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
-    if (!storeOwner) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+    if (!storeOwner) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
     // ق-216 — THE SHOPPER MUST NOT BE HANDED THE MERCHANT'S INVOICE.
     //
     // `assertWithinPlanLimit` throws 403 PLAN_LIMIT_EXCEEDED with a sentence
@@ -982,7 +1001,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
       return !variant || !variant.productActive || !variant.variantActive;
     });
     if (unavailable.length) {
-      throw new HttpError(422, "PRODUCT_UNAVAILABLE", "One or more cart products are unavailable.", {
+      throw new HttpError(422, "PRODUCT_UNAVAILABLE", "منتج أو أكثر في سلتك لم يعد متوفراً. راجع السلة.", {
         lines: unavailable.map((item) => refusedLine(item, variantById.get(item.variantId), "unavailable", 0)),
       });
     }
@@ -998,7 +1017,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
       return available < item.quantity ? [refusedLine(item, variant, "insufficient_stock", available)] : [];
     });
     if (short.length) {
-      throw new HttpError(422, "INSUFFICIENT_AVAILABLE_STOCK", "One or more products do not have enough available stock.", { lines: short });
+      throw new HttpError(422, "INSUFFICIENT_AVAILABLE_STOCK", "الكمية المطلوبة من منتج أو أكثر غير متوفرة. راجع السلة.", { lines: short });
     }
     // Marketplace M2: the merchant's per-order cap counts every variant of the
     // product together («حدّ أقصى ٢ لكل طلب» means two phones, whatever colour).
@@ -1013,7 +1032,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
       return variant.maxPerOrder !== null && (unitsByProduct.get(variant.productId) ?? 0) > variant.maxPerOrder ? [refusedLine(item, variant, "order_limit", variant.maxPerOrder)] : [];
     });
     if (overCap.length) {
-      throw new HttpError(422, "ORDER_LIMIT_EXCEEDED", "One or more products exceed the quantity allowed per order.", { lines: overCap });
+      throw new HttpError(422, "ORDER_LIMIT_EXCEEDED", "منتج أو أكثر يتجاوز الحد المسموح في الطلب الواحد.", { lines: overCap });
     }
     /**
      * 19-د — THE SNAPSHOT IS RECONCILED WITH THE LOCKED PRICE BEFORE ANY MONEY
@@ -1099,7 +1118,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
       throw new HttpError(422, "ORDER_TOTAL_TOO_LARGE", "مبلغ الطلب أكبر من المسموح لطلبٍ واحد — قسّمه على أكثر من طلب.");
     }
     const customer = await tx.customer.findFirst({ where: { id: customerId, storeId }, select: { fullName: true, email: true } });
-    if (!customer) throw new HttpError(403, "STORE_BOUNDARY_DENIED", "Customer does not belong to this store.");
+    if (!customer) throw new HttpError(403, "STORE_BOUNDARY_DENIED", "هذا الزبون ليس من زبائن هذا المتجر.");
     // Phase 20B-1: a product requiring a prescription stamps the order into the
     // pending_upload state at creation; the upload itself happens after checkout.
     const requiresPrescription = variants.some((variant) => variant.requiresPrescription);
@@ -1115,7 +1134,7 @@ export async function checkout(storeId: string, customerId: string, input: Check
     if (coupon) await tx.couponRedemption.create({ data: { storeId, couponId: coupon.id, orderId: order.id, customerId, discountIqd, waivedDeliveryFeeIqd: couponResult.freeShipping ? deliveryRate.amountIqd : 0 } });
     await tx.inventoryReservation.createMany({ data: cart.items.map((item) => ({ storeId, orderId: order.id, productId: item.productId, variantId: item.variantId, quantity: item.quantity, status: "active" })) });
     const converted = await tx.shoppingCart.updateMany({ where: { id: cart.id, storeId, customerId, status: CART_STATUS_ACTIVE, version: cartVersion }, data: { status: "converted", convertedOrderId: order.id, version: { increment: 1 } } });
-    if (converted.count !== 1) throw new HttpError(409, "CART_VERSION_CONFLICT", "The cart was changed by another request.");
+    if (converted.count !== 1) throw new HttpError(409, "CART_VERSION_CONFLICT", "تغيّرت السلة من نافذة أخرى. حدّث الصفحة ثم أعد المحاولة.");
     await tx.checkoutRequest.update({ where: { id: request.id }, data: { status: "succeeded", orderId: order.id } });
     // Phase 15: the notification row commits or rolls back with the order itself.
     await enqueueOrderCreated(tx, { storeId, orderId: order.id, orderNumber: order.orderNumber, totalIqd: order.totalIqd, customerName: order.customerName, customerEmail: order.customerEmail });
@@ -1167,7 +1186,7 @@ export async function customerOrders(storeId: string, customerId: string, rawLim
 
 export async function customerOrder(storeId: string, customerId: string, orderId: string) {
   const order = await prisma.storeOrder.findFirst({ where: { id: orderId, storeId, customerId }, include: { items: { select: { id: true, productName: true, variantId: true, variantName: true, sku: true, quantity: true, unitPriceIqd: true, lineTotalIqd: true } }, statusEvents: { select: { fromStatus: true, toStatus: true, createdAt: true }, orderBy: { createdAt: "asc" } } } });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found.");
+  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود.");
   return order;
 }
 
@@ -1204,7 +1223,7 @@ export async function reorderIntoCart(storeId: string, customerId: string, order
     where: { id: orderId, storeId, customerId },
     select: { id: true, items: { select: { variantId: true, quantity: true, productName: true, variantName: true }, orderBy: { createdAt: "asc" } } },
   });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found.");
+  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود.");
 
   const skipped: ReorderSkip[] = [];
   // Historical orders can, in principle, carry the same variant twice; merge
@@ -1250,7 +1269,7 @@ export async function reorderIntoCart(storeId: string, customerId: string, order
   if (!additions.length) return { cart: await currentCart(storeId, { customerId }), skipped, addedCount: 0 };
 
   const { cart } = await activeCartForContext(storeId, { customerId }, true);
-  if (!cart) throw new HttpError(500, "CART_CREATION_FAILED", "Cart could not be created.");
+  if (!cart) throw new HttpError(500, "CART_CREATION_FAILED", "تعذّر إنشاء السلة. حاول مرة أخرى.");
   const result = await prisma.$transaction(async (tx) => {
     const limitSkips: ReorderSkip[] = [];
     let addedCount = 0;
@@ -1356,7 +1375,7 @@ export async function settleStorefrontReservations(tx: Prisma.TransactionClient,
   for (const reservation of settleable) {
     const before = await tx.productVariant.findFirst({ where: { id: reservation.variantId, storeId }, select: { name: true, sku: true, stockQuantity: true, lowStockThreshold: true, product: { select: { name: true } } } });
     const changed = await tx.productVariant.updateMany({ where: { id: reservation.variantId, storeId, stockQuantity: { gte: reservation.quantity } }, data: { stockQuantity: { decrement: reservation.quantity } } });
-    if (changed.count !== 1) throw new HttpError(422, "INSUFFICIENT_AVAILABLE_STOCK", "Reserved stock is no longer available for completion.");
+    if (changed.count !== 1) throw new HttpError(422, "INSUFFICIENT_AVAILABLE_STOCK", "المخزون المحجوز لهذا الطلب لم يعد متوفراً.");
     await tx.inventoryMovement.create({ data: { storeId, productId: reservation.productId, variantId: reservation.variantId, delta: -reservation.quantity, reason: "storefront_cod_completed" } });
     if (before) {
       await enqueueLowStockIfCrossed(tx, { storeId, productId: reservation.productId, variantId: reservation.variantId, productName: before.product.name, variantName: before.name, sku: before.sku, previousQuantity: before.stockQuantity, stockQuantity: before.stockQuantity - reservation.quantity, lowStockThreshold: before.lowStockThreshold });

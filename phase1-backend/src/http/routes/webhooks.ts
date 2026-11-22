@@ -20,13 +20,13 @@ type RawBodyRequest = Request & { rawBody?: Buffer };
 export function registerWebhookRoutes(app: Express) {
   app.post("/webhooks/resend", asyncRoute(async (request, response) => {
     const secret = process.env.CODIQ_RESEND_WEBHOOK_SECRET?.trim();
-    if (!secret) throw new HttpError(503, "WEBHOOK_NOT_CONFIGURED", "CODIQ_RESEND_WEBHOOK_SECRET is not set; the Resend webhook is disabled.");
+    if (!secret) throw new HttpError(503, "WEBHOOK_NOT_CONFIGURED", "لم يُضبط سرّ رابط Resend (CODIQ_RESEND_WEBHOOK_SECRET)، فالرابط معطّل.");
     const raw = (request as RawBodyRequest).rawBody;
     const id = request.header("svix-id") ?? "";
     const timestamp = request.header("svix-timestamp") ?? "";
     const signature = request.header("svix-signature") ?? "";
     if (!raw || !id || !timestamp || !signature || !verifyResendSignature({ secret, id, timestamp, signature, rawBody: raw })) {
-      throw new HttpError(401, "WEBHOOK_SIGNATURE_INVALID", "The webhook signature did not verify.");
+      throw new HttpError(401, "WEBHOOK_SIGNATURE_INVALID", "توقيع الرابط غير صحيح.");
     }
     const body = parseOrThrow(resendEventSchema, request.body ?? {});
     if (body.type !== "email.complained") {

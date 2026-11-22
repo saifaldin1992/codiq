@@ -57,7 +57,7 @@ export async function merchantSessionView(merchantId: string, storeId: string) {
     select: { id: true, email: true, businessName: true, ownerName: true, isActive: true, passwordSetByProvisionerAt: true },
   });
   if (!merchant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الحساب غير موجود.");
-  if (!merchant.isActive) throw new HttpError(403, "MERCHANT_DISABLED", "This merchant account is disabled.");
+  if (!merchant.isActive) throw new HttpError(403, "MERCHANT_DISABLED", "حساب التاجر موقوف — تواصل مع إدارة المنصة.");
   const store = await prisma.store.findFirst({ where: { id: storeId, merchantId }, select: { id: true, name: true, slug: true, isActive: true } });
   return {
     merchant: { id: merchant.id, email: merchant.email, businessName: merchant.businessName, ownerName: merchant.ownerName },

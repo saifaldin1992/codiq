@@ -15,7 +15,7 @@ export function registerAuthRoutes(app: Express) {
   app.post("/auth/platform/register", asyncRoute(async (request, response) => {
     requireTrustedWriteOrigin(request);
     if (process.env.CODIQ_ALLOW_OWNER_REGISTRATION !== "true") {
-      throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested resource was not found.");
+      throw new HttpError(404, "RESOURCE_NOT_FOUND", "العنصر المطلوب غير موجود.");
     }
     response.status(201).json({ account: await registerPlatformOwner(parseOrThrow(registerPlatformOwnerSchema, request.body ?? {})) });
   }));

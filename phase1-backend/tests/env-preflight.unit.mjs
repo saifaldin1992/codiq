@@ -42,6 +42,7 @@ const COMPLETE = {
   // configured», and a deployment nothing is watching is not that.
   SENTRY_DSN: "https://k@o0.ingest.de.sentry.io/1",
   PRODUCT_S3_BUCKET: "b",
+  PRODUCT_S3_ENDPOINT: "https://s3.example",
   CODIQ_MAP_TILE_URL: "https://tiles.example/{z}/{x}/{y}.png?key=k",
   PRODUCT_S3_REGION: "r",
   PRODUCT_S3_ACCESS_KEY_ID: "id",
@@ -98,7 +99,8 @@ const halfStorage = reportEnvironment({ NODE_ENV: "development", PRODUCT_S3_BUCK
 const storage = halfStorage.groups.find((g) => g.key === "storage");
 assert.equal(storage.verdict, "incomplete", "some-but-not-all is `incomplete`, distinct from `absent`");
 assert.equal(halfStorage.ok, false, "…and it fails even in development, where absence is otherwise tolerated");
-assert.ok(storage.missing.includes("PRODUCT_S3_REGION") && storage.missing.includes("PRODUCT_S3_SECRET_ACCESS_KEY"), "every missing member is named");
+assert.ok(storage.missing.includes("PRODUCT_S3_ENDPOINT") && storage.missing.includes("PRODUCT_S3_SECRET_ACCESS_KEY"), "every missing member is named — the endpoint first among them, since uploads cannot run without it");
+assert.ok(!storage.missing.includes("PRODUCT_S3_REGION"), "the region defaults to us-east-1 and is not required");
 summary.incompleteAlwaysFails = "a half-configured group fails in every environment, development included";
 
 // ============================================================

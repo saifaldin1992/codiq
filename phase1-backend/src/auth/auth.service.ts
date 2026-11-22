@@ -10,12 +10,12 @@ import { domainEvents } from "../events/domain-events.js";
 
 export async function registerPlatformOwner(input: { email: unknown; password: unknown; displayName: unknown }) {
   if (typeof input.displayName !== "string" || input.displayName.trim().length < 2) {
-    throw new HttpError(400, "INVALID_DISPLAY_NAME", "Display name must contain at least 2 characters.");
+    throw new HttpError(400, "INVALID_DISPLAY_NAME", "اسم العرض حرفان على الأقل.");
   }
   const email = normalizeEmail(input.email);
   const existingMerchant = await prisma.merchant.findUnique({ where: { email }, select: { id: true } });
   if (existingMerchant) {
-    throw new HttpError(409, "EMAIL_RESERVED_FOR_MERCHANT", "This email already belongs to a merchant and cannot be registered as a platform owner.");
+    throw new HttpError(409, "EMAIL_RESERVED_FOR_MERCHANT", EMAIL_TAKEN_ON_PLATFORM);
   }
   return prisma.platformOwner.create({
     data: { email, passwordHash: await createPasswordHash(input.password), displayName: input.displayName.trim() },
@@ -25,7 +25,7 @@ export async function registerPlatformOwner(input: { email: unknown; password: u
 
 export async function registerMerchant(input: { email: unknown; password: unknown; businessName: unknown; ownerName: unknown; phone: unknown }) {
   if (typeof input.businessName !== "string" || input.businessName.trim().length < 2) {
-    throw new HttpError(400, "INVALID_BUSINESS_NAME", "Business name must contain at least 2 characters.");
+    throw new HttpError(400, "INVALID_BUSINESS_NAME", "اسم النشاط حرفان على الأقل.");
   }
   // P27-12 (ق-100). «متجر النور» does not answer a phone, and a cash-on-delivery
   // platform whose merchants have no number cannot resolve a single dispute.
@@ -100,7 +100,7 @@ export async function loginPlatformOwner(input: { email: unknown; password: unkn
   // address it would otherwise leak is the highest-value phishing target here.
   const passwordOk = await verifyPassword(input.password, owner?.passwordHash ?? ABSENT_IDENTITY_HASH);
   if (!owner || !owner.isActive || !passwordOk) {
-    throw new HttpError(401, "INVALID_PLATFORM_OWNER_CREDENTIALS", "Invalid platform owner credentials.");
+    throw new HttpError(401, "INVALID_PLATFORM_OWNER_CREDENTIALS", "بيانات الدخول غير صحيحة.");
   }
   if (owner.totpEnabledAt) {
     // A distinct code, deliberately: the client must know to ASK for the second
@@ -215,7 +215,7 @@ export async function loginMerchant(input: { identifier: unknown; password: unkn
  * registered when the flag is on, and this function refuses when the flag is off.
  */
 export async function loginDemoMerchantGuest() {
-  if (!config.demoMode) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested resource was not found.");
+  if (!config.demoMode) throw new HttpError(404, "RESOURCE_NOT_FOUND", "العنصر المطلوب غير موجود.");
   const merchant = await prisma.merchant.findUnique({ where: { email: DEMO_MERCHANT_EMAIL }, select: { id: true, isActive: true, approvalStatus: true } });
   if (!merchant || !merchant.isActive || merchant.approvalStatus !== "approved") {
     throw new HttpError(404, "DEMO_NOT_SEEDED", "لم تُبذر بيانات النسخة التجريبية بعد.");
@@ -239,14 +239,14 @@ export async function loginStaff(input: { email: unknown; password: unknown; sto
   // not» in one request each, and hand that list to a password-guessing run.
   const passwordOk = await verifyPassword(input.password, staff?.passwordHash ?? ABSENT_IDENTITY_HASH);
   if (!staff || !staff.isActive || !passwordOk) {
-    throw new HttpError(401, "INVALID_STAFF_CREDENTIALS", "Invalid staff credentials.");
+    throw new HttpError(401, "INVALID_STAFF_CREDENTIALS", "بيانات الدخول غير صحيحة.");
   }
   const membership = await prisma.storeStaffMembership.findFirst({
     // PG-2: sign-in must never see a membership that was removed from the team.
     where: { staffId: staff.id, isActive: true, deletedAt: null, store: { slug: input.storeSlug, isActive: true } },
     select: { id: true, storeId: true, store: { select: { slug: true } } },
   });
-  if (!membership) throw new HttpError(404, "STAFF_STORE_CONTEXT_NOT_FOUND", "This staff account has no active membership in the requested store.");
+  if (!membership) throw new HttpError(404, "STAFF_STORE_CONTEXT_NOT_FOUND", "ليس لك عضوية نشطة في هذا المتجر.");
   // Audit 14-ب: like ق-218 for merchants — the session is real, but the only door
   // open while the password is the merchant's choice is «change my password».
   const mustChangePassword = Boolean(staff.passwordSetByProvisionerAt);
@@ -259,8 +259,8 @@ export async function loginStaff(input: { email: unknown; password: unknown; sto
 
 export async function registerCustomer(input: { storeSlug: string; email?: unknown; password: unknown; fullName: unknown; phone: unknown }) {
   const store = await prisma.store.findUnique({ where: { slug: input.storeSlug } });
-  if (!store || !store.isActive) throw new HttpError(404, "STORE_NOT_FOUND", "Store was not found.");
-  if (typeof input.fullName !== "string" || input.fullName.trim().length < 2) throw new HttpError(400, "INVALID_FULL_NAME", "Full name must contain at least 2 characters.");
+  if (!store || !store.isActive) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
+  if (typeof input.fullName !== "string" || input.fullName.trim().length < 2) throw new HttpError(400, "INVALID_FULL_NAME", "الاسم الكامل حرفان على الأقل.");
   const phoneNormalized = normalizePhone(input.phone);
   const data = { email: normalizeOptionalEmail(input.email), passwordHash: await createPasswordHash(input.password), fullName: input.fullName.trim(), phone: typeof input.phone === "string" ? input.phone.trim() : null };
   const select = { id: true, storeId: true, email: true, fullName: true, phoneNormalized: true, isGuest: true } as const;
@@ -318,7 +318,7 @@ export async function setGuestPassword(customerId: string, password: unknown) {
 
 export async function loginCustomer(input: { storeSlug: string; phone: unknown; password: unknown }) {
   const store = await prisma.store.findUnique({ where: { slug: input.storeSlug } });
-  if (!store || !store.isActive) throw new HttpError(404, "STORE_NOT_FOUND", "Store was not found.");
+  if (!store || !store.isActive) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   const customer = await prisma.customer.findFirst({ where: { storeId: store.id, phoneNormalized: normalizePhone(input.phone) } });
   // 19-د: constant work — see ABSENT_IDENTITY_HASH. This is the door with no
   // account needed to knock on it: the lookup is scoped to ONE store, so a fast
@@ -327,7 +327,7 @@ export async function loginCustomer(input: { storeSlug: string; phone: unknown; 
   // merchant, disclosed to a stranger, one number at a time.
   const passwordOk = await verifyPassword(input.password, customer?.passwordHash ?? ABSENT_IDENTITY_HASH);
   if (!customer || !customer.isActive || !passwordOk) {
-    throw new HttpError(401, "INVALID_CUSTOMER_CREDENTIALS", "Invalid customer credentials for this store.");
+    throw new HttpError(401, "INVALID_CUSTOMER_CREDENTIALS", "رقم الهاتف أو كلمة المرور غير صحيحة.");
   }
   return { accessToken: await createTypedSession("customer", customer.id) };
 }

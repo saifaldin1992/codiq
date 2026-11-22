@@ -29,8 +29,8 @@ export function parsePrintIds(raw: unknown): string[] {
   // Duplicates are dropped rather than refused: selecting the same order twice
   // is a slip of the hand, and one label is plainly what was meant.
   const ids = Array.from(new Set(text.split(",").map((value) => value.trim()).filter((value) => value.length > 0)));
-  if (ids.length === 0) throw new HttpError(400, "INVALID_PRINT_SELECTION", "Select at least one order to print.");
-  if (ids.length > PRINT_BATCH_LIMIT) throw new HttpError(400, "PRINT_BATCH_TOO_LARGE", `A print run covers at most ${PRINT_BATCH_LIMIT} orders.`);
+  if (ids.length === 0) throw new HttpError(400, "INVALID_PRINT_SELECTION", "اختر طلباً واحداً على الأقل للطباعة.");
+  if (ids.length > PRINT_BATCH_LIMIT) throw new HttpError(400, "PRINT_BATCH_TOO_LARGE", `الطباعة حتى ${PRINT_BATCH_LIMIT} طلباً في المرة.`);
   return ids;
 }
 
@@ -57,7 +57,7 @@ export async function orderPrintSheet(storeId: string, ids: string[]) {
       },
     }),
   ]);
-  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The store was not found.");
+  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المتجر غير موجود.");
   if (orders.length !== ids.length) {
     const found = new Set(orders.map((order) => order.id));
     const missing = ids.filter((id) => !found.has(id)).length;

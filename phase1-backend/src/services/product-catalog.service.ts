@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { fieldLabel } from "./field-labels.js";
 import type { ProductVariant } from "@prisma/client";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
@@ -29,20 +30,20 @@ const productInclude = {
  * seeder, which do not pass through a route.
  */
 function requiredText(value: unknown, field: string, maxLength = 240) {
-  if (typeof value !== "string" || !value.trim() || value.trim().length > maxLength) throw new HttpError(422, "INVALID_INPUT", `${field} is required and must be within ${maxLength} characters.`);
+  if (typeof value !== "string" || !value.trim() || value.trim().length > maxLength) throw new HttpError(422, "INVALID_INPUT", `${fieldLabel(field)} مطلوب، حتى ${maxLength} حرف.`);
   return value.trim();
 }
 
 function optionalText(value: unknown, field: string, maxLength = 4000) {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
-  if (typeof value !== "string" || value.trim().length > maxLength) throw new HttpError(422, "INVALID_INPUT", `${field} must be within ${maxLength} characters.`);
+  if (typeof value !== "string" || value.trim().length > maxLength) throw new HttpError(422, "INVALID_INPUT", `${fieldLabel(field)}: حتى ${maxLength} حرف.`);
   return value.trim();
 }
 
 function nonNegativeInteger(value: unknown, field: string) {
   const number = typeof value === "number" ? value : Number(value);
-  if (!Number.isInteger(number) || number < 0) throw new HttpError(422, "INVALID_INPUT", `${field} must be a non-negative integer.`);
+  if (!Number.isInteger(number) || number < 0) throw new HttpError(422, "INVALID_INPUT", `${fieldLabel(field)}: عدد صحيح غير سالب.`);
   return number;
 }
 
@@ -57,20 +58,20 @@ export function normalizeName(name: string) { return name.trim().toLocaleLowerCa
 // never shows a variant the merchant deleted separately before it.
 async function scopedProduct(storeId: string, productId: string) {
   const product = await prisma.product.findFirst({ where: { id: productId, storeId, ...LIVE }, include: productInclude });
-  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in this store.");
+  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود في هذا المتجر.");
   return product;
 }
 
 async function scopedCategory(storeId: string, categoryId: string) {
   const category = await prisma.productCategory.findFirst({ where: { id: categoryId, storeId, ...LIVE } });
-  if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in this store.");
+  if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "التصنيف غير موجود في هذا المتجر.");
   return category;
 }
 
 async function categoryIdForStore(storeId: string, value: unknown) {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
-  if (typeof value !== "string") throw new HttpError(422, "INVALID_INPUT", "categoryId is invalid.");
+  if (typeof value !== "string") throw new HttpError(422, "INVALID_INPUT", "التصنيف غير صالح.");
   await scopedCategory(storeId, value);
   return value;
 }
@@ -192,7 +193,7 @@ export async function createCategory(storeId: string, body: Record<string, unkno
   // PG-2 LIVE: a name held by a trashed category is free to reuse, exactly as
   // the partial unique index product_categories_store_name_live_key allows.
   const existing = await prisma.productCategory.findFirst({ where: { storeId, normalizedName, ...LIVE }, select: { id: true } });
-  if (existing) throw new HttpError(409, "DUPLICATE_CATEGORY", "A category with this name already exists in this store.");
+  if (existing) throw new HttpError(409, "DUPLICATE_CATEGORY", "يوجد تصنيف بهذا الاسم في المتجر.");
   return prisma.productCategory.create({ data: { storeId, name, normalizedName, parentCategoryId: parentCategoryId ?? null }, select: { id: true, name: true, parentCategoryId: true, createdAt: true } });
 }
 
@@ -326,7 +327,7 @@ export async function createProduct(storeId: string, body: Record<string, unknow
   return prisma.$transaction(async (tx) => {
     // Phase 16: product count is a plan entitlement across the merchant's stores.
     const store = await tx.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
-    if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+    if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
     await assertWithinPlanLimit(tx, store.merchantId, "max_products");
     // Phase 20A: the products_create_default_variant trigger materializes the
     // implicit default variant (inheriting sku/price/stock/threshold) inside this
@@ -351,11 +352,11 @@ export async function updateProduct(storeId: string, productId: string, body: Re
   const lowStockThreshold = body.lowStockThreshold === undefined ? undefined : nonNegativeInteger(body.lowStockThreshold, "lowStockThreshold");
   if (lowStockThreshold !== undefined) data.lowStockThreshold = lowStockThreshold;
   if (body.isActive !== undefined) {
-    if (typeof body.isActive !== "boolean") throw new HttpError(422, "INVALID_INPUT", "isActive must be boolean.");
+    if (typeof body.isActive !== "boolean") throw new HttpError(422, "INVALID_INPUT", "الحالة نعم أو لا.");
     data.isActive = body.isActive;
   }
   if (body.requiresPrescription !== undefined) {
-    if (typeof body.requiresPrescription !== "boolean") throw new HttpError(422, "INVALID_INPUT", "requiresPrescription must be boolean.");
+    if (typeof body.requiresPrescription !== "boolean") throw new HttpError(422, "INVALID_INPUT", "حاجة المنتج إلى وصفة: نعم أو لا.");
     data.requiresPrescription = body.requiresPrescription;
   }
   const attributes = parseProductAttributes(body.attributes);
@@ -429,7 +430,7 @@ async function applyVariantInventory(storeId: string, productId: string, variant
       WHERE id = ${variant.id}::uuid AND store_id = ${storeId}::uuid AND deleted_at IS NULL
       FOR UPDATE`;
     const current = locked[0]?.stock_quantity;
-    if (current === undefined) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product variant was not found in this store.");
+    if (current === undefined) throw new HttpError(404, "RESOURCE_NOT_FOUND", "خيار المنتج غير موجود في هذا المتجر.");
     if (expectedStockQuantity !== undefined && expectedStockQuantity !== current) {
       throw new HttpError(
         409,
@@ -451,10 +452,10 @@ export async function adjustInventory(storeId: string, productId: string, body: 
   // adjusting the product's implicit default variant.
   const existing = await scopedProduct(storeId, productId);
   const defaultVariant = existing.variants.find((variant) => variant.isDefault);
-  if (!defaultVariant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in this store.");
+  if (!defaultVariant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود في هذا المتجر.");
   await applyVariantInventory(storeId, existing.id, defaultVariant, body);
   const product = await prisma.product.findFirst({ where: { id: existing.id, storeId, ...LIVE }, include: productInclude });
-  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in this store.");
+  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود في هذا المتجر.");
   return productPayload(product);
 }
 
@@ -484,14 +485,14 @@ export async function restoreProduct(storeId: string, productId: string, actor: 
 
 async function scopedVariant(storeId: string, productId: string, variantId: string) {
   const variant = await prisma.productVariant.findFirst({ where: { id: variantId, productId, storeId, ...LIVE } });
-  if (!variant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product variant was not found in this store.");
+  if (!variant) throw new HttpError(404, "RESOURCE_NOT_FOUND", "خيار المنتج غير موجود في هذا المتجر.");
   return variant;
 }
 
 function variantOptions(value: unknown) {
   if (value === undefined) return undefined;
-  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new HttpError(422, "INVALID_INPUT", "options must be an object.");
-  if (JSON.stringify(value).length > 2000) throw new HttpError(422, "INVALID_INPUT", "options must be within 2000 characters.");
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new HttpError(422, "INVALID_INPUT", "خصائص الخيار غير صالحة.");
+  if (JSON.stringify(value).length > 2000) throw new HttpError(422, "INVALID_INPUT", "خصائص الخيار حتى 2000 حرف.");
   return value as Prisma.InputJsonObject;
 }
 
@@ -499,7 +500,7 @@ async function assertVariantSkuAvailable(storeId: string, sku: string, exceptVar
   // PG-2 LIVE: a SKU held by a trashed variant is free, matching the partial
   // unique index product_variants_store_sku_live_key.
   const duplicate = await prisma.productVariant.findFirst({ where: { storeId, sku, ...LIVE, ...(exceptVariantId ? { id: { not: exceptVariantId } } : {}) }, select: { id: true } });
-  if (duplicate) throw new HttpError(409, "DUPLICATE_VARIANT_SKU", "A variant with this SKU already exists in this store.");
+  if (duplicate) throw new HttpError(409, "DUPLICATE_VARIANT_SKU", "يوجد خيار بهذا الرمز (SKU) في المتجر.");
 }
 
 export async function listVariants(storeId: string, productId: string) {
@@ -534,7 +535,7 @@ export async function updateVariant(storeId: string, productId: string, variantI
   if (body.priceIqd !== undefined) data.priceIqd = nonNegativeInteger(body.priceIqd, "priceIqd");
   if (body.lowStockThreshold !== undefined) data.lowStockThreshold = nonNegativeInteger(body.lowStockThreshold, "lowStockThreshold");
   if (body.isActive !== undefined) {
-    if (typeof body.isActive !== "boolean") throw new HttpError(422, "INVALID_INPUT", "isActive must be boolean.");
+    if (typeof body.isActive !== "boolean") throw new HttpError(422, "INVALID_INPUT", "الحالة نعم أو لا.");
     data.isActive = body.isActive;
   }
   if (body.position !== undefined) data.position = nonNegativeInteger(body.position, "position");
@@ -560,12 +561,12 @@ export async function deleteVariant(storeId: string, productId: string, variantI
   // PG-2 §6.3: a variant is NOT an entity in the approved scope — deleteVariant
   // stays a HARD delete behind its three existing guards; a variant only reaches
   // the trash bin by riding along with its parent product.
-  if (variant.isDefault) throw new HttpError(409, "DEFAULT_VARIANT_PROTECTED", "The default variant of a product cannot be deleted.");
+  if (variant.isDefault) throw new HttpError(409, "DEFAULT_VARIANT_PROTECTED", "الخيار الأساسي للمنتج لا يُحذف.");
   const usedInOrders = await prisma.orderItem.count({ where: { variantId: variant.id } });
   const usedInReservations = await prisma.inventoryReservation.count({ where: { variantId: variant.id } });
-  if (usedInOrders > 0 || usedInReservations > 0) throw new HttpError(409, "VARIANT_REFERENCED_BY_ORDER", "A variant referenced by an order cannot be deleted.");
+  if (usedInOrders > 0 || usedInReservations > 0) throw new HttpError(409, "VARIANT_REFERENCED_BY_ORDER", "هذا الخيار مذكور في طلبات سابقة — لا يمكن حذفه. أوقفه بدلاً من ذلك.");
   const usedInCarts = await prisma.cartItem.count({ where: { variantId: variant.id } });
-  if (usedInCarts > 0) throw new HttpError(409, "VARIANT_IN_USE", "A variant present in shopping carts cannot be deleted.");
+  if (usedInCarts > 0) throw new HttpError(409, "VARIANT_IN_USE", "هذا الخيار في سلال زبائن الآن — لا يمكن حذفه. أوقفه بدلاً من ذلك.");
   await prisma.productVariant.delete({ where: { id: variant.id } });
 }
 
@@ -619,7 +620,7 @@ export async function duplicateProduct(storeId: string, productId: string) {
   const source = await scopedProduct(storeId, productId);
   return prisma.$transaction(async (tx) => {
     const store = await tx.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
-    if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+    if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
     await assertWithinPlanLimit(tx, store.merchantId, "max_products", 1);
     const sku = await allocateCopySku(tx, storeId, source.sku, "product");
     const name = `${source.name} (نسخة)`.slice(0, 240);
@@ -664,7 +665,7 @@ export async function addProductImages(storeId: string, productId: string, files
   const product = await scopedProduct(storeId, productId);
   // Phase 16: image storage is a plan entitlement; refuse before any byte is uploaded.
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
-  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   // ق-238 — RENDER FIRST, THEN ASK THE METER, THEN UPLOAD.
   //
   // The meter used to be charged `file.size`: what the merchant SENT. Since the
@@ -736,6 +737,6 @@ export async function productImageForStore(storeId: string, productId: string, i
   // image leak" was a fabricated fact); the guard is on the PARENT product, so a
   // trashed product's images stop being served the instant it is deleted.
   const image = await prisma.productImage.findFirst({ where: { id: imageId, storeId, productId, product: { deletedAt: null } }, select: { objectKey: true, contentType: true, variantSet: true } });
-  if (!image) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product image was not found in this store.");
+  if (!image) throw new HttpError(404, "RESOURCE_NOT_FOUND", "صورة المنتج غير موجودة في هذا المتجر.");
   return image;
 }

@@ -74,7 +74,7 @@ function SalesSeriesChart({ series, interval }: { series: SeriesBucket[]; interv
   if (!series.length) return <p className="rounded-2xl bg-[var(--codiq-surface-sunken)] px-4 py-6 text-center text-sm text-[var(--codiq-text-muted)]">لا مبيعات ضمن المدة المحددة بعد.</p>;
   return (
     <div dir="ltr" className="overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="سلسلة المبيعات" className="min-w-[520px] w-full">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="الطلبات الواردة" className="min-w-[520px] w-full">
         {[0.25, 0.5, 0.75, 1].map((fraction) => (
           <line key={fraction} x1={padX} x2={width - padX} y1={padTop + chartHeight - chartHeight * fraction} y2={padTop + chartHeight - chartHeight * fraction} stroke="#EDF2F9" strokeWidth={1} />
         ))}
@@ -215,8 +215,8 @@ export function MerchantAnalytics({ storeSlug, showCoupons = false }: { storeSlu
       <div className="rounded-[26px] border border-[var(--codiq-surface)] bg-[var(--codiq-surface)] p-6 shadow-[0_16px_44px_rgba(31,55,98,0.055)] sm:p-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-bold text-[#273753]">سلسلة المبيعات</h2>
-            <p className="mt-1 text-xs text-[var(--codiq-text-muted)]">الأعمدة: قيمة الطلبات (د.ع) · الخط: عدد الطلبات — بلا الطلبات الملغاة والمرفوضة.</p>
+            <h2 className="font-bold text-[#273753]">الطلبات الواردة</h2>
+            <p className="mt-1 text-xs text-[var(--codiq-text-muted)]">الأعمدة: قيمة الطلبات يوم وصولها (د.ع) · الخط: عددها — بلا الملغاة والمرفوضة. هذه ما طُلب، لا الإيراد: الإيراد في البطاقات أعلاه يُحسب عند التسليم ويخصم المرتجع.</p>
           </div>
           <div className="flex rounded-xl bg-[var(--codiq-neutral-soft)] p-1">
             {(Object.keys(INTERVAL_LABELS) as Interval[]).map((key) => (

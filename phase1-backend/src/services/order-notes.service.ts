@@ -30,7 +30,7 @@ async function scopedOrderId(storeId: string, orderId: string) {
   // findFirst on the (id, storeId) pair: a foreign order is indistinguishable
   // from a missing one.
   const order = await prisma.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true } });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود في هذا المتجر.");
   return order.id;
 }
 
@@ -158,7 +158,7 @@ export async function replaceOrderTags(storeId: string, orderId: string, body: R
       WHERE id = ${orderId}::uuid AND store_id = ${storeId}::uuid
       FOR UPDATE
     `);
-    if (!locked[0]) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+    if (!locked[0]) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود في هذا المتجر.");
     await tx.orderTag.deleteMany({ where: { storeId, orderId } });
     if (tags.length) {
       await tx.orderTag.createMany({ data: tags.map((tag, position) => ({ storeId, orderId, tag, tagNormalized: normalizeTagKey(tag), position })) });

@@ -17,7 +17,7 @@ export async function createStoreFoundation(
   const slug = input.slug.trim().toLowerCase();
   const defaultSubdomain = input.defaultSubdomain.trim().toLowerCase();
   if (!slug || !defaultSubdomain) {
-    throw new HttpError(400, "INVALID_STORE_IDENTIFIER", "Store slug and subdomain are required.");
+    throw new HttpError(400, "INVALID_STORE_IDENTIFIER", "رابط المتجر ونطاقه الفرعي مطلوبان.");
   }
   // 19-د: this function is the ONE place a slug and a subdomain are written, so
   // it is where the reserved-label rule is unavoidable rather than remembered.

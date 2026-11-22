@@ -38,7 +38,7 @@ import { resolveSetting } from "./config.service.js";
 import { prisma } from "../db/prisma.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { toE164 } from "../auth/identity.js";
-import { assertWithinPlanLimit } from "./entitlement.service.js";
+import { assertWithinPlanLimit, replacementIncrementMb } from "./entitlement.service.js";
 import { deleteStoreLogoObjects, putStoreLogo } from "./product-image-storage.service.js";
 import { enabledPaymentMethods, type EnabledPaymentMethod } from "./payment-methods.service.js";
 import {
@@ -257,7 +257,8 @@ export async function setStoreLogo(storeId: string, merchantId: string, file: Ex
   const current = await loadStore(storeId);
   // Charged BEFORE the bytes are stored, exactly as product images and slides
   // are — and the merchant who owns the store pays, whoever the actor is.
-  await assertWithinPlanLimit(prisma, merchantId, "max_image_storage_mb", Math.max(1, Math.ceil(file.size / (1024 * 1024))), "لرفع شعار المتجر");
+  const added = current.logoObjectKey ? replacementIncrementMb(file.size, current.logoByteSize) : Math.max(1, Math.ceil(file.size / (1024 * 1024)));
+  if (added > 0) await assertWithinPlanLimit(prisma, merchantId, "max_image_storage_mb", added, "لرفع شعار المتجر");
   const stored = await putStoreLogo(storeId, file);
   let updated: StoreRow;
   try {
@@ -324,7 +325,9 @@ function compact<T extends Record<string, string | undefined>>(entries: T): T | 
 export async function publicStorefrontConfig(storeId: string): Promise<PublicStorefrontConfig> {
   // ق-209: the methods the merchant switched on, with what a wallet transfer
   // needs the shopper to know — never a decorative logo row.
-  const [row, methods] = await Promise.all([loadStore(storeId), enabledPaymentMethods(prisma, storeId)]);
+  // The guest option is shown exactly when checkout will accept it: the store's
+  // switch AND the merchant's and the platform's word (an «allow» setting).
+  const [row, methods, guestCheckout] = await Promise.all([loadStore(storeId), enabledPaymentMethods(prisma, storeId), guestCheckoutAllowed(storeId)]);
   const contact = compact({ email: row.supportEmail ?? undefined, phone: row.supportPhone ?? undefined, whatsapp: row.supportWhatsapp ?? undefined, addressLine: row.addressLine ?? undefined, city: row.city ?? undefined });
   const social = compact({
     facebook: row.socialFacebook ? `${SOCIAL_PREFIXES.facebook}${row.socialFacebook}` : undefined,
@@ -350,7 +353,7 @@ export async function publicStorefrontConfig(storeId: string): Promise<PublicSto
     ...(policies.length ? { policies } : {}),
     ...(pages.length ? { pages } : {}),
     paymentMethods: methods,
-    guestCheckout: row.guestCheckoutEnabled,
+    guestCheckout,
     homeSections: resolveHomeSections(row.homeSections).filter((section) => section.enabled),
   };
 }

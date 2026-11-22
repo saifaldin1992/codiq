@@ -14,6 +14,7 @@
  * commissionable net (decision §8.4).
  */
 import { Prisma } from "@prisma/client";
+import { fieldLabel } from "./field-labels.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
 import { ORDER_STATUSES } from "./order-lifecycle.service.js";
@@ -28,9 +29,9 @@ export const NON_CONSUMING_STATUSES = ["cancelled", "rejected"] as const;
 
 function parseDate(value: unknown, field: string): Date | undefined {
   if (value === undefined || value === null || value === "") return undefined;
-  if (typeof value !== "string") throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
+  if (typeof value !== "string") throw new HttpError(400, "INVALID_DATE_FILTER", `${fieldLabel(field)}: تاريخ غير صالح.`);
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
+  if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", `${fieldLabel(field)}: تاريخ غير صالح.`);
   return parsed;
 }
 
@@ -38,14 +39,14 @@ function parseDate(value: unknown, field: string): Date | undefined {
 function parseRange(query: Record<string, unknown>) {
   const to = parseDate(query.to, "to") ?? new Date();
   const from = parseDate(query.from, "from") ?? new Date(to.valueOf() - 30 * 24 * 60 * 60 * 1000);
-  if (to <= from) throw new HttpError(400, "INVALID_DATE_FILTER", "to must be after from.");
+  if (to <= from) throw new HttpError(400, "INVALID_DATE_FILTER", "تاريخ النهاية بعد تاريخ البداية.");
   return { from, to };
 }
 
 function parseInterval(value: unknown): SeriesInterval {
   if (value === undefined || value === null || value === "") return "day";
   if (typeof value !== "string" || !SERIES_INTERVALS.includes(value as SeriesInterval)) {
-    throw new HttpError(422, "INVALID_SERIES_INTERVAL", "interval must be day, week, or month.");
+    throw new HttpError(422, "INVALID_SERIES_INTERVAL", "الفترة: يوم أو أسبوع أو شهر.");
   }
   return value as SeriesInterval;
 }
@@ -138,9 +139,13 @@ export async function analyticsSummary(storeId: string, query: Record<string, un
 }
 
 /**
- * Sales time series via raw SQL date_trunc (day|week|month), covered by the
- * existing (store_id, created_at, id) index. Cancelled/rejected orders never
- * shipped, so they are excluded from the sales curve.
+ * ORDER INTAKE over time via raw SQL date_trunc (day|week|month), covered by the
+ * existing (store_id, created_at, id) index: every order PLACED in the bucket,
+ * at the total the shopper was charged, whatever happened to it afterwards
+ * (open, delivered or returned). Cancelled/rejected orders never shipped, so
+ * they are excluded. This is deliberately NOT the ledger revenue on the cards
+ * beside it — that counts completions and nets returns — and the response says
+ * so in `basis`, so a screen never presents the two as the same money.
  */
 export async function salesSeries(storeId: string, query: Record<string, unknown>) {
   const { from, to } = parseRange(query);
@@ -163,8 +168,7 @@ export async function salesSeries(storeId: string, query: Record<string, unknown
     WHERE store_id = ${storeId}::uuid
       AND created_at >= ${from} AND created_at <= ${to}
       AND status NOT IN (${Prisma.join([...NON_CONSUMING_STATUSES])})
-      -- ق-136: the sales curve sits above LEDGER-derived revenue cards, so it
-      -- must draw the same money. Counter sales live in their own pos block.
+      -- Counter sales live in their own pos block (ق-136).
       AND source <> 'pos'
     GROUP BY 1
     ORDER BY 1 ASC
@@ -172,6 +176,8 @@ export async function salesSeries(storeId: string, query: Record<string, unknown
   return {
     period: { from, to },
     interval,
+    /** What the bars measure: orders placed, not ledger revenue. */
+    basis: "orders_placed" as const,
     series: rows.map((row) => ({ bucketStart: row.bucket, ordersCount: row.orders_count, totalIqd: Number(row.total_iqd) })),
   };
 }
@@ -184,7 +190,7 @@ export async function salesSeries(storeId: string, query: Record<string, unknown
 export async function topProducts(storeId: string, query: Record<string, unknown>) {
   const { from, to } = parseRange(query);
   const by = query.by === undefined || query.by === "" || query.by === "revenue" ? "revenue" : query.by === "units" ? "units" : null;
-  if (!by) throw new HttpError(422, "INVALID_TOP_PRODUCTS_SORT", "by must be revenue or units.");
+  if (!by) throw new HttpError(422, "INVALID_TOP_PRODUCTS_SORT", "الترتيب حسب الإيراد أو عدد القطع.");
   const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50);
   const rows = await prisma.$queryRaw<Array<{ product_id: string | null; variant_id: string | null; product_name: string; variant_name: string | null; sku: string | null; units: bigint; revenue_iqd: bigint }>>(Prisma.sql`
     SELECT oi.product_id, oi.variant_id,

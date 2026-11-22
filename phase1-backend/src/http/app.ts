@@ -141,7 +141,7 @@ export function createApp() {
   // also match a store whose own slug began with `v1`.
   app.use((request, _response, next) => {
     if (request.baseUrl === API_MOUNT_V1 && isStorefrontPath(request.path)) {
-      next(new HttpError(404, "RESOURCE_NOT_FOUND", "The requested resource was not found."));
+      next(new HttpError(404, "RESOURCE_NOT_FOUND", "العنصر المطلوب غير موجود."));
       return;
     }
     next();
@@ -171,7 +171,7 @@ export function createApp() {
   // envelope, the same correlation id and the same one log line as every other
   // failure, and every mounting of `createApp()` gets it, tests included.
   app.all("*", (_request, _response, next) => {
-    next(new HttpError(404, "RESOURCE_NOT_FOUND", "The requested resource was not found."));
+    next(new HttpError(404, "RESOURCE_NOT_FOUND", "العنصر المطلوب غير موجود."));
   });
   app.use(errorHandler);
   return app;

@@ -53,14 +53,14 @@ export const ROLE_PERMISSION_MATRIX: Record<StaffRoleCode, readonly PermissionCo
 
 export function assertPermissionCode(value: unknown): PermissionCode {
   if (typeof value !== "string" || !PERMISSION_CODES.includes(value as PermissionCode)) {
-    throw new HttpError(422, "INVALID_PERMISSION_CODE", "The permission code is not part of the approved matrix.");
+    throw new HttpError(422, "INVALID_PERMISSION_CODE", "صلاحية غير معروفة.");
   }
   return value as PermissionCode;
 }
 
 export function assertStaffRoleCode(value: unknown): StaffRoleCode {
   if (typeof value !== "string" || !STAFF_ROLE_CODES.includes(value as StaffRoleCode)) {
-    throw new HttpError(422, "INVALID_STAFF_ROLE", "Only store_manager and store_staff roles exist in this phase.");
+    throw new HttpError(422, "INVALID_STAFF_ROLE", "الأدوار المتاحة: مدير متجر أو موظف متجر.");
   }
   return value as StaffRoleCode;
 }
@@ -110,7 +110,7 @@ function bearerTokenFromRequest(request: Request): string {
   if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length);
   const sessionCookie = readWebSessionCookie(request);
   if (sessionCookie) return sessionCookie;
-  throw new HttpError(401, "MISSING_SESSION", "A session is required.");
+  throw new HttpError(401, "MISSING_SESSION", "سجّل الدخول لمتابعة هذه الخطوة.");
 }
 
 /**
@@ -152,7 +152,7 @@ async function resolveStoreBySlug(storeSlug: string) {
   // ق-218 rides the SAME select rather than a second query: the guard already
   // reads the merchant row's live state on every store request.
   const store = await prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true, slug: true, merchantId: true, isActive: true, merchant: { select: { isActive: true, passwordSetByProvisionerAt: true } } } });
-  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   return store;
 }
 
@@ -169,7 +169,7 @@ export async function requireStoreStaff(request: Request, options: { allowPasswo
   const claims = await verifyTypedSession(bearerTokenFromRequest(request), "staff");
   const store = await resolveStoreBySlug(request.params.storeSlug);
   if (store.id !== claims.storeId) {
-    throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This staff session is not authorized for the requested store.");
+    throw new HttpError(403, "STORE_BOUNDARY_DENIED", "هذا المتجر ليس ضمن عضوياتك.");
   }
   const membership = await prisma.storeStaffMembership.findFirst({
     // PG-2: a removed membership must not resolve permissions on ANY request.
@@ -184,7 +184,7 @@ export async function requireStoreStaff(request: Request, options: { allowPasswo
     },
   });
   if (!membership || !membership.isActive || !membership.staff.isActive) {
-    throw new HttpError(401, "STAFF_ACCESS_REVOKED", "This staff membership is disabled and the session is no longer usable.");
+    throw new HttpError(401, "STAFF_ACCESS_REVOKED", "عضويتك في هذا المتجر موقوفة — تواصل مع صاحب المتجر.");
   }
   const mustChangePassword = Boolean(membership.staff.passwordSetByProvisionerAt);
   if (mustChangePassword && !options.allowPasswordChangePending) {
@@ -201,7 +201,7 @@ export async function requireStoreStaff(request: Request, options: { allowPasswo
   // it» is indefensible; whether that argument extends to his staff is a product
   // decision nobody has made. It is recorded as D-95 rather than decided here.
   if (!store.merchant.isActive) {
-    throw new HttpError(403, "MERCHANT_DISABLED", "This merchant account is disabled.");
+    throw new HttpError(403, "MERCHANT_DISABLED", "حساب التاجر موقوف — تواصل مع إدارة المنصة.");
   }
   // Phase 19: the employee's own «جلساتي» list shows the device and last use of
   // each session — and only the merchant's path ever stamped them, so an
@@ -245,7 +245,7 @@ async function resolveStoreActor(request: Request, permissions: readonly Permiss
     touchSession(claims, request);
     const store = await resolveStoreBySlug(request.params.storeSlug);
     if (store.id !== claims.storeId || store.merchantId !== claims.subjectId) {
-      throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This merchant session is not authorized for the requested store.");
+      throw new HttpError(403, "STORE_BOUNDARY_DENIED", "هذا المتجر ليس من متاجرك.");
     }
     // ق-192 — the platform disabled him and he kept working for up to eight hours.
     //
@@ -260,7 +260,7 @@ async function resolveStoreActor(request: Request, permissions: readonly Permiss
     // The two guards disagreeing was the defect. They agree now, in wording and
     // in status, because a route's choice of guard must never change who may act.
     if (!store.merchant.isActive) {
-      throw new HttpError(403, "MERCHANT_DISABLED", "This merchant account is disabled.");
+      throw new HttpError(403, "MERCHANT_DISABLED", "حساب التاجر موقوف — تواصل مع إدارة المنصة.");
     }
     // ق-218, and for the same reason ق-192 put `isActive` here: THIS is the guard
     // almost every store route actually uses, so a rule that lives only in

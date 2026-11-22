@@ -188,8 +188,11 @@ export const ENVIRONMENT_GROUPS: EnvironmentGroup[] = [
   {
     key: "storage",
     consequence: "رفع صور المنتجات يفشل عند أول محاولة — والتاجر يكتشفها لا الخادم.",
-    required: ["PRODUCT_S3_BUCKET", "PRODUCT_S3_REGION", "PRODUCT_S3_ACCESS_KEY_ID", "PRODUCT_S3_SECRET_ACCESS_KEY"],
-    optional: ["PRODUCT_S3_ENDPOINT", "PRODUCT_S3_FORCE_PATH_STYLE"],
+    // Exactly what s3Config() refuses to run without: the ENDPOINT is required
+    // and the region defaults to us-east-1. This list used to be the reverse,
+    // so a deployment missing the endpoint read «ok» while every upload failed.
+    required: ["PRODUCT_S3_ENDPOINT", "PRODUCT_S3_BUCKET", "PRODUCT_S3_ACCESS_KEY_ID", "PRODUCT_S3_SECRET_ACCESS_KEY"],
+    optional: ["PRODUCT_S3_REGION", "PRODUCT_S3_FORCE_PATH_STYLE"],
     requiredInDeployment: true,
   },
   /**

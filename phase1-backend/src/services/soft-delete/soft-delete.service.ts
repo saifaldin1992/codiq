@@ -21,6 +21,7 @@
  * silent rename — a SKU is the merchant's key (labels, supplier, CSV).
  */
 import { Prisma } from "@prisma/client";
+import { fieldLabel } from "../field-labels.js";
 import { HttpError } from "../../auth/auth.errors.js";
 import { resolvePermissionSet, type PermissionCode } from "../../auth/staff-permissions.js";
 import { prisma } from "../../db/prisma.js";
@@ -62,7 +63,7 @@ export interface RestoreOverrides {
 
 export function assertTrashEntityType(value: unknown): TrashEntityType {
   if (typeof value !== "string" || !TRASH_ENTITY_TYPES.includes(value as TrashEntityType)) {
-    throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested trash entity type does not exist.");
+    throw new HttpError(404, "RESOURCE_NOT_FOUND", "نوع العنصر المحذوف غير معروف.");
   }
   return value as TrashEntityType;
 }
@@ -70,7 +71,7 @@ export function assertTrashEntityType(value: unknown): TrashEntityType {
 function overrideText(value: unknown, field: string, maxLength: number): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "string" || !value.trim() || value.trim().length > maxLength) {
-    throw new HttpError(422, "INVALID_INPUT", `${field} must be a non-empty string within ${maxLength} characters.`);
+    throw new HttpError(422, "INVALID_INPUT", `${fieldLabel(field)}: نص غير فارغ حتى ${maxLength} حرف.`);
   }
   return value.trim();
 }
@@ -123,7 +124,7 @@ async function softDeleteProduct(storeId: string, id: string, actor: AuditActor)
       where: { id, storeId, ...LIVE },
       include: { variants: { where: LIVE, orderBy: [{ isDefault: "desc" }, { position: "asc" }] }, images: { select: { id: true } } },
     });
-    if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in this store.");
+    if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود في هذا المتجر.");
 
     // The two guards that survive owner decision (ب): both protect an operation
     // happening RIGHT NOW. «Sold two months ago» is not one of them — a product
@@ -203,7 +204,7 @@ async function softDeleteProduct(storeId: string, id: string, actor: AuditActor)
 async function softDeleteCategory(storeId: string, id: string, actor: AuditActor): Promise<SoftDeleteResult> {
   return prisma.$transaction(async (tx) => {
     const category = await tx.productCategory.findFirst({ where: { id, storeId, ...LIVE } });
-    if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in this store.");
+    if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "التصنيف غير موجود في هذا المتجر.");
     const childCount = await tx.productCategory.count({ where: { parentCategoryId: category.id, storeId, ...LIVE } });
     if (childCount > 0) throw new HttpError(409, "CATEGORY_HAS_CHILDREN", "لا يمكن حذف تصنيف يحتوي على تصنيفات فرعية. احذف الفروع أو انقلها أولاً.");
     // LIVE products only (plan §1.و exception 2): counting trashed ones would
@@ -230,7 +231,7 @@ async function softDeleteCategory(storeId: string, id: string, actor: AuditActor
 async function softDeleteCoupon(storeId: string, id: string, actor: AuditActor): Promise<SoftDeleteResult> {
   return prisma.$transaction(async (tx) => {
     const coupon = await tx.coupon.findFirst({ where: { id, storeId, ...LIVE } });
-    if (!coupon) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested coupon was not found in this store.");
+    if (!coupon) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الكوبون غير موجود في هذا المتجر.");
     const eventId = await recordAuditEvent(tx, {
       storeId,
       entityType: "coupon",
@@ -255,7 +256,7 @@ async function softDeleteMembership(storeId: string, id: string, actor: AuditAct
       where: { id, storeId, ...LIVE },
       include: { staff: { select: { email: true, displayName: true } }, permissionOverrides: { select: { permissionCode: true, effect: true } } },
     });
-    if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested team membership was not found in this store.");
+    if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "العضوية غير موجودة في فريق هذا المتجر.");
     assertDemoWritable("demo_staff", membership.staff.email);
 
     // New guard (plan §1.و): never remove the LAST membership that can still
@@ -365,7 +366,7 @@ async function lockTrashedRow(tx: Prisma.TransactionClient, table: TrashTable, i
 /** The store's owner, needed to re-charge a restore against the plan (ح-1). */
 async function merchantIdForStore(tx: Prisma.TransactionClient, storeId: string): Promise<string> {
   const store = await tx.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
-  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested store was not found.");
+  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المتجر غير موجود.");
   return store.merchantId;
 }
 
@@ -419,7 +420,7 @@ async function restoreProduct(storeId: string, id: string, actor: AuditActor, ov
   const variantSkuOverrides = new Map<string, string>();
   if (overrides.variantSkus !== undefined) {
     if (typeof overrides.variantSkus !== "object" || overrides.variantSkus === null || Array.isArray(overrides.variantSkus)) {
-      throw new HttpError(422, "INVALID_INPUT", "variantSkus must be an object keyed by variant id.");
+      throw new HttpError(422, "INVALID_INPUT", "رموز الخيارات غير صالحة.");
     }
     for (const [variantId, value] of Object.entries(overrides.variantSkus as Record<string, unknown>)) {
       variantSkuOverrides.set(variantId, overrideText(value, `variantSkus.${variantId}`, 80)!);
@@ -428,9 +429,9 @@ async function restoreProduct(storeId: string, id: string, actor: AuditActor, ov
 
   return prisma.$transaction(async (tx) => {
     const product = await tx.product.findFirst({ where: { id, storeId, ...TRASHED } });
-    if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in the trash of this store.");
+    if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود في سلة المحذوفات.");
     if (!(await lockTrashedRow(tx, "products", product.id, storeId))) {
-      throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in the trash of this store.");
+      throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود في سلة المحذوفات.");
     }
     // ح-1: deleting RELEASES the quota (a merchant at his cap must be able to
     // replace a product), so restoring must RE-SPEND it. Without this line the
@@ -452,6 +453,15 @@ async function restoreProduct(storeId: string, id: string, actor: AuditActor, ov
       const holder = await tx.productVariant.findFirst({ where: { storeId, sku, ...LIVE }, select: { id: true, name: true } });
       if (holder) conflicts.push({ scope: "variant", variantId: variant.id, sku, liveId: holder.id, liveName: holder.name });
     }
+    // Two variants of THIS restore given the same new SKU collide with each
+    // other, not with a live row — caught here by name instead of falling to
+    // the unique index's generic answer.
+    const seenSkus = new Map<string, string>();
+    for (const [variantId, sku] of Array.from(nextVariantSkus.entries())) {
+      const first = seenSkus.get(sku);
+      if (first) throw new HttpError(422, "DUPLICATE_SKU_IN_RESTORE", `الرمز «${sku}» مُعطى لخيارين من المنتج نفسه. اختر رمزاً مختلفاً لكل خيار.`, { conflicts: [{ scope: "variant", variantId, sku }, { scope: "variant", variantId: first, sku }] });
+      seenSkus.set(sku, variantId);
+    }
     if (conflicts.length) throw skuConflictError(conflicts);
 
     // Category: an explicit override wins; otherwise the product's own category
@@ -460,9 +470,9 @@ async function restoreProduct(storeId: string, id: string, actor: AuditActor, ov
     if (requestedCategoryRaw !== undefined) {
       if (requestedCategoryRaw === null || requestedCategoryRaw === "") categoryId = null;
       else {
-        if (typeof requestedCategoryRaw !== "string") throw new HttpError(422, "INVALID_INPUT", "categoryId is invalid.");
+        if (typeof requestedCategoryRaw !== "string") throw new HttpError(422, "INVALID_INPUT", "التصنيف غير صالح.");
         const target = await tx.productCategory.findFirst({ where: { id: requestedCategoryRaw, storeId, ...LIVE }, select: { id: true } });
-        if (!target) throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in this store.");
+        if (!target) throw new HttpError(404, "CATEGORY_NOT_FOUND", "التصنيف غير موجود في هذا المتجر.");
         categoryId = target.id;
       }
     } else if (categoryId) {
@@ -496,9 +506,9 @@ async function restoreProduct(storeId: string, id: string, actor: AuditActor, ov
 async function restoreCategory(storeId: string, id: string, actor: AuditActor) {
   return prisma.$transaction(async (tx) => {
     const category = await tx.productCategory.findFirst({ where: { id, storeId, ...TRASHED } });
-    if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in the trash of this store.");
+    if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "التصنيف غير موجود في سلة المحذوفات.");
     if (!(await lockTrashedRow(tx, "product_categories", category.id, storeId))) {
-      throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in the trash of this store.");
+      throw new HttpError(404, "CATEGORY_NOT_FOUND", "التصنيف غير موجود في سلة المحذوفات.");
     }
     await reviveCategoryChain(tx, storeId, category.id, actor);
     return { id: category.id, entityType: "product_category" as const, name: category.name };
@@ -509,9 +519,9 @@ async function restoreCoupon(storeId: string, id: string, actor: AuditActor, ove
   const requestedCode = overrideText(overrides.code, "code", 40);
   return prisma.$transaction(async (tx) => {
     const coupon = await tx.coupon.findFirst({ where: { id, storeId, ...TRASHED } });
-    if (!coupon) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested coupon was not found in the trash of this store.");
+    if (!coupon) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الكوبون غير موجود في سلة المحذوفات.");
     if (!(await lockTrashedRow(tx, "coupons", coupon.id, storeId))) {
-      throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested coupon was not found in the trash of this store.");
+      throw new HttpError(404, "RESOURCE_NOT_FOUND", "الكوبون غير موجود في سلة المحذوفات.");
     }
     const code = requestedCode ?? coupon.code;
     const codeNormalized = code.trim().toUpperCase();
@@ -549,9 +559,9 @@ async function restoreMembership(storeId: string, id: string, actor: AuditActor)
       where: { id, storeId, ...TRASHED },
       include: { staff: { select: { email: true, displayName: true } } },
     });
-    if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested team membership was not found in the trash of this store.");
+    if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "العضوية غير موجودة في سلة المحذوفات.");
     if (!(await lockTrashedRow(tx, "store_staff_memberships", membership.id, storeId))) {
-      throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested team membership was not found in the trash of this store.");
+      throw new HttpError(404, "RESOURCE_NOT_FOUND", "العضوية غير موجودة في سلة المحذوفات.");
     }
     // ح-1 on the seat count — but ONLY when the seat comes back OCCUPIED.
     // `merchantUsage.max_staff` counts `isActive` rows, so a membership that was
@@ -673,7 +683,7 @@ export function mayTouchTrashEntity(entityType: TrashEntityType, permissions: Re
 export function assertMayTouchTrashEntity(entityType: TrashEntityType, permissions: ReadonlySet<PermissionCode>): void {
   const governing = TRASH_GOVERNING_PERMISSION[entityType];
   if (governing && !permissions.has(governing)) {
-    throw new HttpError(403, "STAFF_PERMISSION_DENIED", `This staff membership lacks the ${governing} permission.`);
+    throw new HttpError(403, "STAFF_PERMISSION_DENIED", `ليست لديك صلاحية ${governing}.`);
   }
 }
 

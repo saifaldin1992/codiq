@@ -128,6 +128,11 @@ export async function resolveReturnInspection(
   body: { restockQty: number; writeOffQty: number; note?: string },
 ) {
   const { restockQty, writeOffQty } = body;
+  // The HTTP schema checks this too; the service repeats it so no second caller
+  // can hand it a negative split (which would MINT stock on «restock»).
+  if (![restockQty, writeOffQty].every((qty) => Number.isInteger(qty) && qty >= 0)) {
+    throw new HttpError(422, "INVALID_INPUT", "كميتا الإرجاع إلى الرف والإتلاف عددان صحيحان غير سالبين.");
+  }
   const note = typeof body.note === "string" && body.note.trim() ? body.note.trim() : null;
   if (note && note.length > RETURN_INSPECTION_NOTE_MAX) {
     throw new HttpError(422, "INVALID_INPUT", `ملاحظة الفحص يجب ألا تتجاوز ${RETURN_INSPECTION_NOTE_MAX} حرف.`);
@@ -144,7 +149,7 @@ export async function resolveReturnInspection(
         variant: { select: { deletedAt: true, stockQuantity: true, lowStockThreshold: true, name: true, sku: true, product: { select: { name: true } } } },
       },
     });
-    if (!reservation) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested return was not found in this store.");
+    if (!reservation) throw new HttpError(404, "RESOURCE_NOT_FOUND", "طلب الإرجاع غير موجود في هذا المتجر.");
     if (reservation.returnDisposition !== "pending_inspection") {
       throw new HttpError(409, "RETURN_ALREADY_INSPECTED", "هذا المرتجع فُحص سابقاً — القرار الأول يبقى.");
     }

@@ -65,10 +65,10 @@ export interface StoreVerification {
 
 function verificationNote(raw: unknown): string | null {
   if (raw === undefined || raw === null || raw === "") return null;
-  if (typeof raw !== "string") throw new HttpError(400, "INVALID_VERIFICATION_NOTE", "The note must be text.");
+  if (typeof raw !== "string") throw new HttpError(400, "INVALID_VERIFICATION_NOTE", "الملاحظة نص.");
   const note = raw.trim();
   if (!note) return null;
-  if (note.length > 500) throw new HttpError(400, "INVALID_VERIFICATION_NOTE", "The note may not exceed 500 characters.");
+  if (note.length > 500) throw new HttpError(400, "INVALID_VERIFICATION_NOTE", "الملاحظة حتى 500 حرف.");
   return note;
 }
 
@@ -81,7 +81,7 @@ export async function storeVerification(storeSlug: string): Promise<StoreVerific
       verifiedByOwner: { select: { id: true, displayName: true } },
     },
   });
-  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The store was not found.");
+  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المتجر غير موجود.");
 
   const [completed, total, products] = await Promise.all([
     prisma.storeOrder.count({ where: { storeId: store.id, status: "completed" } }),
@@ -145,8 +145,8 @@ export async function setStoreVerification(
     prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true, name: true, verifiedAt: true } }),
     prisma.platformOwner.findUnique({ where: { id: ownerId }, select: { id: true } }),
   ]);
-  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The store was not found.");
-  if (!owner) throw new HttpError(401, "INVALID_SESSION", "The acting owner no longer exists.");
+  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المتجر غير موجود.");
+  if (!owner) throw new HttpError(401, "INVALID_SESSION", "حساب المالك لم يعد موجوداً.");
 
   await prisma.$transaction(async (tx) => {
     await tx.store.update({

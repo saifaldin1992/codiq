@@ -104,12 +104,14 @@ export async function checkoutSummary(shopper: ShopperRef, storeSlug: string, in
   const group = view.stores[0];
   if (!group) throw new HttpError(422, "CART_EMPTY", "لا توجد منتجات من هذا المتجر في سلتك.");
   let delivery: { available: boolean; amountIqd: number | null; reason: string | null } = { available: true, amountIqd: 0, reason: null };
+  let deliveryPhone: string | null = null;
   if (input.fulfilment === "pickup") {
     if (!storeRow.pickupEnabled) delivery = { available: false, amountIqd: null, reason: "هذا المتجر لا يتيح الاستلام من المتجر." };
   } else if (!anyRate) {
     delivery = { available: false, amountIqd: null, reason: "هذا المتجر لم يحدّد رسوم التوصيل بعد." };
   } else if (input.addressId) {
     const address = await shopperAddress(shopper.id, input.addressId);
+    deliveryPhone = address.phoneNormalized;
     const rate = await prisma.deliveryRate.findUnique({ where: { storeId_governorate: { storeId: store.id, governorate: address.governorateKey } }, select: { amountIqd: true, isEnabled: true } });
     delivery = rate?.isEnabled ? { available: true, amountIqd: rate.amountIqd, reason: null } : { available: false, amountIqd: null, reason: `هذا المتجر لا يوصّل إلى ${governorateLabel(address.governorateKey)} حالياً.` };
   } else {
@@ -119,7 +121,7 @@ export async function checkoutSummary(shopper: ShopperRef, storeSlug: string, in
   if (input.coupon) {
     const customer = await prisma.customer.findFirst({ where: { storeId: store.id, shopperId: shopper.id }, select: { id: true } });
     try {
-      const preview = await previewCoupon(store.id, customer?.id, input.coupon, group.subtotalIqd);
+      const preview = await previewCoupon(store.id, customer?.id, input.coupon, group.subtotalIqd, deliveryPhone);
       coupon = { code: preview.code, discountIqd: preview.discountIqd, freeShipping: preview.freeShipping };
     } catch (error) {
       coupon = { error: error instanceof HttpError ? "الكوبون غير صالح لهذا المتجر. تأكّد من الرمز وحاول مجدداً." : "تعذّر التحقق من الكوبون." };

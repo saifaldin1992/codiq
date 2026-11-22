@@ -17,6 +17,7 @@
  * nobody came, because a ratio invented from a division by zero is a lie.
  */
 import { Prisma } from "@prisma/client";
+import { fieldLabel } from "./field-labels.js";
 import { prisma } from "../db/prisma.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { NON_CONSUMING_STATUSES, topProducts } from "./analytics.service.js";
@@ -29,9 +30,9 @@ const DEFAULT_RANGE_DAYS = 7;
 
 function parseDate(value: unknown, field: string): Date | undefined {
   if (value === undefined || value === null || value === "") return undefined;
-  if (typeof value !== "string") throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
+  if (typeof value !== "string") throw new HttpError(400, "INVALID_DATE_FILTER", `${fieldLabel(field)}: تاريخ غير صالح.`);
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
+  if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", `${fieldLabel(field)}: تاريخ غير صالح.`);
   return parsed;
 }
 
@@ -39,7 +40,7 @@ function parseDate(value: unknown, field: string): Date | undefined {
 function parseRange(query: Record<string, unknown>, now: Date) {
   const to = parseDate(query.to, "to") ?? now;
   const from = parseDate(query.from, "from") ?? baghdadDayBounds(daysBefore(baghdadDay(to), DEFAULT_RANGE_DAYS - 1)).from;
-  if (to <= from) throw new HttpError(400, "INVALID_DATE_FILTER", "to must be after from.");
+  if (to <= from) throw new HttpError(400, "INVALID_DATE_FILTER", "تاريخ النهاية بعد تاريخ البداية.");
   return { from, to };
 }
 

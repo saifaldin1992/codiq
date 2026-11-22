@@ -95,7 +95,7 @@ export function isDemoRefusedPath(path: string): boolean {
 /** Registered only when `config.demoMode` is true; a no-op file otherwise. */
 export function demoBlockedSurfaceGuard(request: Request, _response: Response, next: NextFunction) {
   if (isDemoBlockedPath(request.path)) {
-    next(new HttpError(404, "RESOURCE_NOT_FOUND", "The requested resource was not found."));
+    next(new HttpError(404, "RESOURCE_NOT_FOUND", "العنصر المطلوب غير موجود."));
     return;
   }
   if (isDemoRefusedPath(request.path)) {

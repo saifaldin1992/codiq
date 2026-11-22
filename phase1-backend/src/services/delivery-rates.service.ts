@@ -46,21 +46,21 @@ export async function listDeliveryRates(storeId: string) {
 
 export async function updateDeliveryRate(storeId: string, rawGovernorate: unknown, body: Record<string, unknown>) {
   const governorate = typeof rawGovernorate === "string" ? rawGovernorate.trim() : "";
-  if (!governorate) throw new HttpError(422, "INVALID_INPUT", "governorate is required.");
+  if (!governorate) throw new HttpError(422, "INVALID_INPUT", "المحافظة مطلوبة.");
   if (body.amountIqd === undefined && body.isEnabled === undefined) {
-    throw new HttpError(422, "INVALID_INPUT", "At least one of amountIqd or isEnabled is required.");
+    throw new HttpError(422, "INVALID_INPUT", "أرسل رسم التوصيل أو حالة التفعيل على الأقل.");
   }
   if (body.amountIqd !== undefined && (typeof body.amountIqd !== "number" || !Number.isInteger(body.amountIqd) || body.amountIqd < 0)) {
-    throw new HttpError(422, "INVALID_INPUT", "amountIqd must be a non-negative integer.");
+    throw new HttpError(422, "INVALID_INPUT", "رسم التوصيل عدد صحيح غير سالب.");
   }
   if (body.amountIqd !== undefined && (body.amountIqd as number) > MAX_DELIVERY_RATE_IQD) {
     throw new HttpError(422, "DELIVERY_RATE_TOO_HIGH", `أجرة التوصيل لا تتجاوز ${MAX_DELIVERY_RATE_IQD.toLocaleString("en-US")} دينار للمحافظة الواحدة.`);
   }
   if (body.isEnabled !== undefined && typeof body.isEnabled !== "boolean") {
-    throw new HttpError(422, "INVALID_INPUT", "isEnabled must be boolean.");
+    throw new HttpError(422, "INVALID_INPUT", "التفعيل نعم أو لا.");
   }
   const existing = await prisma.deliveryRate.findUnique({ where: { storeId_governorate: { storeId, governorate } }, select: { id: true } });
-  if (!existing) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested delivery governorate was not found for this store.");
+  if (!existing) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المحافظة غير موجودة في رسوم توصيل هذا المتجر.");
   return prisma.deliveryRate.update({
     where: { id: existing.id },
     data: {

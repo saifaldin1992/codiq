@@ -62,7 +62,7 @@ async function sendProductsForStore(response: Response, store: { id: string; slu
 
 async function sendProductForStore(response: Response, store: { id: string; slug: string }, productId: string) {
   const product = await prisma.product.findFirst({ where: { id: productId, storeId: store.id, ...LIVE }, select: { id: true, sku: true, name: true, description: true, priceIqd: true, isActive: true } });
-  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in this store.");
+  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود في هذا المتجر.");
   response.status(200).json({ storeSlug: store.slug, product: productResponse(product) });
 }
 
@@ -85,7 +85,7 @@ async function sendOrdersForStore(response: Response, store: { id: string; slug:
 
 async function sendOrderForStore(response: Response, store: { id: string; slug: string }, orderId: string) {
   const order = await prisma.storeOrder.findFirst({ where: { id: orderId, storeId: store.id }, select: { id: true, orderNumber: true, status: true, customerName: true, totalIqd: true, createdAt: true, items: { select: { id: true, productId: true, productName: true, quantity: true, unitPriceIqd: true, lineTotalIqd: true } } } });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود في هذا المتجر.");
   response.status(200).json({ storeSlug: store.slug, order });
 }
 

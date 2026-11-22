@@ -109,6 +109,9 @@ export async function listPosDevices(storeId: string) {
   const devices = await prisma.posDevice.findMany({
     where: { storeId },
     orderBy: { createdAt: "desc" },
+    // Bounded: a store has a handful of tills; 200 is far past any real one,
+    // and keeps the screen from loading an unbounded history of revoked ones.
+    take: 200,
     select: { id: true, label: true, deviceShort: true, revokedAt: true, lastSeenAt: true, createdAt: true },
   });
   return { devices };
@@ -285,6 +288,10 @@ export async function ingestPosTicket(storeId: string, actor: { kind: "merchant"
         const variants = await tx.productVariant.findMany({
           // LIVE: a variant sitting in the trash bin must not be sellable from
           // the till — PG-2's leak guard is what caught this query without it.
+          // A product merely switched OFF (isActive false, not trashed) still
+          // rings up ON PURPOSE: «off» hides it from the online shelves, but the
+          // till sells what is physically on the counter, and an offline device
+          // may scan it before the switch reaches it.
           where: { id: { in: variantIds }, storeId, ...LIVE, product: { is: LIVE } },
           select: { id: true, productId: true, sku: true, name: true, isDefault: true, priceIqd: true, stockQuantity: true, lowStockThreshold: true, product: { select: { name: true, isActive: true } } },
         });

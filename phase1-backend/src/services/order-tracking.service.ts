@@ -72,7 +72,7 @@ export function orderTrackingQuery(body: Record<string, unknown>): OrderTracking
   const rawOrderNumber = typeof body.orderNumber === "string" ? body.orderNumber.trim() : "";
   const rawPhone = typeof body.phone === "string" ? body.phone.trim() : "";
   if (!rawOrderNumber || rawOrderNumber.length > 120 || !rawPhone || rawPhone.length > 40) {
-    throw new HttpError(400, "INVALID_TRACKING_REQUEST", "orderNumber and phone are required.");
+    throw new HttpError(400, "INVALID_TRACKING_REQUEST", "رقم الطلب ورقم الهاتف مطلوبان.");
   }
   const phoneNormalized = normalizeTrackingPhone(rawPhone);
   // An unparsable phone must NOT become the bucket key: it is attacker-chosen
@@ -82,7 +82,7 @@ export function orderTrackingQuery(body: Record<string, unknown>): OrderTracking
 
 function notFound(): never {
   // ONE message for every miss. Do not specialize this — it is the anti-enumeration guarantee.
-  throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found.");
+  throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود.");
 }
 
 export async function trackPublicOrder(storeId: string, query: OrderTrackingQuery): Promise<OrderTrackingView> {

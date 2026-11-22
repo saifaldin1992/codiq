@@ -84,7 +84,7 @@ async function productPreview(storeId: string, id: string, permissions: Readonly
     where: { id, storeId, ...LIVE },
     select: { id: true, name: true, sku: true, _count: { select: { images: true, variants: { where: { deletedAt: null } } } } },
   });
-  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product was not found in this store.");
+  if (!product) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المنتج غير موجود في هذا المتجر.");
   // Four independent counts, all store-scoped. `inventoryMovements` is the one
   // the sheet promises to preserve; `orders` is what will later block the purge
   // and keep the row under the «محفوظ لسجلاتك» badge forever (ق-97).
@@ -123,7 +123,7 @@ async function productPreview(storeId: string, id: string, permissions: Readonly
 
 async function categoryPreview(storeId: string, id: string): Promise<DeletePreview> {
   const category = await prisma.productCategory.findFirst({ where: { id, storeId, ...LIVE }, select: { id: true, name: true } });
-  if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "The requested category was not found in this store.");
+  if (!category) throw new HttpError(404, "CATEGORY_NOT_FOUND", "التصنيف غير موجود في هذا المتجر.");
   const [liveProducts, liveChildren] = await Promise.all([
     prisma.product.count({ where: { categoryId: category.id, storeId, ...LIVE } }),
     prisma.productCategory.count({ where: { parentCategoryId: category.id, storeId, ...LIVE } }),
@@ -133,7 +133,7 @@ async function categoryPreview(storeId: string, id: string): Promise<DeletePrevi
 
 async function couponPreview(storeId: string, id: string, permissions: ReadonlySet<PermissionCode>): Promise<DeletePreview> {
   const coupon = await prisma.coupon.findFirst({ where: { id, storeId, ...LIVE }, select: { id: true, code: true, endsAt: true } });
-  if (!coupon) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested coupon was not found in this store.");
+  if (!coupon) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الكوبون غير موجود في هذا المتجر.");
   const [redemptions, onOrders] = await Promise.all([
     prisma.couponRedemption.count({ where: { couponId: coupon.id, storeId } }),
     prisma.storeOrder.count({ where: { couponId: coupon.id, storeId } }),
@@ -156,7 +156,7 @@ async function membershipPreview(storeId: string, id: string): Promise<DeletePre
     where: { id, storeId, ...LIVE },
     select: { id: true, roleCode: true, staff: { select: { displayName: true, email: true } } },
   });
-  if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested team membership was not found in this store.");
+  if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "العضوية غير موجودة في فريق هذا المتجر.");
   // ع-4: «open» means a session that would actually be ACCEPTED — identity.ts
   // requires expiresAt > now on every request. Counting only `revokedAt: null`
   // measured «times signed in since the last suspension», and because a staff

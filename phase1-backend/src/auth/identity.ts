@@ -32,10 +32,10 @@ export interface SessionClaims {
 }
 
 export function normalizeEmail(value: unknown): string {
-  if (typeof value !== "string") throw new HttpError(400, "INVALID_EMAIL", "Email is required.");
+  if (typeof value !== "string") throw new HttpError(400, "INVALID_EMAIL", "البريد الإلكتروني مطلوب.");
   const email = value.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new HttpError(400, "INVALID_EMAIL", "Email format is invalid.");
+    throw new HttpError(400, "INVALID_EMAIL", "صيغة البريد الإلكتروني غير صحيحة.");
   }
   return email;
 }
@@ -230,10 +230,10 @@ export const SHOPPER_SESSION_LIFETIME_SECONDS = 60 * 60 * 24 * 30;
 
 export async function createTypedSession(identityKind: IdentityKind, subjectId: string, storeId?: string, membershipId?: string): Promise<string> {
   if (identityKind === "merchant" && !storeId) {
-    throw new HttpError(500, "MISSING_MERCHANT_STORE_CONTEXT", "Merchant sessions must be bound to a store.");
+    throw new HttpError(500, "MISSING_MERCHANT_STORE_CONTEXT", "جلسة التاجر غير مرتبطة بمتجر — سجّل الدخول من جديد.");
   }
   if (identityKind === "staff" && (!storeId || !membershipId)) {
-    throw new HttpError(500, "MISSING_STAFF_MEMBERSHIP_CONTEXT", "Staff sessions must be bound to one store membership.");
+    throw new HttpError(500, "MISSING_STAFF_MEMBERSHIP_CONTEXT", "جلسة الموظف غير مرتبطة بمتجر — سجّل الدخول من جديد.");
   }
   // A market shopper stays signed in on his phone for a month, as in any shopping
   // app; every dashboard identity keeps the short working-day session.
@@ -296,7 +296,7 @@ export function readSessionClaims(accessToken: string): SessionClaims {
     setLogContext({ actorKind: claims.identityKind, actorId: claims.subjectId, storeId: claims.storeId, sessionId: claims.sessionId });
     return claims;
   }
-  throw new HttpError(401, "INVALID_SESSION", "The session token is invalid or expired.");
+  throw new HttpError(401, "INVALID_SESSION", "انتهت الجلسة — سجّل الدخول من جديد.");
 }
 
 /**
@@ -321,10 +321,10 @@ export async function verifyTypedSession(accessToken: string, expectedKind: Iden
     throw new HttpError(403, "IDENTITY_BOUNDARY_DENIED", identityBoundaryMessage(claims.identityKind, IDENTITY_LABELS[expectedKind]));
   }
   if (expectedKind === "merchant" && !claims.storeId) {
-    throw new HttpError(401, "INVALID_SESSION", "The merchant session lacks a store context.");
+    throw new HttpError(401, "INVALID_SESSION", "جلسة التاجر غير مرتبطة بمتجر — سجّل الدخول من جديد.");
   }
   if (expectedKind === "staff" && (!claims.storeId || !claims.membershipId)) {
-    throw new HttpError(401, "INVALID_SESSION", "The staff session lacks a membership context.");
+    throw new HttpError(401, "INVALID_SESSION", "جلسة الموظف غير مرتبطة بمتجر — سجّل الدخول من جديد.");
   }
 
   const tokenHash = sha256(accessToken);
@@ -344,6 +344,6 @@ export async function verifyTypedSession(accessToken: string, expectedKind: Iden
               ? await prisma.shopperSession.findFirst({ where: { id: claims.sessionId, shopperId: claims.subjectId, tokenHash, revokedAt: null, expiresAt: { gt: now } } })
               : await prisma.customerSession.findFirst({ where: { id: claims.sessionId, customerId: claims.subjectId, tokenHash, revokedAt: null, expiresAt: { gt: now } } });
 
-  if (!isValid) throw new HttpError(401, "INVALID_SESSION", "The session is no longer valid.");
+  if (!isValid) throw new HttpError(401, "INVALID_SESSION", "انتهت الجلسة — سجّل الدخول من جديد.");
   return claims;
 }

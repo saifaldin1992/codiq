@@ -233,7 +233,7 @@ let firstFailureId;
   const id = response.headers.get(CORRELATION_HEADER);
   firstFailureId = id;
   assert.equal(response.status, 500);
-  assert.deepEqual(body, { error: { code: "INTERNAL_ERROR", message: "Unexpected server error.", requestId: id } },
+  assert.deepEqual(body, { error: { code: "INTERNAL_ERROR", message: "حدث خطأ غير متوقع في الخادم. حاول مرة أخرى بعد قليل.", requestId: id } },
     "the envelope is unchanged apart from the one string the merchant reads back");
 
   const events = drain().map(assertShape);

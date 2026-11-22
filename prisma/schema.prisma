@@ -1462,6 +1462,10 @@ model Settlement {
   /// 19-د: the points half of the period, so the settlement's own components
   /// still add up to the money actually transferred.
   loyaltyDiscountIqd Int?        @default(0) @map("loyalty_discount_iqd")
+  /// The platform coupons' cost in the period: paid to the merchant as if the
+  /// shopper had paid it (NOT subtracted from the payout), and kept on the row
+  /// so a settlement already made still says what the platform funded.
+  platformDiscountIqd Int        @default(0) @map("platform_discount_iqd")
   commissionIqd   Int            @map("commission_iqd")
   /// Audit 17-ب: GENERATED in the database (subtotal + delivery − points − commission) —
   /// the amount actually transferred. Never written by the application.

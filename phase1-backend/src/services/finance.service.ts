@@ -64,7 +64,7 @@ async function ledgerClock(tx: DbClient, merchantId: string, mode: "write" | "se
 
 async function merchantIdOfStore(tx: DbClient, storeId: string): Promise<string> {
   const store = await tx.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
-  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   return store.merchantId;
 }
 
@@ -95,7 +95,7 @@ export async function recordOrderCompletion(tx: DbClient, input: { storeId: stri
   // Inline rather than `merchantIdOfStore`: the OpenAPI scanner follows two
   // hops from a route, and this refusal is reachable from the order-status door.
   const store = await tx.store.findUnique({ where: { id: input.storeId }, select: { merchantId: true } });
-  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   const merchantId = store.merchantId;
   const plan = await activePlanForMerchant(tx, merchantId);
   const bps = plan.commissionBps;
@@ -195,13 +195,13 @@ function parseReportRange(query: Record<string, unknown>) {
   const parse = (value: unknown, fallback: Date) => {
     if (value === undefined || value === "") return fallback;
     const parsed = new Date(String(value));
-    if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", "from/to must be ISO dates.");
+    if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", "التاريخان بصيغة صحيحة (ISO).");
     return parsed;
   };
   const now = new Date();
   const from = parse(query.from, new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
   const to = parse(query.to, now);
-  if (to <= from) throw new HttpError(400, "INVALID_DATE_FILTER", "to must be after from.");
+  if (to <= from) throw new HttpError(400, "INVALID_DATE_FILTER", "تاريخ النهاية بعد تاريخ البداية.");
   return { from, to };
 }
 
@@ -277,14 +277,22 @@ function deliveryShareBps(totals: { subtotalIqd: number; deliveryFeeIqd: number 
   return Math.round((totals.deliveryFeeIqd * 10000) / totals.subtotalIqd);
 }
 
+/** The cursor's list kind for the report's entries page. */
+const FINANCE_ENTRIES_KIND = "finance.report.entries";
+
 export async function merchantFinanceReport(merchantId: string, query: Record<string, unknown>) {
   const { from, to } = parseReportRange(query);
   const where = { store: { merchantId }, createdAt: { gte: from, lte: to } };
-  const [entries, groups] = await Promise.all([
+  // The totals are exact over the whole period; the entries are a PAGE of it.
+  // They used to stop at the newest 200 with no way on, so a busy month showed
+  // its last days only.
+  const limit = parseListLimit(query.limit, 200, 200);
+  const cursor = await readListCursor(FINANCE_ENTRIES_KIND, query.cursor);
+  const [rows, groups] = await Promise.all([
     prisma.ledgerEntry.findMany({
-      where,
+      where: { ...where, ...keysetWhere("createdAt", "desc", cursor) },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 200,
+      take: limit + 1,
       select: { id: true, storeId: true, orderId: true, entryType: true, subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true, commissionBps: true, planCode: true, note: true, createdAt: true, store: { select: { slug: true, name: true } }, order: { select: { orderNumber: true } } },
     }),
     prisma.ledgerEntry.groupBy({
@@ -294,7 +302,8 @@ export async function merchantFinanceReport(merchantId: string, query: Record<st
       _sum: { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true },
     }),
   ]);
-  return { period: { from, to }, totals: totalsFromGroups(groups), entries };
+  const { page: entries, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(FINANCE_ENTRIES_KIND, last.createdAt, last.id));
+  return { period: { from, to }, totals: totalsFromGroups(groups), entries, nextCursor };
 }
 
 /** The cursor's list kind. One per list, so a cursor cannot cross lists. */
@@ -512,6 +521,7 @@ export async function createSettlement(actor: PlatformActor, body: Record<string
         subtotalIqd: totals.subtotalIqd,
         deliveryFeeIqd: totals.deliveryFeeIqd,
         loyaltyDiscountIqd: totals.loyaltyDiscountIqd,
+        platformDiscountIqd: totals.platformDiscountIqd,
         commissionIqd: totals.commissionIqd,
         note,
       },

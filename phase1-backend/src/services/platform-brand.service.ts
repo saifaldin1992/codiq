@@ -180,12 +180,12 @@ export async function platformLogoBytes(objectKey: string): Promise<{ body: Uint
   // Only the CURRENT logo object is servable. Without this the endpoint would
   // read any key an attacker could name inside the bucket.
   if (!logo || logo.objectKey !== objectKey) {
-    throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested logo was not found.");
+    throw new HttpError(404, "RESOURCE_NOT_FOUND", "الشعار غير موجود.");
   }
   const config = s3Config();
   const object = await client(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }));
   if (!object.Body || !("transformToByteArray" in object.Body)) {
-    throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested logo could not be read.");
+    throw new HttpError(404, "RESOURCE_NOT_FOUND", "تعذّرت قراءة الشعار.");
   }
   return { body: await object.Body.transformToByteArray(), contentType: logo.contentType };
 }

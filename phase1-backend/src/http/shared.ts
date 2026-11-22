@@ -27,7 +27,7 @@ export function bearerToken(request: Request): string {
   if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length);
   const sessionCookie = readWebSessionCookie(request);
   if (sessionCookie) return sessionCookie;
-  throw new HttpError(401, "MISSING_SESSION", "A session is required.");
+  throw new HttpError(401, "MISSING_SESSION", "سجّل الدخول لمتابعة هذه الخطوة.");
 }
 
 export function customerCookieName(storeSlug: string) { return `codiq_customer_session_${storeSlug}`; }
@@ -39,7 +39,7 @@ export function customerToken(request: Request): string {
   if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length);
   const token = cookieValue(request, customerCookieName(request.params.storeSlug));
   if (token) return decodeURIComponent(token);
-  throw new HttpError(401, "CUSTOMER_SESSION_REQUIRED", "A customer session is required.");
+  throw new HttpError(401, "CUSTOMER_SESSION_REQUIRED", "سجّل الدخول لمتابعة هذه الخطوة.");
 }
 
 export function guestCartToken(request: Request): string | undefined {
@@ -117,7 +117,7 @@ export function requireTrustedWriteOrigin(request: Request) {
     // subdomain, which on this platform is another merchant's storefront) — is
     // refused.
     if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") {
-      throw new HttpError(403, "CSRF_ORIGIN_DENIED", "This write request did not originate from the trusted store origin.");
+      throw new HttpError(403, "CSRF_ORIGIN_DENIED", "رُفض الطلب لأنه لم يصدر من صفحة المتجر نفسه. حدّث الصفحة ثم أعد المحاولة.");
     }
     return;
   }
@@ -125,7 +125,7 @@ export function requireTrustedWriteOrigin(request: Request) {
   try {
     if (!host || new URL(origin).host !== host) throw new Error("mismatch");
   } catch {
-    throw new HttpError(403, "CSRF_ORIGIN_DENIED", "This write request did not originate from the trusted store origin.");
+    throw new HttpError(403, "CSRF_ORIGIN_DENIED", "رُفض الطلب لأنه لم يصدر من صفحة المتجر نفسه. حدّث الصفحة ثم أعد المحاولة.");
   }
 }
 
@@ -284,7 +284,7 @@ export async function requirePlatformOwner(request: Request) {
 
 export async function resolveStore(storeSlug: string) {
   const store = await prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true, slug: true, merchantId: true, isActive: true, status: true, statusMessage: true, maintenanceUntil: true, merchant: { select: { isActive: true } } } });
-  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   return store;
 }
 
@@ -294,7 +294,7 @@ export async function resolveStore(storeSlug: string) {
 // other shopper route answers 423 STORE_IN_MAINTENANCE with the merchant's words.
 export async function resolveStorefrontStore(storeSlug: string, options: { allowMaintenance?: boolean } = {}) {
   const store = await resolveStore(storeSlug);
-  if (!store.isActive || !store.merchant.isActive) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+  if (!store.isActive || !store.merchant.isActive) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   // ق-250: the clock decides — a scheduled window that began closes the shop; an «until» that passed reopens it.
   const state = await effectiveStoreState(store);
   const effective = { ...store, status: state.status, statusMessage: state.message, maintenanceUntil: state.until };
@@ -308,7 +308,7 @@ export async function requireStorefrontCustomer(request: Request) {
   const claims = await verifyTypedSession(customerToken(request), "customer");
   const store = await resolveStorefrontStore(request.params.storeSlug);
   const customer = await prisma.customer.findFirst({ where: { id: claims.subjectId, storeId: store.id, isActive: true }, select: { id: true, storeId: true, fullName: true, email: true, phoneNormalized: true, isGuest: true } });
-  if (!customer) throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This customer session does not belong to the requested store.");
+  if (!customer) throw new HttpError(403, "STORE_BOUNDARY_DENIED", "جلستك لمتجر آخر — سجّل الدخول في هذا المتجر.");
   // The shopper's session list reads the device and last use stamped here —
   // the same fire-and-forget bookkeeping every dashboard identity gets.
   touchSession(claims, request);
@@ -327,10 +327,10 @@ export async function requireMerchantStore(request: Request) {
   await assertMerchantOwnsHisPassword(claims.subjectId);
   const store = await resolveStore(request.params.storeSlug);
   if (store.id !== claims.storeId || store.merchantId !== claims.subjectId) {
-    throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This merchant session is not authorized for the requested store.");
+    throw new HttpError(403, "STORE_BOUNDARY_DENIED", "هذا المتجر ليس من متاجرك.");
   }
   if (!store.merchant.isActive) {
-    throw new HttpError(403, "MERCHANT_DISABLED", "This merchant account is disabled.");
+    throw new HttpError(403, "MERCHANT_DISABLED", "حساب التاجر موقوف — تواصل مع إدارة المنصة.");
   }
   return store;
 }
@@ -342,7 +342,7 @@ export const requireCustomerStoreAccess = asyncRoute(async (request, response) =
     select: { store: { select: { slug: true } } },
   });
   if (!customer || customer.store.slug !== request.params.storeSlug) {
-    throw new HttpError(403, "STORE_BOUNDARY_DENIED", "This customer session does not belong to the requested store.");
+    throw new HttpError(403, "STORE_BOUNDARY_DENIED", "جلستك لمتجر آخر — سجّل الدخول في هذا المتجر.");
   }
   response.status(200).json({ area: "customer", storeSlug: customer.store.slug, subjectId: claims.subjectId });
 });

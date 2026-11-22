@@ -28,18 +28,18 @@ function prescriptionMeta(row: { id: string; contentType: string; byteSize: numb
 async function ownedOrder(storeId: string, customerId: string, orderId: string) {
   // Ownership scoping mirrors customerOrder: anything outside the pair is a plain 404 (IDOR-safe).
   const order = await prisma.storeOrder.findFirst({ where: { id: orderId, storeId, customerId }, select: { id: true, prescriptionStatus: true } });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found.");
+  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود.");
   return order;
 }
 
 /** Customer upload — allowed only while the order is waiting for one (or after a rejection). */
 export async function uploadOrderPrescription(storeId: string, customerId: string, orderId: string, file: Express.Multer.File | undefined) {
   const order = await ownedOrder(storeId, customerId, orderId);
-  if (order.prescriptionStatus === null) throw new HttpError(422, "PRESCRIPTION_NOT_REQUIRED", "This order does not require a prescription.");
+  if (order.prescriptionStatus === null) throw new HttpError(422, "PRESCRIPTION_NOT_REQUIRED", "هذا الطلب لا يحتاج وصفة.");
   if (order.prescriptionStatus !== "pending_upload" && order.prescriptionStatus !== "rejected") {
-    throw new HttpError(422, "PRESCRIPTION_ALREADY_SUBMITTED", "A prescription for this order is already under review or approved.");
+    throw new HttpError(422, "PRESCRIPTION_ALREADY_SUBMITTED", "وصفة هذا الطلب قيد المراجعة أو مقبولة بالفعل.");
   }
-  if (!file) throw new HttpError(422, "INVALID_PRESCRIPTION_IMAGE", "A prescription image file is required.");
+  if (!file) throw new HttpError(422, "INVALID_PRESCRIPTION_IMAGE", "أرفق صورة الوصفة.");
   // 19-د (ATTACK-SURFACE): the bytes are charged to a PLAN before they are
   // stored, exactly as `addProductImages` charges them. Prescriptions ride the
   // merchant's own bucket at the platform's cost and were charged to nobody at
@@ -47,7 +47,7 @@ export async function uploadOrderPrescription(storeId: string, customerId: strin
   // and no plan ever noticed. `merchantUsage` now counts them, which is what
   // makes this a limit rather than a check against a number that never moves.
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
-  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   await assertWithinPlanLimit(prisma, store.merchantId, "max_image_storage_mb", Math.max(1, Math.ceil(file.size / (1024 * 1024))), "لرفع الوصفة");
   // Magic-byte validation + S3 put happen BEFORE any database write, so a bad
   // file leaves the order untouched.
@@ -62,7 +62,7 @@ export async function uploadOrderPrescription(storeId: string, customerId: strin
         where: { id: orderId, prescriptionStatus: { in: ["pending_upload", "rejected"] } },
         data: { prescriptionStatus: "pending_review" },
       });
-      if (updated.count !== 1) throw new HttpError(409, "PRESCRIPTION_ALREADY_SUBMITTED", "A prescription for this order is already under review or approved.");
+      if (updated.count !== 1) throw new HttpError(409, "PRESCRIPTION_ALREADY_SUBMITTED", "وصفة هذا الطلب قيد المراجعة أو مقبولة بالفعل.");
       return created;
     });
   } catch (error) {
@@ -87,7 +87,7 @@ export async function uploadOrderPrescription(storeId: string, customerId: strin
 
 async function latestPrescriptionRow(storeId: string, orderId: string) {
   const row = await prisma.orderPrescription.findFirst({ where: { storeId, orderId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
-  if (!row) throw new HttpError(404, "RESOURCE_NOT_FOUND", "No prescription has been uploaded for this order.");
+  if (!row) throw new HttpError(404, "RESOURCE_NOT_FOUND", "لم تُرفع وصفة لهذا الطلب بعد.");
   return row;
 }
 
@@ -101,7 +101,7 @@ export async function customerPrescriptionFile(storeId: string, customerId: stri
 /** Merchant/staff streaming — the route guards with requireStoreActor("orders.view"). */
 export async function merchantPrescriptionFile(storeId: string, orderId: string) {
   const order = await prisma.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true } });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود في هذا المتجر.");
   const row = await latestPrescriptionRow(storeId, orderId);
   return { contentType: row.contentType, bytes: await getPrescriptionBytes(row.objectKey) };
 }
@@ -112,14 +112,14 @@ export async function merchantPrescriptionFile(storeId: string, orderId: string)
  */
 export async function reviewOrderPrescription(storeId: string, actor: { kind: "merchant" | "staff"; id: string }, orderId: string, rawDecision: unknown) {
   if (rawDecision !== "approved" && rawDecision !== "rejected") {
-    throw new HttpError(422, "INVALID_PRESCRIPTION_DECISION", "decision must be approved or rejected.");
+    throw new HttpError(422, "INVALID_PRESCRIPTION_DECISION", "القرار: قبول أو رفض.");
   }
   const decision = rawDecision;
   return prisma.$transaction(async (tx) => {
     const order = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, prescriptionStatus: true } });
-    if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+    if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود في هذا المتجر.");
     if (order.prescriptionStatus !== "pending_review") {
-      throw new HttpError(422, "PRESCRIPTION_NOT_REVIEWABLE", "Only a prescription pending review can be approved or rejected.");
+      throw new HttpError(422, "PRESCRIPTION_NOT_REVIEWABLE", "تُقبل الوصفة أو تُرفض وهي قيد المراجعة فقط.");
     }
     const latest = await tx.orderPrescription.findFirst({ where: { storeId, orderId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true } });
     if (latest) {

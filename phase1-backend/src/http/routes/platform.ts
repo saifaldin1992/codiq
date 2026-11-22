@@ -89,7 +89,7 @@ export function registerPlatformRoutes(app: Express) {
     await requirePlatformActor(request, "overview.view");
     const cohort = request.params.cohort;
     if (cohort !== "active" && cohort !== "stalled" && cohort !== "never_sold") {
-      throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested cohort does not exist.");
+      throw new HttpError(404, "RESOURCE_NOT_FOUND", "الفئة المطلوبة غير موجودة.");
     }
     const { limit, cursor } = parseOrThrow(paginationQuerySchema, request.query);
     response.status(200).json(await pulseCohort(cohort, request.query.days, limit, cursor));

@@ -34,6 +34,7 @@
  * reconciles himself against the total he can see.
  */
 import { HttpError } from "../auth/auth.errors.js";
+import { fieldLabel } from "./field-labels.js";
 import { prisma } from "../db/prisma.js";
 import { keysetWhere } from "./list-page.js";
 import { CSV_UTF8_BOM, csvGuardedLine, csvLine } from "./csv.js";
@@ -55,10 +56,10 @@ export type DeliveryActor = { kind: "merchant" | "staff"; id: string };
 function optionalDeliveryText(value: unknown, field: string, max: number): string | null | undefined {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
-  if (typeof value !== "string") throw new HttpError(422, "INVALID_DELIVERY_FIELD", `${field} must be text.`);
+  if (typeof value !== "string") throw new HttpError(422, "INVALID_DELIVERY_FIELD", `${fieldLabel(field)}: نص.`);
   const trimmed = value.trim();
   if (!trimmed) return null;
-  if (trimmed.length > max) throw new HttpError(422, "INVALID_DELIVERY_FIELD", `${field} must contain at most ${max} characters.`);
+  if (trimmed.length > max) throw new HttpError(422, "INVALID_DELIVERY_FIELD", `${fieldLabel(field)}: حتى ${max} حرف.`);
   return trimmed;
 }
 
@@ -88,14 +89,14 @@ export const deliverySelect = { courierName: true, trackingNumber: true, handedO
 export async function updateOrderDelivery(storeId: string, orderId: string, body: Record<string, unknown>) {
   const fields = parseDeliveryFields(body);
   const expectedVersion = Number(body.expectedVersion);
-  if (!Number.isInteger(expectedVersion) || expectedVersion < 1) throw new HttpError(400, "INVALID_ORDER_VERSION", "expectedVersion must be a positive integer.");
+  if (!Number.isInteger(expectedVersion) || expectedVersion < 1) throw new HttpError(400, "INVALID_ORDER_VERSION", "نسخة الطلب غير صالحة. حدّث الصفحة ثم أعد المحاولة.");
   if (fields.courierName === undefined && fields.trackingNumber === undefined) {
-    throw new HttpError(422, "INVALID_DELIVERY_FIELD", "Nothing to update: send courierName or trackingNumber.");
+    throw new HttpError(422, "INVALID_DELIVERY_FIELD", "لا شيء لتحديثه: أرسل اسم المندوب أو رقم الشحنة.");
   }
   return prisma.$transaction(async (tx) => {
     const current = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, status: true, version: true, handedOverAt: true } });
-    if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
-    if (current.version !== expectedVersion) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "The order was changed by another request.");
+    if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود في هذا المتجر.");
+    if (current.version !== expectedVersion) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "تغيّر الطلب من نافذة أخرى. حدّث الصفحة ثم أعد المحاولة.");
     if (["new", "processing", "cancelled", "rejected"].includes(current.status)) {
       throw new HttpError(422, "DELIVERY_NOT_APPLICABLE", "الطلب لم يصل مرحلة التسليم للناقل بعد.");
     }
@@ -107,7 +108,7 @@ export async function updateOrderDelivery(storeId: string, orderId: string, body
     // moment.
     if (fields.courierName && !current.handedOverAt) data.handedOverAt = new Date();
     const result = await tx.storeOrder.updateMany({ where: { id: orderId, storeId, version: expectedVersion }, data });
-    if (result.count !== 1) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "The order was changed by another request.");
+    if (result.count !== 1) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "تغيّر الطلب من نافذة أخرى. حدّث الصفحة ثم أعد المحاولة.");
     const updated = await tx.storeOrder.findFirstOrThrow({ where: { id: orderId, storeId }, select: { id: true, version: true, status: true, ...deliverySelect } });
     return updated;
   });
@@ -134,9 +135,9 @@ export async function listCourierNames(storeId: string): Promise<string[]> {
 function windowFrom(query: Record<string, unknown>): { from: Date; to: Date; courier: string | null } {
   const parse = (value: unknown, field: string): Date | null => {
     if (value === undefined || value === "") return null;
-    if (typeof value !== "string") throw new HttpError(422, "INVALID_DELIVERY_WINDOW", `${field} must be an ISO-8601 date.`);
+    if (typeof value !== "string") throw new HttpError(422, "INVALID_DELIVERY_WINDOW", `${fieldLabel(field)}: تاريخ غير صالح.`);
     const parsed = new Date(value);
-    if (Number.isNaN(parsed.valueOf())) throw new HttpError(422, "INVALID_DELIVERY_WINDOW", `${field} must be an ISO-8601 date.`);
+    if (Number.isNaN(parsed.valueOf())) throw new HttpError(422, "INVALID_DELIVERY_WINDOW", `${fieldLabel(field)}: تاريخ غير صالح.`);
     return parsed;
   };
   const now = new Date();
@@ -144,9 +145,9 @@ function windowFrom(query: Record<string, unknown>): { from: Date; to: Date; cou
   // Default: the day that just happened — the manifest a courier collects in
   // the morning is yesterday evening's parcels plus today's.
   const from = parse(query.from, "from") ?? new Date(to.getTime() - 86_400_000);
-  if (from > to) throw new HttpError(422, "INVALID_DELIVERY_WINDOW", "from must not be after to.");
+  if (from > to) throw new HttpError(422, "INVALID_DELIVERY_WINDOW", "تاريخ البداية قبل تاريخ النهاية.");
   if (to.getTime() - from.getTime() > DELIVERY_WINDOW_MAX_DAYS * 86_400_000) {
-    throw new HttpError(422, "INVALID_DELIVERY_WINDOW", `The window may span at most ${DELIVERY_WINDOW_MAX_DAYS} days.`);
+    throw new HttpError(422, "INVALID_DELIVERY_WINDOW", `الفترة حتى ${DELIVERY_WINDOW_MAX_DAYS} يوماً.`);
   }
   const courier = optionalDeliveryText(query.courier, "courier", COURIER_NAME_MAX_LENGTH) ?? null;
   return { from, to, courier };
@@ -312,10 +313,10 @@ export async function codReconciliation(storeId: string, query: Record<string, u
  */
 export async function markCodCollected(storeId: string, body: Record<string, unknown>) {
   const raw = Array.isArray(body.orderIds) ? body.orderIds : null;
-  if (!raw || raw.length === 0) throw new HttpError(422, "INVALID_COD_BATCH", "orderIds must be a non-empty array.");
-  if (raw.length > COD_COLLECT_BATCH_LIMIT) throw new HttpError(422, "INVALID_COD_BATCH", `At most ${COD_COLLECT_BATCH_LIMIT} orders per request.`);
+  if (!raw || raw.length === 0) throw new HttpError(422, "INVALID_COD_BATCH", "اختر طلباً واحداً على الأقل.");
+  if (raw.length > COD_COLLECT_BATCH_LIMIT) throw new HttpError(422, "INVALID_COD_BATCH", `حتى ${COD_COLLECT_BATCH_LIMIT} طلباً في المرة.`);
   const orderIds = raw.map((id) => {
-    if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(422, "INVALID_COD_BATCH", "Every orderId must be a uuid.");
+    if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(422, "INVALID_COD_BATCH", "أحد الطلبات المختارة غير صالح.");
     return id;
   });
   const result = await prisma.storeOrder.updateMany({

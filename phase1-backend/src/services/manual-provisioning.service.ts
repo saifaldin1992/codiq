@@ -1,5 +1,5 @@
 import { assertPhoneIsFree } from "../auth/auth.service.js";
-import { HttpError } from "../auth/auth.errors.js";
+import { EMAIL_TAKEN_ON_PLATFORM, HttpError } from "../auth/auth.errors.js";
 import { createPasswordHash, normalizeEmail, normalizeIraqiMobile, normalizeOptionalEmail, normalizeOwnerName, normalizePhone } from "../auth/identity.js";
 import { prisma } from "../db/prisma.js";
 import type { PlatformActor } from "../auth/platform-permissions.js";
@@ -31,7 +31,7 @@ export async function createManualMerchant(actor: PlatformActor, input: { busine
   const created = await prisma.$transaction(async (transaction) => {
     const existingOwner = await transaction.platformOwner.findUnique({ where: { email }, select: { id: true } });
     if (existingOwner) {
-      throw new HttpError(409, "EMAIL_RESERVED_FOR_PLATFORM_OWNER", "This email already belongs to a platform owner and cannot be registered as a merchant.");
+      throw new HttpError(409, "EMAIL_RESERVED_FOR_PLATFORM_OWNER", EMAIL_TAKEN_ON_PLATFORM);
     }
 
     const merchant = await transaction.merchant.create({

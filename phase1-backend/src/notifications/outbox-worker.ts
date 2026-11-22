@@ -8,6 +8,7 @@
 import { stockForecastFor } from "../services/stock-forecast.service.js";
 import crypto from "node:crypto";
 import { openSecret } from "../auth/secret-box.js";
+import { orderStatusLabel } from "../services/field-labels.js";
 import { prisma } from "../db/prisma.js";
 import {
   deferredUntil,
@@ -90,7 +91,7 @@ export function renderMessage(row: { eventType: string; recipientKind: string; p
   }
   if (row.eventType === "order.status_changed") {
     const orderNumber = String(payload.orderNumber ?? "");
-    return { subject: `تحديث حالة الطلب ${orderNumber}`, body: `تغيرت حالة الطلب ${orderNumber} في ${storeName} من ${String(payload.fromStatus ?? "")} إلى ${String(payload.toStatus ?? "")}.` };
+    return { subject: `تحديث حالة الطلب ${orderNumber}`, body: `تغيرت حالة الطلب ${orderNumber} في ${storeName} من «${orderStatusLabel(payload.fromStatus)}» إلى «${orderStatusLabel(payload.toStatus)}».` };
   }
   // CD-1b: «مندوبك في الطريق» — the courier-dispatched notice, customers only.
   if (row.eventType === "order.courier_dispatched") {
@@ -146,6 +147,14 @@ export function renderMessage(row: { eventType: string; recipientKind: string; p
   // ق-250: a maintenance window that touches this merchant — when it is scheduled,
   // and when it is over. Times are Baghdad's, written out; the merchant's stores
   // and orders are named as untouched because that is the question he will have.
+  if (row.eventType === "maintenance.cancelled") {
+    const subject = String(payload.subject ?? "المنصّة");
+    return {
+      subject: `أُلغيت الصيانة — ${subject}`,
+      body: `أُلغيت صيانة «${subject}» التي أعلنّاها من ${String(payload.startsAtLocal ?? "")} إلى ${String(payload.endsAtLocal ?? "")} (بتوقيت بغداد).`
+        + `\n\nلن يتوقّف شيء في هذا الموعد، ويستمرّ متجرك كالمعتاد.`,
+    };
+  }
   if (row.eventType === "maintenance.scheduled" || row.eventType === "maintenance.ended") {
     const subject = String(payload.subject ?? "المنصّة");
     const from = String(payload.startsAtLocal ?? "");

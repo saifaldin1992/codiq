@@ -82,16 +82,16 @@ export async function notificationSettingsView(storeId: string) {
  */
 export async function updateNotificationPreferences(storeId: string, body: Record<string, unknown>) {
   if (body.isEnabled !== undefined && typeof body.isEnabled !== "boolean") {
-    throw new HttpError(422, "INVALID_INPUT", "isEnabled must be boolean.");
+    throw new HttpError(422, "INVALID_INPUT", "التفعيل نعم أو لا.");
   }
   const rawPreferences = body.preferences === undefined ? {} : body.preferences;
   if (typeof rawPreferences !== "object" || rawPreferences === null || Array.isArray(rawPreferences)) {
-    throw new HttpError(422, "INVALID_INPUT", "preferences must be an object.");
+    throw new HttpError(422, "INVALID_INPUT", "التفضيلات غير صالحة.");
   }
   const allowedKeys: (keyof NotificationPreferences)[] = ["orderCreated", "orderStatusChanged", "lowStock"];
   const requested = rawPreferences as Record<string, unknown>;
   for (const key of Object.keys(requested)) {
-    if (!allowedKeys.includes(key as keyof NotificationPreferences)) throw new HttpError(422, "INVALID_INPUT", `Unknown preference: ${key}`);
+    if (!allowedKeys.includes(key as keyof NotificationPreferences)) throw new HttpError(422, "INVALID_INPUT", `تفضيل غير معروف: ${key}`);
     if (typeof requested[key] !== "boolean") throw new HttpError(422, "INVALID_INPUT", `${key} must be boolean.`);
   }
 
@@ -100,11 +100,11 @@ export async function updateNotificationPreferences(storeId: string, body: Recor
   if (body.courierDispatch !== undefined) {
     const requestedCourier = body.courierDispatch;
     if (typeof requestedCourier !== "object" || requestedCourier === null || Array.isArray(requestedCourier)) {
-      throw new HttpError(422, "INVALID_INPUT", "courierDispatch must be an object.");
+      throw new HttpError(422, "INVALID_INPUT", "إعدادات إشعار المندوب غير صالحة.");
     }
     for (const key of Object.keys(requestedCourier as Record<string, unknown>)) {
-      if (key !== "enabled") throw new HttpError(422, "INVALID_INPUT", `Unknown courierDispatch key: ${key}`);
-      if (typeof (requestedCourier as Record<string, unknown>).enabled !== "boolean") throw new HttpError(422, "INVALID_INPUT", "enabled must be boolean.");
+      if (key !== "enabled") throw new HttpError(422, "INVALID_INPUT", `إعداد غير معروف في إشعار المندوب: ${key}`);
+      if (typeof (requestedCourier as Record<string, unknown>).enabled !== "boolean") throw new HttpError(422, "INVALID_INPUT", "التفعيل نعم أو لا.");
     }
   }
 
@@ -115,15 +115,15 @@ export async function updateNotificationPreferences(storeId: string, body: Recor
   if (body.dailyDigest !== undefined) {
     const requestedDigest = body.dailyDigest;
     if (typeof requestedDigest !== "object" || requestedDigest === null || Array.isArray(requestedDigest)) {
-      throw new HttpError(422, "INVALID_INPUT", "dailyDigest must be an object.");
+      throw new HttpError(422, "INVALID_INPUT", "إعدادات الملخص اليومي غير صالحة.");
     }
     const entries = requestedDigest as Record<string, unknown>;
     for (const key of Object.keys(entries)) {
-      if (key !== "enabled" && key !== "hour") throw new HttpError(422, "INVALID_INPUT", `Unknown dailyDigest key: ${key}`);
+      if (key !== "enabled" && key !== "hour") throw new HttpError(422, "INVALID_INPUT", `إعداد غير معروف في الملخص اليومي: ${key}`);
     }
-    if (entries.enabled !== undefined && typeof entries.enabled !== "boolean") throw new HttpError(422, "INVALID_INPUT", "enabled must be boolean.");
+    if (entries.enabled !== undefined && typeof entries.enabled !== "boolean") throw new HttpError(422, "INVALID_INPUT", "التفعيل نعم أو لا.");
     if (entries.hour !== undefined && (!Number.isInteger(entries.hour) || (entries.hour as number) < 0 || (entries.hour as number) > 23)) {
-      throw new HttpError(422, "INVALID_INPUT", "hour must be an integer between 0 and 23.");
+      throw new HttpError(422, "INVALID_INPUT", "الساعة عدد صحيح من 0 إلى 23.");
     }
     dailyDigest = entries as { enabled?: boolean; hour?: number };
   }
@@ -134,7 +134,7 @@ export async function updateNotificationPreferences(storeId: string, body: Recor
   const whatsappTemplatesInput = body.whatsappTemplates !== undefined ? validateWhatsappTemplatesInput(body.whatsappTemplates) : undefined;
 
   const current = await prisma.notificationSettings.findUnique({ where: { storeId }, select: { configuration: true } });
-  if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "Notification settings were not found for this store.");
+  if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "إعدادات الإشعارات غير موجودة لهذا المتجر.");
   const mergedPreferences = { ...normalizePreferences(current.configuration), ...(requested as Partial<NotificationPreferences>) };
   // Phase 20B-2: configuration now also carries the abandonedCart block —
   // spread the current object first so a preferences write never clobbers it.

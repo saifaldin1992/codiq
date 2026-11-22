@@ -25,7 +25,8 @@ export function MerchantFinancePanel() {
   const now = new Date();
   const [from, setFrom] = useState(dateOnly(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))));
   const [to, setTo] = useState(dateOnly(now));
-  const [report, setReport] = useState<{ totals: Totals; entries: Entry[] } | null>(null);
+  const [report, setReport] = useState<{ totals: Totals; entries: Entry[]; nextCursor?: string | null } | null>(null);
+  const [loadingEntries, setLoadingEntries] = useState(false);
   const [settlements, setSettlements] = useState<Settlement[] | null>(null);
   // 20-2: settlements were capped at 100 with no page 2, so a merchant in his
   // third year could not reach his first year's payouts — on the screen that
@@ -53,6 +54,20 @@ export function MerchantFinancePanel() {
     }
   }, [from, to]);
   useEffect(() => { void load(); }, [load]);
+
+  async function loadMoreEntries(cursor: string) {
+    setLoadingEntries(true);
+    try {
+      const response = await fetch(`/api/merchant/finance/report?from=${from}T00:00:00Z&to=${to}T23:59:59Z&cursor=${encodeURIComponent(cursor)}`, { credentials: "same-origin" });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.error?.message ?? "تعذر تحميل المزيد من القيود.");
+      setReport((current) => (current ? { ...current, entries: [...current.entries, ...body.entries], nextCursor: body.nextCursor ?? null } : body));
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "خطأ غير متوقع.");
+    } finally {
+      setLoadingEntries(false);
+    }
+  }
 
   async function loadMoreSettlements(cursor: string) {
     setLoadingMore(true);
@@ -113,6 +128,11 @@ export function MerchantFinancePanel() {
                 );
               })}
             </div>
+            {report.nextCursor ? (
+              <button type="button" data-testid="merchant-finance-more" disabled={loadingEntries} onClick={() => void loadMoreEntries(report.nextCursor!)} className="mt-3 rounded-xl px-3 py-1.5 text-xs font-bold text-[var(--codiq-accent)] hover:underline disabled:opacity-60">
+                {loadingEntries ? "جارٍ التحميل…" : "عرض قيود أقدم"}
+              </button>
+            ) : null}
           </div>
           <div className="rounded-[24px] border border-[var(--codiq-border)] bg-[var(--codiq-surface-sunken)] p-5">
             <p className="mb-3 text-sm font-bold text-[#30435F]">التسويات المسجلة</p>

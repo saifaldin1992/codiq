@@ -236,7 +236,10 @@ export async function cancelMaintenanceWindow(actor: PlatformActor, id: string):
   if (!existing) throw new HttpError(404, "MAINTENANCE_WINDOW_NOT_FOUND", "لا نافذة بهذا المعرّف.");
   if (existing.status !== "scheduled" || existing.endsAt.valueOf() <= now.valueOf()) throw new HttpError(409, "MAINTENANCE_WINDOW_NOT_LIVE", "هذه النافذة انتهت أو أُلغيت من قبل.");
   const window = await prisma.$transaction(async (tx) => {
-    const row = await tx.maintenanceWindow.update({ where: { id }, data: { status: "cancelled", cancelledAt: now, cancelledByKind: actor.kind, cancelledById: actor.id }, select: windowSelect });
+    // Guarded: two owners cancelling at once write one cancellation, one audit row.
+    const claimed = await tx.maintenanceWindow.updateMany({ where: { id, status: "scheduled" }, data: { status: "cancelled", cancelledAt: now, cancelledByKind: actor.kind, cancelledById: actor.id } });
+    if (claimed.count !== 1) throw new HttpError(409, "MAINTENANCE_WINDOW_NOT_LIVE", "هذه النافذة انتهت أو أُلغيت من قبل.");
+    const row = await tx.maintenanceWindow.findUniqueOrThrow({ where: { id }, select: windowSelect });
     await recordPlatformAuditEvent(tx, {
       entityType: "maintenance_window", entityId: row.id, entityLabel: `${windowSubjectLabel(row)} — ${formatBaghdad(row.startsAt)} → ${formatBaghdad(row.endsAt)}`,
       action: "maintenance_window_cancelled", actor,
@@ -244,6 +247,9 @@ export async function cancelMaintenanceWindow(actor: PlatformActor, id: string):
     });
     return row;
   });
+  // The merchants who were told about the window are told it is off. A
+  // cancelled window never «ends», so without this they would hear nothing.
+  await enqueueMaintenanceNotices(window, "maintenance.cancelled");
   return windowView(window, now);
 }
 
@@ -374,7 +380,7 @@ export async function livePlatformWideWindow(now: Date = new Date(), client: DbC
 }
 
 // ─────────────────────────────────────────────────────────── notices
-type NoticeEvent = "maintenance.scheduled" | "maintenance.ended";
+type NoticeEvent = "maintenance.scheduled" | "maintenance.ended" | "maintenance.cancelled";
 type Recipient = { id: string; email: string; businessName: string };
 
 async function windowAudience(window: WindowRow): Promise<Recipient[]> {

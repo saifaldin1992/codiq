@@ -26,3 +26,22 @@ ALTER TABLE platform_audit_events ADD CONSTRAINT platform_audit_events_action CH
    'setting_changed',
    'support_ticket_replied', 'support_ticket_escalated', 'support_ticket_closed',
    'platform_coupon_created', 'platform_coupon_updated', 'platform_coupon_stores_changed'));
+
+-- 2. A cancelled maintenance window is announced, like a scheduled one. The
+--    merchant was told «we stop on Thursday»; when the window is called off he
+--    is told so, instead of planning around a stop that never comes.
+INSERT INTO notification_event_kinds (event_type, kind, description, priority) VALUES
+  ('maintenance.cancelled', 'operational', 'إشعار التاجر بإلغاء صيانةٍ أُعلنت له — لن يتوقّف شيء في الموعد المذكور.', 150)
+ON CONFLICT (event_type) DO NOTHING;
+ALTER TABLE notification_outbox DROP CONSTRAINT notification_outbox_store_scope;
+ALTER TABLE notification_outbox
+  ADD CONSTRAINT notification_outbox_store_scope CHECK (
+    store_id IS NOT NULL OR event_type IN ('auth.password_reset', 'trial.ending', 'maintenance.scheduled', 'maintenance.ended', 'maintenance.cancelled')
+  );
+
+-- 3. A settlement records what the platform's coupons cost in its period. The
+--    preview already showed it; the row made from that preview did not keep it.
+--    Not part of net_payout_iqd: the store is paid as if the shopper had paid.
+--    Signed like every other settlement total: a period holding only the return
+--    of an earlier order nets the platform's cost below zero.
+ALTER TABLE settlements ADD COLUMN platform_discount_iqd integer NOT NULL DEFAULT 0;

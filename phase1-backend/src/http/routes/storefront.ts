@@ -111,7 +111,7 @@ export function registerStorefrontRoutes(app: Express) {
       },
       select: { objectKey: true, contentType: true, variantSet: true },
     });
-    if (!image) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested product image was not found.");
+    if (!image) throw new HttpError(404, "RESOURCE_NOT_FOUND", "صورة المنتج غير موجودة.");
     const variant = isVariantName(request.query.v) ? request.query.v : DEFAULT_SERVED_VARIANT;
     const objectKey = image.variantSet ? variantObjectKey(image.objectKey, variant) : image.objectKey;
     response.setHeader("cache-control", "public, max-age=31536000, immutable");

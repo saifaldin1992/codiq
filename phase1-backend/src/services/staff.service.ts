@@ -143,7 +143,7 @@ export async function createStoreStaff(storeId: string, input: { email: unknown;
   assertGrantable(actor, ROLE_PERMISSION_MATRIX[roleCode]);
   // Phase 16: team size is a plan entitlement across the merchant's stores.
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
-  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+  if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
   await assertWithinPlanLimit(prisma, store.merchantId, "max_staff");
   // ق-227: the LIVING only. An identity whose last membership was removed has
   // released its address, and a new employee typing the same one is a NEW person
@@ -196,7 +196,7 @@ export async function createStoreStaff(storeId: string, input: { email: unknown;
   }
 
   if (typeof input.displayName !== "string" || input.displayName.trim().length < 2) {
-    throw new HttpError(400, "INVALID_DISPLAY_NAME", "Display name must contain at least 2 characters.");
+    throw new HttpError(400, "INVALID_DISPLAY_NAME", "اسم العرض حرفان على الأقل.");
   }
   const passwordHash = await createPasswordHash(input.temporaryPassword);
   const membership = await prisma.$transaction(async (tx) => {
@@ -210,7 +210,7 @@ export async function createStoreStaff(storeId: string, input: { email: unknown;
 
 async function requireMembershipInStore(storeId: string, membershipId: string) {
   const membership = await prisma.storeStaffMembership.findFirst({ where: { id: membershipId, storeId, ...LIVE }, select: { id: true, roleCode: true, isActive: true, staff: { select: { email: true } } } });
-  if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested team membership was not found in this store.");
+  if (!membership) throw new HttpError(404, "RESOURCE_NOT_FOUND", "العضوية غير موجودة في فريق هذا المتجر.");
   return membership;
 }
 
@@ -225,7 +225,7 @@ export async function updateStoreMembership(storeId: string, membershipId: strin
   if (nextRole !== undefined) assertGrantable(actor, ROLE_PERMISSION_MATRIX[nextRole]);
   const nextActive = input.isActive === undefined ? undefined : input.isActive === true;
   if (nextRole === undefined && nextActive === undefined) {
-    throw new HttpError(400, "EMPTY_MEMBERSHIP_UPDATE", "roleCode or isActive is required.");
+    throw new HttpError(400, "EMPTY_MEMBERSHIP_UPDATE", "أرسل الدور أو الحالة.");
   }
   const roleChanged = nextRole !== undefined && nextRole !== current.roleCode;
   const activeChanged = nextActive !== undefined && nextActive !== current.isActive;
@@ -260,15 +260,15 @@ export async function setMembershipOverrides(storeId: string, membershipId: stri
   await requireMembershipInStore(storeId, membershipId);
   await assertMayManageMembership(actor, storeId, membershipId);
   if (!Array.isArray(input.overrides) || input.overrides.length > PERMISSION_CODES.length) {
-    throw new HttpError(400, "INVALID_OVERRIDES", "overrides must be an array with at most one entry per permission code.");
+    throw new HttpError(400, "INVALID_OVERRIDES", "قائمة التجاوزات غير صالحة: كل صلاحية مرة واحدة.");
   }
   const seen = new Set<string>();
   const entries = input.overrides.map((entry: any) => {
     const permissionCode = assertPermissionCode(entry?.permissionCode);
     if (entry?.effect !== "allow" && entry?.effect !== "deny") {
-      throw new HttpError(422, "INVALID_OVERRIDE_EFFECT", "Override effect must be allow or deny.");
+      throw new HttpError(422, "INVALID_OVERRIDE_EFFECT", "أثر التجاوز: سماح أو منع.");
     }
-    if (seen.has(permissionCode)) throw new HttpError(422, "DUPLICATE_OVERRIDE", "Each permission code may appear at most once.");
+    if (seen.has(permissionCode)) throw new HttpError(422, "DUPLICATE_OVERRIDE", "كل صلاحية تُذكر مرة واحدة فقط.");
     seen.add(permissionCode);
     return { permissionCode, effect: entry.effect as "allow" | "deny" };
   });

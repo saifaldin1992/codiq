@@ -191,7 +191,8 @@ export async function merchantUsage(client: DbClient, merchantId: string): Promi
     // never moved: a merchant could fill his plan with slides and the meter
     // would still read the product images alone.
     client.storeBanner.aggregate({ where: { store: { merchantId } }, _sum: { byteSize: true } }),
-    client.store.aggregate({ where: { merchantId }, _sum: { logoByteSize: true } }),
+    // The market cover counts too — it is stored the same way the logo is.
+    client.store.aggregate({ where: { merchantId }, _sum: { logoByteSize: true, coverByteSize: true } }),
     // Marketplace M10: the store's reels (up to 30 MB each) sit in the same bucket.
     // Pending, approved and rejected ones are all still stored; only a removed
     // reel's video has been deleted.
@@ -202,7 +203,7 @@ export async function merchantUsage(client: DbClient, merchantId: string): Promi
     max_products: products,
     max_staff: staff,
     max_monthly_orders: monthlyOrders,
-    max_image_storage_mb: Math.ceil(((storage._sum.byteSize ?? 0) + (prescriptionStorage._sum.byteSize ?? 0) + (bannerStorage._sum.byteSize ?? 0) + (logoStorage._sum.logoByteSize ?? 0) + (reelStorage._sum.videoByteSize ?? 0)) / (1024 * 1024)),
+    max_image_storage_mb: Math.ceil(((storage._sum.byteSize ?? 0) + (prescriptionStorage._sum.byteSize ?? 0) + (bannerStorage._sum.byteSize ?? 0) + (logoStorage._sum.logoByteSize ?? 0) + (logoStorage._sum.coverByteSize ?? 0) + (reelStorage._sum.videoByteSize ?? 0)) / (1024 * 1024)),
   };
 }
 
@@ -240,6 +241,15 @@ async function platformCapFor(client: DbClient, feature: PlanFeatureCode): Promi
 export async function effectiveLimit(client: DbClient, plan: PlanSummary, feature: PlanFeatureCode): Promise<number> {
   const cap = await platformCapFor(client, feature);
   return cap === null ? plan.limits[feature] : Math.min(plan.limits[feature], cap);
+}
+
+/**
+ * The storage a REPLACEMENT adds: the new picture less the one it replaces.
+ * Counting the whole new file left a merchant at his limit unable to swap his
+ * logo for one the same size — the old one is deleted on success.
+ */
+export function replacementIncrementMb(newBytes: number, replacedBytes: number | null | undefined): number {
+  return Math.max(0, Math.ceil((newBytes - (replacedBytes ?? 0)) / (1024 * 1024)));
 }
 
 export async function assertWithinPlanLimit(client: DbClient, merchantId: string, feature: PlanFeatureCode, increment = 1, action = "لمتابعة الإضافة"): Promise<void> {

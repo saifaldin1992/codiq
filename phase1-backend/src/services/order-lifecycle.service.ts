@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { fieldLabel, orderStatusLabel } from "./field-labels.js";
 import { parseDeliveryFields } from "./delivery.service.js";
 import { awardPlatformPoints, clawbackPlatformPoints, grantWheelSpins, releasePlatformCoupon, revokeWheelSpins } from "./platform-rewards.service.js";
 import { HttpError } from "../auth/auth.errors.js";
@@ -52,15 +53,15 @@ function orderStatus(value: unknown, code = "INVALID_ORDER_STATUS"): OrderStatus
  */
 export function orderTransitionNote(value: unknown): string | null {
   if (value === undefined || value === "") return null;
-  if (typeof value !== "string" || value.length > 1000) throw new HttpError(400, "INVALID_ORDER_NOTE", "note must contain at most 1000 characters.");
+  if (typeof value !== "string" || value.length > 1000) throw new HttpError(400, "INVALID_ORDER_NOTE", "الملاحظة حتى 1000 حرف.");
   return value.trim();
 }
 
 function parseDate(value: unknown, field: string): Date | undefined {
   if (value === undefined || value === "") return undefined;
-  if (typeof value !== "string") throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
+  if (typeof value !== "string") throw new HttpError(400, "INVALID_DATE_FILTER", `${fieldLabel(field)}: تاريخ غير صالح.`);
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
+  if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", `${fieldLabel(field)}: تاريخ غير صالح.`);
   return parsed;
 }
 
@@ -234,13 +235,13 @@ function orderTagFilter(value: string): string {
 
 export async function orderForStore(storeId: string, orderId: string) {
   const order = await prisma.storeOrder.findFirst({ where: { id: orderId, storeId }, include: orderInclude });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود في هذا المتجر.");
   return orderPayload(order);
 }
 
 export async function orderHistoryForStore(storeId: string, orderId: string) {
   const order = await prisma.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true } });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
+  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود في هذا المتجر.");
   return prisma.orderStatusEvent.findMany({ where: { storeId, orderId }, orderBy: { createdAt: "asc" } });
 }
 
@@ -272,22 +273,22 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
   const delivery = parseDeliveryFields(input);
   const toStatus = orderStatus(input.toStatus, "INVALID_ORDER_TRANSITION");
   const expectedVersion = Number(input.expectedVersion);
-  if (!Number.isInteger(expectedVersion) || expectedVersion < 1) throw new HttpError(400, "INVALID_ORDER_VERSION", "expectedVersion must be a positive integer.");
+  if (!Number.isInteger(expectedVersion) || expectedVersion < 1) throw new HttpError(400, "INVALID_ORDER_VERSION", "نسخة الطلب غير صالحة. حدّث الصفحة ثم أعد المحاولة.");
   const note = orderTransitionNote(input.note);
   let fromStatusForEvent: OrderStatus = toStatus;
   const work = async (tx: Prisma.TransactionClient) => {
     const current = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, select: { id: true, status: true, version: true, source: true, orderNumber: true, customerEmail: true, subtotalIqd: true, deliveryFeeIqd: true, discountIqd: true, prescriptionStatus: true, customerId: true, loyaltyDiscountIqd: true, platformDiscountIqd: true, paymentMethodCode: true, totalIqd: true } });
-    if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found in this store.");
-    if (current.version !== expectedVersion) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "The order was changed by another request.");
+    if (!current) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود في هذا المتجر.");
+    if (current.version !== expectedVersion) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "تغيّر الطلب من نافذة أخرى. حدّث الصفحة ثم أعد المحاولة.");
     const fromStatus = orderStatus(current.status);
     fromStatusForEvent = fromStatus;
-    if (!transitions[fromStatus].includes(toStatus)) throw new HttpError(422, "INVALID_ORDER_TRANSITION", `${fromStatus} cannot transition to ${toStatus}.`);
+    if (!transitions[fromStatus].includes(toStatus)) throw new HttpError(422, "INVALID_ORDER_TRANSITION", `لا يمكن نقل الطلب من «${orderStatusLabel(fromStatus)}» إلى «${orderStatusLabel(toStatus)}».`);
     // Phase 20B-1: prescription gate — sits EXACTLY after edge validation. Only
     // the new→processing edge is blocked until the prescription is approved;
     // cancel/reject from `new` stay open, and orders without a prescription
     // (prescriptionStatus NULL) are untouched.
     if (fromStatus === "new" && toStatus === "processing" && current.prescriptionStatus !== null && current.prescriptionStatus !== "approved") {
-      throw new HttpError(422, "PRESCRIPTION_NOT_APPROVED", "This order requires an approved prescription before processing.");
+      throw new HttpError(422, "PRESCRIPTION_NOT_APPROVED", "هذا الطلب يحتاج وصفة مقبولة قبل تجهيزه.");
     }
     const result = await tx.storeOrder.updateMany({ where: { id: orderId, storeId, version: expectedVersion }, data: {
       status: toStatus, version: { increment: 1 }, statusUpdatedAt: new Date(), updatedByKind: actor.kind,
@@ -295,7 +296,7 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
       ...(toStatus === "out_for_delivery" && delivery.courierName ? { courierName: delivery.courierName, handedOverAt: new Date() } : {}),
       ...(toStatus === "out_for_delivery" && delivery.trackingNumber ? { trackingNumber: delivery.trackingNumber } : {}),
     } });
-    if (result.count !== 1) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "The order was changed by another request.");
+    if (result.count !== 1) throw new HttpError(409, "ORDER_VERSION_CONFLICT", "تغيّر الطلب من نافذة أخرى. حدّث الصفحة ثم أعد المحاولة.");
     await tx.orderStatusEvent.create({ data: { storeId, orderId, fromStatus, toStatus, actorKind: actor.kind, actorId: actor.id, note } });
     await settleStorefrontReservations(tx, storeId, current, toStatus);
     // Phase 15: the notification row commits or rolls back with the transition itself.
@@ -388,7 +389,7 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
       await releasePlatformCoupon(tx, orderId);
     }
     const updated = await tx.storeOrder.findFirst({ where: { id: orderId, storeId }, include: orderInclude });
-    if (!updated) throw new HttpError(500, "ORDER_TRANSITION_FAILED", "Order transition could not be completed.");
+    if (!updated) throw new HttpError(500, "ORDER_TRANSITION_FAILED", "تعذّر تغيير حالة الطلب. حاول مرة أخرى.");
     return orderPayload(updated);
   };
   const payload = within ? await work(within) : await prisma.$transaction(work);
@@ -420,6 +421,6 @@ export async function listPlatformOrders(query: Record<string, unknown>) {
 
 export async function platformOrder(orderId: string) {
   const order = await prisma.storeOrder.findUnique({ where: { id: orderId }, include: orderInclude });
-  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested order was not found.");
+  if (!order) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الطلب غير موجود.");
   return orderPayload(order);
 }

@@ -21,6 +21,7 @@
  * commit, and respects the 3-level depth budget.
  */
 import { Prisma } from "@prisma/client";
+import { fieldLabel } from "./field-labels.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
 import { CSV_UTF8_BOM, csvGuardedLine, csvLine, csvUnguardField, parseCsv } from "./csv.js";
@@ -297,7 +298,7 @@ export async function validateProductsCsv(storeId: string, buffer: Buffer): Prom
 export async function commitProductsImport(storeId: string, validation: ImportValidation) {
   return prisma.$transaction(async (tx) => {
     const store = await tx.store.findUnique({ where: { id: storeId }, select: { merchantId: true } });
-    if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "The requested store does not exist.");
+    if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
     await assertWithinPlanLimit(tx, store.merchantId, "max_products", validation.newProducts);
     const categoryIds = new Map(validation.existingCategoryIds);
     for (const node of validation.categoryPlan) {
@@ -443,9 +444,9 @@ export const ORDER_CSV_COLUMNS = [
 
 function exportDate(value: unknown, field: string): Date | undefined {
   if (value === undefined || value === "") return undefined;
-  if (typeof value !== "string") throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
+  if (typeof value !== "string") throw new HttpError(400, "INVALID_DATE_FILTER", `${fieldLabel(field)}: تاريخ غير صالح.`);
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", `${field} must be an ISO date.`);
+  if (Number.isNaN(parsed.valueOf())) throw new HttpError(400, "INVALID_DATE_FILTER", `${fieldLabel(field)}: تاريخ غير صالح.`);
   return parsed;
 }
 
@@ -460,7 +461,7 @@ export async function exportOrdersCsv(storeId: string, query: Record<string, unk
   let status: string | undefined;
   if (query.status !== undefined && query.status !== "") {
     if (typeof query.status !== "string" || !(ORDER_STATUSES as readonly string[]).includes(query.status)) {
-      throw new HttpError(422, "INVALID_ORDER_STATUS_FILTER", "Order status is not supported.");
+      throw new HttpError(422, "INVALID_ORDER_STATUS_FILTER", "حالة الطلب غير معروفة.");
     }
     status = query.status;
   }

@@ -10,7 +10,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
-import { assertWithinPlanLimit } from "../../services/entitlement.service.js";
+import { assertWithinPlanLimit, replacementIncrementMb } from "../../services/entitlement.service.js";
 import { governorateLabel, toGovernorateKey } from "../../services/governorates.js";
 import { deleteStoreCoverObjects, putStoreCover } from "../../services/product-image-storage.service.js";
 import { freshMetricsFor } from "./metrics.service.js";
@@ -150,8 +150,9 @@ export async function leaveMarket(storeId: string) {
 
 export async function setStoreCover(storeId: string, merchantId: string, file: Express.Multer.File | undefined) {
   if (!file) throw new HttpError(422, "INVALID_COVER_IMAGE", "صورة الغلاف مطلوبة.");
-  const current = await prisma.store.findUniqueOrThrow({ where: { id: storeId }, select: { coverObjectKey: true } });
-  await assertWithinPlanLimit(prisma, merchantId, "max_image_storage_mb", Math.max(1, Math.ceil(file.size / (1024 * 1024))), "لرفع صورة الغلاف");
+  const current = await prisma.store.findUniqueOrThrow({ where: { id: storeId }, select: { coverObjectKey: true, coverByteSize: true } });
+  const added = current.coverObjectKey ? replacementIncrementMb(file.size, current.coverByteSize) : Math.max(1, Math.ceil(file.size / (1024 * 1024)));
+  if (added > 0) await assertWithinPlanLimit(prisma, merchantId, "max_image_storage_mb", added, "لرفع صورة الغلاف");
   const stored = await putStoreCover(storeId, file);
   try {
     await prisma.store.update({ where: { id: storeId }, data: { coverObjectKey: stored.objectKey, coverContentType: stored.contentType, coverByteSize: stored.byteSize } });

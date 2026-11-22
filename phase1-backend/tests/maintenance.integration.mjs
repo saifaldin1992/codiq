@@ -43,7 +43,7 @@ const { prisma } = await import("../src/db/prisma.ts");
 const { tickMaintenanceWindows, windowPhase, formatBaghdad } = await import("../src/services/maintenance.service.ts");
 // A platform window mails EVERY active merchant — on a shared database that is every merchant every
 // suite ever registered, and those rows would drain ahead of the next suite's batch. Taken out at both ends.
-const sweepMaintenanceMail = () => prisma.notificationOutbox.deleteMany({ where: { eventType: { in: ["maintenance.scheduled", "maintenance.ended"] }, status: "pending" } });
+const sweepMaintenanceMail = () => prisma.notificationOutbox.deleteMany({ where: { eventType: { in: ["maintenance.scheduled", "maintenance.ended", "maintenance.cancelled"] }, status: "pending" } });
 await sweepMaintenanceMail();
 await prisma.$executeRawUnsafe("TRUNCATE TABLE storefront_rate_limits");
 
@@ -164,6 +164,8 @@ try {
   assert.equal(cancelled.payload.window.phase, "cancelled");
   assert.equal((await manifestA()).status, 200, "cancelling reopens at once");
   assert.equal((await request(`/platform/maintenance-windows/${nowWindow.payload.window.id}`, { method: "DELETE", token: ownerToken })).status, 409, "cancelling twice is refused by name");
+  const cancelMails = await prisma.notificationOutbox.count({ where: { eventType: "maintenance.cancelled", dedupeKey: { startsWith: `maintenance.cancelled:${nowWindow.payload.window.id}:` } } });
+  assert.equal(cancelMails, scheduledMails.length, "every merchant told about the window is told it is off — once, however often cancel is pressed");
   summary.platformWindow = { closed: 423, others: 200, mails: scheduledMails.length, reopened: 200 };
 
   // ============================================================

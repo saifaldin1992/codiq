@@ -51,7 +51,7 @@ function s3Config(): S3Config {
   const accessKeyId = process.env.PRODUCT_S3_ACCESS_KEY_ID;
   const secretAccessKey = process.env.PRODUCT_S3_SECRET_ACCESS_KEY;
   if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) {
-    throw new HttpError(503, "IMAGE_STORAGE_NOT_CONFIGURED", "Product image storage is not configured.");
+    throw new HttpError(503, "IMAGE_STORAGE_NOT_CONFIGURED", "تخزين الصور غير مُعدّ على الخادم.");
   }
   return { endpoint, bucket, accessKeyId, secretAccessKey, region: process.env.PRODUCT_S3_REGION ?? "us-east-1" };
 }
@@ -148,7 +148,7 @@ export function productImageObjectKeys(image: { objectKey: string; variantSet?: 
 export async function getProductImageBytes(objectKey: string) {
   const config = s3Config();
   const object = await client(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }));
-  if (!object.Body || !("transformToByteArray" in object.Body)) throw new HttpError(404, "IMAGE_NOT_FOUND", "The requested product image could not be read.");
+  if (!object.Body || !("transformToByteArray" in object.Body)) throw new HttpError(404, "IMAGE_NOT_FOUND", "تعذّرت قراءة صورة المنتج.");
   return Buffer.from(await object.Body.transformToByteArray());
 }
 
@@ -239,7 +239,7 @@ export async function deletePrescriptionObjects(objectKeys: readonly string[]) {
 export async function getPrescriptionBytes(objectKey: string) {
   const config = s3Config();
   const object = await client(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }));
-  if (!object.Body || !("transformToByteArray" in object.Body)) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The requested prescription could not be read.");
+  if (!object.Body || !("transformToByteArray" in object.Body)) throw new HttpError(404, "RESOURCE_NOT_FOUND", "تعذّرت قراءة الوصفة.");
   return Buffer.from(await object.Body.transformToByteArray());
 }
 

@@ -66,10 +66,10 @@ export function parseMonthKey(raw: unknown, now = new Date()): { key: string; fr
   const local = new Date(now.valueOf() + BAGHDAD_OFFSET_MS);
   const text = typeof raw === "string" && raw ? raw : `${local.getUTCFullYear()}-${String(local.getUTCMonth() + 1).padStart(2, "0")}`;
   const match = /^(\d{4})-(\d{2})$/.exec(text);
-  if (!match) throw new HttpError(400, "INVALID_MONTH", "The month must be written as YYYY-MM.");
+  if (!match) throw new HttpError(400, "INVALID_MONTH", "اكتب الشهر بصيغة YYYY-MM.");
   const year = Number(match[1]);
   const month = Number(match[2]);
-  if (month < 1 || month > 12) throw new HttpError(400, "INVALID_MONTH", "The month must be between 01 and 12.");
+  if (month < 1 || month > 12) throw new HttpError(400, "INVALID_MONTH", "الشهر بين 01 و12.");
   const from = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0) - BAGHDAD_OFFSET_MS);
   // The last millisecond of the month: the ranges below are inclusive at both
   // ends, so day 1 of the next month at 00:00 would count one order twice.
@@ -89,7 +89,7 @@ export async function merchantMonthlyReport(storeId: string, rawMonth: unknown, 
   const previous = previousMonth(month);
 
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { slug: true, name: true } });
-  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "The store was not found.");
+  if (!store) throw new HttpError(404, "RESOURCE_NOT_FOUND", "المتجر غير موجود.");
 
   const range = { from: month.from.toISOString(), to: month.to.toISOString() };
   const [current, prior, top, days, firstEverOrder] = await Promise.all([

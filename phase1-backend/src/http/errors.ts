@@ -171,7 +171,7 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
   // PG-2: `details` is absent on every pre-existing HttpError, so those bodies
   // stay byte-identical; only the restore-conflict errors carry extra keys.
   if (error instanceof HttpError) return { status: error.status, error: { code: error.code, message: error.message, ...(error.details ?? {}) }, mapped: true };
-  const message = error instanceof Error ? error.message : "Unexpected server error.";
+  const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع في الخادم. حاول مرة أخرى بعد قليل.";
   if (message.includes("CODIQ_EMAIL_CONFLICT")) {
     // 19-ب: the CODE stays (tests and clients name it); the MESSAGE no longer
     // claims the holder is specifically a platform owner or the claimant a
@@ -266,20 +266,20 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
     if (target.includes("order_tags") || target.includes("tag_normalized")) {
       return { status: 409, error: { code: "ORDER_TAGS_CONFLICT", message: "جرى تعديل وسوم هذا الطلب في جلسة أخرى في اللحظة نفسها — أعِد فتح الطلب وحفظ الوسوم من جديد." }, mapped: true };
     }
-    if (target.includes("product_categories")) return { status: 409, error: { code: "DUPLICATE_CATEGORY", message: "A category with this name already exists in this store." }, mapped: true };
-    if (target.includes("coupons")) return { status: 409, error: { code: "DUPLICATE_COUPON_CODE", message: "A coupon with this code already exists in this store." }, mapped: true };
-    if (target.includes("product_variants")) return { status: 409, error: { code: "DUPLICATE_VARIANT_SKU", message: "A variant with this SKU already exists in this store." }, mapped: true };
-    if (target.includes("products")) return { status: 409, error: { code: "DUPLICATE_PRODUCT_SKU", message: "A product with this SKU already exists in this store." }, mapped: true };
+    if (target.includes("product_categories")) return { status: 409, error: { code: "DUPLICATE_CATEGORY", message: "يوجد تصنيف بهذا الاسم في المتجر." }, mapped: true };
+    if (target.includes("coupons")) return { status: 409, error: { code: "DUPLICATE_COUPON_CODE", message: "يوجد كوبون بهذا الرمز في المتجر." }, mapped: true };
+    if (target.includes("product_variants")) return { status: 409, error: { code: "DUPLICATE_VARIANT_SKU", message: "يوجد خيار بهذا الرمز (SKU) في المتجر." }, mapped: true };
+    if (target.includes("products")) return { status: 409, error: { code: "DUPLICATE_PRODUCT_SKU", message: "يوجد منتج بهذا الرمز (SKU) في المتجر." }, mapped: true };
     if (target.includes("stores") && (target.includes("slug") || target.includes("default_subdomain"))) return { status: 409, error: { code: "DUPLICATE_STORE_SLUG", message: "رابط المتجر مستخدم بالفعل." }, mapped: true };
     if (target.includes("phone_normalized")) {
       // The MODEL decides, not the column name — the two share it. Relying on
       // the index name here does not work: Prisma reports the column.
       const model = (error.meta as { modelName?: unknown } | undefined)?.modelName;
       if (model === "Merchant") return { status: 409, error: { code: "DUPLICATE_MERCHANT_PHONE", message: "رقم الهاتف مسجَّل لحساب تاجر آخر على المنصة." }, mapped: true };
-      return { status: 409, error: { code: "DUPLICATE_CUSTOMER_PHONE", message: "This phone is already registered in this store." }, mapped: true };
+      return { status: 409, error: { code: "DUPLICATE_CUSTOMER_PHONE", message: "هذا الرقم مسجّل في هذا المتجر — سجّل الدخول به." }, mapped: true };
     }
     if (target.includes("plan_upgrade_requests")) return { status: 409, error: { code: "DUPLICATE_UPGRADE_REQUEST", message: "لديك طلب ترقية معلق بالفعل — بانتظار مراجعة إدارة المنصة." }, mapped: true };
-    return { status: 409, error: { code: "DUPLICATE_IDENTITY", message: "An account with this identity already exists in this permitted scope." }, mapped: true };
+    return { status: 409, error: { code: "DUPLICATE_IDENTITY", message: "هذا العنصر موجود بالفعل — لا يمكن تكراره." }, mapped: true };
   }
   // PG-2: the category tree is guarded in TWO layers — the service walks it in
   // TypeScript, and `codiq_guard_category_cycle` re-checks it in SQL under a
@@ -349,7 +349,7 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
   if (isRetryableTransactionError(error)) {
     return { status: 503, error: { code: "TRANSACTION_CONTENTION", message: "الخدمة مزدحمة هذه اللحظة ولم تكتمل العملية. أعد المحاولة بعد ثوانٍ — لم يُخصم شيء ولم يُسجَّل طلب." }, mapped: true };
   }
-  return { status: 500, error: { code: "INTERNAL_ERROR", message: "Unexpected server error." }, mapped: false };
+  return { status: 500, error: { code: "INTERNAL_ERROR", message: "حدث خطأ غير متوقع في الخادم. حاول مرة أخرى بعد قليل." }, mapped: false };
 }
 
 /**

@@ -69,18 +69,18 @@ export async function abandonedCartSettingsView(storeId: string) {
  */
 export async function updateAbandonedCartSettings(storeId: string, body: Record<string, unknown>) {
   if (body.enabled !== undefined && typeof body.enabled !== "boolean") {
-    throw new HttpError(422, "INVALID_INPUT", "enabled must be boolean.");
+    throw new HttpError(422, "INVALID_INPUT", "التفعيل نعم أو لا.");
   }
   if (body.windowHours !== undefined) {
     const window = typeof body.windowHours === "number" ? body.windowHours : Number(body.windowHours);
     if (!Number.isInteger(window) || window < ABANDONED_CART_MIN_WINDOW_HOURS || window > ABANDONED_CART_MAX_WINDOW_HOURS) {
-      throw new HttpError(422, "INVALID_ABANDONED_CART_WINDOW", `windowHours must be an integer between ${ABANDONED_CART_MIN_WINDOW_HOURS} and ${ABANDONED_CART_MAX_WINDOW_HOURS}.`);
+      throw new HttpError(422, "INVALID_ABANDONED_CART_WINDOW", `مهلة السلة المتروكة عدد صحيح من ${ABANDONED_CART_MIN_WINDOW_HOURS} إلى ${ABANDONED_CART_MAX_WINDOW_HOURS} ساعة.`);
     }
   }
   if (body.recoveryCouponId !== undefined && body.recoveryCouponId !== null && body.recoveryCouponId !== "") {
-    if (typeof body.recoveryCouponId !== "string") throw new HttpError(422, "INVALID_RECOVERY_COUPON", "recoveryCouponId must be a coupon id or null.");
+    if (typeof body.recoveryCouponId !== "string") throw new HttpError(422, "INVALID_RECOVERY_COUPON", "كوبون الاسترجاع غير صالح.");
     const coupon = await prisma.coupon.findFirst({ where: { id: body.recoveryCouponId, storeId, ...LIVE }, select: { isActive: true } });
-    if (!coupon || !coupon.isActive) throw new HttpError(422, "INVALID_RECOVERY_COUPON", "recoveryCouponId must reference an active coupon of this store.");
+    if (!coupon || !coupon.isActive) throw new HttpError(422, "INVALID_RECOVERY_COUPON", "كوبون الاسترجاع يجب أن يكون كوبوناً فعّالاً من هذا المتجر.");
   }
 
   const current = await prisma.notificationSettings.findUnique({ where: { storeId }, select: { configuration: true } });

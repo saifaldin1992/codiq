@@ -39,7 +39,7 @@ function limitVisitBeacon(storeSlug: string, ip: string) {
   const key = `${storeSlug}:${ip}`;
   const count = (visitCounts.get(key) ?? 0) + 1;
   visitCounts.set(key, count);
-  if (count > VISIT_LIMIT) throw new HttpError(429, "RATE_LIMITED", "Too many requests. Please try again later.");
+  if (count > VISIT_LIMIT) throw new HttpError(429, "RATE_LIMITED", "محاولات كثيرة. حاول مرة أخرى بعد قليل.");
 }
 export function visitCookieName(storeSlug: string) { return `codiq_visit_${storeSlug}`; }
 
