@@ -64,10 +64,8 @@ type CheckoutInput = {
   loyaltyPoints?: unknown;
   fulfilment?: unknown;
   platformCouponWalletId?: unknown;
-  /** Marketplace M13a: set by the market's checkout only. */ marketPayment?:
-    | "card"
-    | "instalments"
-    | "partner";
+  /** Marketplace M13a: set by the market's checkout only. */
+  marketPayment?: "card" | "instalments" | "partner";
 };
 
 /**
@@ -295,8 +293,8 @@ function cartPayload(cart: any) {
  * this ran. That floor is harmless: thirty successful sign-ins leave the bucket
  * at 1 instead of 30, which is the whole point.
  *
- * Refunds one attempt to a bucket. Used when the guarded action SUCCEEDED: a
- * budget meant to slow guessing must not be spent by people who guessed right.
+ * Used when the guarded action SUCCEEDED: a budget meant to slow guessing must
+ * not be spent by people who guessed right.
  * Without this, one shared address — the ordinary case on Iraqi mobile networks
  * and in a shopping centre — locks out an honest merchant after thirty of his
  * neighbours sign in correctly.
@@ -1297,16 +1295,6 @@ async function addressForCheckout(
 }
 
 /**
- * ق-162 — resolves whatever was stored on the address to the KEY the rates use.
- *
- * The shopper now picks from a list, so new addresses already carry the key.
- * But an address saved before that carries whatever he typed — «بغداد», or
- * «بصرة» without its article — and refusing those would break checkout for the
- * very people the fix is for. `toGovernorateKey` maps them; anything it does
- * not recognise is passed through unchanged, so the failure stays «this store
- * does not deliver there» rather than «we could not read your address».
- */
-/**
  * ق-162 — the governorates THIS store delivers to, for an anonymous shopper.
  *
  * Public on purpose: a person choosing where to have something delivered has
@@ -1334,6 +1322,16 @@ export async function publicDeliveryAreas(storeId: string) {
     .sort((a, b) => (order.get(a.key) ?? 99) - (order.get(b.key) ?? 99));
 }
 
+/**
+ * ق-162 — resolves whatever was stored on the address to the KEY the rates use.
+ *
+ * The shopper now picks from a list, so new addresses already carry the key.
+ * But an address saved before that carries whatever he typed — «بغداد», or
+ * «بصرة» without its article — and refusing those would break checkout for the
+ * very people the fix is for. `toGovernorateKey` maps them; anything it does
+ * not recognise is passed through unchanged, so the failure stays «this store
+ * does not deliver there» rather than «we could not read your address».
+ */
 async function deliveryRateForGovernorate(
   tx: Prisma.TransactionClient,
   storeId: string,
@@ -1424,19 +1422,6 @@ function orderNumber() {
   return `SF-${Date.now()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
 }
 
-/**
- * 19-د — internal signal, never an HTTP shape.
- *
- * The price check runs INSIDE the serializable transaction, because the only
- * price worth trusting is the one read under the same `FOR UPDATE` lock that
- * already guards the stock. But the correction it implies — writing the true
- * price back onto the cart — must survive, and that transaction is about to
- * roll back. So the transaction throws this, the retry loop recognises it, and
- * the correction plus the shopper-facing refusal happen outside.
- *
- * It is deliberately NOT an HttpError: `isRetryableTransactionError` must never
- * see it as a serialization failure and silently retry into the same refusal.
- */
 /** ق-221 — one refused cart line, in the words the shopper needs to fix it. */
 export interface RefusedCartLine {
   cartItemId: string;
@@ -1467,6 +1452,19 @@ function refusedLine(
   };
 }
 
+/**
+ * 19-د — internal signal, never an HTTP shape.
+ *
+ * The price check runs INSIDE the serializable transaction, because the only
+ * price worth trusting is the one read under the same `FOR UPDATE` lock that
+ * already guards the stock. But the correction it implies — writing the true
+ * price back onto the cart — must survive, and that transaction is about to
+ * roll back. So the transaction throws this, the retry loop recognises it, and
+ * the correction plus the shopper-facing refusal happen outside.
+ *
+ * It is deliberately NOT an HttpError: `isRetryableTransactionError` must never
+ * see it as a serialization failure and silently retry into the same refusal.
+ */
 export class CartPriceMoved extends Error {
   constructor(
     readonly cartId: string,
