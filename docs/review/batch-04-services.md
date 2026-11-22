@@ -34,7 +34,7 @@
 | `phase1-backend/src/services/incidents.service.ts` | 327 | — | لم يُقرأ |
 | `phase1-backend/src/services/notification-settings.service.ts` | 326 | — | لم يُقرأ |
 | `phase1-backend/src/services/merchant-search.service.ts` | 313 | — | لم يُقرأ |
-| `phase1-backend/src/services/storefront-seo.service.ts` | 307 | — | لم يُقرأ |
+| `phase1-backend/src/services/storefront-seo.service.ts` | 307 | 2026-11-22 (كاملاً) | الرأس يُهرَّب (HTML و`<` في JSON-LD، و`$` كنصّ)؛ `LIVE` المحلّيّ يحمل `isActive` فالمسوّدة لا تظهر في الخريطة ولا الرأس — حارس اختبار جديد في `brand:test` يثبّت ذلك (لم يكن خطأً). مسار مشوّه ← ٤٠٠ من الموجّه، لا ٥٠٠ |
 | `phase1-backend/src/services/store-banner.service.ts` | 295 | 2026-11-22 (كاملاً) | الرابط يبدأ بـ http(s) فقط (لا `javascript:`)؛ الحدّ لكلّ موضع؛ التخزين يُحسب قبل الرفع، والملفّ يُحذف إن فشل الصفّ؛ كلّ تعديل وحذف مقيّد بالمتجر |
 | `phase1-backend/src/services/list-page.ts` | 289 | — | لم يُقرأ |
 | `phase1-backend/src/services/feature-flags.service.ts` | 287 | — | لم يُقرأ |
@@ -45,13 +45,13 @@
 | `phase1-backend/src/services/abandoned-cart.service.ts` | 237 | 2026-11-22 (كاملاً) | كلّ القراءات مقيّدة بالمتجر؛ قسيمة الاسترداد تُفحص حيّة وفي المتجر؛ معطّل افتراضيّاً (تسويق باختيار التاجر) |
 | `phase1-backend/src/services/platform-brand.service.ts` | 234 | — | لم يُقرأ |
 | `phase1-backend/src/services/platform-health.service.ts` | 229 | — | لم يُقرأ |
-| `phase1-backend/src/services/store-traffic.service.ts` | 221 | — | لم يُقرأ |
+| `phase1-backend/src/services/store-traffic.service.ts` | 221 | 2026-11-22 (كاملاً) | عدّاد بلا هويّة ولا عنوان؛ اليوم يحسبه الخادم؛ الجمع في الذاكرة بسقف مفاتيح، والمشاهدة تُحسب لمنتج حيّ نشط في المتجر نفسه فقط (بالربط في الاستعلام) |
 | `phase1-backend/src/services/platform-audit.service.ts` | 216 | — | لم يُقرأ |
 | `phase1-backend/src/services/merchant-monthly-report.service.ts` | 212 | — | لم يُقرأ |
 | `phase1-backend/src/services/store-verification.service.ts` | 209 | 2026-11-22 (كاملاً) | الشارة للمالك وحده، يُقرأ من القاعدة لا من الطلب؛ المنح والسحب مع سجلّ التدقيق في معاملة واحدة؛ الواجهة العامّة تقول الشارة وحدها |
 | `phase1-backend/src/services/platform-pulse.service.ts` | 204 | — | لم يُقرأ |
-| `phase1-backend/src/services/platform-contact.service.ts` | 203 | — | لم يُقرأ |
-| `phase1-backend/src/services/merchant-store.service.ts` | 195 | — | لم يُقرأ |
+| `phase1-backend/src/services/platform-contact.service.ts` | 203 | 2026-11-22 (كاملاً) | بيانات تواصل المنصّة نفسها، يحرّرها المالك — لا نموذج عامّ |
+| `phase1-backend/src/services/merchant-store.service.ts` | 195 | 2026-11-22 (كاملاً) | إنشاء المتجر بحدّ الخطّة داخل المعاملة (مقفل بـت-٤)، الرابط يُفحص ضدّ المحجوز؛ إعادة التسمية لا تمسّ الرابط، ومتجر العرض محميّ |
 | `phase1-backend/src/services/image-embedding.ts` | 190 | — | لم يُقرأ |
 | `phase1-backend/src/services/customer-directory.service.ts` | 187 | 2026-11-22 (كاملاً) | البحث والقائمة مقيّدان بالمتجر؛ الحظر خلف `settings.manage` بسجلّ تدقيق، ويسري فوراً (حارس الزبون يقرأ `isActive` كلّ طلب) |
 | `phase1-backend/src/services/recommendation.service.ts` | 181 | — | لم يُقرأ |

@@ -725,6 +725,36 @@ async function main() {
     "and an unknown store has no sitemap"
   );
 
+  // Review batch 4 (a guard, not a fix): a DRAFT (isActive false) is not on sale, and neither
+  // the sitemap nor the page head may show it — a one-click duplicate lands as a draft
+  // precisely so shoppers never see «X (نسخة)». The service's own LIVE carries isActive; this
+  // pins it, because the platform-wide LIVE does not.
+  const draft = await request(`/api/merchant/stores/${seoSlug}/catalog/products`, {
+    method: "POST",
+    token: seoLogin.payload.accessToken,
+    body: {
+      sku: `SEO-DRAFT-${runSeed}`,
+      name: "مسودة لم تُنشر",
+      priceIqd: 9000,
+      isActive: false,
+    },
+  });
+  assert.equal(draft.status, 201, JSON.stringify(draft.payload));
+  const draftId = draft.payload.product.id;
+  assert.ok(
+    !(await request(`/store/${seoSlug}/sitemap.xml`)).raw.includes(draftId),
+    "a draft is not in the store's sitemap"
+  );
+  const draftHtml = await html(`/store/${seoSlug}/products/${draftId}`);
+  assert.ok(
+    !draftHtml.includes("مسودة لم تُنشر") && !draftHtml.includes("9000"),
+    "a draft's name and price are not in the page head"
+  );
+  // A malformed escape in the path is a page nobody can name, not a server error.
+  const malformed = await fetch(`${base}/store/%E0%A4%A/products/x`);
+  assert.equal(malformed.status, 400, "a malformed path is refused by the router — never a 500");
+  summary.draftsUnlisted = "drafts out of the sitemap and the page head; malformed path → 400";
+
   summary.storefrontSeo =
     "store and product pages carry their own title, canonical and structured data; robots.txt and both sitemaps are real files; no invented ratings";
 
