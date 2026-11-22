@@ -51,7 +51,8 @@ function delegateNameFor(kind: IdentityKind): string {
 }
 
 interface HashRow {
-  passwordHash: string;
+  /** Null for a guest customer: a row without a password (guest checkout). */
+  passwordHash: string | null;
 }
 
 type Delegate = {
@@ -80,6 +81,15 @@ export async function changeOwnPassword(
     select: { passwordHash: true },
   });
   if (!row) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الحساب غير موجود.");
+  // A guest's session reaches this route too; with no password to verify it crashed (500).
+  // He has none to change — he sets his first one from his account (review batch 3, م-١).
+  if (row.passwordHash === null)
+    throw new HttpError(
+      409,
+      "ACCOUNT_HAS_NO_PASSWORD",
+      "لا توجد كلمة مرور لهذا الحساب بعد — عيّن كلمة مرورك الأولى من صفحة حسابك."
+    );
+  const passwordHash = row.passwordHash;
 
   // 19-د: the ceiling lives HERE, in the service, not on the route — an
   // unavoidable gate for any future caller, and ahead of the bcrypt compare so
@@ -94,7 +104,7 @@ export async function changeOwnPassword(
     windowMs: REAUTH_WINDOW_MS,
   });
 
-  if (!(await verifyPassword(input.currentPassword, row.passwordHash))) {
+  if (!(await verifyPassword(input.currentPassword, passwordHash))) {
     throw new HttpError(422, "INVALID_PASSWORD", "كلمة المرور الحالية غير صحيحة.");
   }
   // Refunded the moment he proves the password is his: the budget exists to slow
@@ -107,7 +117,7 @@ export async function changeOwnPassword(
   // leaked password live while telling him it is not.
   if (
     typeof input.newPassword === "string" &&
-    (await verifyPassword(input.newPassword, row.passwordHash))
+    (await verifyPassword(input.newPassword, passwordHash))
   ) {
     throw new HttpError(
       422,
@@ -118,10 +128,13 @@ export async function changeOwnPassword(
 
   // Throws WEAK_PASSWORD on its own — the platform's single length rule (8) and its refusal of
   // applied here by calling it rather than by restating it.
-  const passwordHash = await createPasswordHash(input.newPassword);
+  const newHash = await createPasswordHash(input.newPassword);
 
   const otherSessionsEnded = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    await delegate(tx, name).update({ where: { id: claims.subjectId }, data: { passwordHash } });
+    await delegate(tx, name).update({
+      where: { id: claims.subjectId },
+      data: { passwordHash: newHash },
+    });
     // ق-218: a merchant whose password was chosen FOR him by a platform actor is
     // gated out of every merchant surface until this moment. He has just replaced
     // that credential with one nobody else has ever seen, so the mark comes off

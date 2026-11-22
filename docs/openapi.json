@@ -225,6 +225,7 @@
               "code": {
                 "type": "string",
                 "enum": [
+                  "ACCOUNT_HAS_NO_PASSWORD",
                   "ACCOUNT_HAS_PASSWORD",
                   "ADDON_UNAVAILABLE",
                   "ADDRESS_NOT_FOUND",
@@ -49681,6 +49682,19 @@
               "RESOURCE_NOT_FOUND"
             ]
           },
+          "409": {
+            "description": "`ACCOUNT_HAS_NO_PASSWORD`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "ACCOUNT_HAS_NO_PASSWORD"
+            ]
+          },
           "413": {
             "description": "`REQUEST_BODY_TOO_LARGE`",
             "content": {
@@ -70608,6 +70622,14 @@
     }
   },
   "x-codiq-error-catalogue": {
+    "ACCOUNT_HAS_NO_PASSWORD": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "لا توجد كلمة مرور لهذا الحساب بعد — عيّن كلمة مرورك الأولى من صفحة حسابك."
+      ]
+    },
     "ACCOUNT_HAS_PASSWORD": {
       "statuses": [
         409

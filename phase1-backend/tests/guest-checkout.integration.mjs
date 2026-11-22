@@ -173,6 +173,18 @@ try {
     { isGuest: true, passwordHash: null, phoneNormalized: "+9647712345678" },
     "a guest is a customer row without a password"
   );
+  // Review batch 3, م-١: his session reaches /auth/password (it accepts any session); with no
+  // password to verify it crashed (500). He is told he has none — and where to set one.
+  const passwordless = await stranger.request("/auth/password", {
+    method: "POST",
+    headers: { authorization: `Bearer ${first.payload.accessToken}` },
+    body: { currentPassword: "whatever-he-types", newPassword: "GuestNewPass2026!" },
+  });
+  assert.deepEqual(
+    [passwordless.status, passwordless.payload?.error?.code],
+    [409, "ACCOUNT_HAS_NO_PASSWORD"],
+    JSON.stringify(passwordless.payload)
+  );
   const me = await stranger.request(`/store/${slug}/account`);
   assert.equal(me.status, 200);
   assert.equal(me.payload.customer.isGuest, true, "the shell can tell a guest from an account");
