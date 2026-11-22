@@ -494,6 +494,37 @@ try {
     { method: "POST", headers: bearer(tokenOwner) }
   );
   assert.equal(rejectStale.status, 200);
+  // Review batch 4, ت-٣: approved and rejected at the same moment (two admins) — one decision
+  // wins, and the request says what the subscription did.
+  const contested = await request("/merchant/subscription/upgrade-request", {
+    method: "POST",
+    headers: bearer(tokenMerchantB),
+    body: JSON.stringify({ planCode: "pro" }),
+  });
+  assert.equal(contested.status, 201, JSON.stringify(contested.body));
+  const contestedId = contested.body.request.id;
+  const decisions = await Promise.all(
+    ["approve", "reject"].map((verb) =>
+      request(`/platform/upgrade-requests/${contestedId}/${verb}`, {
+        method: "POST",
+        headers: bearer(tokenOwner),
+      })
+    )
+  );
+  assert.deepEqual(
+    decisions.map((reply) => reply.status).sort(),
+    [200, 409],
+    `one decision, not two · ${JSON.stringify(decisions.map((reply) => reply.body))}`
+  );
+  const contestedPlan = (
+    await request("/merchant/subscription", { headers: bearer(tokenMerchantB) })
+  ).body.plan.code;
+  const contestedStatus = decisions.find((reply) => reply.status === 200).body.request.status;
+  assert.equal(
+    contestedPlan,
+    contestedStatus === "approved" ? "pro" : "growth",
+    "the subscription matches the decision that won"
+  );
   summary.upgradeRequests = {
     anonymous: 401,
     samePlan: 422,

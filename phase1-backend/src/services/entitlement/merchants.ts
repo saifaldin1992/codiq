@@ -222,6 +222,24 @@ export async function listUpgradeRequests(
  * a staff decision fills decided_by_staff_id and the label snapshot, never the
  * owner's column.
  */
+/** An approved request's effect: the plan, if it is still offered, becomes his subscription. */
+async function applyApprovedPlan(tx: Prisma.TransactionClient, merchantId: string, planId: string) {
+  // Re-checked inside the transaction: an archive racing this approval must
+  // not assign a just-archived plan.
+  const plan = await tx.plan.findUnique({
+    where: { id: planId },
+    select: { isActive: true },
+  });
+  if (!plan?.isActive) {
+    throw new HttpError(
+      409,
+      "PLAN_NOT_AVAILABLE",
+      "الخطة المطلوبة لم تعد متاحة — أُرشفت بعد إرسال الطلب."
+    );
+  }
+  await replaceActiveSubscription(tx, merchantId, planId);
+}
+
 export async function decideUpgradeRequest(
   requestId: string,
   actor: PlatformActor,
@@ -241,22 +259,16 @@ export async function decideUpgradeRequest(
   if (request.status !== "pending")
     throw new HttpError(409, "ALREADY_DECIDED", "هذا الطلب محسوم بالفعل.");
   return prisma.$transaction(async (tx) => {
-    if (action === "approve") {
-      // Re-checked inside the transaction: an archive racing this approval must
-      // not assign a just-archived plan.
-      const plan = await tx.plan.findUnique({
-        where: { id: request.requestedPlan.id },
-        select: { isActive: true },
-      });
-      if (!plan?.isActive) {
-        throw new HttpError(
-          409,
-          "PLAN_NOT_AVAILABLE",
-          "الخطة المطلوبة لم تعد متاحة — أُرشفت بعد إرسال الطلب."
-        );
-      }
-      await replaceActiveSubscription(tx, request.merchantId, request.requestedPlan.id);
-    }
+    // Claimed first, in one conditional write: an approval and a rejection at the same moment
+    // both passed the «pending» read above, and the request could end «rejected» over a changed
+    // subscription (review batch 4, ت-٣). The loser is told it is already decided.
+    const claimed = await tx.planUpgradeRequest.updateMany({
+      where: { id: requestId, status: "pending" },
+      data: { status: action === "approve" ? "approved" : "rejected" },
+    });
+    if (claimed.count !== 1) throw new HttpError(409, "ALREADY_DECIDED", "هذا الطلب محسوم بالفعل.");
+    if (action === "approve")
+      await applyApprovedPlan(tx, request.merchantId, request.requestedPlan.id);
     const decided = await tx.planUpgradeRequest.update({
       where: { id: requestId },
       data: {
