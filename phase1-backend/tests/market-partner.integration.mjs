@@ -396,6 +396,32 @@ try {
   );
   summary.paymentLink = true;
 
+  // Review batch 2, م-٨: the order is placed, then its payment row cannot be written (here: a
+  // reference the partner already used). The partner is told to refund — so no order may stand.
+  const livePartnerOrders = () =>
+    prisma.storeOrder.count({
+      where: {
+        storeId: store.id,
+        paymentMethodCode: "market_partner",
+        status: { not: "cancelled" },
+      },
+    });
+  const liveBefore = await livePartnerOrders();
+  await add(1);
+  const clash = (await makeLink()).payload;
+  const clashed = await report({
+    token: tokenOf(clash.deepLink),
+    partnerAccountId: account,
+    amountIqd: clash.amountIqd,
+    paymentRef: `${testId}-p-6`,
+  });
+  assert.equal(clashed.payload.refund, true, JSON.stringify(clashed.payload));
+  assert.equal(await livePartnerOrders(), liveBefore, "told to refund, so the order is cancelled");
+  await prisma.marketCartItem.deleteMany({
+    where: { cart: { shopperId: entered.payload.shopper.id }, storeId: store.id },
+  });
+  summary.refundMeansNoOrder = true;
+
   // a shopper cannot say «the partner paid»
   await add(1);
   assert.equal(

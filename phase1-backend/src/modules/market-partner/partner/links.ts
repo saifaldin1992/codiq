@@ -216,6 +216,7 @@ export async function completePaymentLink(rawBody: Buffer, signature: string | u
   const cart = await cartFingerprint(row.shopperId, row.storeId, row.addressId, row.fulfilment);
   if (!cart || cart.fingerprint !== row.cartFingerprint) return refuse("CART_CHANGED");
   if (!cart.ready) return refuse("OUT_OF_STOCK");
+  let placedOrder: { id: string; storeId: string; version: number } | null = null;
   try {
     const placed = await placeMarketOrder(
       {
@@ -232,6 +233,7 @@ export async function completePaymentLink(rawBody: Buffer, signature: string | u
       `partner-link-${row.id}`,
       { paidByPartner: true }
     );
+    placedOrder = { ...placed.order, storeId: placed.order.storeId ?? row.storeId };
     if (placed.order.totalIqd !== row.amountIqd) {
       // The prices moved under the lock: the order stands cancelled and the partner returns the money.
       logger.warn("payments.partner_amount_drift", { linkId: row.id });
@@ -275,6 +277,20 @@ export async function completePaymentLink(rawBody: Buffer, signature: string | u
         linkId: row.id,
         reason: (error as Error).message,
       });
+    // Told to refund, so nothing may stand: an order placed before the failure (its payment row
+    // could not be written) stayed «paid» and was shipped unpaid (review batch 2, م-٨).
+    if (placedOrder)
+      await transitionOrderStatus(
+        placedOrder.storeId,
+        { kind: "system", id: row.id },
+        placedOrder.id,
+        { toStatus: "cancelled", expectedVersion: placedOrder.version, note: "تعذّر تسجيل الدفع." }
+      ).catch((cancel: Error) =>
+        logger.error("payments.partner_order_left_standing", {
+          orderId: placedOrder?.id,
+          reason: cancel.message,
+        })
+      );
     return refuse(code);
   }
 }
