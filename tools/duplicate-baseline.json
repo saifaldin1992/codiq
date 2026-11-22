@@ -119,7 +119,7 @@
   "phase1-backend/src/modules/market-stores/profile.service.ts": 8,
   "phase1-backend/src/modules/market-wheel/wheel.service.ts": 10,
   "phase1-backend/src/notifications/notification-outbox.service.ts": 20,
-  "phase1-backend/src/notifications/outbox-worker.ts": 18,
+  "phase1-backend/src/notifications/outbox/batch.ts": 18,
   "phase1-backend/src/services/analytics.service.ts": 23,
   "phase1-backend/src/services/delivery/handover.ts": 10,
   "phase1-backend/src/services/delivery/manifest.ts": 18,

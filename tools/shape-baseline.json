@@ -641,10 +641,20 @@
    "oversize": 0,
    "longFunctions": 0
   },
-  "phase1-backend/src/notifications/outbox-worker.ts": {
-   "longLines": 9,
-   "oversize": 375,
-   "longFunctions": 3
+  "phase1-backend/src/notifications/outbox/batch.ts": {
+   "longLines": 0,
+   "oversize": 28,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/notifications/outbox/loop.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/notifications/outbox/render.ts": {
+   "longLines": 7,
+   "oversize": 0,
+   "longFunctions": 1
   },
   "phase1-backend/src/notifications/resend-webhook.ts": {
    "longLines": 1,
