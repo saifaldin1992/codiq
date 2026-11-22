@@ -20,6 +20,7 @@
  * of them holds, the list is empty and the page says so plainly. A congratulation
  * a merchant knows he did not earn devalues the ones he did (ق-10).
  */
+import { BAGHDAD_OFFSET_MS, baghdadDay } from "./store-traffic.service.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
 import { analyticsSummary, topProducts } from "./analytics.service.js";
@@ -72,25 +73,25 @@ export function parseMonthKey(
   raw: unknown,
   now = new Date()
 ): { key: string; from: Date; to: Date } {
-  const text =
-    typeof raw === "string" && raw
-      ? raw
-      : `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  // Review batch 4 (owner decision): the month is Baghdad's — the default is the month it is in
+  // Baghdad now, and the bounds below are Baghdad's midnights, like every day on his screens.
+  const text = typeof raw === "string" && raw ? raw : baghdadDay(now).slice(0, 7);
   const match = /^(\d{4})-(\d{2})$/.exec(text);
   if (!match) throw new HttpError(400, "INVALID_MONTH", "The month must be written as YYYY-MM.");
   const year = Number(match[1]);
   const month = Number(match[2]);
   if (month < 1 || month > 12)
     throw new HttpError(400, "INVALID_MONTH", "The month must be between 01 and 12.");
-  const from = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+  const from = new Date(Date.UTC(year, month - 1, 1) - BAGHDAD_OFFSET_MS);
   // The last millisecond of the month: the ranges below are inclusive at both
   // ends, so day 1 of the next month at 00:00 would count one order twice.
-  const to = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0) - 1);
+  const to = new Date(Date.UTC(year, month, 1) - BAGHDAD_OFFSET_MS - 1);
   return { key: text, from, to };
 }
 
-function previousMonth(month: { from: Date }): { key: string; from: Date; to: Date } {
-  const from = new Date(Date.UTC(month.from.getUTCFullYear(), month.from.getUTCMonth() - 1, 1));
+function previousMonth(month: { key: string }): { key: string; from: Date; to: Date } {
+  const [year, number] = month.key.split("-").map(Number) as [number, number];
+  const from = new Date(Date.UTC(year, number - 2, 1));
   return parseMonthKey(
     `${from.getUTCFullYear()}-${String(from.getUTCMonth() + 1).padStart(2, "0")}`
   );
@@ -125,7 +126,7 @@ export async function merchantMonthlyReport(
     // revenue on the page that the month's own total does not contain, and the
     // merchant could not reconcile two figures printed side by side.
     prisma.$queryRaw<{ day: Date; orders: bigint; revenue: bigint }[]>`
-      SELECT date_trunc('day', created_at) AS day,
+      SELECT date_trunc('day', created_at AT TIME ZONE 'Asia/Baghdad') AS day,
              count(*)::bigint AS orders,
              coalesce(sum(total_iqd), 0)::bigint AS revenue
         FROM store_orders

@@ -21,6 +21,7 @@
  *     dashboard has no per-store audit surface in v1. Building one here would be
  *     scope this item did not buy, and a tenancy surface deserves its own review.
  */
+import { baghdadDay, baghdadDayBounds } from "./store-traffic.service.js";
 import { prisma } from "../db/prisma.js";
 
 export interface PlatformOverview {
@@ -53,7 +54,8 @@ export async function platformOverview(
 ): Promise<PlatformOverview> {
   const days = Math.min(Math.max(Number(rawDays) || 30, 1), 365);
   const { from, to, previousFrom, previousTo } = windowFor(days, now);
-  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  // Review batch 4 (owner decision): «today» is Baghdad's day, as on every merchant screen.
+  const todayStart = baghdadDayBounds(baghdadDay(now)).from;
 
   const [
     pendingRegistrations,

@@ -2036,10 +2036,13 @@ try {
 
   // Two orders placed in a known month, and one in the month before, written
   // straight to the database so the boundary is not a guess.
+  // Review batch 4 (owner decision): the month is BAGHDAD's, like every other day on the merchant's
+  // screens. 00:00 on 1 July in Baghdad is 21:00 UTC on 30 June — counted in June while the
+  // boundary was UTC's.
   const lastMonth = new Date(Date.UTC(2026, 5, 15)); // 2026-06-15
-  const thisMonthStart = new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)); // 2026-07-01 00:00:00.000
-  const thisMonthEnd = new Date(Date.UTC(2026, 6, 31, 23, 59, 59, 999));
-  const nextMonthStart = new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0));
+  const thisMonthStart = new Date("2026-07-01T00:00:00.000+03:00");
+  const thisMonthEnd = new Date("2026-07-31T23:59:59.999+03:00");
+  const nextMonthStart = new Date("2026-08-01T00:00:00.000+03:00");
   let md7Counter = 0;
   const md7Order = async (createdAt, totalIqd) => {
     md7Counter += 1;
