@@ -157,8 +157,10 @@ async function planLevel(client: DbClient, merchantId: string): Promise<Map<stri
   for (const definition of SETTINGS) {
     if (!("planFeature" in definition) || !definition.planFeature) continue;
     const limit = plan.limits[definition.planFeature];
-    // A plan that names no limit (0) has no opinion — it is not «zero allowed».
-    if (Number.isInteger(limit) && limit > 0) values.set(definition.code, limit);
+    // The plan's limit as entitlement ENFORCES it: 0 refuses the first one, so
+    // the screen must say 0 — not fall through to a platform or default figure
+    // the merchant would then be refused under.
+    if (Number.isInteger(limit) && limit >= 0) values.set(definition.code, limit);
   }
   return values;
 }
@@ -221,6 +223,24 @@ function levelsFor(code: string, collected: Map<ConfigLevel, Map<string, Setting
 
 // ─────────────────────────────────────────────────────────── the one function
 /** THE function: every reader of a setting asks here and gets the value, who decided it, and the whole chain. */
+/**
+ * The levels ABOVE a store, read without the plan.
+ *
+ * The enforcement points (a plan limit at the moment of a write, the loyalty
+ * programme at the till) need the platform's and the merchant's word, and must
+ * not fail because a merchant is between subscriptions — which is what reading
+ * the plan level through `collectLevels` would do.
+ */
+export async function platformCap(code: SettingCode, client: DbClient = prisma): Promise<number | null> {
+  const value = (await platformLevel(client)).get(code);
+  return typeof value === "number" ? value : null;
+}
+
+export async function allowedAboveStore(code: SettingCode, merchantId: string, client: DbClient = prisma): Promise<boolean> {
+  const [platform, merchant] = await Promise.all([platformLevel(client), merchantLevel(client, merchantId)]);
+  return platform.get(code) !== false && merchant.get(code) !== false;
+}
+
 export async function resolveSetting(code: string, ctx: ConfigContext, client: DbClient = prisma): Promise<ResolvedSetting> {
   const definition = settingDefinition(code);
   const collected = await collectLevels(ctx, client);

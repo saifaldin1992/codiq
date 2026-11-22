@@ -33,6 +33,7 @@ import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
 import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
 import { RETURN_REVERSAL_WINDOW_DAYS } from "./finance.service.js";
+import { allowedAboveStore } from "./config.service.js";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -84,10 +85,15 @@ export interface LoyaltySettings {
 export async function loyaltySettings(tx: DbClient, storeId: string): Promise<LoyaltySettings> {
   const store = await tx.store.findUnique({
     where: { id: storeId },
-    select: { loyaltyEnabled: true, loyaltyEarnPer1000: true, loyaltyPointValueIqd: true },
+    select: { merchantId: true, loyaltyEnabled: true, loyaltyEarnPer1000: true, loyaltyPointValueIqd: true },
   });
   if (!store) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر غير موجود.");
-  return { enabled: store.loyaltyEnabled, earnPer1000: store.loyaltyEarnPer1000, pointValueIqd: store.loyaltyPointValueIqd };
+  // «loyalty.enabled» is an ALLOW setting: closed by the platform or by the
+  // merchant for all his stores, it cannot be opened by one store's switch.
+  // The registry advertised this; the programme used to read the store's
+  // switch alone, so closing it from above changed nothing.
+  const enabled = store.loyaltyEnabled && (await allowedAboveStore("loyalty.enabled", store.merchantId, tx));
+  return { enabled, earnPer1000: store.loyaltyEarnPer1000, pointValueIqd: store.loyaltyPointValueIqd };
 }
 
 export async function loyaltyBalance(tx: DbClient, storeId: string, customerId: string): Promise<number> {

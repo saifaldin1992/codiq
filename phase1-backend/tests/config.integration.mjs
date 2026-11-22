@@ -164,18 +164,30 @@ try {
   // ============================================================
   const plan = await activePlanForMerchant(prisma, merchantId);
   view = await merchantConfig();
-  if (plan.limits.max_products > 0) {
-    assert.equal(view["catalog.products_max"].value, plan.limits.max_products);
-    assert.equal(view["catalog.products_max"].source, "plan");
-  } else {
-    assert.equal(view["catalog.products_max"].source, "default", "a plan with no opinion leaves the default");
-  }
+  // The plan's limit is what entitlement enforces — 0 included, because 0
+  // refuses the first product and the screen must not promise more.
+  assert.equal(view["catalog.products_max"].value, plan.limits.max_products);
+  assert.equal(view["catalog.products_max"].source, "plan");
   assert.equal((await request("/platform/config/catalog.products_max", { method: "PUT", token: ownerToken, body: { value: 1 } })).status, 200);
   view = await merchantConfig();
-  assert.equal(view["catalog.products_max"].value, 1, "the platform's hard maximum sits above the plan");
-  assert.equal(view["catalog.products_max"].source, "platform");
+  assert.equal(view["catalog.products_max"].value, Math.min(1, plan.limits.max_products), "the platform's hard maximum sits above the plan");
+  // …and it is ENFORCED, not only shown: the entitlement the merchant is held to says the same.
+  const { merchantEntitlementsView } = await import("../src/services/entitlement.service.ts");
+  const enforced = (await merchantEntitlementsView(merchantId)).entitlements.find((row) => row.feature === "max_products");
+  assert.equal(enforced.limit, Math.min(1, plan.limits.max_products), "the platform cap tightens the limit checks actually use");
   assert.equal((await request("/platform/config/catalog.products_max", { method: "PUT", token: ownerToken, body: { value: null } })).status, 200);
   summary.plan = { limit: plan.limits.max_products, planCode: plan.code };
+
+  // «loyalty.enabled» closed from above closes the programme at the till, not
+  // only on the settings screen.
+  const { loyaltySettings } = await import("../src/services/loyalty.service.ts");
+  await prisma.store.update({ where: { id: storeA.id }, data: { loyaltyEnabled: true } });
+  assert.equal((await loyaltySettings(prisma, storeA.id)).enabled, true);
+  assert.equal((await request("/platform/config/loyalty.enabled", { method: "PUT", token: ownerToken, body: { value: false } })).status, 200);
+  assert.equal((await loyaltySettings(prisma, storeA.id)).enabled, false, "the platform's no closes every store's programme");
+  assert.equal((await request("/platform/config/loyalty.enabled", { method: "PUT", token: ownerToken, body: { value: null } })).status, 200);
+  assert.equal((await loyaltySettings(prisma, storeA.id)).enabled, true);
+  summary.loyaltyAllow = true;
 
   // ============================================================
   // 6. The customer's word.

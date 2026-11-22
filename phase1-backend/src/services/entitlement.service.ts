@@ -211,9 +211,49 @@ export async function merchantUsage(client: DbClient, merchantId: string): Promi
  * Runs inside the caller's transaction when one is provided so the check and the
  * write see the same snapshot.
  */
+/** The platform setting that caps each plan feature above every plan. */
+const PLATFORM_CAP_SETTING: Record<PlanFeatureCode, string> = {
+  max_stores: "stores.max",
+  max_products: "catalog.products_max",
+  max_staff: "team.staff_max",
+  max_monthly_orders: "orders.monthly_max",
+  max_image_storage_mb: "storage.image_mb_max",
+};
+
+/**
+ * The platform's own ceiling over every plan («stores.max» and friends), read
+ * here directly rather than through config.service, which itself reads plans.
+ * Absent means «the plan decides».
+ */
+async function platformCapFor(client: DbClient, feature: PlanFeatureCode): Promise<number | null> {
+  const row = await client.platformSetting.findUnique({ where: { key: `config.${PLATFORM_CAP_SETTING[feature]}` }, select: { value: true } });
+  if (!row) return null;
+  try {
+    const value = JSON.parse(row.value);
+    return Number.isInteger(value) && value >= 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The limit that actually applies: the plan's, tightened by the platform's cap. */
+export async function effectiveLimit(client: DbClient, plan: PlanSummary, feature: PlanFeatureCode): Promise<number> {
+  const cap = await platformCapFor(client, feature);
+  return cap === null ? plan.limits[feature] : Math.min(plan.limits[feature], cap);
+}
+
 export async function assertWithinPlanLimit(client: DbClient, merchantId: string, feature: PlanFeatureCode, increment = 1, action = "لمتابعة الإضافة"): Promise<void> {
+  // COUNT-THEN-INSERT is a race under READ COMMITTED: two writes at the limit
+  // each count limit−1 and both pass. Inside a transaction the check takes a
+  // per-(merchant, feature) lock held to commit, so the second waits for the
+  // first's row and counts it. A caller outside a transaction (the image
+  // uploads) keeps the plain check — storage is measured, not inserted here.
+  // The monthly order count is exempt on purpose: checkout already accepts «one
+  // more order» in a race (storefront.service, ق-222), and a lock there would
+  // serialize every checkout of every store a merchant owns.
+  if (client !== prisma && feature !== "max_monthly_orders") await (client as Prisma.TransactionClient).$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`quota:${merchantId}:${feature}`}))`;
   const plan = await activePlanForMerchant(client, merchantId);
-  const limit = plan.limits[feature];
+  const limit = await effectiveLimit(client, plan, feature);
   const usage = await merchantUsage(client, merchantId);
   if (usage[feature] + increment > limit) {
     throw new HttpError(
@@ -300,7 +340,7 @@ export async function merchantEntitlementsView(merchantId: string) {
   return {
     plan: { code: plan.code, name: plan.name, monthlyPriceIqd: plan.monthlyPriceIqd, version: plan.version },
     subscription: subscriptionSummary(row),
-    entitlements: PLAN_FEATURE_CODES.map((code) => ({ feature: code, label: FEATURE_LABELS[code], limit: plan.limits[code], used: usage[code] })),
+    entitlements: await Promise.all(PLAN_FEATURE_CODES.map(async (code) => ({ feature: code, label: FEATURE_LABELS[code], limit: await effectiveLimit(prisma, plan, code), used: usage[code] }))),
   };
 }
 
