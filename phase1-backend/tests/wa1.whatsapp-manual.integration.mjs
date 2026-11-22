@@ -238,6 +238,42 @@ try {
     summary.trackingLineHonest = true;
   }
 
+  // ---------- review batch 4, م-٣: «have the cash ready» says what is still owed ----------
+  {
+    const prepaid = async (orderNumber, paymentStatus) =>
+      prisma.storeOrder.create({
+        data: {
+          storeId: storeA.id,
+          orderNumber,
+          status: "out_for_delivery",
+          customerName: "كرار حسن",
+          recipientPhone: "+9647701234570",
+          subtotalIqd: 40000,
+          deliveryFeeIqd: 5000,
+          totalIqd: 45000,
+          paymentStatus,
+        },
+        select: { id: true },
+      });
+    const courierBody = async (order) =>
+      (await request(`${ordersA}/${order.id}/whatsapp`, { token: tokenA })).payload.templates.find(
+        (template) => template.key === "courierDispatched"
+      ).body;
+    const paidBody = await courierBody(await prepaid("WA1-PAID", "paid"));
+    const planBody = await courierBody(await prepaid("WA1-PLAN", "instalments"));
+    assert.ok(
+      !paidBody.includes("تجهيز مبلغ") && !paidBody.includes("د.ع"),
+      `a paid order is not asked for cash · ${paidBody}`
+    );
+    assert.ok(paidBody.includes("WA1-PAID"), "the rest of the message stays");
+    assert.ok(
+      (planBody.includes("٥٬٠٠٠") || planBody.includes("5,000") || planBody.includes("5000")) &&
+        !planBody.includes("٤٥٬٠٠٠"),
+      `instalments: the delivery fee alone · ${planBody}`
+    );
+    summary.cashAtTheDoor = "paid → no cash line; instalments → the delivery fee";
+  }
+
   // ---------- 2. the wa.me contract ----------
   {
     const panel = await request(`${ordersA}/${orderE164.id}/whatsapp`, { token: tokenA });

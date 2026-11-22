@@ -676,6 +676,34 @@ try {
     mutualPreservation: true,
   };
 
+  // Review batch 4, م-٣: an order paid before it left (card, partner) must not be told to
+  // «have the cash ready», and an order on cash on delivery is told how much.
+  const { enqueueCourierDispatched } = await import(
+    "../src/notifications/notification-outbox.service.ts"
+  );
+  const paidOrder = await prisma.storeOrder.create({
+    data: {
+      storeId: storeA.id,
+      orderNumber: `CD1-PAID-${testId}`,
+      status: "out_for_delivery",
+      customerName: "زبون دفع بالبطاقة",
+      customerEmail: `${testId}.paid@codiq.test`,
+      subtotalIqd: 10000,
+      deliveryFeeIqd: 2000,
+      totalIqd: 12000,
+      paymentStatus: "paid",
+    },
+    select: { id: true, orderNumber: true },
+  });
+  await prisma.$transaction((tx) =>
+    enqueueCourierDispatched(tx, {
+      storeId: storeA.id,
+      orderId: paidOrder.id,
+      orderNumber: paidOrder.orderNumber,
+      customerEmail: `${testId}.paid@codiq.test`,
+    })
+  );
+
   // --- 8. the untouched worker renders and delivers the Arabic message. ---
   // PG-3: the payload stores a relative path, and the renderer absolutises it —
   // a bare «/store/x/track» is not a link in an email. The base URL is what
@@ -706,7 +734,23 @@ try {
     (await prisma.notificationOutbox.findUniqueOrThrow({ where: { id: courierRow.id } })).status,
     "sent"
   );
-  summary.courierDelivery = { subject: courierEmail.subject };
+  const codTotal = (
+    await prisma.storeOrder.findUniqueOrThrow({
+      where: { id: courierOrder.id },
+      select: { totalIqd: true },
+    })
+  ).totalIqd;
+  assert.ok(
+    courierEmail.body.includes(`يرجى تجهيز مبلغ الدفع عند الاستلام: ${codTotal} د.ع`),
+    `cash on delivery: the shopper is told the amount · ${courierEmail.body}`
+  );
+  const paidEmail = fake.sent.find((message) => message.to === `${testId}.paid@codiq.test`);
+  assert.ok(paidEmail, "the paid order's courier notice is delivered");
+  assert.ok(
+    !paidEmail.body.includes("تجهيز مبلغ") && paidEmail.body.includes("مدفوع"),
+    `a paid order is never asked to pay at the door · ${paidEmail.body}`
+  );
+  summary.courierDelivery = { subject: courierEmail.subject, cashLine: "amount or «paid»" };
 
   // ======================================================================
   // CD-1c — «اطلبه مجدداً»
@@ -797,7 +841,10 @@ try {
     await cartAdd(storeA.slug, capped.token, { productId: staple.id, quantity: 2 })
   );
   await prisma.product.update({ where: { id: staple.id }, data: { maxPerOrder: 1 } });
-  const overCap = await request(reorderPath(cappedOrder.id), { method: "POST", token: capped.token });
+  const overCap = await request(reorderPath(cappedOrder.id), {
+    method: "POST",
+    token: capped.token,
+  });
   await prisma.product.update({ where: { id: staple.id }, data: { maxPerOrder: null } });
   assert.equal(overCap.status, 200, JSON.stringify(overCap.payload));
   assert.deepEqual(
@@ -811,7 +858,11 @@ try {
 
   // --- 10a'. review batch 2, ت-٥: ten simultaneous «add one» on the same product
   // land as ten — none is lost to a read-then-write race. ---
-  const hurried = await registerCustomer(storeA.slug, "زبونة مستعجلة", `${testId}.hurried@codiq.test`);
+  const hurried = await registerCustomer(
+    storeA.slug,
+    "زبونة مستعجلة",
+    `${testId}.hurried@codiq.test`
+  );
   await cartAdd(storeA.slug, hurried.token, { productId: staple.id, quantity: 1 });
   await Promise.all(
     Array.from({ length: 9 }, () =>

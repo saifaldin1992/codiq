@@ -9,6 +9,7 @@
 import { Prisma } from "@prisma/client";
 import { signalOutboxWork } from "../jobs/outbox-signal.js";
 import { prisma } from "../db/prisma.js";
+import { cashToCollectIqd } from "../services/delivery/fields.js";
 
 export type OutboxWriter = Prisma.TransactionClient | typeof prisma;
 
@@ -239,6 +240,12 @@ export async function enqueueCourierDispatched(
     select: { id: true },
   });
   if (existing) return;
+  // Review batch 4, م-٣: what the shopper has to have ready — read here, in the transition's own
+  // transaction, so the notice and the order agree.
+  const payment = await tx.storeOrder.findUniqueOrThrow({
+    where: { id: input.orderId },
+    select: { paymentStatus: true, totalIqd: true, deliveryFeeIqd: true },
+  });
   try {
     await tx.notificationOutbox.create({
       data: {
@@ -254,6 +261,7 @@ export async function enqueueCourierDispatched(
           storeName: policy.storeName,
           storeSlug: policy.storeSlug,
           trackingUrl: `/store/${encodeURIComponent(policy.storeSlug)}/track`,
+          cashIqd: cashToCollectIqd(payment),
         },
       },
     });

@@ -27,6 +27,7 @@ import { supportReplyTo, supportReplyToFromEnv } from "./notification-provider.j
 import { storeSupportReplyTo } from "../services/storefront-config.service.js";
 import { runJobPass } from "../logging/context.js";
 import { logger } from "../logging/logger.js";
+import { courierDispatchedMessage } from "./courier-message.js";
 
 /**
  * ق-184 + ق-199: who a reply to this message should reach. The platform's own
@@ -110,16 +111,8 @@ export function renderMessage(row: {
     };
   }
   // CD-1b: «مندوبك في الطريق» — the courier-dispatched notice, customers only.
-  if (row.eventType === "order.courier_dispatched") {
-    const orderNumber = String(payload.orderNumber ?? "");
-    return {
-      subject: `مندوبك في الطريق — الطلب ${orderNumber}`,
-      body:
-        `خرج طلبك ${orderNumber} من ${storeName} مع مندوب التوصيل، وهو الآن في طريقه إليك.` +
-        linkLine("تابع حالة طلبك في أي وقت من هنا:", payload.trackingUrl) +
-        `\nيرجى تجهيز مبلغ الدفع عند الاستلام.`,
-    };
-  }
+  if (row.eventType === "order.courier_dispatched")
+    return courierDispatchedMessage(storeName, payload, linkLine);
   // Phase 20B-2: abandoned-cart recovery message (customers with email only).
   if (row.eventType === "cart.abandoned") {
     const couponCode =

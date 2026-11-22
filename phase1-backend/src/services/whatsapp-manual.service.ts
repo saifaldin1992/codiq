@@ -28,6 +28,7 @@ import { HttpError } from "../auth/auth.errors.js";
 import { toE164 } from "../auth/identity.js";
 import { prisma } from "../db/prisma.js";
 import { publicUrl } from "../notifications/messaging-compliance.service.js";
+import { cashToCollectIqd } from "./delivery/fields.js";
 
 export const WHATSAPP_TEMPLATE_KEYS = [
   "orderCreated",
@@ -60,7 +61,7 @@ const TEMPLATE_DEFAULTS: Record<WhatsappTemplateKey, string> = {
   orderCreated:
     "مرحباً {{اسم_الزبون}}، استلمنا طلبك {{رقم_الطلب}} من {{اسم_المتجر}} بمبلغ {{المبلغ}}. يرجى الرد بكلمة «تأكيد» لنباشر التجهيز.\n{{رابط_التتبع}}",
   courierDispatched:
-    "خرج طلبك {{رقم_الطلب}} من {{اسم_المتجر}} مع مندوب التوصيل وهو الآن في طريقه إليك. يرجى تجهيز مبلغ الدفع عند الاستلام: {{المبلغ}}.\n{{رابط_التتبع}}",
+    "خرج طلبك {{رقم_الطلب}} من {{اسم_المتجر}} مع مندوب التوصيل وهو الآن في طريقه إليك.\nيرجى تجهيز مبلغ الدفع عند الاستلام: {{المبلغ}}.\n{{رابط_التتبع}}",
   orderCompleted:
     "شكراً لك {{اسم_الزبون}}! تم تسليم طلبك {{رقم_الطلب}} من {{اسم_المتجر}}. يسعدنا خدمتك مجدداً.",
 };
@@ -144,6 +145,11 @@ type RenderContext = {
   storeName: string;
   storeSlug: string;
   totalIqd: number;
+  /**
+   * Review batch 4, م-٣: when set, {{المبلغ}} is the cash still owed at the door, and a line
+   * that names it is dropped when nothing is owed — a paid order is never asked to pay again.
+   */
+  cashIqd?: number;
 };
 
 /**
@@ -157,11 +163,12 @@ export function renderWhatsappTemplate(template: string, context: RenderContext)
     اسم_الزبون: context.customerName,
     رقم_الطلب: context.orderNumber,
     اسم_المتجر: context.storeName,
-    المبلغ: `${money.format(context.totalIqd)} د.ع`,
+    المبلغ: `${money.format(context.cashIqd ?? context.totalIqd)} د.ع`,
     رابط_التتبع: trackingUrl ?? "",
   };
   const lines = template.split("\n").flatMap((line) => {
     if (!trackingUrl && line.includes("{{رابط_التتبع}}")) return [];
+    if (context.cashIqd === 0 && line.includes("{{المبلغ}}")) return [];
     return [
       line.replace(
         /\{\{([^{}]*)\}\}/g,
@@ -170,6 +177,15 @@ export function renderWhatsappTemplate(template: string, context: RenderContext)
     ];
   });
   return lines.join("\n").trim();
+}
+
+/** The courier message speaks of the cash still owed; the others of the order's amount. */
+function contextFor(
+  key: WhatsappTemplateKey,
+  order: { paymentStatus: string; totalIqd: number; deliveryFeeIqd: number },
+  context: RenderContext
+): RenderContext {
+  return key === "courierDispatched" ? { ...context, cashIqd: cashToCollectIqd(order) } : context;
 }
 
 function waUrlFor(e164: string, body: string): string {
@@ -187,6 +203,8 @@ async function scopedOrder(storeId: string, orderId: string) {
       customerName: true,
       recipientPhone: true,
       totalIqd: true,
+      deliveryFeeIqd: true,
+      paymentStatus: true,
       status: true,
     },
   });
@@ -289,7 +307,7 @@ export async function whatsappPanelForOrder(storeId: string, orderId: string) {
     waReady: e164 !== null,
     reason,
     templates: WHATSAPP_TEMPLATE_KEYS.map((key) => {
-      const body = renderWhatsappTemplate(templates[key], context);
+      const body = renderWhatsappTemplate(templates[key], contextFor(key, order, context));
       return {
         key,
         label: WHATSAPP_TEMPLATE_LABELS[key],
@@ -335,13 +353,16 @@ export async function recordWhatsappSend(
     select: { configuration: true },
   });
   const templates = normalizeWhatsappTemplates(settings?.configuration);
-  const rendered = renderWhatsappTemplate(templates[templateKey], {
-    customerName: order.customerName,
-    orderNumber: order.orderNumber,
-    storeName: store.name,
-    storeSlug: store.slug,
-    totalIqd: order.totalIqd,
-  });
+  const rendered = renderWhatsappTemplate(
+    templates[templateKey],
+    contextFor(templateKey, order, {
+      customerName: order.customerName,
+      orderNumber: order.orderNumber,
+      storeName: store.name,
+      storeSlug: store.slug,
+      totalIqd: order.totalIqd,
+    })
+  );
   const send = await prisma.orderWhatsappSend.create({
     data: {
       storeId,
