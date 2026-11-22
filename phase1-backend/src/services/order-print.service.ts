@@ -18,6 +18,7 @@
  */
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
+import { cashToCollectIqd } from "./delivery/fields.js";
 
 /** A print run is a physical act; this bounds it before the browser does. */
 export const PRINT_BATCH_LIMIT = 50;
@@ -147,7 +148,9 @@ export async function orderPrintSheet(storeId: string, ids: string[]) {
       businessName: store.merchant.businessName,
       contactPhone: store.merchant.phoneNormalized,
     },
-    orders: ordered,
+    // Review batch 4, م-٤: the label's «المبلغ المطلوب تحصيله» is the one number the courier
+    // reads at the door — the cash still owed (م-٢), not the order total.
+    orders: ordered.map((order) => ({ ...order, codIqd: cashToCollectIqd(order) })),
     picking: Array.from(picking.values()).sort(
       (a, b) => b.quantity - a.quantity || a.productName.localeCompare(b.productName, "ar")
     ),
@@ -157,7 +160,7 @@ export async function orderPrintSheet(storeId: string, ids: string[]) {
         (sum, order) => sum + order.items.reduce((count, item) => count + item.quantity, 0),
         0
       ),
-      collectIqd: ordered.reduce((sum, order) => sum + order.totalIqd, 0),
+      collectIqd: ordered.reduce((sum, order) => sum + cashToCollectIqd(order), 0),
     },
   };
 }

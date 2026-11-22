@@ -1902,6 +1902,31 @@ try {
     sheet.payload.totals.collectIqd,
     sheet.payload.orders.reduce((sum, order) => sum + order.totalIqd, 0)
   );
+  // Review batch 4, م-٤: the label's «المبلغ المطلوب تحصيله» is what the courier reads at the
+  // door. An order paid online before it left must read 0 there — not the order total.
+  const { paymentStatus: wasPaymentStatus } = await prisma.storeOrder.findUniqueOrThrow({
+    where: { id: orderTwoId },
+    select: { paymentStatus: true },
+  });
+  await prisma.storeOrder.update({ where: { id: orderTwoId }, data: { paymentStatus: "paid" } });
+  const paidSheet = await request(printPath([orderOneId, orderTwoId]), { token: tokenA });
+  const printedPaid = paidSheet.payload.orders.find((order) => order.id === orderTwoId);
+  const printedCod = paidSheet.payload.orders.find((order) => order.id === orderOneId);
+  assert.deepEqual(
+    { paid: printedPaid.codIqd, cod: printedCod.codIqd },
+    { paid: 0, cod: printedCod.totalIqd },
+    "the cash to collect: nothing for a paid order, the total for cash on delivery"
+  );
+  assert.equal(paidSheet.payload.totals.collectIqd, printedCod.totalIqd, "the run's cash total");
+  assert.ok(
+    /المبلغ المطلوب تحصيله[\s\S]{0,200}order\.codIqd/.test(printSource),
+    "the label prints the cash to collect, not the order total"
+  );
+  await prisma.storeOrder.update({
+    where: { id: orderTwoId },
+    data: { paymentStatus: wasPaymentStatus },
+  });
+  summary.printCashToCollect = "paid → 0 on the label and out of the run's total";
 
   // D-33 / PG-5: a note stored and never printed is a note the courier never
   // reads. This is the only surface where "اتصل قبل الوصول" can actually change what happens.

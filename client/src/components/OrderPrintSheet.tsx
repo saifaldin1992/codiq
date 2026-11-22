@@ -36,6 +36,7 @@ type PrintOrder = {
   deliveryFeeIqd: number;
   discountIqd: number;
   totalIqd: number;
+  codIqd: number;
   loyaltyPointsSpent: number;
   loyaltyDiscountIqd: number;
   platformDiscountIqd?: number;
@@ -227,10 +228,9 @@ function Label({ sheet, order }: { sheet: Sheet; order: PrintOrder }) {
           </p>
         </div>
       </div>
-      {/* المبلغ المطلوب تحصيله هو الرقم الوحيد الذي يقرأه المندوب على الباب. */}
       <div className="mt-3 rounded-xl border-2 border-[#12233C] px-3.5 py-2.5">
         <p className="text-[11px] font-bold">المبلغ المطلوب تحصيله (الدفع عند الاستلام)</p>
-        <p className="text-2xl font-black tabular-nums">{money.format(order.totalIqd)} د.ع</p>
+        <p className="text-2xl font-black tabular-nums">{money.format(order.codIqd)} د.ع</p>
       </div>
       {order.customerNote ? (
         <p className="mt-2.5 rounded-xl border border-dashed border-[#12233C]/50 px-3 py-2 text-[13px] font-semibold leading-6">
