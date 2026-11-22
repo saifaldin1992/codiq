@@ -39,14 +39,14 @@ const CART_WITH_ITEMS = {
   },
 } satisfies Prisma.ShoppingCartInclude;
 
-function cartPayload(cart: any) {
+function cartPayload(cart: Prisma.ShoppingCartGetPayload<{ include: typeof CART_WITH_ITEMS }>) {
   return {
     id: cart.id,
     status: cart.status,
     version: cart.version,
     expiresAt: cart.expiresAt,
     ownerKind: cart.ownerKind,
-    items: (cart.items ?? []).map((item: any) => ({
+    items: cart.items.map((item) => ({
       id: item.id,
       productId: item.productId,
       variantId: item.variantId,
@@ -77,7 +77,7 @@ function cartPayload(cart: any) {
   };
 }
 
-async function expireGuestCartIfNeeded(cart: any) {
+async function expireGuestCartIfNeeded(cart: Parameters<typeof cartPayload>[0] | null) {
   if (
     cart?.ownerKind === "guest" &&
     cart.status === CART_STATUS_ACTIVE &&
