@@ -5,6 +5,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../auth/auth.errors.js";
+import { UUID_PATTERN } from "../keyset-cursor.js";
 import { activePlanForMerchant } from "../entitlement.service.js";
 import type { PlatformActor } from "../../auth/platform-permissions.js";
 import { recordPlatformAuditEvent } from "../platform-audit.service.js";
@@ -120,7 +121,12 @@ export async function createManualReturnAdjustment(
 ) {
   const note =
     typeof input.note === "string" && input.note.trim() ? input.note.trim().slice(0, 500) : null;
+  if (!UUID_PATTERN.test(input.orderId))
+    throw new HttpError(404, "RESOURCE_NOT_FOUND", "لا يوجد قيد إتمام لهذا الطلب.");
   return prisma.$transaction(async (tx) => {
+    // The order row is locked first: two clicks at once both read «not reversed yet» and both
+    // wrote a reversal (review batch 2, م-١٠). The second now waits, then sees the first.
+    await tx.$queryRaw`SELECT id FROM store_orders WHERE id = ${input.orderId}::uuid FOR UPDATE`;
     const completion = await tx.ledgerEntry.findFirst({
       where: { orderId: input.orderId, entryType: "order_completed" },
       orderBy: { createdAt: "desc" },

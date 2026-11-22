@@ -238,31 +238,35 @@ try {
   );
 
   // Manufacture a genuinely late return: completion entry backdated 16 days.
-  const lateOrder = await prisma.storeOrder.create({
-    data: {
-      storeId,
-      orderNumber: "P17-LATE-0001",
-      status: "completed",
-      customerName: "زبون متأخر",
-      subtotalIqd: 6000,
-      deliveryFeeIqd: 2000,
-      totalIqd: 8000,
-      version: 1,
-    },
-  });
-  await prisma.ledgerEntry.create({
-    data: {
-      storeId,
-      orderId: lateOrder.id,
-      entryType: "order_completed",
-      subtotalIqd: 6000,
-      deliveryFeeIqd: 2000,
-      commissionIqd: 180,
-      commissionBps: 300,
-      planCode: "free",
-      createdAt: new Date(Date.now() - 16 * 24 * 60 * 60 * 1000),
-    },
-  });
+  const backdatedOrder = async (orderNumber: string, status: string) => {
+    const order = await prisma.storeOrder.create({
+      data: {
+        storeId,
+        orderNumber,
+        status,
+        customerName: "زبون متأخر",
+        subtotalIqd: 6000,
+        deliveryFeeIqd: 2000,
+        totalIqd: 8000,
+        version: 1,
+      },
+    });
+    await prisma.ledgerEntry.create({
+      data: {
+        storeId,
+        orderId: order.id,
+        entryType: "order_completed",
+        subtotalIqd: 6000,
+        deliveryFeeIqd: 2000,
+        commissionIqd: 180,
+        commissionBps: 300,
+        planCode: "free",
+        createdAt: new Date(Date.now() - 16 * 24 * 60 * 60 * 1000),
+      },
+    });
+    return order;
+  };
+  const lateOrder = await backdatedOrder("P17-LATE-0001", "completed");
   await transition(lateOrder.id, "returned", 1);
   assert.equal(
     await prisma.ledgerEntry.count({
@@ -284,6 +288,29 @@ try {
     body: JSON.stringify({ orderId: lateOrder.id }),
   });
   assert.equal(duplicateAdjustment.status, 409);
+  // Review batch 2, م-١٠: the same reversal sent twice AT ONCE (a double click) — both used to
+  // pass the «already reversed?» read and the merchant was charged back twice.
+  const twinOrder = await backdatedOrder("P17-LATE-0002", "returned");
+  const twins = await Promise.all(
+    [1, 2, 3].map(() =>
+      request("/platform/finance/adjustments", {
+        method: "POST",
+        headers: bearer(tokenOwner),
+        body: JSON.stringify({ orderId: twinOrder.id }),
+      })
+    )
+  );
+  assert.deepEqual(
+    twins.map((reply) => reply.status).sort(),
+    [201, 409, 409],
+    `one reversal, however many at once · ${JSON.stringify(twins.map((reply) => reply.body))}`
+  );
+  assert.equal(
+    await prisma.ledgerEntry.count({
+      where: { orderId: twinOrder.id, entryType: "manual_adjustment" },
+    }),
+    1
+  );
   summary.returnWindow = {
     outsideWindowCheck: windowCheck,
     lateAutoReversal: 0,
@@ -323,10 +350,11 @@ try {
     headers: bearer(tokenMerchant),
   });
   assert.equal(merchantReport.status, 200);
-  // Entries in range: A (+120), B (+500 / −500), late backdated completion (+180) and its manual reversal (−180).
+  // Entries in range: A (+120), B (+500 / −500), late backdated completion (+180) and its manual
+  // reversal (−180), and the twin-click order's completion (+180) and its ONE reversal (−180).
   assert.equal(merchantReport.body.totals.commissionIqd, 120);
-  assert.equal(merchantReport.body.totals.completedOrders, 3);
-  assert.equal(merchantReport.body.totals.reversedOrders, 2);
+  assert.equal(merchantReport.body.totals.completedOrders, 4);
+  assert.equal(merchantReport.body.totals.reversedOrders, 3);
 
   const platformReport = await request(`/platform/finance/report?from=${fromIso}&to=${toIso}`, {
     headers: bearer(tokenOwner),
