@@ -249,7 +249,7 @@ const LISTS = [
 
   {
     id: "storefront.account.orders",
-    src: "storefront.service.ts:819",
+    src: "storefront/orders.ts#customerOrders",
     model: "storeOrder",
     table: "store_orders",
     where: { storeId: bigStore, customerId: busyCustomer },
@@ -293,7 +293,7 @@ const LISTS = [
 
   {
     id: "storefront.products",
-    src: "storefront.service.ts:249",
+    src: "storefront/catalog.ts#publicProducts",
     model: "product",
     table: "products",
     where: { storeId: bigStore, isActive: true },

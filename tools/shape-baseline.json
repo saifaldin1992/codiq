@@ -7,8 +7,8 @@
  },
  "totals": {
   "longLines": 2584,
-  "oversizeFiles": 113,
-  "longFunctions": 442
+  "oversizeFiles": 115,
+  "longFunctions": 441
  },
  "files": {
   "phase1-backend/src/auth/auth.service.ts": {
@@ -911,6 +911,36 @@
    "oversize": 0,
    "longFunctions": 1
   },
+  "phase1-backend/src/services/storefront/addresses.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/storefront/cart.ts": {
+   "longLines": 0,
+   "oversize": 296,
+   "longFunctions": 6
+  },
+  "phase1-backend/src/services/storefront/catalog.ts": {
+   "longLines": 2,
+   "oversize": 45,
+   "longFunctions": 2
+  },
+  "phase1-backend/src/services/storefront/checkout.ts": {
+   "longLines": 5,
+   "oversize": 483,
+   "longFunctions": 2
+  },
+  "phase1-backend/src/services/storefront/orders.ts": {
+   "longLines": 0,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/storefront/rate-limit.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
+  },
   "phase1-backend/src/services/storefront-config.service.ts": {
    "longLines": 2,
    "oversize": 140,
@@ -920,11 +950,6 @@
    "longLines": 5,
    "oversize": 0,
    "longFunctions": 2
-  },
-  "phase1-backend/src/services/storefront.service.ts": {
-   "longLines": 12,
-   "oversize": 2175,
-   "longFunctions": 12
   },
   "phase1-backend/src/services/whatsapp-manual.service.ts": {
    "longLines": 2,

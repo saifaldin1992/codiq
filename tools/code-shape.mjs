@@ -15,6 +15,7 @@
  *   node tools/code-shape.mjs            check (CI)
  *   node tools/code-shape.mjs --report   the worst files, for the review
  *   node tools/code-shape.mjs --write    lower the baseline after a batch
+ *   node tools/code-shape.mjs --write --split <file>   after a verbatim split of <file>
  */
 import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -119,6 +120,19 @@ if (mode === "--write") {
         row.longFunctions > old.longFunctions
       );
     });
+    // `--split <file>`: a verbatim split moves a file's debt into NEW files. Allowed only
+    // when every metric, summed over the new files and what is left of <file>, is no larger
+    // than <file>'s baseline entry — the debt moved, none was added.
+    const splitIndex = process.argv.indexOf("--split");
+    const split = splitIndex > 0 ? process.argv[splitIndex + 1] : null;
+    if (split && baseline.files[split]) {
+      const fresh = worse.filter(([path]) => !baseline.files[path]);
+      const keys = ["longLines", "oversize", "longFunctions"];
+      const sum = (key) =>
+        fresh.reduce((total, [, row]) => total + row[key], now[split]?.[key] ?? 0);
+      if (keys.every((key) => sum(key) <= baseline.files[split][key]))
+        worse.splice(0, worse.length, ...worse.filter(([path]) => baseline.files[path]));
+    }
     if (worse.length && !process.argv.includes("--first")) {
       console.error(
         `refused: ${worse.length} file(s) would raise the baseline — fix them, do not raise it:\n  ${worse

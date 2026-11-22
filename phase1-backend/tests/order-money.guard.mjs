@@ -44,7 +44,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (relative) => readFileSync(path.join(root, relative), "utf8");
 
-const PRICING = "phase1-backend/src/services/storefront.service.ts";
+const PRICING = "phase1-backend/src/services/storefront/checkout.ts";
 const pricing = read(PRICING);
 
 // The one line that decides what a shopper owes. Pinned by name: if it is

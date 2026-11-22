@@ -159,7 +159,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 const servicesDir = fileURLToPath(new URL("../src/services", import.meta.url));
 const strays = [];
-for (const entry of readdirSync(servicesDir)) {
+// Recursive: services/storefront/*.ts (review batch 2, ت-٣) must be covered too.
+for (const entry of readdirSync(servicesDir, { recursive: true })) {
   if (!entry.endsWith(".ts")) continue;
   const source = readFileSync(path.join(servicesDir, entry), "utf8");
   // THIS CHECK USED TO BE `has a numeric bound AND never mentions the constant`,

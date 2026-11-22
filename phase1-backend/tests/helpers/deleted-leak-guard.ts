@@ -77,21 +77,21 @@ export interface Violation {
 export const ALLOWLIST: Record<string, string> = {
   "services/platform-staff.service.ts:removePlatformStaff":
     "removePlatformStaff (19-ب / ق-143) — `platform_staff` is NOT one of the five models PG-2 governs: it has no trash bin, no restore door, no purge job, and no TRASH_ENTITY_TYPES entry, deliberately (a removed platform-staff member is re-created, not un-deleted). Rule 3 exists so a MERCHANT-facing soft delete cannot bypass softDelete() and lose its audit event and retention clock; here the audit event is written in the same transaction by recordPlatformAuditEvent and every read of the table filters `deletedAt: null` through requirePlatformStaff/requireLiveMember. Routing this through services/soft-delete/ would mean minting a trash entity type the owner never asked for.",
-  "services/storefront.service.ts:publicCategories":
+  "services/storefront/catalog.ts:publicCategories":
     "publicCategories — a category is public only when a LIVE ACTIVE product hangs under it, and a trashed category cannot gain one (deletion requires zero live products, and a category is revived with any product restored into it). Structural, plan §6.2.",
-  "services/storefront.service.ts:categoryFilterIds":
+  "services/storefront/catalog.ts:categoryFilterIds":
     "categoryFilterIds — collects ids for a public product filter; a trashed category can only ever match trashed/inactive products, which the isActive filter already excludes. Plan §6.2.",
-  "services/storefront.service.ts:publicProducts":
+  "services/storefront/catalog.ts:publicProducts":
     "publicProducts — guarded by isActive:true plus the products_deleted_implies_inactive CHECK. Plan §6.2 lists this read by name as invariant-protected.",
-  "services/storefront.service.ts:publicProduct":
+  "services/storefront/catalog.ts:publicProduct":
     "publicProduct — same as publicProducts: isActive:true plus the CHECK constraint. Plan §6.2.",
-  "services/storefront.service.ts:addCartItem":
+  "services/storefront/cart.ts:addCartItem":
     "addCartItem — filters isActive on BOTH the variant and its product, so both CHECK constraints apply. Plan §6.2.",
-  "services/storefront.service.ts:mergeGuestCartIntoCustomer":
+  "services/storefront/cart.ts:mergeGuestCartIntoCustomer":
     "mergeGuestCartIntoCustomer — re-prices a guest line only when variant AND product are active; a trashed one keeps the guest's snapshot price and is refused at checkout. Plan §6.2.",
-  "services/storefront.service.ts:reorderIntoCart":
+  "services/storefront/cart.ts:reorderIntoCart":
     "reorder — skips any line whose variant or product is inactive, and a trashed one is inactive by CHECK. Plan §6.2.",
-  "services/storefront.service.ts:settleStorefrontReservations":
+  "services/storefront/orders.ts:settleStorefrontReservations":
     "settleStorefrontReservations — settles an ACTIVE reservation, which is itself a hard guard against deleting the product; it must keep working even if the row were somehow trashed, or stock would never be decremented.",
   "services/product-catalog.service.ts:categoryAncestorDepth":
     "categoryAncestorDepth — trashed rows MUST count here. codiq_guard_category_cycle walks the same chain in SQL with no deleted_at filter and holds the per-store advisory lock, so the trigger is the authority; when this walk filtered them out, a move the service allowed was refused by Postgres with 23514 and the merchant saw a bare 500. The price is that a trashed branch keeps spending the depth budget until it is purged or restored — accepted deliberately, because teaching the trigger to skip them would let a restore rebuild a live four-level tree.",
