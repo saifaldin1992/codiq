@@ -1886,11 +1886,6 @@
    "oversize": 0,
    "longFunctions": 0
   },
-  "client/src/market/pages/MarketOrdersPages.tsx": {
-   "longLines": 23,
-   "oversize": 326,
-   "longFunctions": 3
-  },
   "client/src/market/pages/MarketPartnerPages.tsx": {
    "longLines": 4,
    "oversize": 0,
@@ -1955,6 +1950,26 @@
    "longLines": 21,
    "oversize": 294,
    "longFunctions": 3
+  },
+  "client/src/market/pages/orders/detail.tsx": {
+   "longLines": 11,
+   "oversize": 12,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/orders/list.tsx": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "client/src/market/pages/orders/parts.tsx": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "client/src/market/pages/orders/ratings.tsx": {
+   "longLines": 5,
+   "oversize": 0,
+   "longFunctions": 1
   },
   "client/src/market/use-market-list.ts": {
    "longLines": 1,
