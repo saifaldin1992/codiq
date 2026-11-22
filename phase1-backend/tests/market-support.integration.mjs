@@ -389,9 +389,14 @@ try {
     "the store has its own three"
   );
   const asShopper = await shopper.request(t(`/${ticketId}/attachments/${attachmentId}`));
+  // Review batch 3, م-٤: the same picture — re-encoded without the uploader's EXIF, so not the
+  // same bytes.
+  const sharpCheck = (await import("sharp")).default;
+  const servedMeta = await sharpCheck(asShopper.payload).metadata();
+  const sentMeta = await sharpCheck(png).metadata();
   assert.deepEqual(
-    [asShopper.status, asShopper.type, asShopper.payload.equals(png)],
-    [200, "image/png", true]
+    [asShopper.status, asShopper.type, servedMeta.format, servedMeta.width, servedMeta.height],
+    [200, "image/png", sentMeta.format, sentMeta.width, sentMeta.height]
   );
   assert.equal(
     (await A.api.request(ms(A, `/${ticketId}/attachments/${attachmentId}`))).status,
