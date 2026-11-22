@@ -1,12 +1,11 @@
 /**
  * ق-209 — payment methods the merchant switches on and off.
  *
- * Cash on delivery is on for every store that never touched the page. A wallet
- * transfer cannot be switched on without a wallet number, a gateway cannot be
- * switched on at all until 25أ, the last enabled method refuses to go off, the
- * storefront's payload carries only what is on (with the wallet number a
- * shopper needs), a checkout that picks a switched-on transfer is created
- * «بانتظار التحويل», one that picks a switched-off method is refused, and a
+ * Cash on delivery is on for every store that never touched the page. Wallet
+ * transfers are not offered (owner decision 2026-11-22) and cannot be switched
+ * on, a gateway cannot be switched on at all until 25أ, the last enabled method
+ * refuses to go off, the storefront's payload carries only what is on, a
+ * checkout that picks a method that is not offered is refused, and a
  * neighbouring store sees none of it.
  *
  * Run: pnpm payments:methods
@@ -114,24 +113,22 @@ try {
   );
   summary.defaults = { cod: true, others: false, gateways: "unavailable" };
 
-  // ── 2. a wallet transfer needs a wallet number; a gateway needs 25أ ───────
-  const noWallet = await request(`${path}/zaincash`, {
-    method: "PUT",
-    token,
-    body: { isEnabled: true },
-  });
-  assert.equal(noWallet.status, 422);
-  assert.equal(
-    noWallet.payload.error.code,
-    "WALLET_NUMBER_REQUIRED",
-    "ق-209: a transfer the shopper cannot make is not a method"
-  );
-  const badWallet = await request(`${path}/zaincash`, {
-    method: "PUT",
-    token,
-    body: { isEnabled: true, walletNumber: "abc" },
-  });
-  assert.equal(badWallet.payload.error.code, "INVALID_WALLET_NUMBER");
+  // ── 2. no wallet transfer is offered; a gateway needs 25أ ─────────────────
+  // Owner decision 2026-11-22 (review batch 4): the platform does not take wallet transfers —
+  // Zain Cash, Asia Hawala and FIB are shown as unavailable and cannot be switched on. They had
+  // no «I received it» step either, so a transfer order waited forever and the label asked the
+  // shopper to pay again at the door.
+  for (const code of ["zaincash", "asiahawala", "fib"]) {
+    const refused = await request(`${path}/${code}`, {
+      method: "PUT",
+      token,
+      body: { isEnabled: true, walletNumber: "07801234567" },
+    });
+    assert.equal(refused.status, 422, `${code} · ${JSON.stringify(refused.payload)}`);
+    assert.equal(refused.payload.error.code, "PAYMENT_METHOD_UNAVAILABLE", code);
+    assert.equal(defaults[code].available, false, `${code} is shown as unavailable`);
+    assert.ok(defaults[code].unavailableReason, `${code} says why`);
+  }
   const gateway = await request(`${path}/card`, {
     method: "PUT",
     token,
@@ -144,34 +141,27 @@ try {
     404,
     "an unknown code is not found, not invented"
   );
-  const zain = await request(`${path}/zaincash`, {
-    method: "PUT",
-    token,
-    body: {
+  // A store that switched Zain Cash on BEFORE the decision keeps its row, but it is offered to
+  // nobody: the storefront lists cash only.
+  await prisma.paymentMethod.upsert({
+    where: { storeId_code: { storeId: store.id, code: "zaincash" } },
+    update: { isEnabled: true, configuration: { walletNumber: "07801234567" } },
+    create: {
+      storeId: store.id,
+      code: "zaincash",
+      displayName: "زين كاش",
       isEnabled: true,
-      walletNumber: "07801234567",
-      holderName: "متجر الدفع",
-      instructions: "أرسل صورة الإيصال على واتساب",
+      configuration: { walletNumber: "07801234567" },
     },
   });
-  assert.equal(zain.status, 200, JSON.stringify(zain.payload));
-  assert.equal(byCode(zain.payload.methods).zaincash.enabled, true);
-  const shopperSees = (await request(`/store/${store.slug}/public-config`)).payload.paymentMethods;
   assert.deepEqual(
-    shopperSees.map((method) => method.code),
-    ["cod", "zaincash"]
+    (await request(`/store/${store.slug}/public-config`)).payload.paymentMethods.map(
+      (method) => method.code
+    ),
+    ["cod"],
+    "a transfer switched on earlier is no longer offered"
   );
-  assert.equal(
-    shopperSees[1].walletNumber,
-    "07801234567",
-    "the shopper gets the number he must transfer to"
-  );
-  assert.equal(shopperSees[1].instructions, "أرسل صورة الإيصال على واتساب");
-  summary.transfer = {
-    needsWallet: "WALLET_NUMBER_REQUIRED",
-    gateway: "PAYMENT_METHOD_UNAVAILABLE",
-    enabled: true,
-  };
+  summary.transfer = { walletMethods: "PAYMENT_METHOD_UNAVAILABLE", gateway: "unavailable" };
 
   // ── 3. checkout honours the pick ─────────────────────────────────────────
   await prisma.deliveryRate.create({
@@ -222,12 +212,11 @@ try {
     });
   };
   const transfer = await buy("zaincash", "zain");
-  assert.equal(transfer.status, 201, JSON.stringify(transfer.payload));
-  assert.equal(transfer.payload.order.paymentMethodCode, "zaincash");
+  assert.equal(transfer.status, 422, JSON.stringify(transfer.payload));
   assert.equal(
-    transfer.payload.order.paymentStatus,
-    "awaiting_transfer",
-    "ق-209: a transfer order waits for the merchant to confirm the money"
+    transfer.payload.error.code,
+    "PAYMENT_METHOD_NOT_SUPPORTED",
+    "a transfer switched on before the decision cannot be picked at checkout"
   );
   const notOn = await buy("fib", "fib");
   assert.equal(notOn.status, 422, JSON.stringify(notOn.payload));
@@ -240,23 +229,14 @@ try {
   assert.equal(cash.status, 201, JSON.stringify(cash.payload));
   assert.equal(cash.payload.order.paymentStatus, "unpaid");
   summary.checkout = {
-    zaincash: "awaiting_transfer",
+    zaincash: "PAYMENT_METHOD_NOT_SUPPORTED",
     fib: "PAYMENT_METHOD_NOT_SUPPORTED",
     cod: "unpaid",
   };
 
   // ── 4. the last way to pay refuses to go off ─────────────────────────────
-  const codOff = await request(`${path}/cod`, { method: "PUT", token, body: { isEnabled: false } });
-  assert.equal(codOff.status, 200, "cash may go off while a transfer is on");
-  assert.deepEqual(
-    (await request(`/store/${store.slug}/public-config`)).payload.paymentMethods.map(
-      (method) => method.code
-    ),
-    ["zaincash"]
-  );
-  const cashRefused = await buy("cod", "cash-off");
-  assert.equal(cashRefused.status, 422, "…and cash can no longer be picked");
-  const lastOff = await request(`${path}/zaincash`, {
+  // Cash is the only method a store can have on today, so it can never go off.
+  const lastOff = await request(`${path}/cod`, {
     method: "PUT",
     token,
     body: { isEnabled: false },
@@ -267,7 +247,6 @@ try {
     "LAST_PAYMENT_METHOD",
     "ق-209: a shop can never be left with no way to pay"
   );
-  await request(`${path}/cod`, { method: "PUT", token, body: { isEnabled: true } });
   summary.lastMethod = "LAST_PAYMENT_METHOD";
 
   // ── 5. the neighbour's switches are his own ──────────────────────────────
@@ -277,7 +256,7 @@ try {
   );
   assert.equal(theirs.zaincash.enabled, false, "store B never switched anything on");
   assert.equal(theirs.zaincash.walletNumber, null);
-  const cross = await request(`${path}/zaincash`, {
+  const cross = await request(`${path}/cod`, {
     method: "PUT",
     token: tokenB,
     body: { isEnabled: false },

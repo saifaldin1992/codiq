@@ -40,6 +40,9 @@ export interface PaymentMethodDefinition {
   hint: string;
 }
 
+// Owner decision 2026-11-22 (review batch 4): the platform does not take wallet transfers. The
+// three stay in the catalogue — old orders still name them — but none can be switched on, and
+// `enabledPaymentMethods` (storefront and checkout) offers only what is available.
 export const PAYMENT_METHOD_CATALOG: readonly PaymentMethodDefinition[] = [
   {
     code: "cod",
@@ -52,22 +55,25 @@ export const PAYMENT_METHOD_CATALOG: readonly PaymentMethodDefinition[] = [
     code: "zaincash",
     displayName: "زين كاش",
     kind: "manual_transfer",
-    available: true,
-    hint: "يحوّل الزبون المبلغ إلى محفظتك قبل التسليم، وتؤكد الدفع من صفحة الطلب.",
+    available: false,
+    unavailableReason: "المنصّة لا تتعامل بالتحويل إلى المحافظ — الدفع عند الاستلام.",
+    hint: "",
   },
   {
     code: "asiahawala",
     displayName: "آسيا حوالة",
     kind: "manual_transfer",
-    available: true,
-    hint: "يحوّل الزبون المبلغ إلى محفظتك قبل التسليم، وتؤكد الدفع من صفحة الطلب.",
+    available: false,
+    unavailableReason: "المنصّة لا تتعامل بالتحويل إلى المحافظ — الدفع عند الاستلام.",
+    hint: "",
   },
   {
     code: "fib",
     displayName: "FIB — المصرف العراقي الأول",
     kind: "manual_transfer",
-    available: true,
-    hint: "يحوّل الزبون المبلغ إلى حسابك قبل التسليم، وتؤكد الدفع من صفحة الطلب.",
+    available: false,
+    unavailableReason: "المنصّة لا تتعامل بالتحويل إلى المحافظ — الدفع عند الاستلام.",
+    hint: "",
   },
   {
     code: "qicard",
