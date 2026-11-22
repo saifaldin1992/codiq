@@ -6,8 +6,8 @@
   "fn": 60
  },
  "totals": {
-  "longLines": 2584,
-  "oversizeFiles": 111,
+  "longLines": 2583,
+  "oversizeFiles": 109,
   "longFunctions": 441
  },
  "files": {
@@ -506,9 +506,14 @@
    "oversize": 0,
    "longFunctions": 1
   },
-  "phase1-backend/src/modules/market-rewards/rewards.service.ts": {
-   "longLines": 3,
-   "oversize": 89,
+  "phase1-backend/src/modules/market-rewards/rewards/coupons.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-rewards/rewards/owner.ts": {
+   "longLines": 2,
+   "oversize": 0,
    "longFunctions": 0
   },
   "phase1-backend/src/modules/market-rewards/routes.ts": {
@@ -1962,8 +1967,8 @@
    "longFunctions": 3
   },
   "client/src/market/pages/orders/detail.tsx": {
-   "longLines": 11,
-   "oversize": 12,
+   "longLines": 10,
+   "oversize": 0,
    "longFunctions": 1
   },
   "client/src/market/pages/orders/list.tsx": {

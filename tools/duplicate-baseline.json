@@ -114,7 +114,7 @@
   "phase1-backend/src/modules/market-help/help.service.ts": 8,
   "phase1-backend/src/modules/market-home/schema.ts": 8,
   "phase1-backend/src/modules/market-orders/after-sales.service.ts": 51,
-  "phase1-backend/src/modules/market-rewards/rewards.service.ts": 9,
+  "phase1-backend/src/modules/market-rewards/rewards/points.ts": 9,
   "phase1-backend/src/modules/market-stores/moderation.service.ts": 8,
   "phase1-backend/src/modules/market-stores/profile.service.ts": 8,
   "phase1-backend/src/modules/market-wheel/wheel.service.ts": 10,
