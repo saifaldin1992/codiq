@@ -47,18 +47,18 @@ export function registerMarketRewardsRoutes(app: Express) {
   }));
   app.post("/platform/market/coupons", asyncRoute(async (request, response) => {
     requireTrustedWriteOrigin(request);
-    await requirePlatformActor(request, "brand.manage");
-    response.status(201).json(await createCoupon(parseOrThrow(couponSchema, request.body ?? {})));
+    const { actor } = await requirePlatformActor(request, "brand.manage");
+    response.status(201).json(await createCoupon(actor, parseOrThrow(couponSchema, request.body ?? {})));
   }));
   app.put("/platform/market/coupons/:couponId", asyncRoute(async (request, response) => {
     requireTrustedWriteOrigin(request);
-    await requirePlatformActor(request, "brand.manage");
-    response.status(200).json(await updateCoupon(request.params.couponId, parseOrThrow(couponSchema, request.body ?? {})));
+    const { actor } = await requirePlatformActor(request, "brand.manage");
+    response.status(200).json(await updateCoupon(actor, request.params.couponId, parseOrThrow(couponSchema, request.body ?? {})));
   }));
   app.put("/platform/market/coupons/:couponId/stores", asyncRoute(async (request, response) => {
     requireTrustedWriteOrigin(request);
-    await requirePlatformActor(request, "brand.manage");
-    response.status(200).json(await setCouponStores(request.params.couponId, parseOrThrow(couponStoresSchema, request.body ?? {}).storeSlugs));
+    const { actor } = await requirePlatformActor(request, "brand.manage");
+    response.status(200).json(await setCouponStores(actor, request.params.couponId, parseOrThrow(couponStoresSchema, request.body ?? {}).storeSlugs));
   }));
   app.get("/platform/market/rewards/report", asyncRoute(async (request, response) => {
     await requirePlatformActor(request, "brand.manage");

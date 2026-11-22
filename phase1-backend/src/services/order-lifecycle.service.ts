@@ -354,8 +354,13 @@ export async function transitionOrderStatus(storeId: string, actor: OrderTransit
       // CD-5: both sides. Without the clawback, buy → return prints points;
       // without the refund, points spent on a returned order are simply kept.
       await reverseLoyaltyForReturn(tx, { storeId, orderId });
-      // Marketplace M8b: and the platform's points too. The coupon is not given back — it was used.
+      // Marketplace M8b: and the platform's points too.
       await clawbackPlatformPoints(tx, orderId);
+      // The platform coupon is kept as used for a return AFTER delivery — the
+      // shopper had the goods at the discounted price. An order refused at the
+      // door (out_for_delivery → returned, never completed) was never paid for,
+      // exactly like a cancelled one, so the coupon goes back to his wallet.
+      if (current.status !== "completed") await releasePlatformCoupon(tx, orderId);
       await revokeWheelSpins(tx, orderId);
     } else if (toStatus === "cancelled" || toStatus === "rejected") {
       // ق-191 — the order dies before it is paid, and the points must come back.

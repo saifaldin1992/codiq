@@ -46,6 +46,7 @@ export const PLATFORM_AUDIT_ENTITY_TYPES = [
   "setting",
   // Marketplace M7b: the owner's actions on a shopper's support ticket.
   "support_ticket",
+  "platform_coupon",
 ] as const;
 export type PlatformAuditEntityType = (typeof PLATFORM_AUDIT_ENTITY_TYPES)[number];
 
@@ -94,6 +95,9 @@ export const PLATFORM_AUDIT_ACTIONS = [
   "support_ticket_replied",
   "support_ticket_escalated",
   "support_ticket_closed",
+  "platform_coupon_created",
+  "platform_coupon_updated",
+  "platform_coupon_stores_changed",
 ] as const;
 export type PlatformAuditAction = (typeof PLATFORM_AUDIT_ACTIONS)[number];
 

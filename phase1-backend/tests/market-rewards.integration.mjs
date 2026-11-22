@@ -177,6 +177,14 @@ try {
   assert.equal((await shopper.request("/market/me/points")).payload.balance, 0, "a returned order's points come back off");
   const returnEntry = await prisma.ledgerEntry.findFirstOrThrow({ where: { orderId: order.id, entryType: "order_returned" } });
   assert.equal(returnEntry.platformDiscountIqd, 4000, "the reversal mirrors the platform's cost");
+  assert.equal((await prisma.shopperCoupon.findUniqueOrThrow({ where: { id: w10 } })).usedOrderId, order.id, "a return AFTER delivery keeps the coupon used — he had the goods at the discount");
+  // Refused at the door: out for delivery, never delivered, never paid.
+  await add(A);
+  const refused = await place(A, w20);
+  assert.equal(refused.status, 201, JSON.stringify(refused.payload));
+  assert.equal((await prisma.shopperCoupon.findUniqueOrThrow({ where: { id: w20 } })).usedOrderId, refused.payload.order.id);
+  await move(A, refused.payload.order.id, "processing", "preparation", "out_for_delivery", "returned");
+  assert.equal((await prisma.shopperCoupon.findUniqueOrThrow({ where: { id: w20 } })).usedOrderId, null, "an order refused at the door gives the coupon back, like a cancelled one");
   summary.cancelReturn = true;
 
   // ── 6. points ────────────────────────────────────────────────────────────

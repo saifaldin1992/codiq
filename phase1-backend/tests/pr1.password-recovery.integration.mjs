@@ -616,6 +616,19 @@ try {
   );
   summary.queuePriority = Number(priority.rows[0].priority);
 
+  // A row no template can render (here: a reset link sealed under a key this
+  // server does not hold) costs ONE attempt and never stalls the queue: the
+  // healthy row claimed beside it is still sent in the same pass.
+  await sql.query("DELETE FROM notification_outbox WHERE status IN ('pending','retry_scheduled','processing')");
+  const poison = await prisma.notificationOutbox.create({ data: { storeId: null, eventType: "auth.password_reset", recipientKind: "account", channel: "email", recipient: "poison@codiq.test", payload: { resetUrlSealed: "codiq1.00000000.AAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAA.AAAA", expiresInMinutes: 45 } } });
+  const healthy = await prisma.notificationOutbox.create({ data: { storeId: null, eventType: "trial.ending", recipientKind: "merchant", channel: "email", recipient: "healthy@codiq.test", payload: { daysLeft: 2 } } });
+  const isolated = await processOutboxBatch(provider, { batchSize: 50, now: new Date(Date.now() + 5000) });
+  const [poisonAfter, healthyAfter] = await Promise.all([prisma.notificationOutbox.findUniqueOrThrow({ where: { id: poison.id } }), prisma.notificationOutbox.findUniqueOrThrow({ where: { id: healthy.id } })]);
+  assert.equal(healthyAfter.status, "sent", `the healthy row is sent despite the poison row (${JSON.stringify(isolated)})`);
+  assert.deepEqual([poisonAfter.status, poisonAfter.attemptCount], ["retry_scheduled", 1], "the poison row is counted as an attempt, not left in «processing»");
+  assert.match(poisonAfter.lastOutcome ?? "", /^render_failed:/);
+  summary.poisonRowIsolated = true;
+
   await sql.query("DELETE FROM storefront_rate_limits");
   summary.identitiesCovered = ["merchant", "platform_owner", "customer"];
   console.log(JSON.stringify({ pr1: summary }, null, 2));

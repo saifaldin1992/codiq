@@ -19,6 +19,8 @@ import { decodeListCursor, encodeListCursor, pageOf, parseListLimit } from "../.
 import { IQD_PER_POINT, POINT_TIERS, platformCouponRefusal, platformDiscountFor, spendablePoints, tierFor, yearPoints } from "../../services/platform-rewards.service.js";
 import { RETURN_REVERSAL_WINDOW_DAYS } from "../../services/finance.service.js";
 import { marketStoreCardsByIds } from "../market-stores/directory.service.js";
+import type { PlatformActor } from "../../auth/platform-permissions.js";
+import { recordPlatformAuditEvent } from "../../services/platform-audit.service.js";
 
 const COUPON_VIEW = {
   id: true, code: true, title: true, description: true, kind: true, percentOff: true, amountOffIqd: true, maxDiscountIqd: true, minSubtotalIqd: true,
@@ -190,13 +192,22 @@ export async function ownerCoupons() {
   return { coupons: rows.map(({ _count, ...row }) => ({ ...row, stores: _count.stores, used: used.find((entry) => entry.couponId === row.id)?._count._all ?? 0 })) };
 }
 
-export async function createCoupon(input: CouponInput) {
+export async function createCoupon(actor: PlatformActor, input: CouponInput) {
   if (await prisma.platformCoupon.findUnique({ where: { code: input.code.toUpperCase() }, select: { id: true } })) throw new HttpError(409, "COUPON_CODE_TAKEN", "يوجد كوبون بهذا الرمز.");
-  return { coupon: await prisma.platformCoupon.create({ data: couponData(input), select: COUPON_VIEW }) };
+  return prisma.$transaction(async (tx) => {
+    const coupon = await tx.platformCoupon.create({ data: couponData(input), select: COUPON_VIEW });
+    await recordPlatformAuditEvent(tx, { entityType: "platform_coupon", entityId: coupon.id, entityLabel: `${coupon.code} — ${coupon.title}`, action: "platform_coupon_created", actor, metadata: { code: coupon.code, pointsCost: coupon.pointsCost } });
+    return { coupon };
+  });
 }
 
 /** Once handed out, what a coupon is worth no longer changes — only its dates, its limit upward, and whether it is offered. */
-export async function updateCoupon(id: string, input: CouponInput) {
+/** Unused copies shoppers hold — claimed for free or bought with points. */
+async function heldUnused(couponId: string) {
+  return prisma.shopperCoupon.count({ where: { couponId, usedOrderId: null } });
+}
+
+export async function updateCoupon(actor: PlatformActor, id: string, input: CouponInput) {
   const coupon = await prisma.platformCoupon.findUnique({ where: { id } });
   if (!coupon) throw new HttpError(404, "COUPON_NOT_FOUND", "الكوبون غير موجود.");
   const data = couponData(input);
@@ -205,24 +216,52 @@ export async function updateCoupon(id: string, input: CouponInput) {
     const changed = worth.find((field) => (data as Record<string, unknown>)[field] !== (coupon as Record<string, unknown>)[field]);
     if (changed) throw new HttpError(409, "COUPON_ALREADY_ISSUED", "وُزّع هذا الكوبون؛ لا تتغيّر قيمته ولا شروطه. أنشئ كوبوناً جديداً.");
     if (data.totalLimit !== null && data.totalLimit < coupon.issuedCount) throw new HttpError(422, "COUPON_LIMIT_BELOW_ISSUED", `وُزّع ${coupon.issuedCount} منه بالفعل.`);
+    // A copy a shopper holds — often one he paid points for — must stay usable
+    // for as long as it was promised. Ending it early or switching it off would
+    // take back what was given. To stop NEW copies, lower the total limit to
+    // what was issued: the held ones keep working.
+    const held = await heldUnused(id);
+    if (held > 0 && (data.endsAt < coupon.endsAt || (coupon.isActive && !data.isActive) || data.startsAt > coupon.startsAt)) {
+      throw new HttpError(409, "COUPON_HELD_BY_SHOPPERS", `في محافظ المتسوّقين ${held} نسخة غير مستعملة من هذا الكوبون، فلا يُقصَّر ولا يُوقف. لإيقاف توزيعه اجعل الحدّ الأقصى ${coupon.issuedCount}.`, { held });
+    }
   }
-  return { coupon: await prisma.platformCoupon.update({ where: { id }, data, select: COUPON_VIEW }) };
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.platformCoupon.update({ where: { id }, data, select: COUPON_VIEW });
+    await recordPlatformAuditEvent(tx, {
+      entityType: "platform_coupon", entityId: id, entityLabel: `${updated.code} — ${updated.title}`, action: "platform_coupon_updated", actor,
+      metadata: { before: { isActive: coupon.isActive, endsAt: coupon.endsAt.toISOString(), totalLimit: coupon.totalLimit }, after: { isActive: updated.isActive, endsAt: updated.endsAt.toISOString(), totalLimit: updated.totalLimit } },
+    });
+    return { coupon: updated };
+  });
 }
 
-export async function setCouponStores(id: string, storeSlugs: string[]) {
-  const coupon = await prisma.platformCoupon.findUnique({ where: { id }, select: { id: true, issuedCount: true } });
+export async function setCouponStores(actor: PlatformActor, id: string, storeSlugs: string[]) {
+  const coupon = await prisma.platformCoupon.findUnique({ where: { id }, select: { id: true, code: true, title: true, issuedCount: true, allStores: true } });
   if (!coupon) throw new HttpError(404, "COUPON_NOT_FOUND", "الكوبون غير موجود.");
   const stores = await prisma.store.findMany({ where: { slug: { in: storeSlugs } }, select: { id: true, slug: true } });
   const missing = storeSlugs.filter((slug) => !stores.some((store) => store.slug === slug));
   if (missing.length) throw new HttpError(422, "STORE_NOT_FOUND", "متاجر غير موجودة.", { storeSlugs: missing });
-  await prisma.$transaction([
-    prisma.platformCouponStore.deleteMany({ where: { couponId: id } }),
-    prisma.platformCouponStore.createMany({ data: stores.map((store) => ({ couponId: id, storeId: store.id })) }),
-  ]);
+  const current = await prisma.platformCouponStore.findMany({ where: { couponId: id }, select: { storeId: true, store: { select: { slug: true } } } });
+  // Once copies are out, a store may be ADDED but not taken away: a shopper who
+  // claimed the coupon for a store must still be able to use it there.
+  if (coupon.issuedCount > 0 && !coupon.allStores) {
+    const kept = new Set(stores.map((store) => store.id));
+    const dropped = current.filter((row) => !kept.has(row.storeId)).map((row) => row.store.slug);
+    if (dropped.length) {
+      throw new HttpError(409, "COUPON_ALREADY_ISSUED", "وُزّع هذا الكوبون؛ يمكن إضافة متاجر إليه ولا يُحذف منه متجر.", { storeSlugs: dropped });
+    }
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.platformCouponStore.deleteMany({ where: { couponId: id } });
+    await tx.platformCouponStore.createMany({ data: stores.map((store) => ({ couponId: id, storeId: store.id })) });
+    await recordPlatformAuditEvent(tx, {
+      entityType: "platform_coupon", entityId: id, entityLabel: `${coupon.code} — ${coupon.title}`, action: "platform_coupon_stores_changed", actor,
+      metadata: { before: current.map((row) => row.store.slug), after: stores.map((store) => store.slug) },
+    });
+  });
   return { couponId: id, storeSlugs: stores.map((store) => store.slug) };
 }
 
-/** What the programme costs the platform: the platform discounts on completed orders, net of returns. */
 export async function rewardsReport() {
   const [ledger, outstanding, issued, used] = await Promise.all([
     prisma.ledgerEntry.groupBy({ by: ["entryType"], _sum: { platformDiscountIqd: true } }),
