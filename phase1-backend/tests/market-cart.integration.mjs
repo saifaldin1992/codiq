@@ -288,6 +288,25 @@ try {
   );
   const groupA = cart.stores.find((group) => group.store.slug === A.slug);
   assert.equal(groupA.subtotalIqd, 3 * 12000 + 4 * 7000);
+  // Review batch 2, ت-١٤: a double tap — the cart's serializable transactions retry a lost race
+  // instead of answering 503 «busy» to a tap that should simply count.
+  const notebook = await product(A, { name: "دفتر", priceIqd: 1000, stockQuantity: 20 });
+  const { shopper: tapper } = await signIn(`+96477${digits}6`.slice(0, 14));
+  const taps = await Promise.all(
+    Array.from({ length: 8 }, () =>
+      tapper.request("/market/cart/items", {
+        method: "POST",
+        body: { productId: notebook.id, quantity: 1 },
+      })
+    )
+  );
+  assert.deepEqual(
+    taps.map((tap) => tap.status),
+    Array(8).fill(200),
+    JSON.stringify(taps.map((tap) => tap.payload?.error?.code ?? "ok"))
+  );
+  const tapped = (await tapper.request("/market/cart")).payload.stores[0].lines[0];
+  assert.equal(tapped.quantity, 8, "eight taps, eight in the cart");
   summary.cart = true;
 
   // ── 2. summaries ─────────────────────────────────────────────────────────
