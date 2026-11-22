@@ -277,22 +277,22 @@ function deliveryShareBps(totals: { subtotalIqd: number; deliveryFeeIqd: number 
   return Math.round((totals.deliveryFeeIqd * 10000) / totals.subtotalIqd);
 }
 
-/** The cursor's list kind for the report's entries page. */
-const FINANCE_ENTRIES_KIND = "finance.report.entries";
+/** The newest entries the report lists; the totals always cover the whole period. */
+const FINANCE_REPORT_ENTRIES = 200;
 
 export async function merchantFinanceReport(merchantId: string, query: Record<string, unknown>) {
   const { from, to } = parseReportRange(query);
   const where = { store: { merchantId }, createdAt: { gte: from, lte: to } };
-  // The totals are exact over the whole period; the entries are a PAGE of it.
-  // They used to stop at the newest 200 with no way on, so a busy month showed
-  // its last days only.
-  const limit = parseListLimit(query.limit, 200, 200);
-  const cursor = await readListCursor(FINANCE_ENTRIES_KIND, query.cursor);
-  const [rows, groups] = await Promise.all([
+  // The totals are exact over the whole period; the entries are its newest 200.
+  // `entriesTotal` says how many there are, so a busy month is never presented
+  // as if its last days were all of it. (Paging needs a millisecond-precision
+  // ordering column — see the keyset guard — and ledger_entries is the money
+  // table, not one to rewrite for a list.)
+  const [entries, groups, entriesTotal] = await Promise.all([
     prisma.ledgerEntry.findMany({
-      where: { ...where, ...keysetWhere("createdAt", "desc", cursor) },
+      where,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: limit + 1,
+      take: FINANCE_REPORT_ENTRIES,
       select: { id: true, storeId: true, orderId: true, entryType: true, subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true, commissionBps: true, planCode: true, note: true, createdAt: true, store: { select: { slug: true, name: true } }, order: { select: { orderNumber: true } } },
     }),
     prisma.ledgerEntry.groupBy({
@@ -301,9 +301,9 @@ export async function merchantFinanceReport(merchantId: string, query: Record<st
       _count: { _all: true },
       _sum: { subtotalIqd: true, deliveryFeeIqd: true, loyaltyDiscountIqd: true, commissionIqd: true },
     }),
+    prisma.ledgerEntry.count({ where }),
   ]);
-  const { page: entries, nextCursor } = pageOf(rows, limit, (last) => encodeListCursor(FINANCE_ENTRIES_KIND, last.createdAt, last.id));
-  return { period: { from, to }, totals: totalsFromGroups(groups), entries, nextCursor };
+  return { period: { from, to }, totals: totalsFromGroups(groups), entries, entriesTotal };
 }
 
 /** The cursor's list kind. One per list, so a cursor cannot cross lists. */

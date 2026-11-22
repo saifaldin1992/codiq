@@ -191,6 +191,8 @@ try {
     // (storeless rows, like the two account types above). Drained AFTER order mail, before marketing.
     "maintenance.scheduled": "operational",
     "maintenance.ended": "operational",
+    // …and that an announced window was called off.
+    "maintenance.cancelled": "operational",
   }, "every event type in use carries an explicit kind");
 
   let refused = false;

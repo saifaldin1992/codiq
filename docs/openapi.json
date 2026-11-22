@@ -20285,36 +20285,22 @@
           "platform"
         ],
         "summary": "GET /merchant/finance/report",
-        "description": "**الباب**: merchant.\n\n**قائمة**: تُجيب بمَغلَّف المرحلة 20-2 — `{ <resource>: T[], nextCursor, …facets }` مع مؤشر معتم واحد.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/ListLimit"
-          },
-          {
-            "$ref": "#/components/parameters/ListCursor"
-          }
-        ],
+        "description": "**الباب**: merchant.",
+        "parameters": [],
         "responses": {
           "200": {
             "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ListEnvelope"
-                    },
-                    {
-                      "type": "object",
-                      "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
-                    }
-                  ]
+                  "type": "object",
+                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
                 }
               }
             }
           },
           "400": {
-            "description": "`INVALID_DATE_FILTER` · `INVALID_LIMIT`",
+            "description": "`INVALID_DATE_FILTER`",
             "content": {
               "application/json": {
                 "schema": {
@@ -20323,8 +20309,7 @@
               }
             },
             "x-codiq-error-codes": [
-              "INVALID_DATE_FILTER",
-              "INVALID_LIMIT"
+              "INVALID_DATE_FILTER"
             ]
           },
           "401": {
@@ -20355,19 +20340,6 @@
               "PASSWORD_CHANGE_REQUIRED"
             ]
           },
-          "404": {
-            "description": "`RESOURCE_NOT_FOUND`",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "x-codiq-error-codes": [
-              "RESOURCE_NOT_FOUND"
-            ]
-          },
           "413": {
             "$ref": "#/components/responses/BodyTooLarge"
           },
@@ -20395,7 +20367,6 @@
           "merchant"
         ],
         "x-codiq-source": "phase1-backend/src/http/routes/platform.ts",
-        "x-codiq-list-envelope": true,
         "security": [
           {
             "sessionCookie": []
