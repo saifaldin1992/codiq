@@ -65,15 +65,15 @@
 | `phase1-backend/src/services/platform-overview.service.ts` | 129 | — | لم يُقرأ |
 | `phase1-backend/src/services/merchant-onboarding.service.ts` | 127 | — | لم يُقرأ |
 | `phase1-backend/src/services/search/search.types.ts` | 119 | — | لم يُقرأ |
-| `phase1-backend/src/services/reserved-slugs.ts` | 117 | — | لم يُقرأ |
+| `phase1-backend/src/services/reserved-slugs.ts` | 117 | 2026-11-22 (كاملاً) | قائمة الأسماء المحجوزة وفحصها بلا حساسيّة لحالة الأحرف |
 | `phase1-backend/src/services/owner-account.service.ts` | 113 | 2026-11-22 (كاملاً) | قُرئ في الدفعة ٣ (م-٣ هناك) |
-| `phase1-backend/src/services/governorates.ts` | 104 | — | لم يُقرأ |
-| `phase1-backend/src/services/messaging-caps.service.ts` | 94 | — | لم يُقرأ |
+| `phase1-backend/src/services/governorates.ts` | 104 | 2026-11-22 (كاملاً) | القائمة الواحدة للمحافظات (مفتاح واسم عربيّ) |
+| `phase1-backend/src/services/messaging-caps.service.ts` | 94 | 2026-11-22 (كاملاً) | السقوف الثلاثة يكتبها المالك وحده؛ الصفّ يُنشأ عند أوّل تشديد |
 | `phase1-backend/src/services/inventory-movements.service.ts` | 82 | 2026-11-22 (مسح موجّه) | مقيّد بالمتجر؛ `productId` غير صالح ← ٤٠٠ (P2023 مُعالَج) — لم يُقرأ سطراً بسطر |
-| `phase1-backend/src/services/soft-delete/constants.ts` | 80 | — | لم يُقرأ |
-| `phase1-backend/src/services/search/index.ts` | 74 | — | لم يُقرأ |
-| `phase1-backend/src/services/platform-directory.service.ts` | 68 | — | لم يُقرأ |
-| `phase1-backend/src/services/store-bootstrap.service.ts` | 65 | — | لم يُقرأ |
+| `phase1-backend/src/services/soft-delete/constants.ts` | 80 | 2026-11-22 (كاملاً) | `LIVE` المشترك (`deletedAt` وحده — لهذا يعرّف `storefront-seo` نسخته بـ `isActive`)، وأنواع التدقيق وأفعاله |
+| `phase1-backend/src/services/search/index.ts` | 74 | 2026-11-22 (كاملاً) | اختيار المحرّك عند الإقلاع بخطأ صريح إن كان الاسم مجهولاً |
+| `phase1-backend/src/services/platform-directory.service.ts` | 68 | 2026-11-22 (كاملاً) | قائمة المالك لكلّ المتاجر بمؤشّر keyset |
+| `phase1-backend/src/services/store-bootstrap.service.ts` | 65 | 2026-11-22 (كاملاً) | المكان الوحيد الذي يُكتب فيه الرابط والنطاق الفرعيّ، وكلاهما يُفحص ضدّ المحجوز؛ نصّ المفتاح لا يُفكّ لمعرفة وجوده |
 | `phase1-backend/src/services/keyset-cursor.ts` | 36 | 2026-11-22 (كاملاً) | التعريف المشترك لـ UUID؛ الملاحظة التاريخيّة صحيحة — لا `cursor` يُسلَّم لـ Prisma بعد 20-2 |
 
 ## النتائج
