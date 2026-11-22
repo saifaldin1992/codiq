@@ -304,6 +304,39 @@ try {
     200,
     "19-أ: case and punctuation are forgiven"
   );
+  // Review batch 3, م-٢: ONE code, two sign-ins at the same moment. Each read «not used yet»
+  // before either wrote, so both passed — single use held only one request at a time.
+  const twinRecovery = await Promise.all(
+    [1, 2].map(() =>
+      request("/auth/platform/login", {
+        method: "POST",
+        body: { email, password, totpCode: recoveryCodes[3] },
+      })
+    )
+  );
+  assert.deepEqual(
+    twinRecovery.map((reply) => reply.status).sort(),
+    [200, 401],
+    "a recovery code signs in once, even twice at once"
+  );
+  const ownerRow = await prisma.platformOwner.findUniqueOrThrow({ where: { email } });
+  await prisma.platformOwner.update({
+    where: { id: ownerRow.id },
+    data: { totpLastStep: BigInt(currentStep() - 2) },
+  });
+  const twinCode = await Promise.all(
+    [1, 2].map(() =>
+      request("/auth/platform/login", {
+        method: "POST",
+        body: { email, password, totpCode: codeFor(secret, currentStep()) },
+      })
+    )
+  );
+  assert.deepEqual(
+    twinCode.map((reply) => reply.status).sort(),
+    [200, 401],
+    "an authenticator code signs in once, even twice at once"
+  );
 
   // ============================================================
   // 7. Turning it off needs the password.

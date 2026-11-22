@@ -223,12 +223,15 @@ export async function verifySecondFactor(
     now,
     lastUsedStep: owner.totpLastStep === null ? null : Number(owner.totpLastStep),
   });
+  // Spent in ONE conditional write: two sign-ins with the same code each read «not used yet»
+  // and both passed (review batch 3, م-٢). Only the one that moves the step on is let in.
   if (check.ok) {
-    await prisma.platformOwner.update({
-      where: { id: ownerId },
-      data: { totpLastStep: BigInt(check.step!) },
+    const step = BigInt(check.step!);
+    const spent = await prisma.platformOwner.updateMany({
+      where: { id: ownerId, OR: [{ totpLastStep: null }, { totpLastStep: { lt: step } }] },
+      data: { totpLastStep: step },
     });
-    return { ok: true, usedRecoveryCode: false };
+    return spent.count === 1 ? { ok: true, usedRecoveryCode: false } : { ok: false };
   }
 
   const attempt = normaliseRecoveryCode(code);
@@ -241,11 +244,11 @@ export async function verifySecondFactor(
     });
     for (const candidate of candidates) {
       if (await verifyPassword(attempt, candidate.codeHash)) {
-        await prisma.platformOwnerRecoveryCode.update({
-          where: { id: candidate.id },
+        const spent = await prisma.platformOwnerRecoveryCode.updateMany({
+          where: { id: candidate.id, usedAt: null },
           data: { usedAt: now },
         });
-        return { ok: true, usedRecoveryCode: true };
+        return spent.count === 1 ? { ok: true, usedRecoveryCode: true } : { ok: false };
       }
     }
   }
