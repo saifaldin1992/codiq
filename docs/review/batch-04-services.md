@@ -15,16 +15,16 @@
 | `phase1-backend/src/services/order-bulk.service.ts` | 173 | 2026-11-22 (كاملاً) | لا نتيجة |
 | `phase1-backend/src/services/platform-staff.service.ts` | 335 | — | لم يُقرأ |
 | `phase1-backend/src/services/staff.service.ts` | 310 | 2026-11-22 (كاملاً) | م-١ |
-| `phase1-backend/src/services/registration.service.ts` | 318 | — | لم يُقرأ |
+| `phase1-backend/src/services/registration.service.ts` | 318 | 2026-11-22 (كاملاً) | لا نتيجة (ملاحظة) |
 | `phase1-backend/src/services/manual-provisioning.service.ts` | 223 | — | لم يُقرأ |
 | `phase1-backend/src/services/merchant-suspension.service.ts` | 185 | — | لم يُقرأ |
-| `phase1-backend/src/services/csv-transfer.service.ts` | 895 | — | لم يُقرأ |
-| `phase1-backend/src/services/csv.ts` | 119 | — | لم يُقرأ |
+| `phase1-backend/src/services/csv-transfer.service.ts` | 895 | جزئيّاً | التصدير: كلّ صفّ محميّ من حقن الصيغ — بقيّة الملفّ (الاستيراد) لم تُقرأ بعد |
+| `phase1-backend/src/services/csv.ts` | 119 | 2026-11-22 (كاملاً) | لا نتيجة |
 | `phase1-backend/src/services/availability.service.ts` | 1,066 | — | لم يُقرأ |
 | `phase1-backend/src/services/maintenance.service.ts` | 760 | — | لم يُقرأ |
 | `phase1-backend/src/services/delivery-rates.service.ts` | 104 | — | لم يُقرأ |
 | `phase1-backend/src/services/delivery.service.ts` | 471 | — | لم يُقرأ |
-| `phase1-backend/src/services/soft-delete/soft-delete.service.ts` | 1,348 | — | لم يُقرأ |
+| `phase1-backend/src/services/soft-delete/soft-delete.service.ts` | 1,348 | جزئيّاً | الاستعادة: مقيّدة بالمتجر ومقفلة وحدّ الخطّة داخل المعاملة — بقيّة الملفّ لم تُقرأ بعد |
 | `phase1-backend/src/services/product-catalog.service.ts` | 1,177 | — | لم يُقرأ |
 | `phase1-backend/src/services/storefront-config.service.ts` | 573 | — | لم يُقرأ |
 | `phase1-backend/src/services/search/postgres-trigram.engine.ts` | 442 | — | لم يُقرأ |
@@ -66,7 +66,7 @@
 | `phase1-backend/src/services/merchant-onboarding.service.ts` | 127 | — | لم يُقرأ |
 | `phase1-backend/src/services/search/search.types.ts` | 119 | — | لم يُقرأ |
 | `phase1-backend/src/services/reserved-slugs.ts` | 117 | — | لم يُقرأ |
-| `phase1-backend/src/services/owner-account.service.ts` | 113 | — | لم يُقرأ |
+| `phase1-backend/src/services/owner-account.service.ts` | 113 | 2026-11-22 (كاملاً) | قُرئ في الدفعة ٣ (م-٣ هناك) |
 | `phase1-backend/src/services/governorates.ts` | 104 | — | لم يُقرأ |
 | `phase1-backend/src/services/messaging-caps.service.ts` | 94 | — | لم يُقرأ |
 | `phase1-backend/src/services/inventory-movements.service.ts` | 82 | — | لم يُقرأ |
@@ -98,3 +98,7 @@
 ### ملاحظات
 - `pos.service.ts`: سعر السطر يحدّده الكاشير (مقصود — بيع في المحلّ خلف `pos.sell`).
 - `return-request.service.ts`: الموافقة (انتقال الطلب) وتحديث طلب الإرجاع في خطوتين؛ وطلبا إرجاع متزامنان قد يُفتحان. بلا ضرر ماليّ — الانتقال محميّ بالنسخة.
+
+### فحص آليّ على كلّ ملفّات الدفعة: قراءة أو كتابة بالمعرّف وحده
+- بحثتُ في كلّ ملفّ لم يُقرأ بعد عن `update/delete/findUnique…({ where: { id } })` بلا `storeId`. كلّ النتائج إمّا `storeId` من سياق الخادم، أو معرّف صفّ قُرئ قبله داخل المتجر؛ والاثنان الآتيان من الطلب مباشرة (`updateCategory`، `reviewPrescription`) مقيّدان قبل الكتابة. **لا وصول عبر المتاجر.**
+- `registration.service.ts`: `storeForHost` يقبل `customDomain` بلا علامة تحقّق — لكن لا مسار في الكود يكتب `customDomain`؛ يُضبط من خارج التطبيق. يُراجع حين يُبنى ربط النطاقات.
