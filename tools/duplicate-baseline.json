@@ -3,7 +3,7 @@
  "counts": {
   "duplicatedLines": 7968,
   "blocks": 573,
-  "percent": 5.52
+  "percent": 5.51
  },
  "files": {
   "client/src/components/AbandonedCartsPanel.tsx": 19,

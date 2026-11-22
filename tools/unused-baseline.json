@@ -1,7 +1,7 @@
 {
  "counts": {
   "unreachedFiles": 45,
-  "unusedExports": 255,
+  "unusedExports": 249,
   "unusedDependencies": 0
  },
  "unreachedFiles": [
@@ -200,12 +200,6 @@
   "phase1-backend/src/modules/market-visual/routes.ts#SEARCH_PHOTO_MAX_BYTES",
   "phase1-backend/src/modules/market-visual/visual.service.ts#SIMILARITY_FLOOR",
   "phase1-backend/src/modules/platform-module.ts#ModuleDomain",
-  "phase1-backend/src/notifications/notification-outbox.service.ts#COURIER_DISPATCHED_EVENT_TYPE",
-  "phase1-backend/src/notifications/notification-outbox.service.ts#CourierDispatchSettings",
-  "phase1-backend/src/notifications/notification-outbox.service.ts#DEFAULT_NOTIFICATION_PREFERENCES",
-  "phase1-backend/src/notifications/notification-outbox.service.ts#OutboxWriter",
-  "phase1-backend/src/notifications/notification-outbox.service.ts#StoreNotificationPolicy",
-  "phase1-backend/src/notifications/notification-outbox.service.ts#storeNotificationPolicy",
   "phase1-backend/src/notifications/resend-webhook.ts#ComplaintOutcome",
   "phase1-backend/src/notifications/resend-webhook.ts#RESEND_WEBHOOK_TOLERANCE_MS",
   "phase1-backend/src/services/abandoned-cart.service.ts#ABANDONED_CART_DEFAULT_WINDOW_HOURS",

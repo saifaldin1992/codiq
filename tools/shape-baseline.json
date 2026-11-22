@@ -83,7 +83,7 @@
   },
   "phase1-backend/src/http/errors.ts": {
    "longLines": 7,
-   "oversize": 190,
+   "oversize": 186,
    "longFunctions": 1
   },
   "phase1-backend/src/http/routes/account-security.ts": {
@@ -643,7 +643,7 @@
   },
   "phase1-backend/src/notifications/outbox-worker.ts": {
    "longLines": 11,
-   "oversize": 400,
+   "oversize": 393,
    "longFunctions": 3
   },
   "phase1-backend/src/notifications/resend-webhook.ts": {
