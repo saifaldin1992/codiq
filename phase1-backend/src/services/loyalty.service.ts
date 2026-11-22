@@ -387,8 +387,6 @@ export async function reverseLoyaltyForReturn(
   }));
   if (rows.length === 0) return { clawedBack: 0, refunded: 0 };
 
-  // One statement, `skipDuplicates` — see awardLoyaltyPoints for why this must
-  // not be a try/catch. Reversing twice writes nothing the second time.
   const before = await tx.loyaltyEntry.findMany({
     where: {
       storeId: input.storeId,
@@ -398,6 +396,8 @@ export async function reverseLoyaltyForReturn(
     select: { kind: true },
   });
   const alreadyDone = new Set(before.map((row) => row.kind));
+  // One statement, `skipDuplicates` — see awardLoyaltyPoints for why this must
+  // not be a try/catch. Reversing twice writes nothing the second time.
   await tx.loyaltyEntry.createMany({ data: rows, skipDuplicates: true });
 
   let clawedBack = 0;
@@ -519,11 +519,11 @@ export async function commitLoyaltyRedemption(
   });
 }
 
-/** The shopper's own statement: his balance and where it came from. */
 /** The cursor's list kind. One per list, so a cursor cannot cross lists. */
 const LOYALTY_ENTRIES_KIND = "storefront.account.loyalty";
 
 /**
+ * The shopper's own statement: his balance and where it came from.
  * D-18: `entries` was a fixed 50 rows with no page 2, so a shopper who has been
  * earning points for a year could not see where the older ones came from —
  * which is the only question this statement answers.

@@ -5,8 +5,8 @@
 | الملفّ | الأسطر | قُرئ في | النتائج |
 |---|---|---|---|
 | `phase1-backend/src/services/storefront.service.ts` | 2,575 | 2026-11-22 (الأسطر ١–٢٦٣٠ كاملة) | م-١، م-٢، ت-١…ت-٦، ر-١…ر-٧ |
-| `phase1-backend/src/services/order-lifecycle.service.ts` | 715 | — | لم يُقرأ |
-| `phase1-backend/src/services/loyalty.service.ts` | 622 | — | لم يُقرأ |
+| `phase1-backend/src/services/order-lifecycle.service.ts` | 715 | 2026-11-22 (كاملاً) | م-٤ (سؤال للمالك)، ت-٧، ر-٨، ر-٩، ملاحظة للدفعة الواجهة |
+| `phase1-backend/src/services/loyalty.service.ts` | 622 | 2026-11-22 (كاملاً) | ر-١٠، ملاحظتان؛ والتحقّق من أنّ مجموع الطلب لا يصير سالباً |
 | `phase1-backend/src/modules/market-payments/payments.service.ts` | 614 | — | لم يُقرأ |
 | `phase1-backend/src/services/finance.service.ts` | 608 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-cart/checkout.service.ts` | 596 | — | لم يُقرأ |
@@ -108,3 +108,33 @@
 ### [ر-٧] تعليق `deliveryRateForGovernorate` فوق دالّة أخرى — ترتيب
 - الأسطر ١٢٩٩–١٣٠٨ فوق `publicDeliveryAreas` (فوق تعليقها هي)، والدالّة التي يصفها في السطر ١٣٣٧.
 - الحالة: **مُصلَح** — `3765695`.
+
+### [م-٤] طلب «مُرتجَع» من «قيد التوصيل» لا يعيد قسيمة المنصّة — سؤال للمالك
+- المكان: `transitionOrderStatus`، فرع `returned`. حين يرفض الزبون الطرد عند الباب (`out_for_delivery → returned`) لم يدفع شيئاً، فتُعاد نقاطه (`reverseLoyaltyForReturn`) لكنّ قسيمة المنصّة تبقى «مستعملة» (التعليق: «The coupon is not given back — it was used»). هذا صحيح بعد `completed`، أمّا قبله فالقسيمة لم تُستعمل فعلاً.
+- لم يُغيَّر: تغيير سلوك منتج — يحتاج قرار المالك (القاعدة ١١).
+
+### [ت-٧] `orderPayload(order: any)` و`where: any` مرّتين — تحسين
+- الحالة: **مُصلَح** — `0317048`: `StoreOrder` مع العلاقات الاختياريّة، و`Prisma.StoreOrderWhereInput`. الدليل: اسم حقل خاطئ صار خطأ ترجمة (TS2551).
+
+### [ر-٨] أساس «ما دُفع نقداً للبضاعة» مكتوب ثلاث مرّات — ترتيب
+- الحالة: **مُصلَح** — `a18ef2c`: ثابت واحد `paidGoodsIqd` لنقاط المتجر ونقاط المنصّة والعجلة.
+
+### [ر-٩] `orderTagFilter` يعيد كتابة `normalizeTagKey` — ترتيب
+- الحالة: **مُصلَح** — `a18ef2c`: يستدعيه بدل نسخه.
+
+### ملاحظة للدفعة الخاصّة بالواجهة
+- `OrderWorkspace.tsx` يرسل نهاية اليوم `T23:59:59.999Z` (توقيت غرينتش)، و`DeliveryCenter.tsx` يرسلها بتوقيت الجهاز. في العراق (+3) طلب الساعة ١:٠٠ فجراً يُحسب في اليوم السابق في الأولى. يُفحص في دفعة الواجهة.
+
+### تحقّق: مجموع الطلب لا يصير سالباً أبداً — **مُثبت**
+- قسيمة المتجر ≤ المجموع الفرعيّ (`computeCouponDiscount`: `Math.min(amountOff, subtotal)`، والنسبة ١–١٠٠ بقيد في القاعدة).
+- النقاط ≤ (المجموع الفرعيّ − قسيمة المتجر) (`previewLoyaltyRedemption`: `payableLeft`).
+- قسيمة المنصّة ≤ ما بقي بعد الاثنين (`platformDiscountFor`: `Math.min(…, baseIqd)` و`baseIqd = subtotal − discount − loyalty`).
+- إذن `total = subtotal − discount − loyalty − platform + delivery ≥ delivery ≥ 0`.
+
+### [ر-١٠] تعليقان في غير مكانهما في `loyalty.service.ts` — ترتيب
+- وصف `loyaltyStatement` كان فوق ثابت نوع القائمة، وتعليق «One statement, skipDuplicates» كان فوق القراءة لا فوق الكتابة.
+- الحالة: **مُصلَح** — نُقلا. شجرة الصياغة متطابقة قبل وبعد (`ast-same`).
+
+### ملاحظتان (لا إصلاح)
+- `updateLoyaltySettings` يقرأ ثمّ يكتب بلا معاملة: طلبان متزامنان (أحدهما يرفع النقاط والآخر يرفع القيمة) قد يتجاوزان حدّ الملاءة معاً — لكنّ القيد `stores_loyalty_solvency_ck` في القاعدة يرفض ذلك، فالنتيجة خطأ ٥٠٠ لا برنامج مُفلس. غير واقعيّ (التاجر نفسه، في اللحظة نفسها).
+- `checkout` يحوّل `loyaltyPoints` غير الصالح (`"abc"` أو `1.5`) إلى ٠ بصمت قبل `previewLoyaltyRedemption`، فرسالة `INVALID_LOYALTY_POINTS` لا تُبلَغ منه. الواجهة ترسل عدداً صحيحاً دائماً؛ يُترك.
