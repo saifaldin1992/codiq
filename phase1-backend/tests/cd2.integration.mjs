@@ -975,6 +975,13 @@ try {
     ],
   };
 
+  // Review batch 4, ت-٧: the product id in this public path reached a raw `::uuid` cast — any
+  // other text was a Postgres 22P02 and an unhandled 500 for an anonymous visitor.
+  const notAnId = await request(recPath(storeA, "not-a-product-id"));
+  assert.equal(notAnId.status, 400, `a malformed id is the caller's mistake · ${notAnId.status}`);
+  assert.equal(notAnId.payload.error.code, "INVALID_IDENTIFIER");
+  summary.recommendationsMalformedId = "400 INVALID_IDENTIFIER, not a 500";
+
   console.log(JSON.stringify(summary, null, 2));
 } finally {
   await new Promise((resolve) => server.close(resolve));

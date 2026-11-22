@@ -23,6 +23,7 @@ import {
 } from "../services/soft-delete/fk-violations.js";
 import { isRetryableTransactionError } from "../db/serializable-retry.js";
 import { clientIp } from "./client-ip.js";
+import { malformedIdentifier } from "./malformed-identifier.js";
 
 /**
  * D-41 (phase 24-أ): the handler is now two halves.
@@ -337,13 +338,8 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
   // under it: a malformed id is the CALLER'S mistake, and a 400 says so. It must
   // stay a 4xx and never a 500 — a 500 is a page in the error budget and a
   // wake-up call about a fault the server does not have.
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2023") {
-    return {
-      status: 400,
-      error: { code: "INVALID_IDENTIFIER", message: "أحد المعرّفات في الطلب غير صالح." },
-      mapped: true,
-    };
-  }
+  const malformed = malformedIdentifier(error);
+  if (malformed) return malformed;
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
     const target = Array.isArray(error.meta?.target)
       ? error.meta.target.join(",")
