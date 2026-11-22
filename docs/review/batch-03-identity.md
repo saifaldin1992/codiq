@@ -10,39 +10,39 @@
 | `phase1-backend/src/services/session.service.ts` | 294 | 2026-11-22 (كاملاً) | لا نتيجة |
 | `phase1-backend/src/services/password-reset.service.ts` | 675 | 2026-11-22 (كاملاً) | ت-١، ت-٢ (قُسّم) |
 | `phase1-backend/src/services/password.service.ts` | 164 | 2026-11-22 (كاملاً) | م-١ |
-| `phase1-backend/src/auth/password-policy.ts` | 381 | — | لم يُقرأ |
-| `phase1-backend/src/auth/breached-passwords.ts` | 22 | — | لم يُقرأ |
+| `phase1-backend/src/auth/password-policy.ts` | 381 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/auth/breached-passwords.ts` | 22 | 2026-11-22 (كاملاً) | لا نتيجة |
 | `phase1-backend/src/auth/totp.ts` | 169 | 2026-11-22 (كاملاً) | لا نتيجة |
 | `phase1-backend/src/services/owner-totp.service.ts` | 253 | 2026-11-22 (كاملاً) | م-٢ |
 | `phase1-backend/src/services/platform-staff-totp.service.ts` | 116 | 2026-11-22 (كاملاً) | م-٢ |
-| `phase1-backend/src/auth/secret-box.ts` | 324 | — | لم يُقرأ |
-| `phase1-backend/src/auth/keys.ts` | 104 | — | لم يُقرأ |
-| `phase1-backend/src/auth/staff-permissions.ts` | 391 | — | لم يُقرأ |
-| `phase1-backend/src/auth/platform-permissions.ts` | 216 | — | لم يُقرأ |
-| `phase1-backend/src/auth/redirects.ts` | 75 | — | لم يُقرأ |
-| `phase1-backend/src/auth/auth.errors.ts` | 15 | — | لم يُقرأ |
+| `phase1-backend/src/auth/secret-box.ts` | 324 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/auth/keys.ts` | 104 | 2026-11-22 (كاملاً) | ملاحظة (للدفعة ١٣) |
+| `phase1-backend/src/auth/staff-permissions.ts` | 391 | 2026-11-22 (كاملاً) | ملاحظة |
+| `phase1-backend/src/auth/platform-permissions.ts` | 216 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/auth/redirects.ts` | 75 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/auth/auth.errors.ts` | 15 | 2026-11-22 (كاملاً) | لا نتيجة |
 | `phase1-backend/src/modules/market-account/otp.service.ts` | 190 | 2026-11-22 (كاملاً) | لا نتيجة |
 | `phase1-backend/src/modules/market-account/account.service.ts` | 397 | 2026-11-22 (كاملاً) | ملاحظة |
 | `phase1-backend/src/modules/market-account/shopper-auth.ts` | 67 | 2026-11-22 (كاملاً) | لا نتيجة |
 | `phase1-backend/src/modules/market-account/routes.ts` | 227 | 2026-11-22 (كاملاً) | لا نتيجة |
-| `phase1-backend/src/modules/market-account/schema.ts` | 56 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-account/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/http/shared.ts` | 495 | — | لم يُقرأ |
-| `phase1-backend/src/http/errors.ts` | 601 | — | لم يُقرأ |
-| `phase1-backend/src/http/security-headers.ts` | 381 | — | لم يُقرأ |
-| `phase1-backend/src/http/app.ts` | 193 | — | لم يُقرأ |
-| `phase1-backend/src/http/validate.ts` | 124 | — | لم يُقرأ |
-| `phase1-backend/src/http/correlation.ts` | 107 | — | لم يُقرأ |
-| `phase1-backend/src/http/client-ip.ts` | 74 | — | لم يُقرأ |
-| `phase1-backend/src/http/session-cookie.ts` | 62 | — | لم يُقرأ |
-| `phase1-backend/src/http/https-only.ts` | 59 | — | لم يُقرأ |
-| `phase1-backend/src/http/api-version.ts` | 59 | — | لم يُقرأ |
-| `phase1-backend/src/http/routes/auth.ts` | 154 | — | لم يُقرأ |
-| `phase1-backend/src/http/routes/account-security.ts` | 99 | — | لم يُقرأ |
-| `phase1-backend/src/http/routes/owner-security.ts` | 97 | — | لم يُقرأ |
-| `phase1-backend/src/http/routes/sessions.ts` | 64 | — | لم يُقرأ |
-| `phase1-backend/src/services/product-image-storage.service.ts` | 544 | — | لم يُقرأ |
-| `phase1-backend/src/services/image-variants.service.ts` | 202 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-account/schema.ts` | 56 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-account/index.ts` | 10 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/http/shared.ts` | 495 | 2026-11-22 (كاملاً) | ملاحظة |
+| `phase1-backend/src/http/errors.ts` | 601 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/http/security-headers.ts` | 381 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/http/app.ts` | 193 | 2026-11-22 (كاملاً) | ملاحظة |
+| `phase1-backend/src/http/validate.ts` | 124 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/http/correlation.ts` | 107 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/http/client-ip.ts` | 74 | 2026-11-22 (كاملاً) | ملاحظة (شرط نشر) |
+| `phase1-backend/src/http/session-cookie.ts` | 62 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/http/https-only.ts` | 59 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/http/api-version.ts` | 59 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/http/routes/auth.ts` | 154 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/http/routes/account-security.ts` | 99 | 2026-11-22 (كاملاً) | م-١ |
+| `phase1-backend/src/http/routes/owner-security.ts` | 97 | 2026-11-22 (كاملاً) | م-٣ |
+| `phase1-backend/src/http/routes/sessions.ts` | 64 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/services/product-image-storage.service.ts` | 544 | 2026-11-22 (كاملاً) | م-٤، ت-٤ (قُسّم) |
+| `phase1-backend/src/services/image-variants.service.ts` | 202 | 2026-11-22 (كاملاً) | م-٤ |
 
 ## النتائج
 
@@ -67,3 +67,25 @@
 
 ### ملاحظة
 - `createAddress` يعدّ العناوين خارج المعاملة: إنشاءان متزامنان قد يتجاوزان العشرين بواحد. لا ضرر.
+
+### [م-٣] تغيير بريد المالك يخمّن كلمة المرور بلا حدّ — مهمّ (أمان)
+- المكان: `changeOwnerEmail`. يطلب كلمة المرور الحاليّة لكن بلا حدّ محاولات، بينما تغيير كلمة المرور وإطفاء العامل الثاني يتشاركان ميزانيّة `password_reverify` (١٠ لكلّ نافذة). جلسة مالك مسروقة كانت تخمّن كلمته هنا بلا نهاية، والتخمين الصحيح يسلّم بريد الحساب ثمّ كلمته بالاستعادة.
+- الحالة: **مُصلَح** — `8d64a86`: الميزانيّة نفسها، وتُعاد عند كلمة صحيحة. الاختبار (`pc1`): ١٢ كلمة خاطئة — كلّها «غير صحيحة» قبل، و٤٢٩ ضمنها بعد. (مساعد طلبات الاختبار كان يمسح كلّ عدّادات الحدّ قبل كلّ كتابة، ولذلك لم يُرَ؛ صار يقبل `keepRateLimits`.)
+
+### [م-٤] الصور العامّة تحمل بيانات EXIF لمن رفعها — مهمّ (خصوصيّة)
+- المكان: صور المتجر (البانر، الشعار، الغلاف) وصور السوق (البانر، الصورة الشخصيّة، صورة التذكرة، غلاف الريل) كانت تُخزَّن بايتاً ببايت، فصورة الهاتف تخرج ببياناتها — الجهاز والوقت وغالباً موقع GPS — على رابط عامّ. صور المنتجات وحدها كانت تُعاد ترميزاً لهذا السبب.
+- الحالة: **مُصلَح** — `26692fa`: `stripImageMetadata` يعيد الترميز بالصيغة نفسها، مستقيمة، بلا بيانات. اختباران كانا يقرّران «البايتات نفسها» صارا يقرّران «الصورة نفسها» (الصيغة والعرض والارتفاع). الاختبار (`banners`): JPEG بعلامة EXIF — بقيت في البايتات العامّة قبل، واختفت بعد.
+
+### [ت-٣] سجلّ المدفوعات الإلكترونيّة خلف صلاحيّة التجّار لا الماليّة — تحسين (أقلّ صلاحيّة)
+- المكان: `GET /platform/market/payments` كان يطلب `merchants.manage`: يراه مشرف التسجيلات ولا يراه المحاسب — عكس الدورين.
+- الحالة: **مُصلَح** — `3c8fff2`: `finance.view`. الاختبار (`ps1`): المحاسب ومشرف التسجيلات — [٤٠٣، ٢٠٠] قبل، [٢٠٠، ٤٠٣] بعد.
+
+### [ت-٤] تقسيم ملفّ التخزين — تحسين
+- `96db637`: `product-image-storage.service.ts` ← `services/storage/{bucket,validate,products,prescriptions,store-images,reels}.ts`، نقلٌ حرفيّ؛ حارس السجلّات يراقب المجلّد.
+
+### ملاحظات (لا إصلاح)
+- `keys.ts`: كلّ غرض (الجلسة، رمز الدخول، إلغاء الاشتراك) يقبل الجذر الخام «انتقالاً» (قرار D-62، مُختبَر). للجلسة ميّت فعلاً — صفّ الجلسة في القاعدة شرط والصفوف القديمة انتهت؛ ولرمز الدخول لم يُوقَّع خاماً قطّ. مرشّح للحذف في الدفعة ١٣ (الحذف)، ويبقى لروابط إلغاء الاشتراك.
+- `staff-permissions.ts`/`shared.ts`: `requireStoreStaff` و`resolveStoreActor` لا يفحصان `store.isActive`، و`requireMerchantSession` لا يفحص `merchant.isActive` (تعليق `merchant-suspension` يقول العكس). غير قابل للوصول اليوم: إيقاف التاجر يُبطل جلساته وجلسات موظّفيه في المعاملة نفسها، ولا مسار يوقف متجراً حيّاً. يُراجع حين يُضاف «إيقاف متجر».
+- `client-ip.ts`: الثقة بـ`cf-connecting-ip` شرط نشر — المنشأ يجب ألّا يُبلغ إلّا عبر Cloudflare.
+- `app.ts`: `/ready` العامّ يكشف حكم كلّ مجموعة إعداد (لا أسماء ولا قيم) — مقصود للمراقبة.
+- فيديو الريلز يُخزَّن كما رُفع؛ بيانات MP4 (قد تحمل موقعاً) خارج نطاق إصلاح الصور — للدفعة الخاصّة بالسوق.
