@@ -6,6 +6,7 @@ import {
   releasePlatformCoupon,
   revokeWheelSpins,
 } from "./platform-rewards.service.js";
+import type { Prisma, StoreOrder } from "@prisma/client";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
 import {
@@ -162,7 +163,10 @@ const orderInclude = {
   },
 } as const;
 
-function orderPayload(order: any) {
+/** Lists pass the bare row (the platform list adds `store`); detail reads add every relation. */
+function orderPayload(
+  order: StoreOrder & { store?: object; items?: object[]; statusEvents?: object[] }
+) {
   return {
     id: order.id,
     storeId: order.storeId,
@@ -288,7 +292,7 @@ export async function listStoreOrders(storeId: string, query: Record<string, unk
   // the additive order_tags(store_id, tag_normalized) index.
   const tag =
     typeof query.tag === "string" && query.tag.trim() ? orderTagFilter(query.tag) : undefined;
-  const where: any = {
+  const where: Prisma.StoreOrderWhereInput = {
     storeId,
     ...(status ? { status } : {}),
     ...(from || to
@@ -689,7 +693,7 @@ export async function listPlatformOrders(query: Record<string, unknown>) {
     typeof query.storeSlug === "string" && query.storeSlug ? query.storeSlug : undefined;
   // PG-6: the same widening as the merchant list, cross-tenant by design —
   // `searchPlatformOrders` is a separate engine method with no storeId to omit.
-  const where: any = {
+  const where: Prisma.StoreOrderWhereInput = {
     ...(status ? { status } : {}),
     ...(from || to
       ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } }
