@@ -9,6 +9,7 @@
 | ٠ — الخطّة وأدوات القياس | [batch-00-tooling.md](batch-00-tooling.md) |
 | ١ — التنسيق الآليّ على ١٠٠ حرف | [batch-01-formatting.md](batch-01-formatting.md) |
 | ٢ — مسارات المال | [batch-02-report.md](batch-02-report.md) · السجلّ: [batch-02-money.md](batch-02-money.md) |
+| ٣ — الهويّة والأمان | [batch-03-report.md](batch-03-report.md) · السجلّ: [batch-03-identity.md](batch-03-identity.md) |
 
 خطّة المراجعة في [`docs/CODE_REVIEW_PLAN.md`](../CODE_REVIEW_PLAN.md). هنا سجلّها: **ملفّ لكلّ دفعة**
 (`batch-02-money.md` …)، وفي كلّ ملفّ سطر لكلّ ملفّ كود قُرئ. لا يُغلق ملفّ دفعة وفيه ملفّ بلا سطر.
