@@ -9,7 +9,7 @@
 | `phase1-backend/src/services/loyalty.service.ts` | 622 | 2026-11-22 (كاملاً) | ر-١٠، ملاحظتان؛ والتحقّق من أنّ مجموع الطلب لا يصير سالباً |
 | `phase1-backend/src/modules/market-payments/payments.service.ts` | 614 | 2026-11-22 (كاملاً) | ح-١، م-٥، م-٦، م-٧، ت-٨ (قُسّم)، م-٩ |
 | `phase1-backend/src/services/finance.service.ts` | 608 | 2026-11-22 (كاملاً) | م-١٠، م-١١، ت-١٠ (قُسّم)، ملاحظة |
-| `phase1-backend/src/modules/market-cart/checkout.service.ts` | 596 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-cart/checkout.service.ts` | 596 | 2026-11-22 (كاملاً) | م-١٢، ت-١٢ (قُسّم)، ملاحظة |
 | `phase1-backend/src/modules/market-rewards/rewards.service.ts` | 489 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-cart/cart.service.ts` | 460 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-partner/partner.service.ts` | 459 | 2026-11-22 (كاملاً) | ح-٢، م-٨، ت-٩ (قُسّم)، إصلاح اختبار |
@@ -176,7 +176,7 @@
 
 ### ملاحظات (لا إصلاح الآن)
 - `startInstalmentPlan` يلغي الخطط القديمة عندنا ولا يُبلغ الجهة (`cancelPlan`)؛ تنتهي عندها بمهلتها.
-- إعادة طلب تقسيط بمفتاح التكرار نفسه بعد نجاحه تُجاب «اختر الخطّة من جديد» بدل الطلب الأصليّ (التأكيد يسبق كشف التكرار). لا ضرر ماليّ.
+- ~~إعادة طلب تقسيط بمفتاح التكرار نفسه…~~ **سُحبت**: `placeMarketOrder` يكشف التكرار (`priorSucceededCheckout`) قبل تأكيد الرمز، فالإعادة تعيد الطلب الأصليّ.
 
 ### [م-١٠] التسوية اليدويّة للإرجاع تُقيَّد مرّتين بنقرتين — مهمّ
 - المكان: `createManualReturnAdjustment` (`services/finance/ledger.ts`). يقرأ «هل عُكس؟» ثمّ يكتب، بلا قفل ولا قيد فريد في الدفتر. نقرتان معاً: عكسان، والدفتر لا يُعدَّل.
@@ -192,3 +192,13 @@
 ### ملاحظة
 - `merchantFinanceReport` يعرض ٢٠٠ قيد على الأكثر بلا صفحة ثانية (المجاميع صحيحة لأنّها من القاعدة). يُعالج في دفعة الواجهات/القوائم.
 - `perf:evidence` (خارج CI) يحتاج جدول بيانات `perf_s` غير موجود محلّياً.
+
+### [م-١٢] صفحة طلب الزبون لا تعرض كوبون السوق — مهمّ
+- المكان: `shopperOrder` (`market-cart/checkout/orders.ts`) وصفحة الطلب. كلّ حدود المجموع ما عدا `platformDiscountIqd`، فطلب بكوبون سوق يُظهر ٤٠٬٠٠٠ + ٣٬٠٠٠ توصيل «= ٣٩٬٠٠٠». من صنف ق-187 نفسه على شاشة التاجر.
+- الحالة: **مُصلَح** — `0bd983b`: الواجهة الخلفيّة ترسله والصفحة تعرضه «كوبون السوق» (تسمية صفحة الدفع نفسها). الاختبار (`market:rewards`): حدود المجموع تساوي المجموع — فشل قبل، نجح بعد.
+
+### [ت-١١] و[ت-١٢] تقسيم صفحة الطلبات وملفّ دفع السوق — تحسين
+- `b8bd6b8`: `MarketOrdersPages.tsx` ← `market/pages/orders/{list,detail,parts,ratings}.tsx` (نقل حرفيّ)، و`3e669e5`: قسم المجاميع صار مكوّن `OrderTotals`. و`4a82665`: `checkout.service.ts` ← `market-cart/checkout/{customer,summary,place,orders}.ts` (نقل حرفيّ).
+
+### ملاحظة
+- إعادة طلب بطاقة بمفتاح التكرار نفسه تعيد الطلب بلا كائن `payment`، فلا يُعاد توجيه الزبون إلى صفحة الدفع من الإعادة. صفحة الطلب تعرض الدفع وتسمح بإكماله؛ يُترك.
