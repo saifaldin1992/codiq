@@ -655,7 +655,33 @@ try {
     { status: "active", isActive: true, vacationMode: false },
     "the legacy mirror follows the status"
   );
+  // Owner decision 2026-11-22 (review batch 4): «إعادة التفعيل» lifts the platform's own
+  // suspension and nothing else. A store the MERCHANT closed for maintenance stays his decision;
+  // it used to be opened to shoppers by one press on the platform's screen.
+  assert.equal(
+    (await request(statusA, { method: "PUT", token: tokenA, body: { status: "maintenance" } }))
+      .status,
+    200
+  );
+  const overruled = await request(`/platform/stores/${storeA.slug}/status`, {
+    method: "PATCH",
+    token: ownerToken,
+    body: { status: "active" },
+  });
+  assert.equal(overruled.status, 409, JSON.stringify(overruled.payload));
+  assert.equal(overruled.payload.error.code, "STORE_NOT_SUSPENDED");
+  assert.equal(
+    (await prisma.store.findUniqueOrThrow({ where: { id: storeA.id }, select: { status: true } }))
+      .status,
+    "maintenance",
+    "the merchant's own closure stands"
+  );
+  assert.equal(
+    (await request(statusA, { method: "PUT", token: tokenA, body: { status: "active" } })).status,
+    200
+  );
   summary.storeStatus = {
+    liftOnlySuspended: "STORE_NOT_SUSPENDED",
     paused: "banner",
     maintenance: 423,
     suspendedByMerchant: 422,

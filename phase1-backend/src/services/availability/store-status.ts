@@ -164,6 +164,14 @@ export async function setStoreStatusByPlatform(
       select: { status: true, name: true, slug: true },
     });
     if (!before) throw new HttpError(404, "STORE_NOT_FOUND", "المتجر المطلوب غير موجود.");
+    // Owner decision 2026-11-22: «active» lifts the platform's OWN suspension and nothing else —
+    // a store the merchant paused, closed or put in maintenance stays his decision.
+    if (status === "active" && before.status !== "suspended")
+      throw new HttpError(
+        409,
+        "STORE_NOT_SUSPENDED",
+        "المتجر لم توقفه المنصّة — حالته قرار التاجر."
+      );
     const store = await tx.store.update({
       where: { id: storeId },
       data: {

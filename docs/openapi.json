@@ -616,6 +616,7 @@
                   "STORE_NOT_ACCEPTING_ORDERS",
                   "STORE_NOT_FOUND",
                   "STORE_NOT_LISTED",
+                  "STORE_NOT_SUSPENDED",
                   "STORE_ON_VACATION",
                   "STORE_SUSPENDED",
                   "SUSPENSION_REASON_REQUIRED",
@@ -49333,6 +49334,19 @@
               "STORE_NOT_FOUND"
             ]
           },
+          "409": {
+            "description": "`STORE_NOT_SUSPENDED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "STORE_NOT_SUSPENDED"
+            ]
+          },
           "413": {
             "description": "`REQUEST_BODY_TOO_LARGE`",
             "content": {
@@ -73899,6 +73913,14 @@
       ],
       "messages": [
         "متجرك ليس معروضاً في السوق بعد."
+      ]
+    },
+    "STORE_NOT_SUSPENDED": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "المتجر لم توقفه المنصّة — حالته قرار التاجر."
       ]
     },
     "STORE_ON_VACATION": {
