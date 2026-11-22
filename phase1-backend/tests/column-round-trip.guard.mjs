@@ -71,7 +71,7 @@ const clientText = sources(path.join(repoRoot, "client/src"), /\.tsx?$/)
 
 const READERS = [
   { file: "registration.service.ts", fn: "listRegistrationRequests" },
-  { file: "entitlement.service.ts", fn: "listMerchantsWithPlans" },
+  { file: "entitlement/merchants.ts", fn: "listMerchantsWithPlans" },
 ];
 
 /** Closed by ق-167: written, selected by a NAMED reader, and rendered. */

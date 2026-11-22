@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2583,
-  "oversizeFiles": 106,
+  "oversizeFiles": 105,
   "longFunctions": 441
  },
  "files": {
@@ -711,10 +711,30 @@
    "oversize": 58,
    "longFunctions": 1
   },
-  "phase1-backend/src/services/entitlement.service.ts": {
-   "longLines": 9,
-   "oversize": 590,
-   "longFunctions": 4
+  "phase1-backend/src/services/entitlement/catalog.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 2
+  },
+  "phase1-backend/src/services/entitlement/merchants.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/entitlement/plans.ts": {
+   "longLines": 3,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/entitlement/subscribe.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/services/entitlement/usage.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 1
   },
   "phase1-backend/src/services/feature-flags.service.ts": {
    "longLines": 0,

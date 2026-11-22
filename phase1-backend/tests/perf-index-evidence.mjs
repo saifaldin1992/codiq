@@ -90,7 +90,7 @@ const noisyOrder = (
 const LISTS = [
   {
     id: "platform.merchants",
-    src: "entitlement.service.ts:360",
+    src: "entitlement/merchants.ts#listMerchantsWithPlans",
     model: "merchant",
     table: "merchants",
     where: {},
@@ -134,7 +134,7 @@ const LISTS = [
 
   {
     id: "platform.upgrade-requests",
-    src: "entitlement.service.ts:464",
+    src: "entitlement/merchants.ts#listUpgradeRequests",
     model: "planUpgradeRequest",
     table: "plan_upgrade_requests",
     where: {},

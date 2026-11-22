@@ -53,13 +53,13 @@
       "index": "customers_store_created_id_idx"
     },
     {
-      "key": "services/entitlement.service.ts#listMerchantsWithPlans",
+      "key": "services/entitlement/merchants.ts#listMerchantsWithPlans",
       "model": "Merchant",
       "column": "created_at",
       "index": "merchants_created_id_idx"
     },
     {
-      "key": "services/entitlement.service.ts#listUpgradeRequests",
+      "key": "services/entitlement/merchants.ts#listUpgradeRequests",
       "model": "PlanUpgradeRequest",
       "column": "created_at",
       "index": "plan_upgrade_requests_created_id_idx"
