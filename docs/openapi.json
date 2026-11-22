@@ -221,6 +221,7 @@
                 "enum": [
                   "ACCOUNT_HAS_PASSWORD",
                   "ADDON_UNAVAILABLE",
+                  "ADDRESS_BOOK_FULL",
                   "ADDRESS_NOT_FOUND",
                   "ADDRESS_PHONE_UNVERIFIED",
                   "ADDRESS_REQUIRED",
@@ -264,6 +265,7 @@
                   "COUPON_CUSTOMER_LIMIT_REACHED",
                   "COUPON_EXHAUSTED",
                   "COUPON_EXPIRED",
+                  "COUPON_HELD_BY_SHOPPERS",
                   "COUPON_INVALID",
                   "COUPON_LIMIT_BELOW_ISSUED",
                   "COUPON_MIN_SUBTOTAL_NOT_MET",
@@ -307,6 +309,7 @@
                   "DUPLICATE_PLAN_CODE",
                   "DUPLICATE_PRODUCT_SKU",
                   "DUPLICATE_SKU_EXHAUSTED",
+                  "DUPLICATE_SKU_IN_RESTORE",
                   "DUPLICATE_STORE_SLUG",
                   "DUPLICATE_UPGRADE_REQUEST",
                   "DUPLICATE_VARIANT_SKU",
@@ -375,6 +378,7 @@
                   "INVALID_HOST",
                   "INVALID_IDEMPOTENCY_KEY",
                   "INVALID_IDENTIFIER",
+                  "INVALID_IMAGE",
                   "INVALID_INBOX_KEY",
                   "INVALID_INCIDENT",
                   "INVALID_INPUT",
@@ -10041,7 +10045,7 @@
             ]
           },
           "409": {
-            "description": "`COUPON_ALREADY_ISSUED` · `DUPLICATE_COUPON_CODE`",
+            "description": "`COUPON_ALREADY_ISSUED` · `COUPON_HELD_BY_SHOPPERS` · `DUPLICATE_COUPON_CODE`",
             "content": {
               "application/json": {
                 "schema": {
@@ -10051,6 +10055,7 @@
             },
             "x-codiq-error-codes": [
               "COUPON_ALREADY_ISSUED",
+              "COUPON_HELD_BY_SHOPPERS",
               "DUPLICATE_COUPON_CODE"
             ]
           },
@@ -16597,7 +16602,7 @@
             ]
           },
           "422": {
-            "description": "`ADDRESS_PHONE_UNVERIFIED` · `ALT_PHONE_SAME` · `DISTRICT_NOT_IN_GOVERNORATE` · `INVALID_INCIDENT` · `INVALID_INPUT` · `TOO_MANY_ADDRESSES` · `UNKNOWN_GOVERNORATE` · `VALIDATION_FAILED`",
+            "description": "`ADDRESS_BOOK_FULL` · `ADDRESS_PHONE_UNVERIFIED` · `ALT_PHONE_SAME` · `DISTRICT_NOT_IN_GOVERNORATE` · `INVALID_INCIDENT` · `INVALID_INPUT` · `TOO_MANY_ADDRESSES` · `UNKNOWN_GOVERNORATE` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -16606,6 +16611,7 @@
               }
             },
             "x-codiq-error-codes": [
+              "ADDRESS_BOOK_FULL",
               "ADDRESS_PHONE_UNVERIFIED",
               "ALT_PHONE_SAME",
               "DISTRICT_NOT_IN_GOVERNORATE",
@@ -20279,22 +20285,36 @@
           "platform"
         ],
         "summary": "GET /merchant/finance/report",
-        "description": "**الباب**: merchant.",
-        "parameters": [],
+        "description": "**الباب**: merchant.\n\n**قائمة**: تُجيب بمَغلَّف المرحلة 20-2 — `{ <resource>: T[], nextCursor, …facets }` مع مؤشر معتم واحد.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ListLimit"
+          },
+          {
+            "$ref": "#/components/parameters/ListCursor"
+          }
+        ],
         "responses": {
           "200": {
             "description": "استجابة ناجحة — الجسم يُركِّبه الخدمةُ نفسها، فمفاتيحه غير مقروءة من المسار.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "description": "الجسم من تركيب الخدمة — غير مشتق من المسار، فلا يُدَّعى له شكل هنا."
+                    }
+                  ]
                 }
               }
             }
           },
           "400": {
-            "description": "`INVALID_DATE_FILTER`",
+            "description": "`INVALID_DATE_FILTER` · `INVALID_LIMIT`",
             "content": {
               "application/json": {
                 "schema": {
@@ -20303,7 +20323,8 @@
               }
             },
             "x-codiq-error-codes": [
-              "INVALID_DATE_FILTER"
+              "INVALID_DATE_FILTER",
+              "INVALID_LIMIT"
             ]
           },
           "401": {
@@ -20334,6 +20355,19 @@
               "PASSWORD_CHANGE_REQUIRED"
             ]
           },
+          "404": {
+            "description": "`RESOURCE_NOT_FOUND`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "RESOURCE_NOT_FOUND"
+            ]
+          },
           "413": {
             "$ref": "#/components/responses/BodyTooLarge"
           },
@@ -20361,6 +20395,7 @@
           "merchant"
         ],
         "x-codiq-source": "phase1-backend/src/http/routes/platform.ts",
+        "x-codiq-list-envelope": true,
         "security": [
           {
             "sessionCookie": []
@@ -25100,7 +25135,7 @@
             }
           },
           "400": {
-            "description": "`INVALID_JSON_BODY`",
+            "description": "`INVALID_ADDRESS` · `INVALID_JSON_BODY` · `INVALID_PHONE`",
             "content": {
               "application/json": {
                 "schema": {
@@ -25109,7 +25144,9 @@
               }
             },
             "x-codiq-error-codes": [
-              "INVALID_JSON_BODY"
+              "INVALID_ADDRESS",
+              "INVALID_JSON_BODY",
+              "INVALID_PHONE"
             ]
           },
           "401": {
@@ -25184,7 +25221,7 @@
             ]
           },
           "422": {
-            "description": "`INVALID_INCIDENT` · `REEL_TYPE_NOT_ALLOWED` · `REEL_VIDEO_REQUIRED` · `VALIDATION_FAILED`",
+            "description": "`INVALID_INCIDENT` · `INVALID_INPUT` · `REEL_TYPE_NOT_ALLOWED` · `REEL_VIDEO_REQUIRED` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -25194,6 +25231,7 @@
             },
             "x-codiq-error-codes": [
               "INVALID_INCIDENT",
+              "INVALID_INPUT",
               "REEL_TYPE_NOT_ALLOWED",
               "REEL_VIDEO_REQUIRED",
               "VALIDATION_FAILED"
@@ -43940,7 +43978,7 @@
             ]
           },
           "422": {
-            "description": "`ADDRESS_PHONE_UNVERIFIED` · `ALT_PHONE_SAME` · `DISTRICT_NOT_IN_GOVERNORATE` · `INVALID_INCIDENT` · `INVALID_INPUT` · `TOO_MANY_ADDRESSES` · `UNKNOWN_GOVERNORATE` · `VALIDATION_FAILED`",
+            "description": "`ADDRESS_BOOK_FULL` · `ADDRESS_PHONE_UNVERIFIED` · `ALT_PHONE_SAME` · `DISTRICT_NOT_IN_GOVERNORATE` · `INVALID_INCIDENT` · `INVALID_INPUT` · `TOO_MANY_ADDRESSES` · `UNKNOWN_GOVERNORATE` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -43949,6 +43987,7 @@
               }
             },
             "x-codiq-error-codes": [
+              "ADDRESS_BOOK_FULL",
               "ADDRESS_PHONE_UNVERIFIED",
               "ALT_PHONE_SAME",
               "DISTRICT_NOT_IN_GOVERNORATE",
@@ -47375,7 +47414,6 @@
                     },
                     "name": {},
                     "paymentMethods": {},
-                    "guestCheckout": {},
                     "homeSections": {}
                   },
                   "description": "يحمل أيضاً مفاتيح من نشرٍ (`...…`) لم يتيسّر تتبّعها من المسار — المفاتيح أعلاه مؤكَّدة، والقائمة ليست حصرية."
@@ -57271,7 +57309,7 @@
             ]
           },
           "422": {
-            "description": "`INVALID_INCIDENT` · `INVALID_INPUT` · `VALIDATION_FAILED`",
+            "description": "`DUPLICATE_SKU_IN_RESTORE` · `INVALID_INCIDENT` · `INVALID_INPUT` · `VALIDATION_FAILED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -57280,6 +57318,7 @@
               }
             },
             "x-codiq-error-codes": [
+              "DUPLICATE_SKU_IN_RESTORE",
               "INVALID_INCIDENT",
               "INVALID_INPUT",
               "VALIDATION_FAILED"
@@ -63636,7 +63675,7 @@
             ]
           },
           "409": {
-            "description": "`CUSTOMER_PHONE_UNVERIFIED`",
+            "description": "`CUSTOMER_PHONE_UNVERIFIED` · `DUPLICATE_CUSTOMER_PHONE`",
             "content": {
               "application/json": {
                 "schema": {
@@ -63645,7 +63684,8 @@
               }
             },
             "x-codiq-error-codes": [
-              "CUSTOMER_PHONE_UNVERIFIED"
+              "CUSTOMER_PHONE_UNVERIFIED",
+              "DUPLICATE_CUSTOMER_PHONE"
             ]
           },
           "413": {
@@ -67810,7 +67850,7 @@
             ]
           },
           "409": {
-            "description": "`COUPON_ALREADY_ISSUED` · `DUPLICATE_COUPON_CODE`",
+            "description": "`COUPON_ALREADY_ISSUED` · `COUPON_HELD_BY_SHOPPERS` · `DUPLICATE_COUPON_CODE`",
             "content": {
               "application/json": {
                 "schema": {
@@ -67820,6 +67860,7 @@
             },
             "x-codiq-error-codes": [
               "COUPON_ALREADY_ISSUED",
+              "COUPON_HELD_BY_SHOPPERS",
               "DUPLICATE_COUPON_CODE"
             ]
           },
@@ -67972,6 +68013,19 @@
             },
             "x-codiq-error-codes": [
               "COUPON_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "description": "`COUPON_ALREADY_ISSUED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "COUPON_ALREADY_ISSUED"
             ]
           },
           "413": {
@@ -69294,6 +69348,12 @@
         "لم تعد بعض الإضافات المختارة متاحة. عدّل خياراتك ثم أكّد الطلب."
       ]
     },
+    "ADDRESS_BOOK_FULL": {
+      "statuses": [
+        422
+      ],
+      "messages": []
+    },
     "ADDRESS_NOT_FOUND": {
       "statuses": [
         404
@@ -69445,7 +69505,7 @@
         409
       ],
       "messages": [
-        "No active customer cart is available for checkout."
+        "لا توجد سلة جاهزة لإتمام الطلب — ربما أُتمّ الطلب للتو."
       ]
     },
     "CART_CREATION_FAILED": {
@@ -69453,7 +69513,7 @@
         500
       ],
       "messages": [
-        "Cart could not be created."
+        "تعذّر إنشاء السلة. حاول مرة أخرى."
       ]
     },
     "CART_EMPTY": {
@@ -69461,7 +69521,7 @@
         422
       ],
       "messages": [
-        "Cart is empty.",
+        "السلة فارغة.",
         "سلتك فارغة.",
         "لا توجد منتجات من هذا المتجر في سلتك."
       ]
@@ -69503,7 +69563,7 @@
         409
       ],
       "messages": [
-        "The cart was changed by another request."
+        "تغيّرت السلة من نافذة أخرى. حدّث الصفحة ثم أعد المحاولة."
       ]
     },
     "CATEGORY_DEPTH_EXCEEDED": {
@@ -69543,8 +69603,7 @@
         404
       ],
       "messages": [
-        "The requested category was not found in the trash of this store.",
-        "The requested category was not found in this store.",
+        "التصنيف غير موجود في سلة المحذوفات.",
         "التصنيف غير موجود في هذا المتجر.",
         "الفئة غير موجودة.",
         "هذه الفئة غير موجودة."
@@ -69594,7 +69653,8 @@
         409
       ],
       "messages": [
-        "وُزّع هذا الكوبون؛ لا تتغيّر قيمته ولا شروطه. أنشئ كوبوناً جديداً."
+        "وُزّع هذا الكوبون؛ لا تتغيّر قيمته ولا شروطه. أنشئ كوبوناً جديداً.",
+        "وُزّع هذا الكوبون؛ يمكن إضافة متاجر إليه ولا يُحذف منه متجر."
       ]
     },
     "COUPON_CODE_TAKEN": {
@@ -69618,7 +69678,7 @@
         422
       ],
       "messages": [
-        "This customer has reached the coupon usage limit."
+        "استعملت هذا الكوبون الحد الأقصى من المرات."
       ]
     },
     "COUPON_EXHAUSTED": {
@@ -69627,8 +69687,8 @@
         422
       ],
       "messages": [
-        "This coupon has reached its total usage limit.",
-        "نفدت كمّيّة هذا الكوبون."
+        "نفدت كمّيّة هذا الكوبون.",
+        "نفدت مرات استعمال هذا الكوبون."
       ]
     },
     "COUPON_EXPIRED": {
@@ -69636,15 +69696,21 @@
         422
       ],
       "messages": [
-        "This coupon is outside its validity window."
+        "هذا الكوبون خارج مدة صلاحيته."
       ]
+    },
+    "COUPON_HELD_BY_SHOPPERS": {
+      "statuses": [
+        409
+      ],
+      "messages": []
     },
     "COUPON_INVALID": {
       "statuses": [
         422
       ],
       "messages": [
-        "This coupon is not valid for this store."
+        "هذا الكوبون غير صالح في هذا المتجر."
       ]
     },
     "COUPON_LIMIT_BELOW_ISSUED": {
@@ -69658,7 +69724,7 @@
         422
       ],
       "messages": [
-        "The cart subtotal is below this coupon's minimum."
+        "قيمة السلة أقل من الحد الأدنى لهذا الكوبون."
       ]
     },
     "COUPON_NOT_FOUND": {
@@ -69684,7 +69750,7 @@
         403
       ],
       "messages": [
-        "This write request did not originate from the trusted store origin."
+        "رُفض الطلب لأنه لم يصدر من صفحة المتجر نفسه. حدّث الصفحة ثم أعد المحاولة."
       ]
     },
     "CSV_EMPTY": {
@@ -69768,7 +69834,7 @@
         401
       ],
       "messages": [
-        "A customer session is required."
+        "سجّل الدخول لمتابعة هذه الخطوة."
       ]
     },
     "DEAL_EXISTS": {
@@ -69830,7 +69896,7 @@
         409
       ],
       "messages": [
-        "The default variant of a product cannot be deleted."
+        "الخيار الأساسي للمنتج لا يُحذف."
       ]
     },
     "DELIVERY_NOT_APPLICABLE": {
@@ -69903,7 +69969,7 @@
         409
       ],
       "messages": [
-        "A category with this name already exists in this store."
+        "يوجد تصنيف بهذا الاسم في المتجر."
       ]
     },
     "DUPLICATE_COUPON_CODE": {
@@ -69911,7 +69977,7 @@
         409
       ],
       "messages": [
-        "A coupon with this code already exists in this store."
+        "يوجد كوبون بهذا الرمز في المتجر."
       ]
     },
     "DUPLICATE_CUSTOMER_PHONE": {
@@ -69919,7 +69985,8 @@
         409
       ],
       "messages": [
-        "This phone is already registered in this store."
+        "هذا الرقم مسجّل في هذا المتجر — سجّل الدخول به.",
+        "هذا الرقم يطلب من هذا المتجر عبر السوق — سجّل الدخول من السوق برقمك لتجد طلباتك."
       ]
     },
     "DUPLICATE_IDENTITY": {
@@ -69927,7 +69994,7 @@
         409
       ],
       "messages": [
-        "An account with this identity already exists in this permitted scope."
+        "هذا العنصر موجود بالفعل — لا يمكن تكراره."
       ]
     },
     "DUPLICATE_MERCHANT_PHONE": {
@@ -69943,8 +70010,8 @@
         422
       ],
       "messages": [
-        "Each permission code may appear at most once.",
-        "كل رمز صلاحية يظهر مرة واحدة على الأكثر."
+        "كل رمز صلاحية يظهر مرة واحدة على الأكثر.",
+        "كل صلاحية تُذكر مرة واحدة فقط."
       ]
     },
     "DUPLICATE_PLAN_CODE": {
@@ -69960,7 +70027,7 @@
         409
       ],
       "messages": [
-        "A product with this SKU already exists in this store."
+        "يوجد منتج بهذا الرمز (SKU) في المتجر."
       ]
     },
     "DUPLICATE_SKU_EXHAUSTED": {
@@ -69970,6 +70037,12 @@
       "messages": [
         "تعذر توليد SKU فريد للنسخة — عدّل SKU المنتج الأصلي ثم أعِد المحاولة."
       ]
+    },
+    "DUPLICATE_SKU_IN_RESTORE": {
+      "statuses": [
+        422
+      ],
+      "messages": []
     },
     "DUPLICATE_STORE_SLUG": {
       "statuses": [
@@ -69993,24 +70066,20 @@
         409
       ],
       "messages": [
-        "A variant with this SKU already exists in this store."
+        "يوجد خيار بهذا الرمز (SKU) في المتجر."
       ]
     },
     "EMAIL_RESERVED_FOR_MERCHANT": {
       "statuses": [
         409
       ],
-      "messages": [
-        "This email already belongs to a merchant and cannot be registered as a platform owner."
-      ]
+      "messages": []
     },
     "EMAIL_RESERVED_FOR_PLATFORM_OWNER": {
       "statuses": [
         409
       ],
       "messages": [
-        "This email already belongs to a platform owner and cannot be registered as a merchant.",
-        "This email already belongs to another identity on the platform (owner, platform staff, merchant, or store staff) and cannot be reused.",
         "هذا البريد محجوز لهوية أخرى في المنصة."
       ]
     },
@@ -70035,8 +70104,8 @@
         400
       ],
       "messages": [
-        "roleCode or isActive is required.",
-        "roleCode أو isActive مطلوب."
+        "roleCode أو isActive مطلوب.",
+        "أرسل الدور أو الحالة."
       ]
     },
     "FAVOURITES_FULL": {
@@ -70151,7 +70220,7 @@
         409
       ],
       "messages": [
-        "This idempotency key was used with different checkout data."
+        "استُعمل مفتاح هذا الطلب لطلب مختلف. حدّث الصفحة ثم أعد المحاولة."
       ]
     },
     "IDENTITY_BOUNDARY_DENIED": {
@@ -70165,7 +70234,7 @@
         404
       ],
       "messages": [
-        "The requested product image could not be read."
+        "تعذّرت قراءة صورة المنتج."
       ]
     },
     "IMAGE_PROCESSING_UNAVAILABLE": {
@@ -70190,8 +70259,8 @@
         503
       ],
       "messages": [
-        "Product image storage is not configured.",
-        "تخزين الصور غير مهيأ على هذه البيئة."
+        "تخزين الصور غير مهيأ على هذه البيئة.",
+        "تخزين الصور غير مُعدّ على الخادم."
       ]
     },
     "IMAGE_TYPE_NOT_ALLOWED": {
@@ -70231,9 +70300,9 @@
         422
       ],
       "messages": [
-        "One or more products do not have enough available stock.",
-        "Reserved stock is no longer available for completion.",
-        "المخزون الحالي أقل من الكمية المشطوبة — حدّث الشاشة وأعد المحاولة."
+        "الكمية المطلوبة من منتج أو أكثر غير متوفرة. راجع السلة.",
+        "المخزون الحالي أقل من الكمية المشطوبة — حدّث الشاشة وأعد المحاولة.",
+        "المخزون المحجوز لهذا الطلب لم يعد متوفراً."
       ]
     },
     "INSUFFICIENT_LOYALTY_POINTS": {
@@ -70247,7 +70316,7 @@
         500
       ],
       "messages": [
-        "Unexpected server error."
+        "حدث خطأ غير متوقع في الخادم. حاول مرة أخرى بعد قليل."
       ]
     },
     "INVALID_ABANDONED_CART_WINDOW": {
@@ -70261,7 +70330,7 @@
         400
       ],
       "messages": [
-        "A saved address or address payload is required."
+        "اختر عنواناً محفوظاً أو اكتب عنوان التوصيل."
       ]
     },
     "INVALID_AVATAR_IMAGE": {
@@ -70312,7 +70381,7 @@
         400
       ],
       "messages": [
-        "Business name must contain at least 2 characters.",
+        "اسم النشاط حرفان على الأقل.",
         "اسم النشاط يجب أن يتكون من حرفين على الأقل."
       ]
     },
@@ -70321,7 +70390,7 @@
         400
       ],
       "messages": [
-        "reason must be a non-empty string when provided."
+        "السبب نص غير فارغ."
       ]
     },
     "INVALID_CART_QUANTITY": {
@@ -70335,7 +70404,7 @@
         400
       ],
       "messages": [
-        "cartVersion must be a positive integer."
+        "نسخة السلة غير صالحة. حدّث الصفحة ثم أعد المحاولة."
       ]
     },
     "INVALID_CATEGORY_PARENT": {
@@ -70356,8 +70425,8 @@
         422
       ],
       "messages": [
-        "Every orderId must be a uuid.",
-        "orderIds must be a non-empty array."
+        "أحد الطلبات المختارة غير صالح.",
+        "اختر طلباً واحداً على الأقل."
       ]
     },
     "INVALID_COUPON_CODE": {
@@ -70365,9 +70434,9 @@
         400
       ],
       "messages": [
-        "couponCode is required.",
-        "couponCode must be 2-40 letters, digits, '-' or '_'.",
-        "couponCode must be a string."
+        "رمز الكوبون مطلوب.",
+        "رمز الكوبون من 2 إلى 40 حرفاً إنجليزياً أو رقماً أو - أو _.",
+        "رمز الكوبون نص."
       ]
     },
     "INVALID_COVER_IMAGE": {
@@ -70392,7 +70461,7 @@
         401
       ],
       "messages": [
-        "Invalid customer credentials for this store."
+        "رقم الهاتف أو كلمة المرور غير صحيحة."
       ]
     },
     "INVALID_CUSTOMER_SEGMENT": {
@@ -70408,8 +70477,8 @@
         400
       ],
       "messages": [
-        "from/to must be ISO dates.",
-        "to must be after from.",
+        "التاريخان بصيغة صحيحة (ISO).",
+        "تاريخ النهاية بعد تاريخ البداية.",
         "لا يمكن تسوية فترة لم تبدأ بعد."
       ]
     },
@@ -70418,7 +70487,7 @@
         422
       ],
       "messages": [
-        "Nothing to update: send courierName or trackingNumber."
+        "لا شيء لتحديثه: أرسل اسم المندوب أو رقم الشحنة."
       ]
     },
     "INVALID_DELIVERY_WINDOW": {
@@ -70426,7 +70495,7 @@
         422
       ],
       "messages": [
-        "from must not be after to."
+        "تاريخ البداية قبل تاريخ النهاية."
       ]
     },
     "INVALID_DEVICE_LABEL": {
@@ -70442,7 +70511,7 @@
         400
       ],
       "messages": [
-        "Display name must contain at least 2 characters.",
+        "اسم العرض حرفان على الأقل.",
         "اسم العرض يجب أن يتكون من حرفين على الأقل."
       ]
     },
@@ -70451,8 +70520,8 @@
         400
       ],
       "messages": [
-        "Email format is invalid.",
-        "Email is required."
+        "البريد الإلكتروني مطلوب.",
+        "صيغة البريد الإلكتروني غير صحيحة."
       ]
     },
     "INVALID_FLAG_CODE": {
@@ -70506,8 +70575,8 @@
         422
       ],
       "messages": [
-        "Full name must contain at least 2 characters.",
-        "اكتب اسمك الكامل."
+        "اكتب اسمك الكامل.",
+        "الاسم الكامل حرفان على الأقل."
       ]
     },
     "INVALID_HOST": {
@@ -70523,7 +70592,7 @@
         400
       ],
       "messages": [
-        "Idempotency-Key must contain 16 to 200 characters."
+        "مفتاح الطلب (Idempotency-Key) بين 16 و200 حرف."
       ]
     },
     "INVALID_IDENTIFIER": {
@@ -70532,6 +70601,14 @@
       ],
       "messages": [
         "أحد المعرّفات في الطلب غير صالح."
+      ]
+    },
+    "INVALID_IMAGE": {
+      "statuses": [
+        422
+      ],
+      "messages": [
+        "تعذّرت قراءة الصورة. جرّب صورةً أخرى."
       ]
     },
     "INVALID_INBOX_KEY": {
@@ -70557,50 +70634,50 @@
         422
       ],
       "messages": [
-        "At least one of amountIqd or isEnabled is required.",
         "action يجب أن يكون approve أو reject.",
-        "amountIqd must be a non-negative integer.",
         "approve يجب أن يكون true أو false.",
-        "categoryId is invalid.",
-        "code is required.",
-        "code must be a string.",
-        "courierDispatch must be an object.",
-        "dailyDigest must be an object.",
-        "enabled must be boolean.",
         "enabled يجب أن يكون true أو false.",
-        "endsAt must be after startsAt.",
-        "governorate is required.",
         "hidden يجب أن يكون true أو false.",
-        "hour must be an integer between 0 and 23.",
-        "isActive must be boolean.",
         "isActive يجب أن يكون قيمة منطقية.",
-        "isEnabled must be boolean.",
         "isEnabled يجب أن يكون قيمة منطقية.",
         "isRecommended يجب أن يكون قيمة منطقية.",
-        "kind must be percent, fixed, or free_shipping.",
         "limits يجب أن يكون كائناً.",
         "merchantId مطلوب.",
         "mode يجب أن يكون auto أو manual.",
         "notifyOnRestock يجب أن يكون true أو false.",
-        "options must be an object.",
-        "options must be within 2000 characters.",
         "planCode مطلوب.",
-        "preferences must be an object.",
-        "requiresPrescription must be boolean.",
         "suspended يجب أن يكون true أو false.",
-        "templateKey must be one of the known WhatsApp templates.",
         "variantId مطلوب.",
-        "variantSkus must be an object keyed by variant id.",
-        "whatsappTemplates must be an object.",
+        "أرسل رسم التوصيل أو حالة التفعيل على الأقل.",
+        "إعدادات إشعار المندوب غير صالحة.",
+        "إعدادات الملخص اليومي غير صالحة.",
         "اسم الخطة غير صالح.",
+        "التصنيف غير صالح.",
+        "التفضيلات غير صالحة.",
+        "التفعيل نعم أو لا.",
+        "الحالة نعم أو لا.",
+        "الرمز مطلوب.",
+        "الرمز نص.",
+        "الساعة عدد صحيح من 0 إلى 23.",
         "السبب يتجاوز 500 حرف.",
+        "المحافظة مطلوبة.",
         "الملاحظة يجب أن تكون نصاً لا يتجاوز 500 حرف.",
+        "تاريخ النهاية بعد تاريخ البداية.",
         "ترتيب الخطة يجب أن يكون عدداً صحيحاً غير سالب.",
+        "حاجة المنتج إلى وصفة: نعم أو لا.",
+        "خصائص الخيار حتى 2000 حرف.",
+        "خصائص الخيار غير صالحة.",
+        "رسم التوصيل عدد صحيح غير سالب.",
         "رمز الخطة يجب أن يكون بأحرف إنجليزية صغيرة وأرقام وشرطات فقط (حتى 40 حرفاً).",
+        "رموز الخيارات غير صالحة.",
         "سعر الخطة يجب أن يكون عدداً صحيحاً غير سالب.",
         "عمولة الخطة يجب أن تكون بين 0 و10000 نقطة أساس.",
+        "قالب واتساب غير معروف.",
+        "قوالب واتساب غير صالحة.",
         "قيمة النقطة: رقم صحيح بين 1 و10000 دينار.",
-        "نقاط كل 1000 دينار: رقم صحيح بين 0 و1000."
+        "كميتا الإرجاع إلى الرف والإتلاف عددان صحيحان غير سالبين.",
+        "نقاط كل 1000 دينار: رقم صحيح بين 0 و1000.",
+        "نوع الكوبون: نسبة أو مبلغ ثابت أو توصيل مجاني."
       ]
     },
     "INVALID_INSPECTION_SPLIT": {
@@ -70690,8 +70767,8 @@
         400
       ],
       "messages": [
-        "The month must be between 01 and 12.",
-        "The month must be written as YYYY-MM."
+        "اكتب الشهر بصيغة YYYY-MM.",
+        "الشهر بين 01 و12."
       ]
     },
     "INVALID_ORDER_NOTE": {
@@ -70700,7 +70777,7 @@
         422
       ],
       "messages": [
-        "note must contain at most 1000 characters.",
+        "الملاحظة حتى 1000 حرف.",
         "الملاحظة يجب ألا تتجاوز 500 حرف.",
         "الملاحظة يجب أن تكون نصاً.",
         "نص الملاحظة مطلوب."
@@ -70719,7 +70796,7 @@
         422
       ],
       "messages": [
-        "Order status is not supported."
+        "حالة الطلب غير معروفة."
       ]
     },
     "INVALID_ORDER_TAG_FILTER": {
@@ -70750,7 +70827,7 @@
         400
       ],
       "messages": [
-        "expectedVersion must be a positive integer."
+        "نسخة الطلب غير صالحة. حدّث الصفحة ثم أعد المحاولة."
       ]
     },
     "INVALID_OVERRIDE_EFFECT": {
@@ -70758,8 +70835,8 @@
         422
       ],
       "messages": [
-        "Override effect must be allow or deny.",
-        "أثر التجاوز يجب أن يكون allow أو deny."
+        "أثر التجاوز يجب أن يكون allow أو deny.",
+        "أثر التجاوز: سماح أو منع."
       ]
     },
     "INVALID_OVERRIDE_REASON": {
@@ -70805,8 +70882,8 @@
         400
       ],
       "messages": [
-        "overrides must be an array with at most one entry per permission code.",
-        "overrides يجب أن تكون مصفوفة بعنصر واحد على الأكثر لكل رمز صلاحية."
+        "overrides يجب أن تكون مصفوفة بعنصر واحد على الأكثر لكل رمز صلاحية.",
+        "قائمة التجاوزات غير صالحة: كل صلاحية مرة واحدة."
       ]
     },
     "INVALID_OWNER_NAME": {
@@ -70831,8 +70908,8 @@
         422
       ],
       "messages": [
-        "The permission code is not part of the approved matrix.",
-        "رمز الصلاحية ليس ضمن مصفوفة صلاحيات المنصة المعتمدة."
+        "رمز الصلاحية ليس ضمن مصفوفة صلاحيات المنصة المعتمدة.",
+        "صلاحية غير معروفة."
       ]
     },
     "INVALID_PHONE": {
@@ -70872,7 +70949,7 @@
         401
       ],
       "messages": [
-        "Invalid platform owner credentials."
+        "بيانات الدخول غير صحيحة."
       ]
     },
     "INVALID_PLATFORM_STAFF_CREDENTIALS": {
@@ -70896,7 +70973,7 @@
         422
       ],
       "messages": [
-        "decision must be approved or rejected."
+        "القرار: قبول أو رفض."
       ]
     },
     "INVALID_PRESCRIPTION_IMAGE": {
@@ -70904,7 +70981,7 @@
         422
       ],
       "messages": [
-        "A prescription image file is required."
+        "أرفق صورة الوصفة."
       ]
     },
     "INVALID_PRINT_SELECTION": {
@@ -70912,7 +70989,7 @@
         400
       ],
       "messages": [
-        "Select at least one order to print."
+        "اختر طلباً واحداً على الأقل للطباعة."
       ]
     },
     "INVALID_PRODUCT": {
@@ -70920,7 +70997,7 @@
         400
       ],
       "messages": [
-        "productId or variantId is required."
+        "اختر المنتج."
       ]
     },
     "INVALID_PRODUCT_ATTRIBUTES": {
@@ -70936,8 +71013,8 @@
         400
       ],
       "messages": [
-        "Category filter is invalid.",
-        "Search query is invalid."
+        "التصنيف المختار غير صالح.",
+        "نص البحث غير صالح."
       ]
     },
     "INVALID_PRODUCT_IMAGE": {
@@ -70945,8 +71022,8 @@
         422
       ],
       "messages": [
-        "At least one product image is required.",
         "أبعاد الصورة أكبر من المسموح (١٠٠ ميغابكسل). صغّرها ثم أعد رفعها.",
+        "أرفق صورة واحدة على الأقل.",
         "تعذّرت قراءة أبعاد الصورة. جرّب صورةً أخرى.",
         "تعذّرت قراءة الصورة — قد يكون الملفّ ناقصاً. أعد رفعها.",
         "تعذّرت قراءة الصورة. جرّب صورةً أخرى."
@@ -70957,7 +71034,7 @@
         422
       ],
       "messages": [
-        "sort must be newest, best_selling or top_rated."
+        "الترتيب: الأحدث أو الأكثر مبيعاً أو الأعلى تقييماً."
       ]
     },
     "INVALID_RECOVERY_COUPON": {
@@ -70965,8 +71042,8 @@
         422
       ],
       "messages": [
-        "recoveryCouponId must be a coupon id or null.",
-        "recoveryCouponId must reference an active coupon of this store."
+        "كوبون الاسترجاع غير صالح.",
+        "كوبون الاسترجاع يجب أن يكون كوبوناً فعّالاً من هذا المتجر."
       ]
     },
     "INVALID_RESET_TOKEN": {
@@ -71023,7 +71100,7 @@
         422
       ],
       "messages": [
-        "interval must be day, week, or month."
+        "الفترة: يوم أو أسبوع أو شهر."
       ]
     },
     "INVALID_SERVICE_DESCRIPTION": {
@@ -71053,11 +71130,10 @@
         401
       ],
       "messages": [
-        "The acting owner no longer exists.",
-        "The merchant session lacks a store context.",
-        "The session is no longer valid.",
-        "The session token is invalid or expired.",
-        "The staff session lacks a membership context."
+        "انتهت الجلسة — سجّل الدخول من جديد.",
+        "جلسة التاجر غير مرتبطة بمتجر — سجّل الدخول من جديد.",
+        "جلسة الموظف غير مرتبطة بمتجر — سجّل الدخول من جديد.",
+        "حساب المالك لم يعد موجوداً."
       ]
     },
     "INVALID_SETTING_VALUE": {
@@ -71071,7 +71147,7 @@
         401
       ],
       "messages": [
-        "Invalid staff credentials."
+        "بيانات الدخول غير صحيحة."
       ]
     },
     "INVALID_STAFF_ROLE": {
@@ -71079,7 +71155,7 @@
         422
       ],
       "messages": [
-        "Only store_manager and store_staff roles exist in this phase."
+        "الأدوار المتاحة: مدير متجر أو موظف متجر."
       ]
     },
     "INVALID_STORE_IDENTIFIER": {
@@ -71087,7 +71163,7 @@
         400
       ],
       "messages": [
-        "Store slug and subdomain are required."
+        "رابط المتجر ونطاقه الفرعي مطلوبان."
       ]
     },
     "INVALID_STORE_NAME": {
@@ -71143,7 +71219,7 @@
         422
       ],
       "messages": [
-        "by must be revenue or units."
+        "الترتيب حسب الإيراد أو عدد القطع."
       ]
     },
     "INVALID_TOTP_CODE": {
@@ -71159,7 +71235,7 @@
         400
       ],
       "messages": [
-        "orderNumber and phone are required."
+        "رقم الطلب ورقم الهاتف مطلوبان."
       ]
     },
     "INVALID_UNSUBSCRIBE_TOKEN": {
@@ -71183,8 +71259,8 @@
         400
       ],
       "messages": [
-        "The note may not exceed 500 characters.",
-        "The note must be text."
+        "الملاحظة حتى 500 حرف.",
+        "الملاحظة نص."
       ]
     },
     "INVALID_WALLET_NUMBER": {
@@ -71322,7 +71398,7 @@
         403
       ],
       "messages": [
-        "This merchant account is disabled."
+        "حساب التاجر موقوف — تواصل مع إدارة المنصة."
       ]
     },
     "MERCHANT_NO_ACTIVE_STORE": {
@@ -71362,7 +71438,7 @@
         500
       ],
       "messages": [
-        "Merchant sessions must be bound to a store."
+        "جلسة التاجر غير مرتبطة بمتجر — سجّل الدخول من جديد."
       ]
     },
     "MISSING_SESSION": {
@@ -71370,7 +71446,7 @@
         401
       ],
       "messages": [
-        "A session is required."
+        "سجّل الدخول لمتابعة هذه الخطوة."
       ]
     },
     "MISSING_STAFF_MEMBERSHIP_CONTEXT": {
@@ -71378,7 +71454,7 @@
         500
       ],
       "messages": [
-        "Staff sessions must be bound to one store membership."
+        "جلسة الموظف غير مرتبطة بمتجر — سجّل الدخول من جديد."
       ]
     },
     "NO_ACTIVE_SUBSCRIPTION": {
@@ -71410,7 +71486,7 @@
         422
       ],
       "messages": [
-        "One or more products exceed the quantity allowed per order."
+        "منتج أو أكثر يتجاوز الحد المسموح في الطلب الواحد."
       ]
     },
     "ORDER_NOT_CANCELLABLE": {
@@ -71418,8 +71494,8 @@
         409
       ],
       "messages": [
-        "This order has already been accepted by the store and can no longer be cancelled here.",
-        "بدأ المتجر بتجهيز طلبك، فلم يعد إلغاؤه من هنا ممكناً. تواصل مع المتجر."
+        "بدأ المتجر بتجهيز طلبك، فلم يعد إلغاؤه من هنا ممكناً. تواصل مع المتجر.",
+        "قبل المتجر هذا الطلب، فلم يعد إلغاؤه من هنا ممكناً. تواصل مع المتجر."
       ]
     },
     "ORDER_NOT_FOUND": {
@@ -71476,7 +71552,7 @@
         500
       ],
       "messages": [
-        "Order transition could not be completed."
+        "تعذّر تغيير حالة الطلب. حاول مرة أخرى."
       ]
     },
     "ORDER_VERSION_CONFLICT": {
@@ -71484,7 +71560,7 @@
         409
       ],
       "messages": [
-        "The order was changed by another request."
+        "تغيّر الطلب من نافذة أخرى. حدّث الصفحة ثم أعد المحاولة."
       ]
     },
     "OTP_DELIVERY_FAILED": {
@@ -71677,7 +71753,7 @@
         422
       ],
       "messages": [
-        "A prescription for this order is already under review or approved."
+        "وصفة هذا الطلب قيد المراجعة أو مقبولة بالفعل."
       ]
     },
     "PRESCRIPTION_NOT_APPROVED": {
@@ -71685,7 +71761,7 @@
         422
       ],
       "messages": [
-        "This order requires an approved prescription before processing."
+        "هذا الطلب يحتاج وصفة مقبولة قبل تجهيزه."
       ]
     },
     "PRESCRIPTION_NOT_REQUIRED": {
@@ -71693,7 +71769,7 @@
         422
       ],
       "messages": [
-        "This order does not require a prescription."
+        "هذا الطلب لا يحتاج وصفة."
       ]
     },
     "PRESCRIPTION_NOT_REVIEWABLE": {
@@ -71701,7 +71777,7 @@
         422
       ],
       "messages": [
-        "Only a prescription pending review can be approved or rejected."
+        "تُقبل الوصفة أو تُرفض وهي قيد المراجعة فقط."
       ]
     },
     "PRINT_BATCH_TOO_LARGE": {
@@ -71785,7 +71861,7 @@
         422
       ],
       "messages": [
-        "One or more cart products are unavailable."
+        "منتج أو أكثر في سلتك لم يعد متوفراً. راجع السلة."
       ]
     },
     "RATE_LIMITED": {
@@ -71793,7 +71869,7 @@
         429
       ],
       "messages": [
-        "Too many requests. Please try again later."
+        "محاولات كثيرة. حاول مرة أخرى بعد قليل."
       ]
     },
     "RATING_WINDOW_CLOSED": {
@@ -71887,32 +71963,7 @@
         404
       ],
       "messages": [
-        "No prescription has been uploaded for this order.",
-        "Notification settings were not found for this store.",
-        "Store not found.",
-        "The requested address was not found.",
-        "The requested cart item was not found.",
-        "The requested cohort does not exist.",
-        "The requested coupon was not found in the trash of this store.",
-        "The requested coupon was not found in this store.",
-        "The requested delivery governorate was not found for this store.",
-        "The requested logo could not be read.",
-        "The requested logo was not found.",
-        "The requested order was not found in this store.",
-        "The requested order was not found.",
-        "The requested prescription could not be read.",
-        "The requested product image was not found in this store.",
-        "The requested product image was not found.",
-        "The requested product variant was not found in this store.",
-        "The requested product was not found in the trash of this store.",
-        "The requested product was not found in this store.",
-        "The requested resource was not found.",
-        "The requested return was not found in this store.",
-        "The requested store was not found.",
-        "The requested team membership was not found in the trash of this store.",
-        "The requested team membership was not found in this store.",
-        "The requested trash entity type does not exist.",
-        "The store was not found.",
+        "إعدادات الإشعارات غير موجودة لهذا المتجر.",
         "التاجر غير موجود.",
         "الجلسة غير موجودة.",
         "الجهاز غير موجود في هذا المتجر.",
@@ -71924,15 +71975,34 @@
         "السجل غير موجود.",
         "السياسة المطلوبة غير موجودة.",
         "الشريحة غير موجودة.",
+        "الشعار غير موجود.",
         "الصفحة المطلوبة غير موجودة.",
         "الصورة غير موجودة.",
+        "الطلب غير موجود في هذا المتجر.",
         "الطلب غير موجود.",
+        "العضوية غير موجودة في سلة المحذوفات.",
+        "العضوية غير موجودة في فريق هذا المتجر.",
+        "العنصر المطلوب غير موجود.",
         "العنصر غير موجود في قائمتك.",
+        "العنوان غير موجود.",
+        "الفئة المطلوبة غير موجودة.",
+        "الكوبون غير موجود في سلة المحذوفات.",
+        "الكوبون غير موجود في هذا المتجر.",
+        "المتجر غير موجود.",
+        "المحافظة غير موجودة في رسوم توصيل هذا المتجر.",
         "المراجعة غير موجودة.",
         "المرفق غير موجود.",
         "الملفّ غير موجود.",
         "المنتج غير متاح.",
+        "المنتج غير موجود في سلة المحذوفات.",
+        "المنتج غير موجود في هذا المتجر.",
         "المنتج غير موجود.",
+        "تعذّرت قراءة الشعار.",
+        "تعذّرت قراءة الوصفة.",
+        "خيار المنتج غير موجود في هذا المتجر.",
+        "صورة المنتج غير موجودة في هذا المتجر.",
+        "صورة المنتج غير موجودة.",
+        "طلب الإرجاع غير موجود في هذا المتجر.",
         "طلب الإرجاع غير موجود.",
         "طلب الترقية غير موجود.",
         "عضو طاقم المنصة المطلوب غير موجود.",
@@ -71944,8 +72014,11 @@
         "لا يوجد شعار لحذفه.",
         "لا يوجد شعار لهذا المتجر.",
         "لا يوجد قيد إتمام لهذا الطلب.",
+        "لم تُرفع وصفة لهذا الطلب بعد.",
         "لم يكتب المتجر هذه السياسة بعد.",
         "مؤشر الصفحة لم يعد موجوداً — أعِد فتح القائمة من بدايتها.",
+        "نوع العنصر المحذوف غير معروف.",
+        "هذا المنتج لم يعد في سلتك.",
         "وسيلة الدفع غير معروفة."
       ]
     },
@@ -72191,7 +72264,7 @@
         401
       ],
       "messages": [
-        "This staff membership is disabled and the session is no longer usable."
+        "عضويتك في هذا المتجر موقوفة — تواصل مع صاحب المتجر."
       ]
     },
     "STAFF_ALREADY_ON_TEAM": {
@@ -72225,7 +72298,7 @@
         404
       ],
       "messages": [
-        "This staff account has no active membership in the requested store."
+        "ليس لك عضوية نشطة في هذا المتجر."
       ]
     },
     "STOCK_CHANGED": {
@@ -72239,10 +72312,10 @@
         403
       ],
       "messages": [
-        "Customer does not belong to this store.",
-        "This customer session does not belong to the requested store.",
-        "This merchant session is not authorized for the requested store.",
-        "This staff session is not authorized for the requested store."
+        "جلستك لمتجر آخر — سجّل الدخول في هذا المتجر.",
+        "هذا الزبون ليس من زبائن هذا المتجر.",
+        "هذا المتجر ليس ضمن عضوياتك.",
+        "هذا المتجر ليس من متاجرك."
       ]
     },
     "STORE_IN_MAINTENANCE": {
@@ -72265,8 +72338,6 @@
         422
       ],
       "messages": [
-        "Store was not found.",
-        "The requested store does not exist.",
         "المتجر المطلوب غير موجود.",
         "المتجر غير موجود.",
         "لا متجر بهذا الرابط.",
@@ -72481,7 +72552,7 @@
         409
       ],
       "messages": [
-        "A variant present in shopping carts cannot be deleted."
+        "هذا الخيار في سلال زبائن الآن — لا يمكن حذفه. أوقفه بدلاً من ذلك."
       ]
     },
     "VARIANT_NOT_FOUND": {
@@ -72497,7 +72568,7 @@
         409
       ],
       "messages": [
-        "A variant referenced by an order cannot be deleted."
+        "هذا الخيار مذكور في طلبات سابقة — لا يمكن حذفه. أوقفه بدلاً من ذلك."
       ]
     },
     "VARIANT_TRASHED": {
@@ -72526,7 +72597,7 @@
         503
       ],
       "messages": [
-        "CODIQ_RESEND_WEBHOOK_SECRET is not set; the Resend webhook is disabled."
+        "لم يُضبط سرّ رابط Resend (CODIQ_RESEND_WEBHOOK_SECRET)، فالرابط معطّل."
       ]
     },
     "WEBHOOK_SIGNATURE_INVALID": {
@@ -72534,7 +72605,7 @@
         401
       ],
       "messages": [
-        "The webhook signature did not verify."
+        "توقيع الرابط غير صحيح."
       ]
     },
     "WHATSAPP_NO_RECIPIENT_PHONE": {
