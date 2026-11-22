@@ -128,6 +128,21 @@ export async function setCouponStores(id: string, storeSlugs: string[]) {
   const missing = storeSlugs.filter((slug) => !stores.some((store) => store.slug === slug));
   if (missing.length)
     throw new HttpError(422, "STORE_NOT_FOUND", "متاجر غير موجودة.", { storeSlugs: missing });
+  // Handed out, its stores may grow but not shrink: a store removed is value taken from coupons
+  // shoppers already hold, some paid for in points (review batch 2, م-١٣).
+  if (coupon.issuedCount > 0) {
+    const kept = new Set(stores.map((store) => store.id));
+    const current = await prisma.platformCouponStore.findMany({
+      where: { couponId: id },
+      select: { storeId: true },
+    });
+    if (current.some((row) => !kept.has(row.storeId)))
+      throw new HttpError(
+        409,
+        "COUPON_ALREADY_ISSUED",
+        "وُزّع هذا الكوبون؛ يمكن إضافة متاجر إليه لا حذفها. أنشئ كوبوناً جديداً."
+      );
+  }
   await prisma.$transaction([
     prisma.platformCouponStore.deleteMany({ where: { couponId: id } }),
     prisma.platformCouponStore.createMany({

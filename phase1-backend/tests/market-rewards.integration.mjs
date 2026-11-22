@@ -287,6 +287,23 @@ try {
   assert.match(offeredB.reason, /لا يعمل في هذا المتجر/);
   assert.equal(offer.totalIqd, 40000 - 4000 + 3000);
   assert.equal((await place(A, wB)).payload.error.code, "PLATFORM_COUPON_NOT_APPLICABLE");
+  // Review batch 2, م-١٣: once handed out, a coupon's stores may grow, never shrink — the shopper
+  // holding it (perhaps for points) would lose what he holds.
+  const restore = (storeSlugs) =>
+    owner.request(`/platform/market/coupons/${onlyB.id}/stores`, {
+      method: "PUT",
+      body: { storeSlugs },
+    });
+  assert.equal(
+    (await restore([A.store.slug])).payload.error?.code,
+    "COUPON_ALREADY_ISSUED",
+    "a store is not taken away from a coupon shoppers hold"
+  );
+  assert.deepEqual(
+    ((await restore([B.store.slug, A.store.slug])).payload.storeSlugs ?? []).sort(),
+    [A.store.slug, B.store.slug].sort(),
+    "…while one may be added"
+  );
   const paid = await place(A, w10);
   assert.equal(paid.status, 201, JSON.stringify(paid.payload));
   const order = await prisma.storeOrder.findUniqueOrThrow({ where: { id: paid.payload.order.id } });

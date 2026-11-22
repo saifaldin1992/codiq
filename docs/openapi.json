@@ -69290,6 +69290,19 @@
               "COUPON_NOT_FOUND"
             ]
           },
+          "409": {
+            "description": "`COUPON_ALREADY_ISSUED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "COUPON_ALREADY_ISSUED"
+            ]
+          },
           "413": {
             "description": "`REQUEST_BODY_TOO_LARGE`",
             "content": {
@@ -70916,7 +70929,8 @@
         409
       ],
       "messages": [
-        "وُزّع هذا الكوبون؛ لا تتغيّر قيمته ولا شروطه. أنشئ كوبوناً جديداً."
+        "وُزّع هذا الكوبون؛ لا تتغيّر قيمته ولا شروطه. أنشئ كوبوناً جديداً.",
+        "وُزّع هذا الكوبون؛ يمكن إضافة متاجر إليه لا حذفها. أنشئ كوبوناً جديداً."
       ]
     },
     "COUPON_CODE_TAKEN": {
