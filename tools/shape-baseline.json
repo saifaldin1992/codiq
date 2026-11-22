@@ -1738,7 +1738,7 @@
   },
   "client/src/lib/storefront-api.ts": {
    "longLines": 9,
-   "oversize": 549,
+   "oversize": 505,
    "longFunctions": 0
   },
   "client/src/lib/till-queue.ts": {

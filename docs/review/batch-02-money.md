@@ -46,7 +46,7 @@
   و`coupon.service.ts` (٢٤ من ٢٤). مثال: `CART_VERSION_CONFLICT` ← «The cart was changed by another request.»
 - ما يحدث: واجهة **المتجر** تترجم الرمز إلى العربيّة بجدول في `client/src/lib/storefront-api.ts` (`errorMessage`)، فزبون المتجر لا يرى
   الإنجليزيّة. واجهة **السوق** لا جدول لها: تعرض نصّ الخادم كما هو (`setFailure(error.message)`)، فيقرأ متسوّق السوق الإنجليزيّة.
-- الحالة: قيد التحديد بعد قراءة باقي ملفّات الدفعة.
+- الحالة: **مُصلَح** — `0a7b05d` نقل جدول الرموز حرفيّاً إلى `client/src/lib/error-text.ts`، و`ab6ae70`: `client/src/market/market-error.ts` — رسالة الخادم إن كانت عربيّة (رسائل السوق أدقّ)، وإلّا نصّ الرمز العربيّ من الجدول نفسه، وإلّا جملة عربيّة عامّة. يستعمله مساعدا الجلب كلاهما. الاختبار الجديد `market:error-text` (في CI): فشل قبل (لا وحدة)، نجح بعد.
 
 ### [م-٢] بطاقة المنتج في المتجر تعرض السعر قبل «عرض الساعة» — مهمّ
 - المكان: `client/src/components/ProductCard.tsx`، الدالّة `priceLabel`.

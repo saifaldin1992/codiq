@@ -1,7 +1,7 @@
 {
  "counts": {
   "unreachedFiles": 45,
-  "unusedExports": 260,
+  "unusedExports": 255,
   "unusedDependencies": 0
  },
  "unreachedFiles": [
@@ -59,7 +59,6 @@
   "client/src/components/DeleteConfirmSheet.tsx#UndoBarProps",
   "client/src/components/DemoBanner.tsx#DEMO_BANNER_TEXT",
   "client/src/components/ProductCard.tsx#NEW_PRODUCT_DAYS",
-  "client/src/components/ProductCard.tsx#priceLabel",
   "client/src/components/ProductShareCard.tsx#ShareProduct",
   "client/src/components/StorefrontFooter.tsx#copyrightYears",
   "client/src/components/StorefrontFooter.tsx#displayPhone",
@@ -103,7 +102,6 @@
   "client/src/lib/category-tree.ts#childrenByParent",
   "client/src/lib/category-tree.ts#flattenCategoryTree",
   "client/src/lib/landing-motion.ts#prefersReducedMotionNow",
-  "client/src/lib/storefront-api.ts#ApiErrorCode",
   "client/src/lib/storefront-api.ts#BannerPlacement",
   "client/src/lib/storefront-api.ts#CartItem",
   "client/src/lib/storefront-api.ts#CustomerPreferenceEntry",
@@ -193,8 +191,6 @@
   "phase1-backend/src/modules/market-orders/after-sales.service.ts#RATING_WINDOW_DAYS",
   "phase1-backend/src/modules/market-partner/partner.service.ts#LINK_TTL_MS",
   "phase1-backend/src/modules/market-partner/partner.service.ts#partnerConfig",
-  "phase1-backend/src/modules/market-payments/payments.service.ts#CARD_WINDOW_MS",
-  "phase1-backend/src/modules/market-payments/payments.service.ts#sweepSoon",
   "phase1-backend/src/modules/market-stores/directory.service.ts#MarketStoreCard",
   "phase1-backend/src/modules/market-stores/directory.service.ts#ROUTE_MAX_KM",
   "phase1-backend/src/modules/market-stores/schema.ts#MARKET_STORE_SORTS",
@@ -269,7 +265,6 @@
   "phase1-backend/src/services/order-notes.service.ts#ORDER_TAGS_MAX_COUNT",
   "phase1-backend/src/services/order-notes.service.ts#ORDER_TAG_MAX_LENGTH",
   "phase1-backend/src/services/order-notes.service.ts#normalizeOrderTags",
-  "phase1-backend/src/services/order-notes.service.ts#normalizeTagKey",
   "phase1-backend/src/services/order-print.service.ts#PRINT_BATCH_LIMIT",
   "phase1-backend/src/services/order-print.service.ts#PrintLine",
   "phase1-backend/src/services/owner-account.service.ts#ChangeOwnerEmailResult",
