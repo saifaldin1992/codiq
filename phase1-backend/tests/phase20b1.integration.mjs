@@ -984,12 +984,40 @@ try {
   });
   assert.equal(upload2.status, 201, "a rejection re-opens the upload");
   assert.equal(upload2.payload.prescriptionStatus, "pending_review");
-  const approveReview = await request(
-    `/merchant/stores/${storeA.slug}/orders/${rxOrder.id}/prescription/review`,
-    { method: "POST", token: tokenA, body: { decision: "approved" } }
+  // Review batch 4, ت-٦: two reviewers decide at the same moment. Both read «pending_review»
+  // before either wrote, so both were let through and the last write won — one was told
+  // «approved» about a prescription the record now calls rejected.
+  const reviewPath = `/merchant/stores/${storeA.slug}/orders/${rxOrder.id}/prescription/review`;
+  const decisions = await Promise.all(
+    ["rejected", "approved", "rejected", "approved"].map((decision) =>
+      request(reviewPath, { method: "POST", token: tokenA, body: { decision } })
+    )
   );
-  assert.equal(approveReview.status, 200);
-  assert.equal(approveReview.payload.prescriptionStatus, "approved");
+  const decided = decisions.filter((reply) => reply.status === 200);
+  assert.equal(
+    decided.length,
+    1,
+    `one prescription, one decision · ${decisions.map((reply) => reply.status).join(",")}`
+  );
+  assert.equal(
+    (await prisma.storeOrder.findUniqueOrThrow({ where: { id: rxOrder.id } })).prescriptionStatus,
+    decided[0].payload.prescriptionStatus,
+    "the record says what the winner was told"
+  );
+  if (decided[0].payload.prescriptionStatus === "rejected") {
+    const upload3 = await request(
+      `/store/${storeA.slug}/account/orders/${rxOrder.id}/prescription`,
+      { method: "POST", token: customerRx.token, form: pngForm() }
+    );
+    assert.equal(upload3.status, 201);
+    const approveAfterRace = await request(reviewPath, {
+      method: "POST",
+      token: tokenA,
+      body: { decision: "approved" },
+    });
+    assert.equal(approveAfterRace.status, 200);
+  }
+  summary.prescriptionReviewRace = "one of four simultaneous decisions wins";
   const reviewAgain = await request(
     `/merchant/stores/${storeA.slug}/orders/${rxOrder.id}/prescription/review`,
     { method: "POST", token: tokenA, body: { decision: "approved" } }

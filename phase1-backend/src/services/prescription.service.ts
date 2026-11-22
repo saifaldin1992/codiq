@@ -223,6 +223,18 @@ export async function reviewOrderPrescription(
         "Only a prescription pending review can be approved or rejected."
       );
     }
+    // Batch 4, ت-٦: the decision is CLAIMED first, conditionally — of two reviewers deciding at
+    // once, the second finds nothing pending and is refused, instead of overwriting the first.
+    const claimed = await tx.storeOrder.updateMany({
+      where: { id: orderId, storeId, prescriptionStatus: "pending_review" },
+      data: { prescriptionStatus: decision },
+    });
+    if (claimed.count !== 1)
+      throw new HttpError(
+        422,
+        "PRESCRIPTION_NOT_REVIEWABLE",
+        "Only a prescription pending review can be approved or rejected."
+      );
     const latest = await tx.orderPrescription.findFirst({
       where: { storeId, orderId },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -239,7 +251,6 @@ export async function reviewOrderPrescription(
         },
       });
     }
-    await tx.storeOrder.update({ where: { id: orderId }, data: { prescriptionStatus: decision } });
     return { orderId, prescriptionStatus: decision };
   });
 }

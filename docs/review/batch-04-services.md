@@ -40,7 +40,7 @@
 | `phase1-backend/src/services/feature-flags.service.ts` | 287 | — | لم يُقرأ |
 | `phase1-backend/src/services/order-notes.service.ts` | 258 | — | لم يُقرأ |
 | `phase1-backend/src/services/merchant-home.service.ts` | 250 | — | لم يُقرأ |
-| `phase1-backend/src/services/prescription.service.ts` | 245 | — | لم يُقرأ |
+| `phase1-backend/src/services/prescription.service.ts` | 245 | 2026-11-22 (كاملاً) | ت-٦. الرفع: تحقّق البايتات قبل أيّ كتابة، حدّ التخزين قبل التخزين، انتقال الحالة مشروط، وحذف الملفّ إن تراجعت المعاملة. القراءة: ملكيّة الطلب للزبون، والمتجر للتاجر |
 | `phase1-backend/src/services/soft-delete/delete-preview.service.ts` | 240 | — | لم يُقرأ |
 | `phase1-backend/src/services/abandoned-cart.service.ts` | 237 | — | لم يُقرأ |
 | `phase1-backend/src/services/platform-brand.service.ts` | 234 | — | لم يُقرأ |
@@ -113,6 +113,10 @@
 
 ### [ت-٥] تقسيم ملفّ التوصيل — تحسين
 - `d500773`: `delivery.service.ts` (٤٧١ سطراً) ← `services/delivery/{fields,handover,manifest,reconciliation}.ts`، نقلٌ حرفيّ قبل إصلاح م-٢ (الملفّ كان فوق الحدّ ولا ينمو). عيبان قديمان أُزيلا ليمرّ الحارس بلا تغيير سلوك: سطر تعليق طويل، ودالّة المطابقة فوق ٦٠ سطراً (`foldOrder`، `sumCouriers`).
+
+### [ت-٦] الوصفة تُحسم مرّتين بمراجعَين معاً — تحسين
+- المكان: `reviewOrderPrescription`. «بانتظار المراجعة» يُقرأ بلا قفل ثمّ يُكتب القرار: موافقة ورفض معاً يمرّان كلاهما، والأخير يغلب — فيُقال لأحدهما «موافَق» عن وصفة يسجّلها الطلب مرفوضة (نمط ت-٣).
+- الحالة: **مُصلَح** — القرار يُحجز أوّلاً بتحديث مشروط على الحالة؛ الثاني يجد لا شيء معلّقاً فيُرفض بـ٤٢٢ `PRESCRIPTION_NOT_REVIEWABLE` (الرمز نفسه للمراجعة المكرّرة). الاختبار (`phase20b1`): أربعة قرارات معاً — ٢٠٠×٤ قبل (ثلاث مرّات)؛ واحد ٢٠٠ والسجلّ يطابقه بعد (ثلاث مرّات).
 
 ### ملاحظات
 - `pos.service.ts`: سعر السطر يحدّده الكاشير (مقصود — بيع في المحلّ خلف `pos.sell`).
