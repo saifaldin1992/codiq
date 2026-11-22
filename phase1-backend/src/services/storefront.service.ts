@@ -392,7 +392,11 @@ async function expireGuestCartIfNeeded(cart: any) {
   return cart;
 }
 
-async function activeCartForContext(storeId: string, context: CartContext, createGuest: boolean) {
+async function activeCartForContext(
+  storeId: string,
+  context: CartContext,
+  createIfMissing: boolean
+) {
   if (context.customerId) {
     let cart = await prisma.shoppingCart.findFirst({
       where: {
@@ -403,7 +407,7 @@ async function activeCartForContext(storeId: string, context: CartContext, creat
       },
       include: CART_WITH_ITEMS,
     });
-    if (!cart && createGuest)
+    if (!cart && createIfMissing)
       cart = await prisma.shoppingCart.create({
         data: { storeId, ownerKind: "customer", customerId: context.customerId },
         include: CART_WITH_ITEMS,
@@ -423,7 +427,7 @@ async function activeCartForContext(storeId: string, context: CartContext, creat
       })
     : null;
   cart = await expireGuestCartIfNeeded(cart);
-  if (!cart && createGuest) {
+  if (!cart && createIfMissing) {
     const issuedGuestToken = randomGuestToken();
     cart = await prisma.shoppingCart.create({
       data: {
