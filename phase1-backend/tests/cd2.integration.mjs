@@ -745,6 +745,44 @@ try {
     1
   );
 
+  // Review batch 5, ت-٣: he asks again on the SAME row («نبّهني» pressed on an item already in
+  // his list, which updates it). The key was the row's id alone, so the second alert collided
+  // with the first, the transaction rolled back, the flag stayed on — and every pass tried
+  // again for ever, sending nothing.
+  await prisma.productVariant.update({
+    where: { id: shoes.variant.id },
+    data: { stockQuantity: 0 },
+  });
+  const askedAgain = await request(wishPath, {
+    method: "POST",
+    token: buyer.token,
+    body: { variantId: shoes.variant.id, notifyOnRestock: true },
+  });
+  assert.ok([200, 201].includes(askedAgain.status), JSON.stringify(askedAgain.payload));
+  await prisma.productVariant.update({
+    where: { id: shoes.variant.id },
+    data: { stockQuantity: 7 },
+  });
+  const sameRowAgain = await scanRestocks();
+  assert.equal(
+    sameRowAgain.enqueued,
+    1,
+    `a second ask on the same row earns a second alert · ${JSON.stringify(sameRowAgain)}`
+  );
+  assert.equal(
+    (
+      await prisma.wishlistItem.findFirstOrThrow({
+        where: { storeId: storeA.id, customerId: buyer.id, variantId: shoes.variant.id },
+      })
+    ).notifyOnRestock,
+    false,
+    "…and the request is retired, not left to retry for ever"
+  );
+  await prisma.notificationOutbox.deleteMany({
+    where: { storeId: storeA.id, eventType: "stock.back_in_stock" },
+  });
+  await prisma.notificationOutbox.create({ data: { ...alert, id: undefined } });
+
   // And he may ask AGAIN. This is what keying on the wishlist row buys: a
   // variant+customer key would have silenced him permanently on the first alert.
   await request(`${wishPath}/${shoes.variant.id}`, { method: "DELETE", token: buyer.token });

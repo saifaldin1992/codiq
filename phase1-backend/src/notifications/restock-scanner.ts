@@ -44,6 +44,33 @@ export interface RestockScanResult {
   duplicates: number;
 }
 
+/**
+ * Review batch 5, ت-٣ — one key per ASK, not per wishlist row. «نبّهني» pressed again on an item
+ * already in the list updates the same row; a key of the row's id alone collided with the first
+ * alert, rolled the transaction back, left the request standing and retried it every pass for
+ * ever. The n-th alert for a row is `back_in_stock:{row}:{n}` — after the largest key that still
+ * exists (the first alert's legacy key has no suffix and counts as 0). Two scanners racing on the
+ * same ask compute the same key, so the unique index still makes it one message.
+ */
+async function nextRestockKey(
+  tx: Prisma.TransactionClient,
+  storeId: string,
+  itemId: string
+): Promise<string> {
+  const base = `back_in_stock:${itemId}`;
+  const earlier = await tx.notificationOutbox.findMany({
+    where: { storeId, dedupeKey: { startsWith: base } },
+    select: { dedupeKey: true },
+  });
+  if (!earlier.length) return base;
+  const last = Math.max(
+    ...earlier.map((row) =>
+      row.dedupeKey === base ? 0 : Number(row.dedupeKey!.slice(base.length + 1)) || 0
+    )
+  );
+  return `${base}:${last + 1}`;
+}
+
 export async function scanRestocks(): Promise<RestockScanResult> {
   const result: RestockScanResult = { candidates: 0, enqueued: 0, duplicates: 0 };
   let cursor: string | undefined;
@@ -101,6 +128,7 @@ export async function scanRestocks(): Promise<RestockScanResult> {
         // it is retired together. Split apart, a crash between them either pages
         // him twice or drops the alert he asked for.
         await prisma.$transaction(async (tx) => {
+          const dedupeKey = await nextRestockKey(tx, item.storeId, item.id);
           await tx.notificationOutbox.create({
             data: {
               storeId: item.storeId,
@@ -108,7 +136,7 @@ export async function scanRestocks(): Promise<RestockScanResult> {
               recipientKind: "customer",
               channel: "email",
               recipient: item.customer.email!,
-              dedupeKey: `back_in_stock:${item.id}`,
+              dedupeKey,
               payload: {
                 storeName: item.store.name,
                 storeSlug: item.store.slug,
