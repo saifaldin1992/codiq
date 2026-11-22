@@ -1,0 +1,270 @@
+/**
+ * The partner app — links. Split verbatim from partner.service.ts (review batch 2, ت-٩);
+ * partner.service.ts re-exports what it always exported.
+ */
+import { createHash, randomBytes } from "node:crypto";
+import { marketCartView } from "../../market-cart/cart.service.js";
+import { prisma } from "../../../db/prisma.js";
+import { HttpError } from "../../../auth/auth.errors.js";
+import { listedStoreTenant } from "../../market-stores/directory.service.js";
+import { checkoutSummary, placeMarketOrder } from "../../market-cart/checkout.service.js";
+import { logger } from "../../../logging/logger.js";
+import { transitionOrderStatus } from "../../../services/order-lifecycle.service.js";
+import { requirePartner, hashToken, signatureOk } from "./config.js";
+
+export const LINK_TTL_MS = 15 * 60 * 1000;
+
+// ── F10: payment links ───────────────────────────────────────────────────────
+
+/** What the cart is: lines, quantities, prices, the address and the way it is received. */
+async function cartFingerprint(
+  shopperId: string,
+  storeId: string,
+  addressId: string,
+  fulfilment: string
+) {
+  const view = await marketCartView(shopperId, storeId);
+  const group = view.stores[0];
+  if (!group?.lines.length) return null;
+  type Line = {
+    variant: { id: string };
+    quantity: number;
+    livePriceIqd: number;
+    addons: { id: string }[];
+  };
+  const lines = (group.lines as Line[])
+    .map((line) =>
+      [
+        line.variant.id,
+        line.quantity,
+        line.livePriceIqd,
+        line.addons
+          .map((addon: { id: string }) => addon.id)
+          .sort()
+          .join("+"),
+      ].join(":")
+    )
+    .sort();
+  return {
+    fingerprint: createHash("sha256")
+      .update(JSON.stringify({ lines, addressId, fulfilment }))
+      .digest("hex"),
+    ready: group.ready,
+  };
+}
+
+type Shopper = { id: string; phoneNormalized: string; fullName: string | null };
+
+export async function createPaymentLink(
+  shopper: Shopper,
+  storeSlug: string,
+  input: { addressId: string; fulfilment: "delivery" | "pickup" }
+) {
+  const config = requirePartner();
+  const link = await prisma.shopperPartnerLink.findUnique({
+    where: { shopperId_partner: { shopperId: shopper.id, partner: config.id } },
+  });
+  if (!link)
+    throw new HttpError(
+      422,
+      "PARTNER_NOT_LINKED",
+      `اربط حسابك بـ${config.name} أوّلاً — ادخل السوق من داخل التطبيق.`
+    );
+  const store = await listedStoreTenant(storeSlug);
+  const summary = await checkoutSummary(shopper, storeSlug, {
+    addressId: input.addressId,
+    fulfilment: input.fulfilment,
+  });
+  if (!summary.ready || !summary.delivery.available)
+    throw new HttpError(422, "CART_NOT_READY", summary.delivery.reason ?? "راجع سلّتك قبل الدفع.");
+  const cart = await cartFingerprint(shopper.id, store.id, input.addressId, input.fulfilment);
+  if (!cart) throw new HttpError(422, "CART_EMPTY", "لا توجد منتجات من هذا المتجر في سلتك.");
+  // One live link per shopper and store: a new one replaces the old.
+  await prisma.checkoutToken.updateMany({
+    where: { shopperId: shopper.id, storeId: store.id, status: "issued" },
+    data: { status: "replaced" },
+  });
+  const token = randomBytes(32).toString("base64url");
+  const row = await prisma.checkoutToken.create({
+    data: {
+      tokenHash: hashToken(token),
+      shopperId: shopper.id,
+      storeId: store.id,
+      partner: config.id,
+      addressId: input.addressId,
+      fulfilment: input.fulfilment,
+      cartFingerprint: cart.fingerprint,
+      amountIqd: summary.totalIqd,
+      expiresAt: new Date(Date.now() + LINK_TTL_MS),
+    },
+  });
+  return {
+    linkId: row.id,
+    partner: config.name,
+    amountIqd: summary.totalIqd,
+    expiresAt: row.expiresAt,
+    deepLink: `${config.payUrl}?token=${encodeURIComponent(token)}&amount=${summary.totalIqd}`,
+  };
+}
+
+export async function paymentLinkStatus(shopperId: string, linkId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(linkId))
+    throw new HttpError(404, "PAYMENT_LINK_NOT_FOUND", "رابط الدفع غير موجود.");
+  const row = await prisma.checkoutToken.findFirst({
+    where: { id: linkId, shopperId },
+    select: {
+      id: true,
+      status: true,
+      refusal: true,
+      amountIqd: true,
+      expiresAt: true,
+      orderId: true,
+    },
+  });
+  if (!row) throw new HttpError(404, "PAYMENT_LINK_NOT_FOUND", "رابط الدفع غير موجود.");
+  if (row.status === "issued" && row.expiresAt < new Date()) {
+    await prisma.checkoutToken.updateMany({
+      where: { id: row.id, status: "issued" },
+      data: { status: "expired" },
+    });
+    return { link: { ...row, status: "expired" } };
+  }
+  return { link: row };
+}
+
+/**
+ * The partner's signed report that it took the money for a link. Answers
+ * `{ ok: true, orderId }` or `{ ok: false, refund: true, reason }` — in the
+ * second case the partner must give the money back; nothing was placed.
+ */
+export async function completePaymentLink(rawBody: Buffer, signature: string | undefined) {
+  const config = requirePartner();
+  if (!signatureOk(config.secret, rawBody, signature)) {
+    logger.warn("security.refused", { reason: "partner_payment_signature" });
+    throw new HttpError(401, "PARTNER_SIGNATURE_INVALID", "توقيع الطلب غير صحيح.");
+  }
+  let body: {
+    token?: unknown;
+    partnerAccountId?: unknown;
+    amountIqd?: unknown;
+    paymentRef?: unknown;
+  };
+  try {
+    body = JSON.parse(rawBody.toString("utf8"));
+  } catch {
+    throw new HttpError(400, "PARTNER_BODY_INVALID", "جسم الطلب غير صالح.");
+  }
+  if (
+    typeof body.token !== "string" ||
+    typeof body.partnerAccountId !== "string" ||
+    !Number.isInteger(body.amountIqd) ||
+    typeof body.paymentRef !== "string" ||
+    body.paymentRef.length > 120
+  ) {
+    throw new HttpError(422, "PARTNER_BODY_INVALID", "جسم الطلب ناقص.");
+  }
+  const row = await prisma.checkoutToken.findUnique({
+    where: { tokenHash: hashToken(body.token) },
+    include: { shopper: true, store: { select: { slug: true } } },
+  });
+  if (!row || row.partner !== config.id) return { ok: false, refund: true, reason: "LINK_UNKNOWN" };
+  if (row.status === "used")
+    return { ok: false, refund: true, reason: "LINK_USED", orderId: row.orderId };
+  // Review 2026-11-21: a report already being handled (or one interrupted by a crash) is not
+  // «used» — the partner must not take it for paid. Retry later; long after the link's life it is refused.
+  if (row.status === "using") {
+    if (row.expiresAt.getTime() + 5 * 60 * 1000 > Date.now())
+      return { ok: false, refund: false, retryLater: true, reason: "LINK_IN_PROGRESS" };
+    await prisma.checkoutToken.updateMany({
+      where: { id: row.id, status: "using" },
+      data: { status: "refused", refusal: "INTERRUPTED" },
+    });
+    return { ok: false, refund: true, reason: "INTERRUPTED" };
+  }
+  if (row.status !== "issued")
+    return { ok: false, refund: true, reason: `LINK_${row.status.toUpperCase()}` };
+  const refuse = async (reason: string) => {
+    await prisma.checkoutToken.updateMany({
+      where: { id: row.id, status: { in: ["issued", "using"] } },
+      data: { status: "refused", refusal: reason },
+    });
+    return { ok: false, refund: true, reason };
+  };
+  // Single use, even against two reports at once: only one claims it.
+  const claimed = await prisma.checkoutToken.updateMany({
+    where: { id: row.id, status: "issued" },
+    data: { status: "using" },
+  });
+  if (claimed.count !== 1)
+    return { ok: false, refund: false, retryLater: true, reason: "LINK_IN_PROGRESS" };
+  if (row.expiresAt < new Date()) return refuse("LINK_EXPIRED");
+  const link = await prisma.shopperPartnerLink.findUnique({
+    where: { shopperId_partner: { shopperId: row.shopperId, partner: config.id } },
+  });
+  if (!link || link.partnerAccountId !== body.partnerAccountId) return refuse("ACCOUNT_MISMATCH");
+  if (body.amountIqd !== row.amountIqd) return refuse("AMOUNT_MISMATCH");
+  const cart = await cartFingerprint(row.shopperId, row.storeId, row.addressId, row.fulfilment);
+  if (!cart || cart.fingerprint !== row.cartFingerprint) return refuse("CART_CHANGED");
+  if (!cart.ready) return refuse("OUT_OF_STOCK");
+  try {
+    const placed = await placeMarketOrder(
+      {
+        id: row.shopper.id,
+        phoneNormalized: row.shopper.phoneNormalized,
+        fullName: row.shopper.fullName,
+      },
+      row.store.slug,
+      {
+        addressId: row.addressId,
+        fulfilment: row.fulfilment as "delivery" | "pickup",
+        paymentMethodCode: "market_partner",
+      },
+      `partner-link-${row.id}`,
+      { paidByPartner: true }
+    );
+    if (placed.order.totalIqd !== row.amountIqd) {
+      // The prices moved under the lock: the order stands cancelled and the partner returns the money.
+      logger.warn("payments.partner_amount_drift", { linkId: row.id });
+      await transitionOrderStatus(
+        placed.order.storeId ?? row.storeId,
+        { kind: "system", id: row.id },
+        placed.order.id,
+        {
+          toStatus: "cancelled",
+          expectedVersion: placed.order.version,
+          note: "تغيّر المبلغ عند الدفع من التطبيق الشريك.",
+        }
+      ).catch(() => undefined);
+      return refuse("AMOUNT_MISMATCH");
+    }
+    await prisma.$transaction([
+      prisma.checkoutToken.update({
+        where: { id: row.id },
+        data: { status: "used", usedAt: new Date(), orderId: placed.order.id },
+      }),
+      prisma.marketPayment.create({
+        data: {
+          shopperId: row.shopperId,
+          storeId: row.storeId,
+          orderId: placed.order.id,
+          method: "partner",
+          provider: config.id,
+          providerRef: body.paymentRef,
+          status: "paid",
+          amountIqd: row.amountIqd,
+          paidAt: new Date(),
+          expiresAt: new Date(),
+        },
+      }),
+    ]);
+    return { ok: true, orderId: placed.order.id, orderNumber: placed.order.orderNumber };
+  } catch (error) {
+    const code = error instanceof HttpError ? error.code : "CHECKOUT_FAILED";
+    if (!(error instanceof HttpError))
+      logger.warn("payments.partner_checkout_failed", {
+        linkId: row.id,
+        reason: (error as Error).message,
+      });
+    return refuse(code);
+  }
+}

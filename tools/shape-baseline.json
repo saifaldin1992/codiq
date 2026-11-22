@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2584,
-  "oversizeFiles": 114,
+  "oversizeFiles": 113,
   "longFunctions": 441
  },
  "files": {
@@ -426,10 +426,15 @@
    "oversize": 0,
    "longFunctions": 0
   },
-  "phase1-backend/src/modules/market-partner/partner.service.ts": {
-   "longLines": 3,
-   "oversize": 59,
-   "longFunctions": 2
+  "phase1-backend/src/modules/market-partner/partner/links.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-partner/partner/sign-in.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 1
   },
   "phase1-backend/src/modules/market-partner/routes.ts": {
    "longLines": 4,
