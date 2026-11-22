@@ -35,28 +35,28 @@
 | `phase1-backend/src/services/notification-settings.service.ts` | 326 | — | لم يُقرأ |
 | `phase1-backend/src/services/merchant-search.service.ts` | 313 | — | لم يُقرأ |
 | `phase1-backend/src/services/storefront-seo.service.ts` | 307 | — | لم يُقرأ |
-| `phase1-backend/src/services/store-banner.service.ts` | 295 | — | لم يُقرأ |
+| `phase1-backend/src/services/store-banner.service.ts` | 295 | 2026-11-22 (كاملاً) | الرابط يبدأ بـ http(s) فقط (لا `javascript:`)؛ الحدّ لكلّ موضع؛ التخزين يُحسب قبل الرفع، والملفّ يُحذف إن فشل الصفّ؛ كلّ تعديل وحذف مقيّد بالمتجر |
 | `phase1-backend/src/services/list-page.ts` | 289 | — | لم يُقرأ |
 | `phase1-backend/src/services/feature-flags.service.ts` | 287 | — | لم يُقرأ |
-| `phase1-backend/src/services/order-notes.service.ts` | 258 | — | لم يُقرأ |
+| `phase1-backend/src/services/order-notes.service.ts` | 258 | 2026-11-22 (كاملاً) | كلّ قراءة وكتابة تفحص الطلب في المتجر أوّلاً؛ الوسوم تُستبدل تحت قفل الصفّ؛ القائمة بصفحات |
 | `phase1-backend/src/services/merchant-home.service.ts` | 250 | — | لم يُقرأ |
 | `phase1-backend/src/services/prescription.service.ts` | 245 | 2026-11-22 (كاملاً) | ت-٦. الرفع: تحقّق البايتات قبل أيّ كتابة، حدّ التخزين قبل التخزين، انتقال الحالة مشروط، وحذف الملفّ إن تراجعت المعاملة. القراءة: ملكيّة الطلب للزبون، والمتجر للتاجر |
 | `phase1-backend/src/services/soft-delete/delete-preview.service.ts` | 240 | — | لم يُقرأ |
-| `phase1-backend/src/services/abandoned-cart.service.ts` | 237 | — | لم يُقرأ |
+| `phase1-backend/src/services/abandoned-cart.service.ts` | 237 | 2026-11-22 (كاملاً) | كلّ القراءات مقيّدة بالمتجر؛ قسيمة الاسترداد تُفحص حيّة وفي المتجر؛ معطّل افتراضيّاً (تسويق باختيار التاجر) |
 | `phase1-backend/src/services/platform-brand.service.ts` | 234 | — | لم يُقرأ |
 | `phase1-backend/src/services/platform-health.service.ts` | 229 | — | لم يُقرأ |
 | `phase1-backend/src/services/store-traffic.service.ts` | 221 | — | لم يُقرأ |
 | `phase1-backend/src/services/platform-audit.service.ts` | 216 | — | لم يُقرأ |
 | `phase1-backend/src/services/merchant-monthly-report.service.ts` | 212 | — | لم يُقرأ |
-| `phase1-backend/src/services/store-verification.service.ts` | 209 | — | لم يُقرأ |
+| `phase1-backend/src/services/store-verification.service.ts` | 209 | 2026-11-22 (كاملاً) | الشارة للمالك وحده، يُقرأ من القاعدة لا من الطلب؛ المنح والسحب مع سجلّ التدقيق في معاملة واحدة؛ الواجهة العامّة تقول الشارة وحدها |
 | `phase1-backend/src/services/platform-pulse.service.ts` | 204 | — | لم يُقرأ |
 | `phase1-backend/src/services/platform-contact.service.ts` | 203 | — | لم يُقرأ |
 | `phase1-backend/src/services/merchant-store.service.ts` | 195 | — | لم يُقرأ |
 | `phase1-backend/src/services/image-embedding.ts` | 190 | — | لم يُقرأ |
-| `phase1-backend/src/services/customer-directory.service.ts` | 187 | — | لم يُقرأ |
+| `phase1-backend/src/services/customer-directory.service.ts` | 187 | 2026-11-22 (كاملاً) | البحث والقائمة مقيّدان بالمتجر؛ الحظر خلف `settings.manage` بسجلّ تدقيق، ويسري فوراً (حارس الزبون يقرأ `isActive` كلّ طلب) |
 | `phase1-backend/src/services/recommendation.service.ts` | 181 | — | لم يُقرأ |
 | `phase1-backend/src/services/soft-delete/audit-log.service.ts` | 174 | — | لم يُقرأ |
-| `phase1-backend/src/services/wishlist.service.ts` | 173 | — | لم يُقرأ |
+| `phase1-backend/src/services/wishlist.service.ts` | 173 | 2026-11-22 (كاملاً) | المتغيّر يُفحص حيّاً ونشطاً وفي المتجر (٤٠٤ واحد لغير الموجود وللأجنبيّ)؛ الإضافة المكرّرة تحديث لا خطأ؛ حدّ للقائمة |
 | `phase1-backend/src/services/stock-forecast.service.ts` | 169 | — | لم يُقرأ |
 | `phase1-backend/src/services/order-print.service.ts` | 163 | — | لم يُقرأ |
 | `phase1-backend/src/services/soft-delete/fk-violations.ts` | 162 | — | لم يُقرأ |
