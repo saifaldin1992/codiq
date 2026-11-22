@@ -6,7 +6,8 @@
 import { Link } from "wouter";
 import { PackageX, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatIqd, StorefrontProduct, storefrontApi } from "@/lib/storefront-api";
+import { StorefrontProduct, storefrontApi } from "@/lib/storefront-api";
+import { priceLabel } from "@/lib/price-label";
 
 /** «جديد» is an age, not a flag: a fortnight, and it clears itself. */
 export const NEW_PRODUCT_DAYS = 14;
@@ -17,19 +18,6 @@ export function isNewProduct(
   if (!product.createdAt) return false;
   const age = now - new Date(product.createdAt).valueOf();
   return age >= 0 && age < NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000;
-}
-
-export function priceLabel(
-  product: Pick<StorefrontProduct, "priceIqd" | "minPriceIqd" | "maxPriceIqd">
-) {
-  if (
-    typeof product.minPriceIqd === "number" &&
-    typeof product.maxPriceIqd === "number" &&
-    product.minPriceIqd !== product.maxPriceIqd
-  ) {
-    return `${formatIqd.format(product.minPriceIqd)}–${formatIqd.format(product.maxPriceIqd)}`;
-  }
-  return formatIqd.format(product.priceIqd);
 }
 
 export function ProductCard({

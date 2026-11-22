@@ -860,4 +860,4 @@ export function errorMessage(error: unknown) {
 
 export type DeliveryArea = { key: string; name: string; amountIqd: number };
 
-export const formatIqd = new Intl.NumberFormat("ar-IQ");
+export { formatIqd } from "./price-label";
