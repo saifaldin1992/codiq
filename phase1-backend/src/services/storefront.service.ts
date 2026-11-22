@@ -866,38 +866,35 @@ export async function addCartItem(
   const { cart, issuedGuestToken } = await activeCartForContext(storeId, context, true);
   if (!cart) throw new HttpError(500, "CART_CREATION_FAILED", "Cart could not be created.");
   const updated = await prisma.$transaction(async (tx) => {
-    const existing = await tx.cartItem.findUnique({
-      where: { cartId_variantId: { cartId: cart.id, variantId: variant.id } },
-    });
-    const nextQuantity = (existing?.quantity ?? 0) + requestedQuantity;
-    if (nextQuantity > MAX_CART_QUANTITY)
-      throw new HttpError(
-        422,
-        "INVALID_CART_QUANTITY",
-        `quantity cannot exceed ${MAX_CART_QUANTITY}.`
-      );
     await assertWithinOrderLimit(tx, cart.id, variant.productId, requestedQuantity);
     // 19-د: adding to an existing line ALWAYS raises its quantity, so the line
     // is re-priced from the variant that was just read. See `updateCartItem`
     // for the rule and why it is bounded to increases.
     // Marketplace M8a: the snapshot is the LIVE price — an hourly deal's price while it runs.
     const livePrice = await livePriceOf(tx, variant.id, variant.priceIqd);
-    if (existing)
-      await tx.cartItem.update({
-        where: { id: existing.id },
-        data: { quantity: nextQuantity, priceSnapshotIqd: livePrice },
-      });
-    else
-      await tx.cartItem.create({
-        data: {
-          cartId: cart.id,
-          storeId,
-          productId: variant.productId,
-          variantId: variant.id,
-          quantity: requestedQuantity,
-          priceSnapshotIqd: livePrice,
-        },
-      });
+    // Review batch 2, م-٣: ONE statement adds the units — insert the line, or raise it by
+    // `increment` under the row's lock. Reading the quantity and writing back the sum lost
+    // additions: ten simultaneous «add one» became two or three units.
+    const line = await tx.cartItem.upsert({
+      where: { cartId_variantId: { cartId: cart.id, variantId: variant.id } },
+      create: {
+        cartId: cart.id,
+        storeId,
+        productId: variant.productId,
+        variantId: variant.id,
+        quantity: requestedQuantity,
+        priceSnapshotIqd: livePrice,
+      },
+      update: { quantity: { increment: requestedQuantity }, priceSnapshotIqd: livePrice },
+      select: { quantity: true },
+    });
+    // Over the ceiling: refused, and the transaction takes the units back with it.
+    if (line.quantity > MAX_CART_QUANTITY)
+      throw new HttpError(
+        422,
+        "INVALID_CART_QUANTITY",
+        `quantity cannot exceed ${MAX_CART_QUANTITY}.`
+      );
     return tx.shoppingCart.update({
       where: { id: cart.id },
       data: {

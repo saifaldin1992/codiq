@@ -809,6 +809,27 @@ try {
   assert.equal(overCap.payload.cart.items.length, 0, "nothing landed that checkout would refuse");
   summary.reorderRespectsOrderCap = true;
 
+  // --- 10a'. review batch 2, ت-٥: ten simultaneous «add one» on the same product
+  // land as ten — none is lost to a read-then-write race. ---
+  const hurried = await registerCustomer(storeA.slug, "زبونة مستعجلة", `${testId}.hurried@codiq.test`);
+  await cartAdd(storeA.slug, hurried.token, { productId: staple.id, quantity: 1 });
+  await Promise.all(
+    Array.from({ length: 9 }, () =>
+      request(`/store/${storeA.slug}/cart/items`, {
+        method: "POST",
+        token: hurried.token,
+        body: { productId: staple.id, quantity: 1 },
+      })
+    )
+  );
+  const hurriedCart = await request(`/store/${storeA.slug}/cart`, { token: hurried.token });
+  assert.equal(
+    hurriedCart.payload.cart.items.find((item) => item.productId === staple.id)?.quantity,
+    10,
+    "ten adds of one, at once, are ten units"
+  );
+  summary.concurrentAddsAllLand = true;
+
   // --- 10b. an EXISTING cart line is RE-PRICED by the reorder, and a reorder
   // that only hits the quantity cap must not touch the cart at all. ---
   //
