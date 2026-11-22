@@ -440,10 +440,16 @@ try {
 
   // guarded private streaming + IDOR
   const ownerStream = await request(`/store/${storeA.slug}/account/orders/${rxOrder.id}/prescription`, { token: customerRx.token });
-  assert.equal(ownerStream.status, 200); assert.ok(ownerStream.bytes.equals(png), "the owner streams the exact uploaded bytes");
+  // The prescription is stored re-encoded (EXIF stripping is proven in
+  // image-variants.unit.mjs): the same picture, not the same bytes.
+  const { default: sharp } = await import("sharp");
+  const storedRx = ownerStream.bytes;
+  assert.equal(ownerStream.status, 200);
+  assert.deepEqual([(await sharp(storedRx).metadata()).width, (await sharp(storedRx).metadata()).height], [2, 2], "the owner streams the same picture");
+  assert.equal((await sharp(storedRx).metadata()).exif, undefined, "…with no EXIF block");
   assert.ok(ownerStream.contentType.includes("image/png"));
   const merchantStream = await request(`/merchant/stores/${storeA.slug}/orders/${rxOrder.id}/prescription`, { token: tokenA });
-  assert.equal(merchantStream.status, 200); assert.ok(merchantStream.bytes.equals(png), "orders.view streams the exact uploaded bytes");
+  assert.equal(merchantStream.status, 200); assert.ok(merchantStream.bytes.equals(storedRx), "orders.view streams the same stored bytes");
   const strangerStream = await request(`/store/${storeA.slug}/account/orders/${rxOrder.id}/prescription`, { token: customer8.token });
   assert.equal(strangerStream.status, 404, "another customer of the same store gets a plain 404");
   const strangerUpload = await request(`/store/${storeA.slug}/account/orders/${rxOrder.id}/prescription`, { method: "POST", token: customer8.token, form: pngForm() });

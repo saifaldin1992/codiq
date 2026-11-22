@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { HttpError } from "../auth/auth.errors.js";
 import { logger } from "../logging/logger.js";
 import { fingerprint } from "../logging/redact.js";
-import { PRODUCT_IMAGE_VARIANT_SET, renderProductImageVariants, variantObjectKey, type ImageVariantName, type RenderedImageSet } from "./image-variants.service.js";
+import { PRODUCT_IMAGE_VARIANT_SET, renderProductImageVariants, stripImageMetadata, variantObjectKey, type ImageVariantName, type RenderedImageSet } from "./image-variants.service.js";
 
 /**
  * ق-238 — WHAT HE UPLOADS IS NO LONGER WHAT WE KEEP.
@@ -211,10 +211,11 @@ export function validatePrescriptionImage(file: Express.Multer.File) {
 
 export async function putPrescriptionImage(storeId: string, orderId: string, file: Express.Multer.File) {
   const detected = validatePrescriptionImage(file);
+  const clean = await stripImageMetadata(file.buffer, detected.contentType);
   const config = s3Config();
   const objectKey = `prescriptions/${storeId}/${orderId}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
-  return { objectKey, contentType: detected.contentType, byteSize: file.size };
+  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: clean, ContentType: detected.contentType, ContentLength: clean.length }));
+  return { objectKey, contentType: detected.contentType, byteSize: clean.length };
 }
 
 /**
@@ -253,10 +254,11 @@ export async function getPrescriptionBytes(objectKey: string) {
  */
 export async function putStoreBanner(storeId: string, file: Express.Multer.File) {
   const detected = validateStoreImage(file);
+  const clean = await stripImageMetadata(file.buffer, detected.contentType);
   const config = s3Config();
   const objectKey = `banners/${storeId}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
-  return { objectKey, contentType: detected.contentType, byteSize: file.size };
+  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: clean, ContentType: detected.contentType, ContentLength: clean.length }));
+  return { objectKey, contentType: detected.contentType, byteSize: clean.length };
 }
 
 export async function getStoreBannerBytes(objectKey: string) {
@@ -274,10 +276,11 @@ export async function deleteStoreBannerObjects(objectKeys: readonly string[]) {
  */
 export async function putStoreLogo(storeId: string, file: Express.Multer.File) {
   const detected = validateStoreImage(file);
+  const clean = await stripImageMetadata(file.buffer, detected.contentType);
   const config = s3Config();
   const objectKey = `logos/${storeId}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
-  return { objectKey, contentType: detected.contentType, byteSize: file.size };
+  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: clean, ContentType: detected.contentType, ContentLength: clean.length }));
+  return { objectKey, contentType: detected.contentType, byteSize: clean.length };
 }
 
 export async function getStoreLogoBytes(objectKey: string) {
@@ -294,10 +297,11 @@ export async function deleteStoreLogoObjects(objectKeys: readonly string[]) {
  */
 export async function putStoreCover(storeId: string, file: Express.Multer.File) {
   const detected = validateStoreImage(file);
+  const clean = await stripImageMetadata(file.buffer, detected.contentType);
   const config = s3Config();
   const objectKey = `covers/${storeId}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
-  return { objectKey, contentType: detected.contentType, byteSize: file.size };
+  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: clean, ContentType: detected.contentType, ContentLength: clean.length }));
+  return { objectKey, contentType: detected.contentType, byteSize: clean.length };
 }
 
 export async function deleteStoreCoverObjects(objectKeys: readonly string[]) {
@@ -310,10 +314,11 @@ export async function deleteStoreCoverObjects(objectKeys: readonly string[]) {
  */
 export async function putMarketImage(kind: "banners" | "avatars" | "tickets" | "reel-posters", file: Express.Multer.File) {
   const detected = validateStoreImage(file);
+  const clean = await stripImageMetadata(file.buffer, detected.contentType);
   const config = s3Config();
   const objectKey = `market/${kind}/${randomUUID()}.${detected.extension}`;
-  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: file.buffer, ContentType: detected.contentType, ContentLength: file.size }));
-  return { objectKey, contentType: detected.contentType, byteSize: file.size };
+  await client(config).send(new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, Body: clean, ContentType: detected.contentType, ContentLength: clean.length }));
+  return { objectKey, contentType: detected.contentType, byteSize: clean.length };
 }
 
 export async function deleteMarketImageObjects(objectKeys: readonly string[]) {

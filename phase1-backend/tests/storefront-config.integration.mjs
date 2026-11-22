@@ -179,7 +179,10 @@ try {
   const bytes = await fetch(`${base}${withLogo.payload.logoUrl.replace(/^\/api/, "")}`);
   assert.equal(bytes.status, 200);
   assert.equal(bytes.headers.get("content-type"), "image/png");
-  assert.equal((await bytes.arrayBuffer()).byteLength, PNG.length, "the same bytes come back");
+  const served = Buffer.from(await bytes.arrayBuffer());
+  const { default: sharp } = await import("sharp");
+  const [sent, got] = await Promise.all([sharp(PNG).metadata(), sharp(served).metadata()]);
+  assert.deepEqual([got.format, got.width, got.height], [sent.format, sent.width, sent.height], "the same picture comes back, re-encoded without metadata");
   const usageAfter = (await merchantUsage(prisma, merchantA.payload.account.id)).max_image_storage_mb;
   assert.ok(usageAfter > usageBefore, `ق-199: the logo counts against the storage plan (before ${usageBefore}, after ${usageAfter}) — a charge against a meter that never moves is not a limit`);
   const firstKey = (await prisma.store.findUniqueOrThrow({ where: { id: storeA.id }, select: { logoObjectKey: true } })).logoObjectKey;

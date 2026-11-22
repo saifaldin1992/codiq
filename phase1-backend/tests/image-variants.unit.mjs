@@ -221,4 +221,20 @@ await assert.rejects(
 assert.ok(Date.now() - started < 2000, "…and refused fast: nothing was decoded");
 summary.pixelCeiling = { maxPixels: MAX_INPUT_PIXELS, declared: GIANT * GIANT, fixtureBytes: giant.length, refused: 422 };
 
+// ── uploads that are not product images keep their format, lose their metadata
+// A phone photo with GPS in its EXIF: the stored copy must carry none of it.
+const { stripImageMetadata } = await import("../src/services/image-variants.service.ts");
+const withGps = await sharp({ create: { width: 40, height: 30, channels: 3, background: "#7a3" } })
+  .jpeg()
+  .withExif({ IFD0: { Make: "PhoneCo", Model: "Phone 9" }, IFD3: { GPSLatitudeRef: "N", GPSLatitude: "33/1 18/1 0/1", GPSLongitudeRef: "E", GPSLongitude: "44/1 21/1 0/1" } })
+  .toBuffer();
+assert.ok((await sharp(withGps).metadata()).exif, "the fixture really carries EXIF");
+const stripped = await stripImageMetadata(withGps, "image/jpeg");
+const strippedMeta = await sharp(stripped).metadata();
+assert.deepEqual([strippedMeta.format, strippedMeta.width, strippedMeta.height, strippedMeta.exif], ["jpeg", 40, 30, undefined], "same picture, no EXIF — no GPS, no device");
+assert.ok(!stripped.includes(Buffer.from("PhoneCo")), "the device name is gone from the bytes");
+const pngIn = await sharp({ create: { width: 3, height: 2, channels: 4, background: "#0000" } }).png().toBuffer();
+assert.equal((await sharp(await stripImageMetadata(pngIn, "image/png")).metadata()).format, "png", "a PNG stays a PNG");
+summary.metadataStripped = true;
+
 console.log(JSON.stringify({ suite: "image-variants", status: "passed", summary }, null, 2));

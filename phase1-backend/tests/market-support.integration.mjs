@@ -169,7 +169,8 @@ try {
   assert.equal((await shopper.request(t(`/${ticketId}/attachments`), { method: "POST", form: image() })).payload.error.code, "TICKET_ATTACHMENTS_FULL");
   assert.equal((await A.api.request(ms(A, `/${ticketId}/attachments`), { method: "POST", form: image() })).status, 201, "the store has its own three");
   const asShopper = await shopper.request(t(`/${ticketId}/attachments/${attachmentId}`));
-  assert.deepEqual([asShopper.status, asShopper.type, asShopper.payload.equals(png)], [200, "image/png", true]);
+  // Stored re-encoded without metadata (proven in image-variants.unit.mjs): still a PNG.
+  assert.deepEqual([asShopper.status, asShopper.type, asShopper.payload.subarray(0, 8).equals(png.subarray(0, 8))], [200, "image/png", true]);
   assert.equal((await A.api.request(ms(A, `/${ticketId}/attachments/${attachmentId}`))).status, 200);
   assert.equal((await owner.request(`/platform/market/support-tickets/${ticketId}/attachments/${attachmentId}`)).status, 200);
   assert.equal((await B.api.request(ms(B, `/${ticketId}/attachments/${attachmentId}`))).status, 404);

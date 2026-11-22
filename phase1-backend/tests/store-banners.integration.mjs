@@ -119,7 +119,12 @@ try {
   assert.equal(bytes.status, 200);
   assert.equal(bytes.headers.get("content-type"), "image/png");
   assert.match(bytes.headers.get("cache-control") ?? "", /immutable/, "the object key carries a uuid, so the bytes under one id never change");
-  assert.equal((await bytes.arrayBuffer()).byteLength, PNG.length, "the same image comes back, byte for byte");
+  // Re-encoded on upload so no metadata survives: the same picture (same
+  // format, same pixels' size), not the same bytes.
+  const served = Buffer.from(await bytes.arrayBuffer());
+  const { default: sharp } = await import("sharp");
+  const [sent, got] = await Promise.all([sharp(PNG).metadata(), sharp(served).metadata()]);
+  assert.deepEqual([got.format, got.width, got.height], [sent.format, sent.width, sent.height], "the same image comes back");
   summary.bytesServed = true;
 
   // ── 4. hiding removes it from the shop and NOT from the merchant ─────────

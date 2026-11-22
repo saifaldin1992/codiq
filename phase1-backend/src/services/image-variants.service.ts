@@ -74,6 +74,30 @@ async function loadSharp(): Promise<SharpFactory> {
   }
 }
 
+/**
+ * The uploaded picture, re-encoded in its own format with nothing but pixels.
+ *
+ * Product images are already rebuilt by the variant renderer. Everything else —
+ * a prescription, a store logo, cover or banner, a shopper's avatar, a ticket
+ * attachment — used to be stored byte for byte, EXIF included: a phone photo
+ * carries the GPS position it was taken at and the device that took it, and a
+ * prescription photographed at home tells whoever reads the file where the
+ * patient lives. sharp writes no metadata unless asked to, so decoding and
+ * re-encoding is the strip; `rotate()` first bakes the EXIF orientation into
+ * the pixels so the picture still stands the right way up without it.
+ */
+export async function stripImageMetadata(source: Buffer, contentType: string): Promise<Buffer> {
+  const sharp = await loadSharp();
+  try {
+    const image = sharp(source, { failOn: "error", limitInputPixels: MAX_INPUT_PIXELS }).rotate();
+    if (contentType === "image/png") return await image.png().toBuffer();
+    if (contentType === "image/webp") return await image.webp({ quality: 90 }).toBuffer();
+    return await image.jpeg({ quality: 90, mozjpeg: true }).toBuffer();
+  } catch {
+    throw new HttpError(422, "INVALID_IMAGE", "تعذّرت قراءة الصورة. جرّب صورةً أخرى.");
+  }
+}
+
 /** Bumped only when the SET changes — never when a quality knob moves. Rows carry it so a reader knows what exists. */
 export const PRODUCT_IMAGE_VARIANT_SET = 1;
 
