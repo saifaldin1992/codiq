@@ -1177,6 +1177,12 @@ try {
     }),
   });
   assert.equal(peer.status, 201, "…while he still runs the team within what he holds");
+  // …nor remove a colleague who holds more than he does (the store manager).
+  const removeManager = await request(`${teamUrl("phase14-a-one")}/${managerMembershipId}`, {
+    method: "DELETE",
+    headers: asClimber,
+  });
+  assert.equal(removeManager.status, 403, JSON.stringify(removeManager.body));
   summary.noSelfEscalation = Object.keys(attempts);
 
   console.log(JSON.stringify(summary, null, 2));

@@ -340,3 +340,29 @@ export function assertCanDelegate(
       `لا يمنح الموظّف صلاحيّة لا يملكها هو: ${Array.from(new Set(beyond)).join("، ")}.`
     );
 }
+
+/**
+ * …and whom he may act on: a staff member running the team may not disable, remove or re-scope
+ * a colleague who holds a permission he does not — he removed the store manager (batch 4, م-١).
+ */
+export async function assertMayActOn(
+  context: Pick<StoreActorContext, "actor" | "permissions" | "store">,
+  membershipId: string
+) {
+  if (context.actor.kind !== "staff") return;
+  const target = await prisma.storeStaffMembership.findFirst({
+    where: { id: membershipId, storeId: context.store.id, ...LIVE },
+    select: {
+      roleCode: true,
+      permissionOverrides: { select: { permissionCode: true, effect: true } },
+    },
+  });
+  if (!target) return; // the service answers 404 in its own words
+  const held = resolvePermissionSet(target.roleCode, target.permissionOverrides);
+  if (Array.from(held).some((code) => !context.permissions.has(code)))
+    throw new HttpError(
+      403,
+      "MEMBERSHIP_OUTRANKS_YOU",
+      "هذا الزميل يملك صلاحيّات لا تملكها — يغيّر عضويّته التاجر."
+    );
+}

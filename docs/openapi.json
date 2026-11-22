@@ -482,6 +482,7 @@
                   "MARKET_LISTING_ALREADY_REQUESTED",
                   "MARKET_NOT_LISTED",
                   "MARKET_PROFILE_INCOMPLETE",
+                  "MEMBERSHIP_OUTRANKS_YOU",
                   "MERCHANT_DISABLED",
                   "MERCHANT_NOT_FOUND",
                   "MERCHANT_NO_ACTIVE_STORE",
@@ -10837,7 +10838,7 @@
             ]
           },
           "403": {
-            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CSRF_ORIGIN_DENIED` · `IDENTITY_BOUNDARY_DENIED` · `MEMBERSHIP_OUTRANKS_YOU` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -10848,6 +10849,7 @@
             "x-codiq-error-codes": [
               "CSRF_ORIGIN_DENIED",
               "IDENTITY_BOUNDARY_DENIED",
+              "MEMBERSHIP_OUTRANKS_YOU",
               "MERCHANT_DISABLED",
               "STAFF_PERMISSION_DENIED",
               "STORE_BOUNDARY_DENIED"
@@ -10960,7 +10962,7 @@
             ]
           },
           "403": {
-            "description": "`CANNOT_CHANGE_OWN_MEMBERSHIP` · `CSRF_ORIGIN_DENIED` · `DELEGATION_EXCEEDS_OWN` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CANNOT_CHANGE_OWN_MEMBERSHIP` · `CSRF_ORIGIN_DENIED` · `DELEGATION_EXCEEDS_OWN` · `IDENTITY_BOUNDARY_DENIED` · `MEMBERSHIP_OUTRANKS_YOU` · `MERCHANT_DISABLED` · `PLAN_LIMIT_EXCEEDED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -10973,6 +10975,7 @@
               "CSRF_ORIGIN_DENIED",
               "DELEGATION_EXCEEDS_OWN",
               "IDENTITY_BOUNDARY_DENIED",
+              "MEMBERSHIP_OUTRANKS_YOU",
               "MERCHANT_DISABLED",
               "PLAN_LIMIT_EXCEEDED",
               "STAFF_PERMISSION_DENIED",
@@ -68235,7 +68238,7 @@
             ]
           },
           "403": {
-            "description": "`CANNOT_CHANGE_OWN_MEMBERSHIP` · `CSRF_ORIGIN_DENIED` · `DELEGATION_EXCEEDS_OWN` · `IDENTITY_BOUNDARY_DENIED` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
+            "description": "`CANNOT_CHANGE_OWN_MEMBERSHIP` · `CSRF_ORIGIN_DENIED` · `DELEGATION_EXCEEDS_OWN` · `IDENTITY_BOUNDARY_DENIED` · `MEMBERSHIP_OUTRANKS_YOU` · `MERCHANT_DISABLED` · `STAFF_PERMISSION_DENIED` · `STORE_BOUNDARY_DENIED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -68248,6 +68251,7 @@
               "CSRF_ORIGIN_DENIED",
               "DELEGATION_EXCEEDS_OWN",
               "IDENTITY_BOUNDARY_DENIED",
+              "MEMBERSHIP_OUTRANKS_YOU",
               "MERCHANT_DISABLED",
               "STAFF_PERMISSION_DENIED",
               "STORE_BOUNDARY_DENIED"
@@ -72771,6 +72775,14 @@
       ],
       "messages": [
         "أكمل ملفّ المتجر قبل طلب الانضمام إلى السوق."
+      ]
+    },
+    "MEMBERSHIP_OUTRANKS_YOU": {
+      "statuses": [
+        403
+      ],
+      "messages": [
+        "هذا الزميل يملك صلاحيّات لا تملكها — يغيّر عضويّته التاجر."
       ]
     },
     "MERCHANT_DISABLED": {

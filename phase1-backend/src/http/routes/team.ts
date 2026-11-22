@@ -3,6 +3,7 @@ import { assertCapabilityAvailable } from "../../services/availability.service.j
 import { requireStoreActor, requireStoreStaff } from "../../auth/staff-permissions.js";
 import {
   assertCanDelegate,
+  assertMayActOn,
   createStoreStaff,
   listStoreTeam,
   removeStoreMembership,
@@ -69,6 +70,7 @@ export function registerTeamRoutes(app: Express) {
         membershipId: request.params.membershipId,
         roleCode: input.roleCode,
       });
+      await assertMayActOn(context, request.params.membershipId);
       response.status(200).json({
         membership: await updateStoreMembership(store.id, request.params.membershipId, input),
       });
@@ -90,6 +92,7 @@ export function registerTeamRoutes(app: Express) {
         membershipId: request.params.membershipId,
         allows: overrides.filter((entry) => entry?.effect === "allow").map((e) => e.permissionCode),
       });
+      await assertMayActOn(context, request.params.membershipId);
       response.status(200).json({
         membership: await setMembershipOverrides(store.id, request.params.membershipId, input),
       });
@@ -102,7 +105,9 @@ export function registerTeamRoutes(app: Express) {
     "/merchant/stores/:storeSlug/team/:membershipId",
     asyncRoute(async (request, response) => {
       requireTrustedWriteOrigin(request);
-      const { store, actor } = await requireStoreActor(request, "team.manage");
+      const context = await requireStoreActor(request, "team.manage");
+      const { store, actor } = context;
+      await assertMayActOn(context, request.params.membershipId);
       response
         .status(200)
         .json(await removeStoreMembership(store.id, request.params.membershipId, actor));
