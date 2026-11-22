@@ -216,7 +216,7 @@ const LISTS = [
 
   {
     id: "finance.settlements",
-    src: "finance.service.ts:257",
+    src: "finance/reports.ts#merchantSettlements",
     model: "settlement",
     table: "settlements",
     where: { merchantId: bigMerchant },

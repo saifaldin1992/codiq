@@ -67,12 +67,13 @@ assert.deepEqual(
     `  expected: ${KNOWN.join(", ")}`,
     `  found:    ${actual.join(", ")}`,
     "",
-    "FOUR readers decide money from this list, and ALL treat anything that is not",
+    "FIVE readers decide money from this list, and ALL treat anything that is not",
     "`order_completed` as a SUBTRACTION:",
     "",
     "  phase1-backend/src/services/merchant-wallet.service.ts   — what the platform OWES",
     "  phase1-backend/src/services/analytics.service.ts         — the merchant's revenue",
-    "  phase1-backend/src/services/finance.service.ts           — the finance overview",
+    "  phase1-backend/src/services/finance/reports.ts           — the finance overview",
+    "  phase1-backend/src/services/finance/settlements.ts       — what a settlement pays",
     "  phase1-backend/src/services/platform-overview.service.ts — the owner's GMV and commission",
     "",
     "So a new type subtracts by default, silently. Decide which side it belongs on,",
@@ -91,7 +92,9 @@ assert.deepEqual(
 const readers = [
   "phase1-backend/src/services/merchant-wallet.service.ts",
   "phase1-backend/src/services/analytics.service.ts",
-  "phase1-backend/src/services/finance.service.ts",
+  // Review batch 2, ت-١٠: finance.service.ts was split; the rule now lives in BOTH of these.
+  "phase1-backend/src/services/finance/reports.ts",
+  "phase1-backend/src/services/finance/settlements.ts",
   // Audit 17-أ: the owner's overview summed every type unsigned until 2026-11.
   // It expresses the rule as two aggregate filters rather than a ternary.
   "phase1-backend/src/services/platform-overview.service.ts",

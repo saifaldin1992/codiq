@@ -3,7 +3,7 @@
  "counts": {
   "duplicatedLines": 7968,
   "blocks": 573,
-  "percent": 5.56
+  "percent": 5.55
  },
  "files": {
   "client/src/components/AbandonedCartsPanel.tsx": 19,
@@ -121,7 +121,7 @@
   "phase1-backend/src/notifications/outbox-worker.ts": 18,
   "phase1-backend/src/services/analytics.service.ts": 23,
   "phase1-backend/src/services/delivery.service.ts": 54,
-  "phase1-backend/src/services/finance.service.ts": 24,
+  "phase1-backend/src/services/finance/reports.ts": 24,
   "phase1-backend/src/services/governorates.ts": 22,
   "phase1-backend/src/services/incidents.service.ts": 9,
   "phase1-backend/src/services/inventory-movements.service.ts": 9,

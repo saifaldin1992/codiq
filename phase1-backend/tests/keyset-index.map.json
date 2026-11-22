@@ -83,7 +83,7 @@
       "index": "incidents_created_id_idx"
     },
     {
-      "key": "services/finance.service.ts#merchantSettlements",
+      "key": "services/finance/reports.ts#merchantSettlements",
       "model": "Settlement",
       "column": "created_at",
       "index": "settlements_merchant_created_idx"

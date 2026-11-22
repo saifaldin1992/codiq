@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2584,
-  "oversizeFiles": 113,
+  "oversizeFiles": 112,
   "longFunctions": 441
  },
  "files": {
@@ -696,9 +696,9 @@
    "oversize": 0,
    "longFunctions": 1
   },
-  "phase1-backend/src/services/finance.service.ts": {
+  "phase1-backend/src/services/finance/settlements.ts": {
    "longLines": 4,
-   "oversize": 208,
+   "oversize": 0,
    "longFunctions": 2
   },
   "phase1-backend/src/services/guest-checkout.service.ts": {
