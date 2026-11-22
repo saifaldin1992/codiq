@@ -140,15 +140,23 @@ export async function refundCard(paymentId: string, reason: string) {
   if (payment.status !== "paid" || !payment.providerRef) return;
   const gateway = cardGateway();
   if (!gateway) return;
-  const remaining = payment.amountIqd - payment.refundedIqd;
-  const { refundRef } = await gateway.refund({
-    providerRef: payment.providerRef,
-    amountIqd: remaining,
-  });
-  await prisma.marketPayment.update({
-    where: { id: payment.id },
+  // Claimed BEFORE the gateway is asked: a cancellation and a late notice arriving together
+  // each read «paid» and each refunded it (review batch 2, م-٥). Released if the gateway fails.
+  const claimed = await prisma.marketPayment.updateMany({
+    where: { id: payment.id, status: "paid" },
     data: { status: "refunded", refundedIqd: payment.amountIqd },
   });
+  if (claimed.count !== 1) return;
+  const remaining = payment.amountIqd - payment.refundedIqd;
+  const { refundRef } = await gateway
+    .refund({ providerRef: payment.providerRef, amountIqd: remaining })
+    .catch(async (error: Error) => {
+      await prisma.marketPayment.update({
+        where: { id: payment.id },
+        data: { status: "paid", refundedIqd: payment.refundedIqd },
+      });
+      throw error;
+    });
   await event(payment.id, "refunded", { amountIqd: remaining, detail: { refundRef, reason } });
   if (payment.orderId)
     await prisma.storeOrder.update({

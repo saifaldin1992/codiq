@@ -511,6 +511,32 @@ try {
     "cancelled",
     "a claimed plan whose order failed is let go"
   );
+  // م-٥: a cancellation and a late notice at the same moment refund the card ONCE.
+  await fill(shopper.api, [[phone, 1]]);
+  const card4 = (await place(shopper.api, { paymentMethodCode: "market_card" }, "card-4")).payload;
+  const row4 = await prisma.marketPayment.findUniqueOrThrow({
+    where: { id: card4.payment.paymentId },
+  });
+  await notify({
+    eventId: "evt-4",
+    type: "payment.succeeded",
+    providerRef: row4.providerRef,
+    amountIqd: row4.amountIqd,
+  });
+  await transitionOrderStatus(store.id, { kind: "merchant", id: merchantId }, card4.order.id, {
+    toStatus: "cancelled",
+    expectedVersion: (await order(card4.order.id)).version,
+  });
+  await Promise.all([
+    svc.onOrderStatusChanged({ orderId: card4.order.id, to: "cancelled" }),
+    svc.onOrderStatusChanged({ orderId: card4.order.id, to: "cancelled" }),
+  ]);
+  await settle();
+  assert.equal(
+    await prisma.marketPaymentEvent.count({ where: { paymentId: row4.id, kind: "refunded" } }),
+    1,
+    "refunded once, not twice"
+  );
   summary.once = true;
   await fill(shopper.api, [[phone, 1]]); // what section 5 checks out with
 
