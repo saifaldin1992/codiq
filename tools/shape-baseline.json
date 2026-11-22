@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2579,
-  "oversizeFiles": 103,
+  "oversizeFiles": 102,
   "longFunctions": 440
  },
  "files": {
@@ -643,7 +643,7 @@
   },
   "phase1-backend/src/notifications/outbox/batch.ts": {
    "longLines": 0,
-   "oversize": 28,
+   "oversize": 0,
    "longFunctions": 1
   },
   "phase1-backend/src/notifications/outbox/loop.ts": {

@@ -17,6 +17,7 @@ import {
   OUTBOX_MAX_ATTEMPTS,
   processOutboxBatch,
   retryDelaySeconds,
+  STALE_CLAIM_RECOVERY_MS,
 } from "../src/notifications/outbox-worker.js";
 import { createStoreFoundation } from "../src/services/store-bootstrap.service.js";
 import { FakeNotificationProvider } from "./helpers/fake-notification-provider.js";
@@ -604,6 +605,56 @@ try {
   ]);
   assert.equal(batchOne.sent + batchTwo.sent, 6, JSON.stringify({ batchOne, batchTwo }));
   assert.equal(racer.sent.length, 6, "each row must be delivered exactly once");
+
+  // Review batch 5, ت-٢: a batch that outlives the stale-claim window. Production runs two
+  // instances, each with a worker; a provider answering at its 20-second timeout makes a
+  // 20-row batch take longer than STALE_CLAIM_RECOVERY_MS. The second worker then recovers
+  // the rows the first has not reached yet and sends them — and the first, still holding
+  // them in memory, sent them again: every row from the hijack on went out twice.
+  const slowRows = Array.from({ length: 4 }, (_, index) => `slow-${index}`);
+  await prisma.notificationOutbox.createMany({
+    data: slowRows.map((name) => ({
+      storeId: storeA.id,
+      eventType: "low_stock" as const,
+      recipientKind: "merchant" as const,
+      channel: "email" as const,
+      recipient: merchantA.email,
+      nextAttemptAt: new Date(Date.now() - 10 * 60_000),
+      payload: {
+        productName: name,
+        sku: name,
+        stockQuantity: 0,
+        lowStockThreshold: 1,
+        storeName: storeA.name,
+      },
+    })),
+  });
+  const second = new FakeNotificationProvider();
+  class SlowFirst extends FakeNotificationProvider {
+    hijacked = false;
+    override async sendEmail(message: Parameters<FakeNotificationProvider["sendEmail"]>[0]) {
+      if (!this.hijacked) {
+        this.hijacked = true;
+        // The other instance's worker runs a pass NOW, while this batch — claimed «six minutes
+        // ago» — is still on its first row.
+        await processOutboxBatch(second, { batchSize: 10 });
+      }
+      return super.sendEmail(message);
+    }
+  }
+  const first = new SlowFirst();
+  await processOutboxBatch(first, {
+    batchSize: 10,
+    now: new Date(Date.now() - STALE_CLAIM_RECOVERY_MS - 60_000),
+  });
+  const sentSlow = [...first.sent, ...second.sent].filter((message) =>
+    slowRows.some((name) => message.body.includes(name))
+  );
+  assert.equal(
+    sentSlow.length,
+    slowRows.length,
+    `each row once, even when the batch outlives its claim · first ${first.sent.length}, second ${second.sent.length}`
+  );
 
   // Without a provider the row is marked skipped, never falsely sent.
   const orphanRow = await prisma.notificationOutbox.create({

@@ -3,6 +3,7 @@
  * (review batch 5, ت-١); outbox-worker.ts re-exports what it always exported.
  */
 import crypto from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { storeSupportReplyTo } from "../../services/storefront-config.service.js";
 import {
   supportReplyTo,
@@ -55,6 +56,18 @@ export interface OutboxBatchResult {
   skipped: number;
   /** PG-3: held for the store's next daily window. Late, not lost. */
   deferred: number;
+}
+
+/** Ends this worker's hold on a row — only while the hold is still this worker's (ت-٢). */
+async function settle(
+  id: string,
+  claimToken: string,
+  data: Prisma.NotificationOutboxUpdateManyMutationInput
+) {
+  await prisma.notificationOutbox.updateMany({
+    where: { id, claimToken },
+    data: { ...data, claimToken: null, claimedAt: null },
+  });
 }
 
 export function retryDelaySeconds(attemptCount: number): number {
@@ -128,27 +141,17 @@ export async function processOutboxBatch(
 
   for (const row of claimed) {
     if (!provider) {
-      await prisma.notificationOutbox.update({
-        where: { id: row.id },
-        data: {
-          status: "skipped",
-          lastOutcome: "no_provider_configured",
-          claimToken: null,
-          claimedAt: null,
-        },
+      await settle(row.id, claimToken, {
+        status: "skipped",
+        lastOutcome: "no_provider_configured",
       });
       result.skipped += 1;
       continue;
     }
     if (!row.recipient) {
-      await prisma.notificationOutbox.update({
-        where: { id: row.id },
-        data: {
-          status: "skipped",
-          lastOutcome: "no_recipient_address",
-          claimToken: null,
-          claimedAt: null,
-        },
+      await settle(row.id, claimToken, {
+        status: "skipped",
+        lastOutcome: "no_recipient_address",
       });
       result.skipped += 1;
       continue;
@@ -210,18 +213,13 @@ export async function processOutboxBatch(
             ? `store_daily_cap_deferred:${caps.store}`
             : null;
       if (exceeded) {
-        await prisma.notificationOutbox.update({
-          where: { id: row.id },
-          // Spread like the marketing deferral, for the same reason: landing
-          // every held message on the same instant rebuilds tomorrow the pile-up
-          // the cap exists to prevent.
-          data: {
-            status: "retry_scheduled",
-            nextAttemptAt: deferredUntil(now, row.id),
-            lastOutcome: exceeded,
-            claimToken: null,
-            claimedAt: null,
-          },
+        // Spread like the marketing deferral, for the same reason: landing
+        // every held message on the same instant rebuilds tomorrow the pile-up
+        // the cap exists to prevent.
+        await settle(row.id, claimToken, {
+          status: "retry_scheduled",
+          nextAttemptAt: deferredUntil(now, row.id),
+          lastOutcome: exceeded,
         });
         result.deferred += 1;
         continue;
@@ -236,14 +234,9 @@ export async function processOutboxBatch(
     // the failure would otherwise be silent and pointed at the platform's
     // sending reputation.
     if (kind === "marketing" && !row.storeId) {
-      await prisma.notificationOutbox.update({
-        where: { id: row.id },
-        data: {
-          status: "dead_letter",
-          lastOutcome: "marketing_without_store",
-          claimToken: null,
-          claimedAt: null,
-        },
+      await settle(row.id, claimToken, {
+        status: "dead_letter",
+        lastOutcome: "marketing_without_store",
       });
       result.deadLettered += 1;
       continue;
@@ -251,14 +244,9 @@ export async function processOutboxBatch(
     if (kind === "marketing" && row.storeId) {
       if (await isUnsubscribed(row.storeId, row.recipient)) {
         // Terminal, not a retry: consent does not come back on its own.
-        await prisma.notificationOutbox.update({
-          where: { id: row.id },
-          data: {
-            status: "skipped",
-            lastOutcome: "recipient_unsubscribed",
-            claimToken: null,
-            claimedAt: null,
-          },
+        await settle(row.id, claimToken, {
+          status: "skipped",
+          lastOutcome: "recipient_unsubscribed",
         });
         result.skipped += 1;
         continue;
@@ -270,14 +258,9 @@ export async function processOutboxBatch(
       if (
         (await marketingSentTodayToRecipient(row.recipient, now)) >= MARKETING_RECIPIENT_DAILY_CAP
       ) {
-        await prisma.notificationOutbox.update({
-          where: { id: row.id },
-          data: {
-            status: "skipped",
-            lastOutcome: `recipient_daily_cap:${MARKETING_RECIPIENT_DAILY_CAP}`,
-            claimToken: null,
-            claimedAt: null,
-          },
+        await settle(row.id, claimToken, {
+          status: "skipped",
+          lastOutcome: `recipient_daily_cap:${MARKETING_RECIPIENT_DAILY_CAP}`,
         });
         result.skipped += 1;
         continue;
@@ -293,14 +276,9 @@ export async function processOutboxBatch(
         // tomorrow, and tomorrow, forever — a queue that grows and never drains
         // is the opposite of «disabled». The scanner already refuses to enqueue
         // for such a store; this is the second line for rows created elsewhere.
-        await prisma.notificationOutbox.update({
-          where: { id: row.id },
-          data: {
-            status: "skipped",
-            lastOutcome: "marketing_disabled_for_store",
-            claimToken: null,
-            claimedAt: null,
-          },
+        await settle(row.id, claimToken, {
+          status: "skipped",
+          lastOutcome: "marketing_disabled_for_store",
         });
         result.skipped += 1;
         continue;
@@ -310,17 +288,12 @@ export async function processOutboxBatch(
         // no cap: the merchant sees a send that never happened. attemptCount is
         // deliberately untouched — waiting for tomorrow is not a failed attempt
         // and must not consume the retry budget or reach the dead letter.
-        await prisma.notificationOutbox.update({
-          where: { id: row.id },
-          // Spread, not stacked: scheduling every deferral on the same instant
-          // rebuilds tomorrow the exact pile-up the cap exists to prevent.
-          data: {
-            status: "retry_scheduled",
-            nextAttemptAt: deferredUntil(now, row.id),
-            lastOutcome: `daily_cap_deferred:${cap}`,
-            claimToken: null,
-            claimedAt: null,
-          },
+        // Spread, not stacked: scheduling every deferral on the same instant
+        // rebuilds tomorrow the exact pile-up the cap exists to prevent.
+        await settle(row.id, claimToken, {
+          status: "retry_scheduled",
+          nextAttemptAt: deferredUntil(now, row.id),
+          lastOutcome: `daily_cap_deferred:${cap}`,
         });
         result.deferred += 1;
         continue;
@@ -333,14 +306,9 @@ export async function processOutboxBatch(
         // rather than going out incomplete. Terminal, because retrying cannot
         // fix a missing configuration and each retry would be another attempt
         // to send a non-compliant message.
-        await prisma.notificationOutbox.update({
-          where: { id: row.id },
-          data: {
-            status: "dead_letter",
-            lastOutcome: "missing_unsubscribe_link",
-            claimToken: null,
-            claimedAt: null,
-          },
+        await settle(row.id, claimToken, {
+          status: "dead_letter",
+          lastOutcome: "missing_unsubscribe_link",
         });
         result.deadLettered += 1;
         continue;
@@ -352,20 +320,25 @@ export async function processOutboxBatch(
       // that matters is «no marketing message leaves without a link», and an
       // invariant is worth asserting where it is relied upon.
       if (!message.body.includes(optOut)) {
-        await prisma.notificationOutbox.update({
-          where: { id: row.id },
-          data: {
-            status: "dead_letter",
-            lastOutcome: "missing_unsubscribe_link",
-            claimToken: null,
-            claimedAt: null,
-          },
+        await settle(row.id, claimToken, {
+          status: "dead_letter",
+          lastOutcome: "missing_unsubscribe_link",
         });
         result.deadLettered += 1;
         continue;
       }
     }
 
+    // Review batch 5, ت-٢: still ours? Two instances run a worker each, and a batch can outlive
+    // STALE_CLAIM_RECOVERY_MS (20 rows × a 20-second provider timeout). Rows this batch has not
+    // reached yet may have been recovered and sent by the other worker; re-claiming here refuses
+    // them, and refreshing `claimedAt` keeps the row about to go out from being recovered while
+    // it is in flight. Every write after this carries the token for the same reason.
+    const stillOurs = await prisma.notificationOutbox.updateMany({
+      where: { id: row.id, claimToken, status: "processing" },
+      data: { claimedAt: new Date() },
+    });
+    if (stillOurs.count !== 1) continue;
     let outcome: ProviderResult;
     try {
       outcome =
@@ -398,16 +371,11 @@ export async function processOutboxBatch(
       // and the cap stops being a cap. It also makes the cap testable without
       // the suite having to rewrite sentAt by hand afterwards, which is what it
       // was doing: the assertion passed because of the fixture, not the code.
-      await prisma.notificationOutbox.update({
-        where: { id: row.id },
-        data: {
-          status: "sent",
-          sentAt: now,
-          lastOutcome: outcome.outcome,
-          attemptCount: { increment: 1 },
-          claimToken: null,
-          claimedAt: null,
-        },
+      await settle(row.id, claimToken, {
+        status: "sent",
+        sentAt: now,
+        lastOutcome: outcome.outcome,
+        attemptCount: { increment: 1 },
       });
       result.sent += 1;
       continue;
@@ -415,29 +383,19 @@ export async function processOutboxBatch(
 
     const attemptCount = row.attemptCount + 1;
     if (attemptCount >= OUTBOX_MAX_ATTEMPTS) {
-      await prisma.notificationOutbox.update({
-        where: { id: row.id },
-        data: {
-          status: "dead_letter",
-          attemptCount,
-          lastOutcome: outcome.outcome,
-          claimToken: null,
-          claimedAt: null,
-        },
+      await settle(row.id, claimToken, {
+        status: "dead_letter",
+        attemptCount,
+        lastOutcome: outcome.outcome,
       });
       result.deadLettered += 1;
     } else {
       const nextAttemptAt = new Date(now.valueOf() + retryDelaySeconds(attemptCount) * 1000);
-      await prisma.notificationOutbox.update({
-        where: { id: row.id },
-        data: {
-          status: "retry_scheduled",
-          attemptCount,
-          nextAttemptAt,
-          lastOutcome: outcome.outcome,
-          claimToken: null,
-          claimedAt: null,
-        },
+      await settle(row.id, claimToken, {
+        status: "retry_scheduled",
+        attemptCount,
+        nextAttemptAt,
+        lastOutcome: outcome.outcome,
       });
       result.retried += 1;
     }
