@@ -1,5 +1,5 @@
 {
-  "@typescript-eslint/no-explicit-any": 14,
+  "@typescript-eslint/no-explicit-any": 8,
   "@typescript-eslint/no-unused-vars": 82,
   "no-useless-assignment": 31,
   "prefer-const": 2,
