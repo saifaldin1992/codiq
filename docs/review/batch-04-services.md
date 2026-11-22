@@ -31,9 +31,9 @@
 | `phase1-backend/src/services/product-review.service.ts` | 424 | 2026-11-22 (كاملاً) | المراجعة تشترط طلباً مكتملاً يحوي المنتج (المعرّف على الصفّ)؛ التاجر يخفي النصّ لا الدرجة، بسبب مكتوب في سجلّ التدقيق؛ الاسم الأوّل فقط. ملاحظة: القائمة العامّة لا تفحص أنّ المنتج حيّ — بلا أثر، تحتاج معرّفه |
 | `phase1-backend/src/services/whatsapp-manual.service.ts` | 358 | 2026-11-22 (كاملاً) | م-٣. القوالب بقائمة متغيّرات مسموحة؛ السجلّ يحفظ ما رسمه الخادم لا ما أرسله العميل؛ الطلب مقيّد بالمتجر |
 | `phase1-backend/src/services/analytics.service.ts` | 337 | 2026-11-22 (مسح موجّه) | مقيّد بالمتجر؛ `Prisma.raw` لاختيار من قيمتين ثابتتين — لم يُقرأ سطراً بسطر |
-| `phase1-backend/src/services/incidents.service.ts` | 327 | — | لم يُقرأ |
+| `phase1-backend/src/services/incidents.service.ts` | 327 | 2026-11-22 (كاملاً) | فتح وتحديث مع سجلّ تدقيق في المعاملة؛ رموز «يؤثّر في» تُفحص ضدّ الكتالوج؛ حادث بلا قائمة يمسّ كلّ شيء (مقصود) |
 | `phase1-backend/src/services/notification-settings.service.ts` | 326 | 2026-11-22 (مسح موجّه) | مفتاح المزوّد مختوم (`sealSecret`) ولا يظهر في العرض؛ كلّ قراءة وكتابة مقيّدة بالمتجر؛ السقوف للمالك وحده — لم يُقرأ سطراً بسطر |
-| `phase1-backend/src/services/merchant-search.service.ts` | 313 | — | لم يُقرأ |
+| `phase1-backend/src/services/merchant-search.service.ts` | 313 | 2026-11-22 (كاملاً) | كلّ نوع بحث مربوط بصلاحيّته، والنتائج تُعاد قراءتها مقيّدة بالمتجر؛ الهاتف مقنّع إلى آخر أربعة |
 | `phase1-backend/src/services/storefront-seo.service.ts` | 307 | 2026-11-22 (كاملاً) | الرأس يُهرَّب (HTML و`<` في JSON-LD، و`$` كنصّ)؛ `LIVE` المحلّيّ يحمل `isActive` فالمسوّدة لا تظهر في الخريطة ولا الرأس — حارس اختبار جديد في `brand:test` يثبّت ذلك (لم يكن خطأً). مسار مشوّه ← ٤٠٠ من الموجّه، لا ٥٠٠ |
 | `phase1-backend/src/services/store-banner.service.ts` | 295 | 2026-11-22 (كاملاً) | الرابط يبدأ بـ http(s) فقط (لا `javascript:`)؛ الحدّ لكلّ موضع؛ التخزين يُحسب قبل الرفع، والملفّ يُحذف إن فشل الصفّ؛ كلّ تعديل وحذف مقيّد بالمتجر |
 | `phase1-backend/src/services/list-page.ts` | 289 | 2026-11-22 (مسح موجّه) | `readListCursor`: المعرّف يُفحص UUID قبل أن يبلغ عموداً، والقديم يُقرأ في نطاق المتصل — لم يُقرأ سطراً بسطر |
@@ -41,30 +41,30 @@
 | `phase1-backend/src/services/order-notes.service.ts` | 258 | 2026-11-22 (كاملاً) | كلّ قراءة وكتابة تفحص الطلب في المتجر أوّلاً؛ الوسوم تُستبدل تحت قفل الصفّ؛ القائمة بصفحات |
 | `phase1-backend/src/services/merchant-home.service.ts` | 250 | 2026-11-22 (مسح موجّه) | كلّ الاستعلامات على `rangeWhere` الذي يحمل `storeId` — لم يُقرأ سطراً بسطر |
 | `phase1-backend/src/services/prescription.service.ts` | 245 | 2026-11-22 (كاملاً) | ت-٦. الرفع: تحقّق البايتات قبل أيّ كتابة، حدّ التخزين قبل التخزين، انتقال الحالة مشروط، وحذف الملفّ إن تراجعت المعاملة. القراءة: ملكيّة الطلب للزبون، والمتجر للتاجر |
-| `phase1-backend/src/services/soft-delete/delete-preview.service.ts` | 240 | — | لم يُقرأ |
+| `phase1-backend/src/services/soft-delete/delete-preview.service.ts` | 240 | 2026-11-22 (كاملاً) | كلّ معاينة مقيّدة بالمتجر؛ أرقام المبيعات تُخفى عمّن لا يملك `orders.view` |
 | `phase1-backend/src/services/abandoned-cart.service.ts` | 237 | 2026-11-22 (كاملاً) | كلّ القراءات مقيّدة بالمتجر؛ قسيمة الاسترداد تُفحص حيّة وفي المتجر؛ معطّل افتراضيّاً (تسويق باختيار التاجر) |
 | `phase1-backend/src/services/platform-brand.service.ts` | 234 | 2026-11-22 (مسح موجّه) | شعار SVG يُخدم مرفقاً للتنزيل مع CSP `default-src 'none'` و nosniff (`routes/public.ts`) — لم يُقرأ سطراً بسطر |
-| `phase1-backend/src/services/platform-health.service.ts` | 229 | — | لم يُقرأ |
+| `phase1-backend/src/services/platform-health.service.ts` | 229 | 2026-11-22 (مسح موجّه) | قراءات للمالك فقط — لم يُقرأ سطراً بسطر |
 | `phase1-backend/src/services/store-traffic.service.ts` | 221 | 2026-11-22 (كاملاً) | عدّاد بلا هويّة ولا عنوان؛ اليوم يحسبه الخادم؛ الجمع في الذاكرة بسقف مفاتيح، والمشاهدة تُحسب لمنتج حيّ نشط في المتجر نفسه فقط (بالربط في الاستعلام) |
-| `phase1-backend/src/services/platform-audit.service.ts` | 216 | — | لم يُقرأ |
-| `phase1-backend/src/services/merchant-monthly-report.service.ts` | 212 | — | لم يُقرأ |
+| `phase1-backend/src/services/platform-audit.service.ts` | 216 | 2026-11-22 (كاملاً) | الكيانات والأفعال قوائم مغلقة؛ اسم الفاعل يُقرأ من القاعدة |
+| `phase1-backend/src/services/merchant-monthly-report.service.ts` | 212 | 2026-11-22 (مسح موجّه) | كلّ الأرقام على المتجر نفسه، وSQL مربوط القيم — لم يُقرأ سطراً بسطر |
 | `phase1-backend/src/services/store-verification.service.ts` | 209 | 2026-11-22 (كاملاً) | الشارة للمالك وحده، يُقرأ من القاعدة لا من الطلب؛ المنح والسحب مع سجلّ التدقيق في معاملة واحدة؛ الواجهة العامّة تقول الشارة وحدها |
-| `phase1-backend/src/services/platform-pulse.service.ts` | 204 | — | لم يُقرأ |
+| `phase1-backend/src/services/platform-pulse.service.ts` | 204 | 2026-11-22 (مسح موجّه) | قراءات للمالك، `$queryRaw` بقوالب مربوطة القيم — لم يُقرأ سطراً بسطر |
 | `phase1-backend/src/services/platform-contact.service.ts` | 203 | 2026-11-22 (كاملاً) | بيانات تواصل المنصّة نفسها، يحرّرها المالك — لا نموذج عامّ |
 | `phase1-backend/src/services/merchant-store.service.ts` | 195 | 2026-11-22 (كاملاً) | إنشاء المتجر بحدّ الخطّة داخل المعاملة (مقفل بـت-٤)، الرابط يُفحص ضدّ المحجوز؛ إعادة التسمية لا تمسّ الرابط، ومتجر العرض محميّ |
 | `phase1-backend/src/services/image-embedding.ts` | 190 | 2026-11-22 (مسح موجّه) | محليّ بـ sharp، بلا خدمة خارجيّة؛ حدّ للبكسلات — لم يُقرأ سطراً بسطر |
 | `phase1-backend/src/services/customer-directory.service.ts` | 187 | 2026-11-22 (كاملاً) | البحث والقائمة مقيّدان بالمتجر؛ الحظر خلف `settings.manage` بسجلّ تدقيق، ويسري فوراً (حارس الزبون يقرأ `isActive` كلّ طلب) |
 | `phase1-backend/src/services/recommendation.service.ts` | 181 | 2026-11-22 (مسح موجّه) | «يُشترى معه» على طلبات هذا المتجر فقط، والشريك منتج حيّ نشط في المتجر وعليه مخزون — لم يُقرأ سطراً بسطر |
-| `phase1-backend/src/services/soft-delete/audit-log.service.ts` | 174 | — | لم يُقرأ |
+| `phase1-backend/src/services/soft-delete/audit-log.service.ts` | 174 | 2026-11-22 (كاملاً) | سجلّ المتجر مقيّد بالمتجر، والمؤشّر القديم يُقرأ في نطاقه |
 | `phase1-backend/src/services/wishlist.service.ts` | 173 | 2026-11-22 (كاملاً) | المتغيّر يُفحص حيّاً ونشطاً وفي المتجر (٤٠٤ واحد لغير الموجود وللأجنبيّ)؛ الإضافة المكرّرة تحديث لا خطأ؛ حدّ للقائمة |
 | `phase1-backend/src/services/stock-forecast.service.ts` | 169 | 2026-11-22 (مسح موجّه) | SQL مربوط القيم، مقيّد بـ `v.store_id` والطلبات بالربط على المتجر — لم يُقرأ سطراً بسطر |
-| `phase1-backend/src/services/order-print.service.ts` | 163 | — | لم يُقرأ |
-| `phase1-backend/src/services/soft-delete/fk-violations.ts` | 162 | — | لم يُقرأ |
-| `phase1-backend/src/services/marketing-settings.service.ts` | 138 | — | لم يُقرأ |
+| `phase1-backend/src/services/order-print.service.ts` | 163 | 2026-11-22 (مسح موجّه) | المعرّفات تُقرأ مقيّدة بالمتجر — لم يُقرأ سطراً بسطر |
+| `phase1-backend/src/services/soft-delete/fk-violations.ts` | 162 | 2026-11-22 (مسح موجّه) | تحويل خطأ المفتاح الأجنبيّ إلى ٤٠٩ برسالة عربيّة (قواعد بالاسم) — لم يُقرأ سطراً بسطر |
+| `phase1-backend/src/services/marketing-settings.service.ts` | 138 | 2026-11-22 (كاملاً) | معرّفات البكسل بأنماط صارمة عند الكتابة وتُفحص ثانيةً عند الإخراج العامّ |
 | `phase1-backend/src/services/order-tracking.service.ts` | 132 | 2026-11-22 (كاملاً) | عامّ بلا دخول: مطابقة واحدة (المتجر، رقم الطلب، الهاتف)؛ كلّ إخفاق ٤٠٤ واحد؛ الحقول قائمة سماح محدّدة؛ مفتاح الحدّ لا يأخذ نصّاً حرّاً |
-| `phase1-backend/src/services/platform-overview.service.ts` | 129 | — | لم يُقرأ |
-| `phase1-backend/src/services/merchant-onboarding.service.ts` | 127 | — | لم يُقرأ |
-| `phase1-backend/src/services/search/search.types.ts` | 119 | — | لم يُقرأ |
+| `phase1-backend/src/services/platform-overview.service.ts` | 129 | 2026-11-22 (مسح موجّه) | قراءات للمالك فقط — لم يُقرأ سطراً بسطر |
+| `phase1-backend/src/services/merchant-onboarding.service.ts` | 127 | 2026-11-22 (كاملاً) | كلّ قراءة على المتجر نفسه؛ الختم مشروط بالفراغ |
+| `phase1-backend/src/services/search/search.types.ts` | 119 | 2026-11-22 (مسح موجّه) | أنواع ودالّة دمج الصفحات — لم يُقرأ سطراً بسطر |
 | `phase1-backend/src/services/reserved-slugs.ts` | 117 | 2026-11-22 (كاملاً) | قائمة الأسماء المحجوزة وفحصها بلا حساسيّة لحالة الأحرف |
 | `phase1-backend/src/services/owner-account.service.ts` | 113 | 2026-11-22 (كاملاً) | قُرئ في الدفعة ٣ (م-٣ هناك) |
 | `phase1-backend/src/services/governorates.ts` | 104 | 2026-11-22 (كاملاً) | القائمة الواحدة للمحافظات (مفتاح واسم عربيّ) |
