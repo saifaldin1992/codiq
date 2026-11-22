@@ -808,6 +808,24 @@ async function assertWithinOrderLimit(
   }
 }
 
+/**
+ * The store's per-order cap, as a yes/no for a best-effort writer (review batch 2, ت-٦):
+ * «أعد الطلب» skips a line over the cap instead of adding what checkout would refuse.
+ */
+async function withinOrderLimit(
+  tx: Prisma.TransactionClient,
+  cartId: string,
+  line: { productId: string; quantity: number }
+) {
+  try {
+    await assertWithinOrderLimit(tx, cartId, line.productId, line.quantity);
+    return true;
+  } catch (error) {
+    if (error instanceof HttpError && error.code === "ORDER_LIMIT_EXCEEDED") return false;
+    throw error;
+  }
+}
+
 export async function addCartItem(
   storeId: string,
   context: CartContext,
@@ -2353,7 +2371,7 @@ export async function reorderIntoCart(storeId: string, customerId: string, order
         where: { cartId_variantId: { cartId: cart.id, variantId: addition.variantId } },
       });
       const nextQuantity = (existing?.quantity ?? 0) + addition.quantity;
-      if (nextQuantity > MAX_CART_QUANTITY) {
+      if (nextQuantity > MAX_CART_QUANTITY || !(await withinOrderLimit(tx, cart.id, addition))) {
         limitSkips.push({
           productName: addition.productName,
           variantName: addition.variantName,

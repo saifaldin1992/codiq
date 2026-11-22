@@ -788,6 +788,27 @@ try {
     repricedTo: reorderedLine.priceSnapshotIqd,
   };
 
+  // --- 10a. review batch 2, ت-٦: a reorder respects the store's per-order cap,
+  // as «add to cart» has since M2 — refused here, not first at checkout. ---
+  const capped = await registerCustomer(storeA.slug, "زبونة الحدّ", `${testId}.capped@codiq.test`);
+  const cappedOrder = await doCheckout(
+    storeA.slug,
+    capped,
+    await cartAdd(storeA.slug, capped.token, { productId: staple.id, quantity: 2 })
+  );
+  await prisma.product.update({ where: { id: staple.id }, data: { maxPerOrder: 1 } });
+  const overCap = await request(reorderPath(cappedOrder.id), { method: "POST", token: capped.token });
+  await prisma.product.update({ where: { id: staple.id }, data: { maxPerOrder: null } });
+  assert.equal(overCap.status, 200, JSON.stringify(overCap.payload));
+  assert.deepEqual(
+    overCap.payload.skipped.map((row) => row.reason),
+    ["quantity_limit"],
+    "two units of a product capped at one per order are skipped, not added"
+  );
+  assert.equal(overCap.payload.addedCount, 0);
+  assert.equal(overCap.payload.cart.items.length, 0, "nothing landed that checkout would refuse");
+  summary.reorderRespectsOrderCap = true;
+
   // --- 10b. an EXISTING cart line is RE-PRICED by the reorder, and a reorder
   // that only hits the quantity cap must not touch the cart at all. ---
   //

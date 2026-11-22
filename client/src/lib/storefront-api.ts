@@ -775,7 +775,7 @@ export const storefrontApi = {
 export const reorderSkipReasonLabel: Record<ReorderSkipReason, string> = {
   product_unavailable: "لم يعد متاحًا في المتجر",
   insufficient_stock: "الكمية المطلوبة غير متوفرة حاليًا",
-  quantity_limit: "تجاوزت الكمية الحد الأقصى للسلة",
+  quantity_limit: "تجاوزت الكمية الحدّ المسموح (للسلّة أو للطلب الواحد)",
 };
 
 /**
