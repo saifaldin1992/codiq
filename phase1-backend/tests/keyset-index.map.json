@@ -206,14 +206,14 @@
       "index": "store_orders_store_created_id_idx"
     },
     {
-      "key": "services/delivery.service.ts#courierManifestCsv",
+      "key": "services/delivery/manifest.ts#courierManifestCsv",
       "model": "StoreOrder",
       "column": "handed_over_at",
       "index": "store_orders_store_handed_over_idx",
       "reason": "Measured 2026-09-14 on 120,003 handed-over orders in one store, cursor half way, page 200: 0.18 ms riding the index vs 154.1 ms Seq Scan + Sort without it (migration 20260914180000 header)."
     },
     {
-      "key": "services/delivery.service.ts#codReconciliation",
+      "key": "services/delivery/reconciliation.ts#codReconciliation",
       "model": "StoreOrder",
       "column": "handed_over_at",
       "index": "store_orders_store_handed_over_idx",

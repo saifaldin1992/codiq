@@ -6,9 +6,9 @@
   "fn": 60
  },
  "totals": {
-  "longLines": 2583,
-  "oversizeFiles": 105,
-  "longFunctions": 441
+  "longLines": 2582,
+  "oversizeFiles": 104,
+  "longFunctions": 440
  },
  "files": {
   "phase1-backend/src/auth/auth.service.ts": {
@@ -705,11 +705,6 @@
    "longLines": 1,
    "oversize": 0,
    "longFunctions": 0
-  },
-  "phase1-backend/src/services/delivery.service.ts": {
-   "longLines": 1,
-   "oversize": 58,
-   "longFunctions": 1
   },
   "phase1-backend/src/services/entitlement/catalog.ts": {
    "longLines": 2,
