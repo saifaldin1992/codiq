@@ -105,6 +105,7 @@ export async function shopperOrder(shopperId: string, orderId: string) {
       deliveryFeeIqd: true,
       discountIqd: true,
       loyaltyDiscountIqd: true,
+      platformDiscountIqd: true,
       totalIqd: true,
       couponCode: true,
       paymentMethodCode: true,

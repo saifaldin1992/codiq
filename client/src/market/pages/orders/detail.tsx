@@ -31,6 +31,7 @@ export type OrderDetail = {
   deliveryFeeIqd: number;
   discountIqd: number;
   loyaltyDiscountIqd: number;
+  platformDiscountIqd: number;
   totalIqd: number;
   couponCode: string | null;
   paymentMethodCode: string;

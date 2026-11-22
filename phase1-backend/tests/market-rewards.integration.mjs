@@ -295,6 +295,19 @@ try {
     [40000, 0, 4000, 39000],
     "the platform discount is not the store's discount"
   );
+  // Review batch 2, م-١٢: the shopper's own order page must add up — it showed every term of the
+  // total except the platform coupon, so 40,000 + 3,000 «came to» 39,000.
+  const mine = (await shopper.request(`/market/orders/${order.id}`)).payload.order;
+  assert.equal(mine.platformDiscountIqd, 4000);
+  assert.equal(
+    mine.subtotalIqd -
+      mine.discountIqd -
+      mine.loyaltyDiscountIqd -
+      mine.platformDiscountIqd +
+      mine.deliveryFeeIqd,
+    mine.totalIqd,
+    "every term of the total is on the shopper's page"
+  );
   assert.equal(
     (await prisma.shopperCoupon.findUniqueOrThrow({ where: { id: w10 } })).usedOrderId,
     order.id

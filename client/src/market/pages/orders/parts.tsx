@@ -23,6 +23,9 @@ export function OrderTotals({ order }: { order: OrderDetail }) {
       {order.loyaltyDiscountIqd ? (
         <Line label="خصم النقاط" value={`− ${iqd(order.loyaltyDiscountIqd)}`} />
       ) : null}
+      {order.platformDiscountIqd ? (
+        <Line label="كوبون السوق" value={`− ${iqd(order.platformDiscountIqd)}`} />
+      ) : null}
       <Line
         label={order.fulfilment === "pickup" ? "الاستلام من المتجر" : "رسوم التوصيل"}
         value={order.deliveryFeeIqd ? iqd(order.deliveryFeeIqd) : "مجاناً"}
