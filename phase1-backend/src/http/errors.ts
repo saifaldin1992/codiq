@@ -5,7 +5,7 @@ import { prescriptionImageConstraints, productImageConstraints, REEL_MAX_BYTES, 
 
 /** Marketplace M12: the search photo's ceiling (modules/market-visual/routes.ts keeps the same number). */
 const SEARCH_PHOTO_MAX_BYTES = 8 * 1024 * 1024;
-import { HttpError } from "../auth/auth.errors.js";
+import { EMAIL_TAKEN_ON_PLATFORM, HttpError } from "../auth/auth.errors.js";
 import { currentCorrelationId, currentLogContext, newCorrelationId } from "../logging/context.js";
 import { logger } from "../logging/logger.js";
 import { redactKey } from "../logging/redact.js";
@@ -176,7 +176,7 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
     // 19-ب: the CODE stays (tests and clients name it); the MESSAGE no longer
     // claims the holder is specifically a platform owner or the claimant a
     // merchant — the trigger fires for any of the four identity tables.
-    return { status: 409, error: { code: "EMAIL_RESERVED_FOR_PLATFORM_OWNER", message: "This email already belongs to another identity on the platform (owner, platform staff, merchant, or store staff) and cannot be reused." }, mapped: true };
+    return { status: 409, error: { code: "EMAIL_RESERVED_FOR_PLATFORM_OWNER", message: EMAIL_TAKEN_ON_PLATFORM }, mapped: true };
   }
   // 19-د: the reserved-slug trigger is the LAST line, not the first — the three
   // application checks answer before it in every ordinary flow. It still needs a
@@ -260,7 +260,7 @@ export function classifyError(error: unknown, request: Request): ErrorOutcome {
     if (!target || target === "null" || target === "undefined") {
       const model = (error.meta as { modelName?: unknown } | undefined)?.modelName;
       if (model === "PlatformOwner" || model === "Merchant" || model === "Staff" || model === "PlatformStaff") {
-        return { status: 409, error: { code: "EMAIL_RESERVED_FOR_PLATFORM_OWNER", message: "This email already belongs to another identity on the platform (owner, platform staff, merchant, or store staff) and cannot be reused." }, mapped: true };
+        return { status: 409, error: { code: "EMAIL_RESERVED_FOR_PLATFORM_OWNER", message: EMAIL_TAKEN_ON_PLATFORM }, mapped: true };
       }
     }
     if (target.includes("order_tags") || target.includes("tag_normalized")) {

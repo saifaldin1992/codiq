@@ -41,7 +41,11 @@ process.env.CODIQ_POSTGRES_URL = testDatabaseUrl;
 
 const { createApp } = await import("../src/http/app.ts");
 const { prisma } = await import("../src/db/prisma.ts");
-const { pointsForSubtotal, LOYALTY_EARN_PER_1000_MAX, LOYALTY_POINT_VALUE_MAX } = await import("../src/services/loyalty.service.ts");
+const { pointsForSubtotal, LOYALTY_EARN_PER_1000_MAX, LOYALTY_POINT_VALUE_MAX, loyaltyHoldHooks } = await import("../src/services/loyalty.service.ts");
+// LOY-2 holds fresh points for the return window. Section 1 proves the hold on
+// the real 15 days; everything after it spends points minutes old, so the suite
+// runs with no hold rather than waiting two weeks.
+const LOYALTY_HOLD_DAYS = loyaltyHoldHooks.holdDays;
 const { merchantWallet } = await import("../src/services/merchant-wallet.service.ts");
 
 // The award is an EXACT integer floor, not a binary fraction. `(570 / 1000) * 100`
@@ -221,6 +225,24 @@ try {
   assert.equal(statement.payload.balance, 300);
   assert.equal(statement.payload.balance, await balanceFromEntries(store.id, customer.id), "CD-5: the service's balance equals the entries summed independently");
   assert.equal(statement.payload.balanceValueIqd, 3000, "CD-5: stated in money too — «300 نقطة» means nothing until it is «3000 دينار»");
+
+  // LOY-2: those 300 points come from an order that can still be returned.
+  assert.equal(LOYALTY_HOLD_DAYS, 15, "LOY-2: the hold is the return window");
+  assert.deepEqual(
+    { spendable: statement.payload.spendable, pending: statement.payload.pending, holdDays: statement.payload.holdDays },
+    { spendable: 0, pending: 300, holdDays: 15 },
+    "LOY-2: points from an order still inside its return window are held, not spendable",
+  );
+  assert.ok(statement.payload.pendingReleaseAt, "LOY-2: …and the statement says when they are released");
+  const held = await buy({ loyaltyPoints: 100, expect: 422 });
+  assert.equal(held.payload.error.code, "INSUFFICIENT_LOYALTY_POINTS", "LOY-2: buy, spend the points, return the order — refused at the till");
+  assert.equal(held.payload.error.pending, 300);
+  // A refused checkout leaves its line in the cart; this probe is not part of
+  // the purchases the sections below count, so it takes its line back out.
+  await prisma.cartItem.deleteMany({ where: { storeId: store.id, cart: { customerId: customer.id } } });
+  loyaltyHoldHooks.holdDays = 0;
+  const released = await request(`/store/${store.slug}/account/loyalty`, { token: shopper });
+  assert.deepEqual({ spendable: released.payload.spendable, pending: released.payload.pending }, { spendable: 300, pending: 0 }, "LOY-2: once the window has passed they are his to spend");
 
   // ============================================================
   // 5. The history is append-only.

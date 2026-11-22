@@ -3,7 +3,7 @@ import { config } from "../config.js";
 import { prisma } from "../db/prisma.js";
 import { DEMO_MERCHANT_EMAIL, DEMO_STORE_SLUG } from "../demo/demo-mode.js";
 import { subscribeMerchantToDefaultPlan } from "../services/entitlement.service.js";
-import { HttpError } from "./auth.errors.js";
+import { EMAIL_TAKEN_ON_PLATFORM, HttpError } from "./auth.errors.js";
 import { ABSENT_IDENTITY_HASH, createPasswordHash, createTypedSession, normalizeEmail, normalizeOptionalEmail, normalizePhone, verifyPassword, normalizeIraqiMobile, normalizeOwnerName, toE164 } from "./identity.js";
 import { merchantStoreDashboardPath, platformOwnerDashboardPath, staffStoreDashboardPath } from "./redirects.js";
 import { domainEvents } from "../events/domain-events.js";
@@ -34,11 +34,13 @@ export async function registerMerchant(input: { email: unknown; password: unknow
   const ownerName = normalizeOwnerName(input.ownerName);
   const phone = normalizeIraqiMobile(input.phone);
   const email = normalizeEmail(input.email);
-  const existingOwner = await prisma.platformOwner.findUnique({ where: { email }, select: { id: true } });
-  if (existingOwner) {
-    throw new HttpError(409, "EMAIL_RESERVED_FOR_PLATFORM_OWNER", "This email already belongs to a platform owner and cannot be registered as a merchant.");
-  }
+  // Hashed BEFORE the owner lookup, and refused with the platform's ONE «email
+  // taken» sentence: registration is public, and a separate answer — or a fast
+  // one that skipped bcrypt — for the owner's address would let anyone find the
+  // platform's highest-value account by trying addresses one at a time.
   const passwordHash = await createPasswordHash(input.password);
+  const existingOwner = await prisma.platformOwner.findUnique({ where: { email }, select: { id: true } });
+  if (existingOwner) throw new HttpError(409, "EMAIL_RESERVED_FOR_PLATFORM_OWNER", EMAIL_TAKEN_ON_PLATFORM);
   const businessName = input.businessName.trim();
   await assertPhoneIsFree(phone);
   // Phase 16: every merchant starts on the free plan within the same transaction.

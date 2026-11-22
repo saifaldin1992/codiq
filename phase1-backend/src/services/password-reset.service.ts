@@ -280,6 +280,14 @@ async function resolveIdentity(kind: IdentityKind, email: string, storeId: strin
  * (`{sub}.codiqos.com`) would mail links to a host nobody has verified resolves.
  * The path form is always correct; a guessed host is silently broken.
  */
+/** Can a reset link be built for this door at all? A property of the platform and the store, not of any account. */
+async function resetLinkBuildable(kind: IdentityKind, storeId: string | null): Promise<boolean> {
+  if (publicUrl("/") !== null) return true;
+  if (kind !== "customer" || !storeId) return false;
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { customDomain: true } });
+  return Boolean(store?.customDomain);
+}
+
 async function resetLinkFor(identity: ResolvedIdentity, token: string): Promise<string | null> {
   const query = `?token=${encodeURIComponent(token)}`;
   if (identity.kind !== "customer") return publicUrl(`/reset-password${query}`);
@@ -441,6 +449,11 @@ export async function requestPasswordReset(input: {
   // not the address exists — and so a platform with no channel does no work at
   // all rather than minting takeover primitives into a void.
   if (!isEmailProviderConfigured()) return { delivery: "unavailable" };
+  // The same for the LINK: whether a working link can be built depends on the
+  // platform's public base URL and, for a shopper, his store's own domain —
+  // never on the account. Asked after the lookup, «unavailable» meant «the
+  // address exists» and «queued» meant «it does not».
+  if (!(await resetLinkBuildable(input.kind, storeId))) return { delivery: "unavailable" };
 
   const identity = await resolveIdentity(input.kind, email, storeId);
   const token = mintToken();

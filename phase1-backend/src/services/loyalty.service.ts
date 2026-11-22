@@ -32,6 +32,7 @@ import { Prisma } from "@prisma/client";
 import { HttpError } from "../auth/auth.errors.js";
 import { prisma } from "../db/prisma.js";
 import { encodeListCursor, keysetWhere, pageOf, parseListLimit, readListCursor } from "./list-page.js";
+import { RETURN_REVERSAL_WINDOW_DAYS } from "./finance.service.js";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -118,6 +119,43 @@ export interface LoyaltyHolding {
   points: number;
   /** EXACT, not an estimate: every remaining point priced at its own rate. */
   valueIqd: number;
+}
+
+/**
+ * LOY-2 — POINTS WAIT OUT THE RETURN WINDOW BEFORE THEY CAN BE SPENT.
+ *
+ * Points are earned the moment an order completes, but the order can still be
+ * returned for RETURN_REVERSAL_WINDOW_DAYS, and the return claws them back. A
+ * shopper who spent them in between left a deficit that only his future awards
+ * could settle — buy, spend the points here, return the order. The platform's
+ * own market points already wait; a store's points now wait the same way: a
+ * lot younger than the window is held, shown as «قيد التأكيد», and not offered
+ * at the till. Nothing is withheld from the balance itself — only from spending.
+ *
+ * `holdDays` is a hook rather than a literal so a suite can exercise spending
+ * without waiting two weeks; production never touches it.
+ */
+export const loyaltyHoldHooks: { holdDays: number } = { holdDays: RETURN_REVERSAL_WINDOW_DAYS };
+
+export interface SpendableHolding {
+  /** Mature lots, oldest first — the only ones redemption walks. */
+  lots: LoyaltyLot[];
+  /** What he may spend now. */
+  spendable: number;
+  /** Held until each lot's window closes. */
+  pending: number;
+  /** When the oldest held lot becomes spendable. */
+  nextReleaseAt: Date | null;
+}
+
+export function spendableHolding(holding: LoyaltyHolding, now: Date = new Date()): SpendableHolding {
+  const cutoff = now.valueOf() - loyaltyHoldHooks.holdDays * 86_400_000;
+  const mature = holding.lots.filter((lot) => lot.earnedAt.valueOf() <= cutoff);
+  const held = holding.lots.filter((lot) => lot.earnedAt.valueOf() > cutoff);
+  const pending = held.reduce((total, lot) => total + lot.points, 0);
+  const spendable = Math.max(0, holding.points - pending);
+  const releaseAt = held.length ? Math.min(...held.map((lot) => lot.earnedAt.valueOf())) + loyaltyHoldHooks.holdDays * 86_400_000 : null;
+  return { lots: mature, spendable, pending, nextReleaseAt: releaseAt === null ? null : new Date(releaseAt) };
 }
 
 type FoldableEntry = {
@@ -408,9 +446,14 @@ export async function previewLoyaltyRedemption(
   const settings = await loyaltySettings(tx, input.storeId);
   if (!settings.enabled) throw new HttpError(422, "LOYALTY_DISABLED", "برنامج النقاط غير مفعّل في هذا المتجر.");
 
-  const holding = await loyaltyHolding(tx, input.storeId, input.customerId, settings);
-  if (requested > holding.points) {
-    throw new HttpError(422, "INSUFFICIENT_LOYALTY_POINTS", `رصيدك ${holding.points} نقطة، ولا يكفي لصرف ${requested}.`);
+  const holding = spendableHolding(await loyaltyHolding(tx, input.storeId, input.customerId, settings));
+  if (requested > holding.spendable) {
+    throw new HttpError(
+      422,
+      "INSUFFICIENT_LOYALTY_POINTS",
+      `المتاح لك للصرف ${holding.spendable} نقطة، ولا يكفي لصرف ${requested}.${holding.pending > 0 ? ` و${holding.pending} نقطة قيد التأكيد حتى تنتهي مهلة الإرجاع.` : ""}`,
+      { spendable: holding.spendable, pending: holding.pending },
+    );
   }
 
   // Spend what is useful rather than refusing: a shopper who offers his whole
@@ -494,6 +537,19 @@ export async function loyaltyStatement(storeId: string, customerId: string, rawL
     // The lots themselves travel, oldest first, so a screen can price ANY
     // redemption he is considering without asking the server to guess for him.
     lots: holding.lots.map((lot) => ({ points: lot.points, pointValueIqd: lot.pointValueIqd, earnedAt: lot.earnedAt })),
+    // LOY-2: what he can spend now, what waits for the return window, and when
+    // the next of it is released. The till offers only `spendable`, walking only
+    // the mature lots.
+    ...(() => {
+      const split = spendableHolding(holding);
+      return {
+        spendable: split.spendable,
+        pending: split.pending,
+        pendingReleaseAt: split.nextReleaseAt,
+        holdDays: loyaltyHoldHooks.holdDays,
+        spendableLots: split.lots.map((lot) => ({ points: lot.points, pointValueIqd: lot.pointValueIqd, earnedAt: lot.earnedAt })),
+      };
+    })(),
     ...(() => {
       const { page, nextCursor } = pageOf(entries, limit, (last) => encodeListCursor(LOYALTY_ENTRIES_KIND, last.createdAt, last.id));
       return { entries: page.map((entry) => ({ ...entry, signedPoints: (SIGN[entry.kind] ?? 0) * entry.points })), nextCursor };

@@ -251,6 +251,9 @@ export const storefrontApi = {
   loyalty: (slug: string, cursor?: string | null) => storefrontRequest<{
     enabled: boolean; pointValueIqd: number; earnPer1000: number; balance: number; balanceValueIqd: number;
     lots: { points: number; pointValueIqd: number; earnedAt: string }[];
+    /** LOY-2: spendable now vs. held until the order's return window closes. */
+    spendable: number; pending: number; pendingReleaseAt: string | null; holdDays: number;
+    spendableLots: { points: number; pointValueIqd: number; earnedAt: string }[];
     entries: { id: string; kind: string; points: number; signedPoints: number; valueIqd: number | null; pointValueIqd: number | null; createdAt: string; order: { id: string; orderNumber: string } }[];
     nextCursor: string | null;
   }>(`${path(slug, "account", "loyalty")}?limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`),

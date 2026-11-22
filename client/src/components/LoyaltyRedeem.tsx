@@ -51,13 +51,20 @@ function quote(lots: readonly Lot[], points: number, payableForGoodsIqd: number)
 }
 
 export function LoyaltyRedeem({ slug, payableForGoodsIqd, onChange, onDiscount }: { slug: string; payableForGoodsIqd: number; onChange: (points: number) => void; onDiscount: (discountIqd: number) => void }) {
-  const [state, setState] = useState<{ balance: number; balanceValueIqd: number; lots: Lot[] } | null>(null);
+  // `balance` here is what he may SPEND now; points from orders still inside
+  // their return window are shown beside it and are not offered (LOY-2).
+  const [state, setState] = useState<{ balance: number; balanceValueIqd: number; lots: Lot[]; pending: number; pendingReleaseAt: string | null } | null>(null);
   const [points, setPoints] = useState(0);
 
   useEffect(() => {
     let alive = true;
     void storefrontApi.loyalty(slug)
-      .then((data) => { if (!alive || !data.enabled || data.balance <= 0) return; setState({ balance: data.balance, balanceValueIqd: data.balanceValueIqd, lots: data.lots }); })
+      .then((data) => {
+        if (!alive || !data.enabled || data.balance <= 0) return;
+        const lots = data.spendableLots ?? data.lots;
+        const spendable = data.spendable ?? data.balance;
+        setState({ balance: spendable, balanceValueIqd: lots.reduce((sum, lot) => sum + lot.points * lot.pointValueIqd, 0), lots, pending: data.pending ?? 0, pendingReleaseAt: data.pendingReleaseAt ?? null });
+      })
       // A points panel that fails to load must never block a checkout.
       .catch(() => { /* stays hidden */ });
     return () => { alive = false; };
@@ -86,6 +93,12 @@ export function LoyaltyRedeem({ slug, payableForGoodsIqd, onChange, onDiscount }
         لديك <b className="font-bold">{money.format(state.balance)}</b> نقطة، تساوي{" "}
         <b className="font-bold">{money.format(state.balanceValueIqd)}</b> دينار.
       </p>
+      {state.pending > 0 ? (
+        <p className="mt-0.5 text-[12px] text-[var(--storefront-muted)]" data-testid="loyalty-pending">
+          و{money.format(state.pending)} نقطة قيد التأكيد حتى تنتهي مهلة إرجاع طلباتها
+          {state.pendingReleaseAt ? <> — تُتاح ابتداءً من {new Date(state.pendingReleaseAt).toLocaleDateString("ar-IQ")}</> : null}.
+        </p>
+      ) : null}
       <label className="mt-2 flex flex-wrap items-center gap-2 text-[13px] font-semibold text-[var(--storefront-text)]">
         <span>اصرف</span>
         <input
