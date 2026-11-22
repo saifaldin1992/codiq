@@ -5,26 +5,26 @@
 
 | الملفّ | الأسطر | قُرئ في | النتائج |
 |---|---|---|---|
-| `phase1-backend/src/auth/auth.service.ts` | 507 | — | لم يُقرأ |
-| `phase1-backend/src/auth/identity.ts` | 477 | — | لم يُقرأ |
-| `phase1-backend/src/services/session.service.ts` | 294 | — | لم يُقرأ |
-| `phase1-backend/src/services/password-reset.service.ts` | 675 | — | لم يُقرأ |
-| `phase1-backend/src/services/password.service.ts` | 164 | — | لم يُقرأ |
+| `phase1-backend/src/auth/auth.service.ts` | 507 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/auth/identity.ts` | 477 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/services/session.service.ts` | 294 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/services/password-reset.service.ts` | 675 | 2026-11-22 (كاملاً) | ت-١، ت-٢ (قُسّم) |
+| `phase1-backend/src/services/password.service.ts` | 164 | 2026-11-22 (كاملاً) | م-١ |
 | `phase1-backend/src/auth/password-policy.ts` | 381 | — | لم يُقرأ |
 | `phase1-backend/src/auth/breached-passwords.ts` | 22 | — | لم يُقرأ |
-| `phase1-backend/src/auth/totp.ts` | 169 | — | لم يُقرأ |
-| `phase1-backend/src/services/owner-totp.service.ts` | 253 | — | لم يُقرأ |
-| `phase1-backend/src/services/platform-staff-totp.service.ts` | 116 | — | لم يُقرأ |
+| `phase1-backend/src/auth/totp.ts` | 169 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/services/owner-totp.service.ts` | 253 | 2026-11-22 (كاملاً) | م-٢ |
+| `phase1-backend/src/services/platform-staff-totp.service.ts` | 116 | 2026-11-22 (كاملاً) | م-٢ |
 | `phase1-backend/src/auth/secret-box.ts` | 324 | — | لم يُقرأ |
 | `phase1-backend/src/auth/keys.ts` | 104 | — | لم يُقرأ |
 | `phase1-backend/src/auth/staff-permissions.ts` | 391 | — | لم يُقرأ |
 | `phase1-backend/src/auth/platform-permissions.ts` | 216 | — | لم يُقرأ |
 | `phase1-backend/src/auth/redirects.ts` | 75 | — | لم يُقرأ |
 | `phase1-backend/src/auth/auth.errors.ts` | 15 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-account/otp.service.ts` | 190 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-account/account.service.ts` | 397 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-account/shopper-auth.ts` | 67 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-account/routes.ts` | 227 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-account/otp.service.ts` | 190 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-account/account.service.ts` | 397 | 2026-11-22 (كاملاً) | ملاحظة |
+| `phase1-backend/src/modules/market-account/shopper-auth.ts` | 67 | 2026-11-22 (كاملاً) | لا نتيجة |
+| `phase1-backend/src/modules/market-account/routes.ts` | 227 | 2026-11-22 (كاملاً) | لا نتيجة |
 | `phase1-backend/src/modules/market-account/schema.ts` | 56 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-account/index.ts` | 10 | — | لم يُقرأ |
 | `phase1-backend/src/http/shared.ts` | 495 | — | لم يُقرأ |
@@ -47,3 +47,23 @@
 ## النتائج
 
 (تُضاف بالترتيب الذي تُكتشف به: ح = حرج، م = مهمّ، ت = تحسين، ر = ترتيب)
+
+**تحقّق بلا إصلاح:** تسجيل مالك المنصّة مغلق إلّا بمفتاح بيئة، ومفتاح كهذا متروكاً في بيئة منشورة يجعل مجموعة المصادقة «ناقصة» فيفشل الجاهزيّة والفحص المسبق. تسجيل دخول حساب غير موجود يقارن ببصمة bcrypt بديلة (توقيت متساوٍ). كلّ جلسة تُفحص في القاعدة (البصمة، الإبطال، الانتهاء). جلسة الضيف تُمنح للضيف الجديد وحده — إعادة استعمال صفّ ضيف برقمه لا تمنح جلسة. رمز دخول المتسوّق يُستهلك بتحديث مشروط فلا سباق فيه.
+
+### [م-١] جلسة الضيف تُسقط تغيير كلمة المرور بخطأ ٥٠٠ — مهمّ
+- المكان: `POST /auth/password` يقبل أيّ جلسة، والضيف يُمنح جلسة عند إنشائه؛ صفّه بلا كلمة مرور (`null`) و`verifyPassword` استدعى `.startsWith` عليها: ٥٠٠ يُحدثه أيّ ضيف متى شاء.
+- الحالة: **مُصلَح** — `60d4f58`: ٤٠٩ `ACCOUNT_HAS_NO_PASSWORD` برسالة تدلّه على تعيين كلمته الأولى. الاختبار (`guest:checkout`): ٥٠٠ قبل، ٤٠٩ بعد.
+
+### [م-٢] الرمز الواحد يصلح مرّتين في اللحظة نفسها — مهمّ (أمان)
+- المكان: `verifySecondFactor` (المالك) و`verifyPlatformStaffSecondFactor` (موظّف المنصّة): يقرأ آخر خطوة، يتحقّق، ثمّ يكتب بلا شرط؛ ورمز الاستعادة يُعلَّم مستعملاً بتحديث بلا شرط. دخولان بالرمز نفسه معاً (رمز مُعترَض في سباق مع صاحبه) يدخلان كلاهما — ASVS 2.8.4.
+- الحالة: **مُصلَح** — `95d564b` (المالك: الرمز ورمز الاستعادة) و`1504e6f` (موظّف المنصّة): كتابة شرطيّة واحدة، ولا يدخل إلّا من وقعت كتابته. الاختبار (`phase19b`، `ps1`): دخولان معاً بالرمز نفسه — كلاهما قبل، واحد بعد، ثلاث مرّات متتالية.
+
+### [ت-١] إعادة تعيين كلمة المرور لا تُنهي «غيّرها عند أوّل دخول» — تحسين
+- المكان: `consumePasswordReset`. التغيير العاديّ يمسح `passwordSetByProvisionerAt`، والإعادة لا — فتاجر أعاد كلمته بالبريد طُولب بتغييرها مرّة أخرى وبقيت لوحته مقفلة.
+- الحالة: **مُصلَح** — `1053246`. الاختبار (`pr1`): فشل قبل، نجح بعد.
+
+### [ت-٢] تقسيم ملفّ استعادة كلمة المرور — تحسين
+- `99d4f7e`: `password-reset.service.ts` ← `services/password-reset/{tokens,request,consume}.ts`، نقلٌ حرفيّ.
+
+### ملاحظة
+- `createAddress` يعدّ العناوين خارج المعاملة: إنشاءان متزامنان قد يتجاوزان العشرين بواحد. لا ضرر.
