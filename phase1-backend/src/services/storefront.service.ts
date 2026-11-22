@@ -52,6 +52,23 @@ const GUEST_CART_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CART_QUANTITY = 99;
 const CART_STATUS_ACTIVE = "active";
 
+/**
+ * What every cart read returns its lines with: the product with its first image, the
+ * variant, the lines in the order they were added. One definition, not ten copies
+ * (review batch 2, ر-٥ — three copies had lost the ordering).
+ */
+const CART_WITH_ITEMS = {
+  items: {
+    include: {
+      product: {
+        include: { images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 } },
+      },
+      variant: true,
+    },
+    orderBy: { createdAt: "asc" },
+  },
+} satisfies Prisma.ShoppingCartInclude;
+
 type CartContext = { customerId?: string; guestToken?: string };
 type CheckoutInput = {
   idempotencyKey?: unknown;
@@ -384,33 +401,12 @@ async function activeCartForContext(storeId: string, context: CartContext, creat
         ownerKind: "customer",
         status: CART_STATUS_ACTIVE,
       },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: { images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 } },
-            },
-            variant: true,
-          },
-          orderBy: { createdAt: "asc" },
-        },
-      },
+      include: CART_WITH_ITEMS,
     });
     if (!cart && createGuest)
       cart = await prisma.shoppingCart.create({
         data: { storeId, ownerKind: "customer", customerId: context.customerId },
-        include: {
-          items: {
-            include: {
-              product: {
-                include: {
-                  images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 },
-                },
-              },
-              variant: true,
-            },
-          },
-        },
+        include: CART_WITH_ITEMS,
       });
     return { cart, issuedGuestToken: undefined as string | undefined };
   }
@@ -423,19 +419,7 @@ async function activeCartForContext(storeId: string, context: CartContext, creat
           sessionTokenHash: tokenHash,
           status: CART_STATUS_ACTIVE,
         },
-        include: {
-          items: {
-            include: {
-              product: {
-                include: {
-                  images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 },
-                },
-              },
-              variant: true,
-            },
-            orderBy: { createdAt: "asc" },
-          },
-        },
+        include: CART_WITH_ITEMS,
       })
     : null;
   cart = await expireGuestCartIfNeeded(cart);
@@ -448,16 +432,7 @@ async function activeCartForContext(storeId: string, context: CartContext, creat
         sessionTokenHash: hash(issuedGuestToken),
         expiresAt: nowPlusGuestLifetime(),
       },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: { images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 } },
-            },
-            variant: true,
-          },
-        },
-      },
+      include: CART_WITH_ITEMS,
     });
     return { cart, issuedGuestToken };
   }
@@ -908,17 +883,7 @@ export async function addCartItem(
         lastActivityAt: new Date(),
         ...(cart.ownerKind === "guest" ? { expiresAt: nowPlusGuestLifetime() } : {}),
       },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: { images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 } },
-            },
-            variant: true,
-          },
-          orderBy: { createdAt: "asc" },
-        },
-      },
+      include: CART_WITH_ITEMS,
     });
   });
   return { cart: cartPayload(updated), issuedGuestToken, guestExpiresAt: updated.expiresAt };
@@ -987,17 +952,7 @@ export async function updateCartItem(
         lastActivityAt: new Date(),
         ...(cart.ownerKind === "guest" ? { expiresAt: nowPlusGuestLifetime() } : {}),
       },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: { images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 } },
-            },
-            variant: true,
-          },
-          orderBy: { createdAt: "asc" },
-        },
-      },
+      include: CART_WITH_ITEMS,
     });
   });
   return cartPayload(updated);
@@ -1051,18 +1006,7 @@ export async function mergeGuestCartIntoCustomer(
               });
             const customerCart = await tx.shoppingCart.findFirst({
               where: { storeId, customerId, ownerKind: "customer", status: CART_STATUS_ACTIVE },
-              include: {
-                items: {
-                  include: {
-                    product: {
-                      include: {
-                        images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 },
-                      },
-                    },
-                    variant: true,
-                  },
-                },
-              },
+              include: CART_WITH_ITEMS,
             });
             return customerCart
               ? cartPayload(customerCart)
@@ -1138,19 +1082,7 @@ export async function mergeGuestCartIntoCustomer(
           const refreshed = await tx.shoppingCart.update({
             where: { id: customerCart.id },
             data: { version: { increment: 1 }, lastActivityAt: new Date() },
-            include: {
-              items: {
-                include: {
-                  product: {
-                    include: {
-                      images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 },
-                    },
-                  },
-                  variant: true,
-                },
-                orderBy: { createdAt: "asc" },
-              },
-            },
+            include: CART_WITH_ITEMS,
           });
           return cartPayload(refreshed);
         },
@@ -2451,36 +2383,14 @@ export async function reorderIntoCart(storeId: string, customerId: string, order
     if (!addedCount) {
       const unchanged = await tx.shoppingCart.findUniqueOrThrow({
         where: { id: cart.id },
-        include: {
-          items: {
-            include: {
-              product: {
-                include: {
-                  images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 },
-                },
-              },
-              variant: true,
-            },
-            orderBy: { createdAt: "asc" },
-          },
-        },
+        include: CART_WITH_ITEMS,
       });
       return { updated: unchanged, limitSkips, addedCount };
     }
     const updated = await tx.shoppingCart.update({
       where: { id: cart.id },
       data: { version: { increment: 1 }, lastActivityAt: new Date() },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: { images: { select: { id: true }, orderBy: { sortOrder: "asc" }, take: 1 } },
-            },
-            variant: true,
-          },
-          orderBy: { createdAt: "asc" },
-        },
-      },
+      include: CART_WITH_ITEMS,
     });
     return { updated, limitSkips, addedCount };
   });
