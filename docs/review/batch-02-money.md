@@ -1,0 +1,95 @@
+# سجلّ الدفعة ٢ — مسارات المال
+
+قائمة الفحص في [README.md](README.md). كلّ ملفّ يُقرأ كاملاً؛ سطره هنا يُحدَّث عند الانتهاء منه.
+
+| الملفّ | الأسطر | قُرئ في | النتائج |
+|---|---|---|---|
+| `phase1-backend/src/services/storefront.service.ts` | 2,575 | 2026-11-22 (الأسطر ١–٢٦٣٠ كاملة) | م-١، م-٢، ت-١…ت-٦، ر-١…ر-٧ |
+| `phase1-backend/src/services/order-lifecycle.service.ts` | 715 | — | لم يُقرأ |
+| `phase1-backend/src/services/loyalty.service.ts` | 622 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-payments/payments.service.ts` | 614 | — | لم يُقرأ |
+| `phase1-backend/src/services/finance.service.ts` | 608 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-cart/checkout.service.ts` | 596 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-rewards/rewards.service.ts` | 489 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-cart/cart.service.ts` | 460 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-partner/partner.service.ts` | 459 | — | لم يُقرأ |
+| `phase1-backend/src/services/coupon.service.ts` | 445 | — | لم يُقرأ |
+| `phase1-backend/src/services/payment-methods.service.ts` | 282 | — | لم يُقرأ |
+| `phase1-backend/src/services/platform-rewards.service.ts` | 222 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-payments/providers.ts` | 221 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-cart/routes.ts` | 195 | — | لم يُقرأ |
+| `phase1-backend/src/services/guest-checkout.service.ts` | 183 | — | لم يُقرأ |
+| `phase1-backend/src/services/merchant-wallet.service.ts` | 170 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-rewards/routes.ts` | 134 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-partner/routes.ts` | 97 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-payments/routes.ts` | 76 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-cart/schema.ts` | 53 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-rewards/schema.ts` | 38 | — | لم يُقرأ |
+| `phase1-backend/src/services/live-price.ts` | 30 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-payments/schema.ts` | 20 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-payments/index.ts` | 13 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-rewards/index.ts` | 9 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-partner/index.ts` | 9 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-cart/index.ts` | 9 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-partner/schema.ts` | 7 | — | لم يُقرأ |
+
+## النتائج
+
+(تُضاف بالترتيب الذي تُكتشف به: ح = حرج، م = مهمّ، ت = تحسين، ر = ترتيب)
+
+**لا نتيجة حرجة حتى الآن.** ما يحرس المال في `checkout` صحيح: السعر والمخزون يُقرآن تحت قفل واحد، والسعر المتغيّر يرفض الطلب
+ويصحّح السلّة، والكوبون مرّة لكلّ طلب بقيد في القاعدة، والمخزون يُحجز في المعاملة نفسها، والسلّة تتحوّل فقط إن لم تتغيّر
+نسختها، وإكمال الطلب يُنقص المخزون ذرّيّاً.
+
+### [م-١] رسائل خطأ إنجليزيّة تصل متسوّق السوق — مهمّ
+- المكان: ٧٩ رسالة في `storefront.service.ts` (٣٩ من ٥٢)، و`order-lifecycle.service.ts` (١٣ من ١٥)، و`finance.service.ts` (٣ من ١٣)،
+  و`coupon.service.ts` (٢٤ من ٢٤). مثال: `CART_VERSION_CONFLICT` ← «The cart was changed by another request.»
+- ما يحدث: واجهة **المتجر** تترجم الرمز إلى العربيّة بجدول في `client/src/lib/storefront-api.ts` (`errorMessage`)، فزبون المتجر لا يرى
+  الإنجليزيّة. واجهة **السوق** لا جدول لها: تعرض نصّ الخادم كما هو (`setFailure(error.message)`)، فيقرأ متسوّق السوق الإنجليزيّة.
+- الحالة: قيد التحديد بعد قراءة باقي ملفّات الدفعة.
+
+### [م-٢] بطاقة المنتج في المتجر تعرض السعر قبل «عرض الساعة» — مهمّ
+- المكان: `client/src/components/ProductCard.tsx`، الدالّة `priceLabel`.
+- ما يحدث: حين تتساوى أسعار المتغيّرات (منتج بمتغيّر واحد مثلاً) تعرض `product.priceIqd` — السعر **المخزّن** — لا `minPriceIqd` الحيّ.
+  أثناء عرض ساعة بسعر ٨٠٬٠٠٠ لمنتج سعره ١٠٠٬٠٠٠، تقول البطاقة ١٠٠٬٠٠٠ ويدفع الزبون ٨٠٬٠٠٠: لا يرى العرض.
+- الحالة: يُصلَح باختبار.
+
+### [ت-١] قراءة صفّ المتجر ثلاث مرّات في معاملة الشراء — تحسين
+- المكان: `checkout` الأسطر ١٥٧٠ (الحالة) و١٦٣٦ (المالك) و١٦٧٩ (الاستلام). قراءة واحدة تكفي.
+
+### [ت-٢] قراءة صفّ الزبون مرّتين في المعاملة نفسها — تحسين
+- المكان: الأسطر ١٩٧٧ و٢٠٠٥.
+
+### [ت-٣] حدود المعدّل في ملفّ متجر الزبون — تحسين (تقسيم)
+- المكان: `consumeStorefrontRateLimit` و`refundStorefrontRateLimit` — تستعملهما المنصّة كلّها، مكانهما ملفّ مستقلّ.
+
+### [ت-٤] `cartPayload(cart: any)` — تحسين
+- يُفقد فحص الأنواع على شكل السلّة.
+
+### [ت-٥] إضافتان متزامنتان للمنتج نفسه قد تضيع إحداهما — تحسين
+- المكان: `addCartItem` (يقرأ الكمّيّة ثمّ يكتب المجموع). لا خطر ماليّ — `checkout` يعيد التحقّق تحت قفل — لكنّ زيادة ذرّيّة أصحّ.
+
+### [ت-٦] «أعد الطلب» لا يطبّق حدّ الطلب الواحد — تحسين
+- المكان: `reorderIntoCart`. «أضف للسلّة» يطبّقه منذ م٢؛ إعادة الطلب تُدخل ٥ قطع من منتج حدّه ٢ فتُرفض عند الإتمام فقط.
+
+### [ر-١] تعليق `CartPriceMoved` فوق واجهة أخرى — ترتيب
+- الأسطر ١٤٢٧–١٤٣٩ فوق `RefusedCartLine` بدل فوق صنفه في السطر ١٤٧٠.
+
+### [ر-٢] حالة الدفع بشرط ثلاثيّ متداخل خمس مستويات — ترتيب
+- الأسطر ٢٠٤٤–٢٠٥٣. جدول صغير أوضح وأسهل للإضافة.
+
+### [ر-٣] تعليق `marketPayment` على سطر الحقل نفسه — ترتيب
+- السطر ٦٧ (من م١٣).
+
+### [ر-٤] تعليق مكرّر فوق `refundStorefrontRateLimit` — ترتيب
+- الأسطر ٢٩٢–٣٠٣: فقرتان تبدآن بالجملة نفسها.
+
+### [ر-٥] تعريف ما تُحمَّل به عناصر السلّة منسوخ عشر مرّات — ترتيب (تكرار)
+- الأسطر ٣٨٩، ٤٠٤، ٤٢٨، ٤٥٣، ٩١٣، ٩٩٢، ١٠٥٦، ١١٤٣، ٢٤٥٦، ٢٤٧٥. ثلاث نسخ بلا ترتيب العناصر بـ`createdAt` — وواحدة منها (١٠٥٦)
+  تُرجع سلّة لها عناصر فعلاً، فيصل ترتيبها مختلفاً. يُوحَّد في ثابت واحد.
+
+### [ر-٦] اسم المعامل `createGuest` يضلّل — ترتيب
+- السطر ٤٠١: ينشئ سلّة **زبون** أيضاً. الاسم الصحيح `createIfMissing`.
+
+### [ر-٧] تعليق `deliveryRateForGovernorate` فوق دالّة أخرى — ترتيب
+- الأسطر ١٢٩٩–١٣٠٨ فوق `publicDeliveryAreas` (فوق تعليقها هي)، والدالّة التي يصفها في السطر ١٣٣٧.
