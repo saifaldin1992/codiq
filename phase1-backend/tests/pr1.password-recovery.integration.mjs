@@ -254,6 +254,12 @@ try {
   // 1. SINGLE USE.
   // ==========================================================================
   const merchantNew = "Pr1MerchantFresh2026!";
+  // Review batch 3, ت-١: as if the platform had set his password (manual provisioning). The reset
+  // is a password HE chose, so the «change it at first sign-in» demand must go with it.
+  await prisma.merchant.update({
+    where: { id: merchantId },
+    data: { passwordSetByProvisionerAt: new Date() },
+  });
   const used = await request("/auth/password/reset/consume", {
     method: "POST",
     body: { token: firstToken, newPassword: merchantNew },
@@ -283,7 +289,13 @@ try {
     401,
     "PR-1: the forgotten password no longer works"
   );
-  assert.equal((await loginMerchant(merchantNew)).status, 200, "PR-1: …and the new one does");
+  const signedIn = await loginMerchant(merchantNew);
+  assert.equal(signedIn.status, 200, "PR-1: …and the new one does");
+  assert.equal(
+    signedIn.payload.mustChangePassword,
+    undefined,
+    "a password he set himself by reset is not one the provisioner knows"
+  );
   summary.singleUse = { secondAttempt: replay.payload.error.code };
 
   // ==========================================================================

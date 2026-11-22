@@ -120,7 +120,13 @@ export async function consumePasswordReset(input: {
     const delegate = (
       tx as unknown as Record<string, { update: (args: unknown) => Promise<unknown> }>
     )[delegateNameFor(kind)]!;
-    await delegate.update({ where: { id: row.subjectId }, data: { passwordHash } });
+    // A password he chose by reset is not one a provisioner knows: the «change it at first
+    // sign-in» demand ends with it, as it does on a change (review batch 3, ت-١).
+    const provisioned = kind === "merchant" || kind === "staff";
+    await delegate.update({
+      where: { id: row.subjectId },
+      data: { passwordHash, ...(provisioned ? { passwordSetByProvisionerAt: null } : {}) },
+    });
 
     // Every OTHER outstanding link for this identity dies with the one just
     // spent: an earlier mail still sitting in the inbox must not remain a way in.
