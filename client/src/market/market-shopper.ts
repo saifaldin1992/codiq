@@ -3,6 +3,7 @@
  * /api/market/me, updated in place on sign-in, profile edits and sign-out.
  */
 import { useEffect, useState } from "react";
+import { marketErrorText } from "./market-error";
 
 export type Shopper = {
   id: string;
@@ -72,10 +73,17 @@ export async function accountCall<T>(url: string, init?: RequestInit): Promise<T
   const body = await response.json().catch(() => null);
   if (response.status === 401) setShopper(null);
   if (!response.ok)
-    throw Object.assign(new Error(body?.error?.message ?? "تعذّر الاتصال بالخادم، حاول مرة أخرى"), {
-      code: body?.error?.code as string | undefined,
-      details: body?.error,
-    });
+    throw Object.assign(
+      new Error(
+        body
+          ? marketErrorText(body.error?.code, body.error?.message)
+          : "تعذّر الاتصال بالخادم، حاول مرة أخرى"
+      ),
+      {
+        code: body?.error?.code as string | undefined,
+        details: body?.error,
+      }
+    );
   return body as T;
 }
 

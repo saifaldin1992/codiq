@@ -1,4 +1,6 @@
-/** The market's one fetch helper: same-origin, JSON, and the server's Arabic error message when it has one. */
+/** The market's one fetch helper: same-origin, JSON, and an Arabic error message (market-error.ts). */
+import { marketErrorText } from "./market-error";
+
 export class MarketApiError extends Error {
   constructor(
     message: string,
@@ -18,7 +20,9 @@ export async function marketGet<T>(url: string, init?: { signal?: AbortSignal })
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     throw new MarketApiError(
-      body?.error?.message ?? "تعذّر الاتصال بالخادم، حاول مرة أخرى",
+      body
+        ? marketErrorText(body.error?.code, body.error?.message)
+        : "تعذّر الاتصال بالخادم، حاول مرة أخرى",
       response.status,
       body?.error?.code ?? null
     );

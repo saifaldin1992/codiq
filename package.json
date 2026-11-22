@@ -21,6 +21,7 @@
     "duplicates:report": "node tools/duplicate-code.mjs --report",
     "review:report": "node tools/review-report.mjs",
     "price:label": "tsx phase1-backend/tests/price-label.unit.mjs",
+    "market:error-text": "tsx phase1-backend/tests/market-error-text.unit.mjs",
     "coverage:check": "NODE_OPTIONS=--max-old-space-size=10240 c8 report --merge-async --temp-directory ${NODE_V8_COVERAGE:-.v8-coverage} --reporter text-summary --reporter json-summary --report-dir coverage --include 'phase1-backend/src/**' --include 'server/**' --exclude phase1-backend/src/http/openapi.document.ts --all --check-coverage --lines 90 --branches 80 --functions 90",
     "rebrand": "node scripts/rebrand.mjs",
     "phase1:db:generate": "prisma generate --schema prisma/schema.prisma",
