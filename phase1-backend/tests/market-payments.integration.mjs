@@ -537,6 +537,36 @@ try {
     1,
     "refunded once, not twice"
   );
+  // م-٦: an expired order whose cancellation failed is tried again, not left holding stock.
+  await fill(shopper.api, [[phone, 1]]);
+  const card5 = (await place(shopper.api, { paymentMethodCode: "market_card" }, "card-5")).payload;
+  await prisma.marketPayment.update({
+    where: { id: card5.payment.paymentId },
+    data: { expiresAt: new Date(Date.now() - 1000) },
+  });
+  const refuse = `m13_refuse_${testId}`;
+  await prisma.$executeRawUnsafe(
+    `CREATE FUNCTION ${refuse}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN ` +
+      `IF NEW.id = '${card5.order.id}' AND NEW.status = 'cancelled' THEN ` +
+      `RAISE EXCEPTION 'refused for the test'; END IF; RETURN NEW; END $$`
+  );
+  await prisma.$executeRawUnsafe(
+    `CREATE TRIGGER ${refuse} BEFORE UPDATE ON store_orders FOR EACH ROW EXECUTE FUNCTION ${refuse}()`
+  );
+  try {
+    await svc.expireStalePayments();
+  } finally {
+    await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS ${refuse} ON store_orders`);
+    await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS ${refuse}()`);
+  }
+  const card5Now = async () => [
+    (await order(card5.order.id)).status,
+    (await prisma.marketPayment.findUniqueOrThrow({ where: { id: card5.payment.paymentId } }))
+      .status,
+  ];
+  assert.deepEqual(await card5Now(), ["new", "pending"], "not cancelled, so not expired yet");
+  await svc.expireStalePayments();
+  assert.deepEqual(await card5Now(), ["cancelled", "expired"], "the next sweep finishes it");
   summary.once = true;
   await fill(shopper.api, [[phone, 1]]); // what section 5 checks out with
 

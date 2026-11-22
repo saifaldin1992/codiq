@@ -189,12 +189,18 @@ export async function expireStalePayments(now = new Date()) {
           expectedVersion: payment.order.version,
           note: "لم يكتمل الدفع الإلكترونيّ خلال ٣٠ دقيقة.",
         }
-      ).catch((error: Error) =>
+      ).catch(async (error: Error) => {
         logger.warn("payments.expire_cancel_failed", {
           paymentId: payment.id,
           reason: error.message,
-        })
-      );
+        });
+        // Not cancelled, so not expired: the sweep only picks «pending» and «failed», and an
+        // expired payment over a live order held its stock for good (review batch 2, م-٦).
+        await prisma.marketPayment.updateMany({
+          where: { id: payment.id, status: "expired" },
+          data: { status: payment.status },
+        });
+      });
     }
   }
   // Plans whose code was never entered simply lapse.
