@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2583,
-  "oversizeFiles": 107,
+  "oversizeFiles": 106,
   "longFunctions": 441
  },
  "files": {
@@ -871,11 +871,6 @@
    "oversize": 724,
    "longFunctions": 3
   },
-  "phase1-backend/src/services/product-image-storage.service.ts": {
-   "longLines": 1,
-   "oversize": 109,
-   "longFunctions": 0
-  },
   "phase1-backend/src/services/product-review.service.ts": {
    "longLines": 1,
    "oversize": 0,
@@ -945,6 +940,11 @@
    "longLines": 0,
    "oversize": 0,
    "longFunctions": 1
+  },
+  "phase1-backend/src/services/storage/validate.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
   },
   "phase1-backend/src/services/store-banner.service.ts": {
    "longLines": 3,

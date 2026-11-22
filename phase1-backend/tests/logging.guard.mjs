@@ -469,7 +469,8 @@ restoreSink();
     "phase1-backend/src/services/retention-job.ts",
     "phase1-backend/src/services/reservation-expiry-job.ts",
     "phase1-backend/src/services/soft-delete/purge-job.ts",
-    "phase1-backend/src/services/product-image-storage.service.ts",
+    // Review batch 3, ت-٤: product-image-storage.service.ts was split into this directory.
+    "phase1-backend/src/services/storage",
     "phase1-backend/src/auth/secret-box.ts",
     "phase1-backend/src/index.ts",
     "server/index.ts",
