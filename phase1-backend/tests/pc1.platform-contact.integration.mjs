@@ -69,8 +69,8 @@ const server = app.listen(0);
 await new Promise((resolve) => server.once("listening", resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 
-async function request(path, { method = "GET", body, token } = {}) {
-  if (method !== "GET") await sql.query("DELETE FROM storefront_rate_limits");
+async function request(path, { method = "GET", body, token, keepRateLimits = false } = {}) {
+  if (method !== "GET" && !keepRateLimits) await sql.query("DELETE FROM storefront_rate_limits");
   const response = await fetch(`${base}${path}`, {
     method,
     headers: {
@@ -552,6 +552,22 @@ try {
     "INVALID_PASSWORD",
     "PC-1: a live session is NOT enough — a borrowed unlocked laptop must not seize the account"
   );
+  // Review batch 3, م-٣: …and the borrowed session cannot GUESS the password here either. The
+  // password change and the 2FA switch-off share a re-verification budget; this door had none.
+  const guesses = [];
+  for (let n = 0; n < 12; n += 1)
+    guesses.push(
+      (
+        await request("/platform/security/email", {
+          method: "POST",
+          token: ownerToken,
+          body: { currentPassword: `guess-${n}-not-his`, email: newOwnerEmail },
+          keepRateLimits: true,
+        })
+      ).payload?.error?.code
+    );
+  assert.ok(guesses.includes("RATE_LIMITED"), `the guessing stops · ${guesses.join(",")}`);
+  await prisma.storefrontRateLimit.deleteMany({ where: { scope: "password_reverify" } });
 
   const unchanged = await request("/platform/security/email", {
     method: "POST",

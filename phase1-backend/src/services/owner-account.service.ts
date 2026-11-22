@@ -27,6 +27,12 @@
  * would be a second, racy authority that disagrees with the first under
  * concurrency — so this service does not check, it lets the guard speak.
  */
+import {
+  REAUTH_ATTEMPT_LIMIT,
+  REAUTH_WINDOW_MS,
+  consumeStorefrontRateLimit,
+  refundStorefrontRateLimit,
+} from "./storefront.service.js";
 import { HttpError } from "../auth/auth.errors.js";
 import { normalizeEmail, verifyPassword } from "../auth/identity.js";
 import { prisma } from "../db/prisma.js";
@@ -61,11 +67,20 @@ export async function changeOwnerEmail(
   });
   if (!owner) throw new HttpError(404, "RESOURCE_NOT_FOUND", "الحساب غير موجود.");
 
+  // The re-verification budget the password change and the 2FA switch-off already share: a
+  // borrowed session must not be able to guess the password here (review batch 3, م-٣).
+  const reauthKey = { scope: "password_reverify", rawKey: `platform_owner:${ownerId}` };
+  await consumeStorefrontRateLimit({
+    ...reauthKey,
+    limit: REAUTH_ATTEMPT_LIMIT,
+    windowMs: REAUTH_WINDOW_MS,
+  });
   if (!(await verifyPassword(input.currentPassword, owner.passwordHash))) {
     // The same code and the same Arabic `password.service.ts` answers with, so a
     // mistyped password reads identically wherever it is typed.
     throw new HttpError(422, "INVALID_PASSWORD", "كلمة المرور الحالية غير صحيحة.");
   }
+  await refundStorefrontRateLimit(reauthKey);
 
   const email = normalizeEmail(input.email);
   if (email === owner.email) {

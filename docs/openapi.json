@@ -62319,7 +62319,7 @@
           "owner-security"
         ],
         "summary": "POST /platform/security/email",
-        "description": "**الباب**: platform_owner.",
+        "description": "**الباب**: platform_owner.\n\n**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً.",
         "parameters": [],
         "responses": {
           "200": {
@@ -62417,6 +62417,19 @@
               "VALIDATION_FAILED"
             ]
           },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "RATE_LIMITED"
+            ]
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           },
@@ -62428,6 +62441,7 @@
           "platform_owner"
         ],
         "x-codiq-source": "phase1-backend/src/http/routes/owner-security.ts",
+        "x-codiq-rate-limited": true,
         "security": [
           {
             "sessionCookie": []
