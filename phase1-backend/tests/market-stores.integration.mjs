@@ -470,6 +470,28 @@ try {
   assert.deepEqual(reviews.payload.reviews, []);
   assert.equal(reviews.payload.nextCursor, null);
   assert.equal((await request(`/market/stores/${a.slug}/cover`)).status, 404, "no cover uploaded");
+  // Review batch 4, ت-١: a cover is stored bytes like a logo — it counts toward the plan's
+  // storage meter (uploading one checks the limit; the meter never summed what was stored).
+  const { merchantUsage } = await import("../src/services/entitlement.service.ts");
+  const ownerOfA = (await prisma.store.findUniqueOrThrow({ where: { id: a.id } })).merchantId;
+  const storageBefore = (await merchantUsage(prisma, ownerOfA)).max_image_storage_mb;
+  await prisma.store.update({
+    where: { id: a.id },
+    data: {
+      coverObjectKey: `covers/${a.id}/review-meter.png`,
+      coverContentType: "image/png",
+      coverByteSize: 3 * 1024 * 1024,
+    },
+  });
+  const storageAfter = (await merchantUsage(prisma, ownerOfA)).max_image_storage_mb;
+  await prisma.store.update({
+    where: { id: a.id },
+    data: { coverObjectKey: null, coverContentType: null, coverByteSize: null },
+  });
+  assert.ok(
+    storageAfter >= storageBefore + 3,
+    `a 3 MB cover is 3 MB of storage · ${storageBefore} → ${storageAfter}`
+  );
   const ranking = await request("/market/ranking");
   assert.equal(
     ranking.payload.criteria.reduce((sum, row) => sum + row.weight, 0),

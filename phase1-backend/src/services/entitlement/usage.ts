@@ -85,7 +85,11 @@ export async function merchantUsage(
     // never moved: a merchant could fill his plan with slides and the meter
     // would still read the product images alone.
     client.storeBanner.aggregate({ where: { store: { merchantId } }, _sum: { byteSize: true } }),
-    client.store.aggregate({ where: { merchantId }, _sum: { logoByteSize: true } }),
+    // The cover too: its upload checks this limit, so what it stores must count (batch 4, ت-١).
+    client.store.aggregate({
+      where: { merchantId },
+      _sum: { logoByteSize: true, coverByteSize: true },
+    }),
   ]);
   return {
     max_stores: stores,
@@ -96,7 +100,8 @@ export async function merchantUsage(
       ((storage._sum.byteSize ?? 0) +
         (prescriptionStorage._sum.byteSize ?? 0) +
         (bannerStorage._sum.byteSize ?? 0) +
-        (logoStorage._sum.logoByteSize ?? 0)) /
+        (logoStorage._sum.logoByteSize ?? 0) +
+        (logoStorage._sum.coverByteSize ?? 0)) /
         (1024 * 1024)
     ),
   };
