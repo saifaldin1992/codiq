@@ -132,7 +132,7 @@
   "phase1-backend/src/services/merchant-wallet.service.ts": 24,
   "phase1-backend/src/services/order-lifecycle.service.ts": 26,
   "phase1-backend/src/services/order-notes.service.ts": 22,
-  "phase1-backend/src/services/password-reset.service.ts": 22,
+  "phase1-backend/src/services/password-reset/request.ts": 22,
   "phase1-backend/src/services/platform-brand.service.ts": 8,
   "phase1-backend/src/services/pos.service.ts": 16,
   "phase1-backend/src/services/prescription.service.ts": 8,

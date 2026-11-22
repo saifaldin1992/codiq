@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2583,
-  "oversizeFiles": 108,
+  "oversizeFiles": 107,
   "longFunctions": 441
  },
  "files": {
@@ -806,10 +806,15 @@
    "oversize": 0,
    "longFunctions": 0
   },
-  "phase1-backend/src/services/password-reset.service.ts": {
+  "phase1-backend/src/services/password-reset/consume.ts": {
    "longLines": 0,
-   "oversize": 236,
-   "longFunctions": 2
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/services/password-reset/request.ts": {
+   "longLines": 0,
+   "oversize": 0,
+   "longFunctions": 1
   },
   "phase1-backend/src/services/password.service.ts": {
    "longLines": 0,
