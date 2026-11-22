@@ -119,6 +119,13 @@ export async function assertWithinPlanLimit(
   increment = 1,
   action = "لمتابعة الإضافة"
 ): Promise<void> {
+  // Batch 4, ت-٤: inside a transaction, queue behind any other check for this merchant until it
+  // commits — otherwise five creates read the same usage and all five pass a one-slot limit.
+  // Not the monthly orders: checkout runs SERIALIZABLE, which already aborts the second of two
+  // orders that read the same count, and ق-222 keeps that check free of locks on purpose.
+  if (!("$transaction" in client) && feature !== "max_monthly_orders") {
+    await client.$queryRaw`SELECT id FROM merchants WHERE id = ${merchantId}::uuid FOR UPDATE`;
+  }
   const plan = await activePlanForMerchant(client, merchantId);
   const limit = plan.limits[feature];
   const usage = await merchantUsage(client, merchantId);

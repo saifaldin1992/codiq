@@ -169,9 +169,12 @@ export async function createStoreStaff(
     // The stored password is never replaced through the team endpoint, and this
     // branch does not even read one: sending it would be a merchant trying to set
     // another shop's employee's credentials.
-    const membership = await prisma.storeStaffMembership.create({
-      data: { staffId: existingStaff.id, storeId, roleCode },
-      select: membershipSelect,
+    const membership = await prisma.$transaction(async (tx) => {
+      await assertWithinPlanLimit(tx, store.merchantId, "max_staff");
+      return tx.storeStaffMembership.create({
+        data: { staffId: existingStaff.id, storeId, roleCode },
+        select: membershipSelect,
+      });
     });
     return { created: "membership" as const, membership: membershipPayload(membership) };
   }
@@ -185,6 +188,9 @@ export async function createStoreStaff(
   }
   const passwordHash = await createPasswordHash(input.temporaryPassword);
   const membership = await prisma.$transaction(async (tx) => {
+    // Batch 4, ت-٤: the check above refuses early; this one, under the merchant's lock, is the
+    // one that holds when five invitations arrive together.
+    await assertWithinPlanLimit(tx, store.merchantId, "max_staff");
     // Audit 14-ب: the merchant typed this password, so it is provisional until
     // the employee replaces it (staff counterpart of ق-218).
     const staff = await tx.staff.create({

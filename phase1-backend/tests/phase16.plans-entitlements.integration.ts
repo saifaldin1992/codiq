@@ -52,8 +52,9 @@ if (
 await prisma.$executeRawUnsafe(
   "TRUNCATE TABLE notification_outbox, staff_sessions, staff_membership_permission_overrides, store_staff_memberships, staff, inventory_reservations, checkout_requests, cart_items, shopping_carts, customer_addresses, order_status_events, order_items, store_orders, inventory_movements, product_images, products, product_categories, customer_sessions, customers, merchant_sessions, stores, merchants, platform_owner_sessions, platform_owners, storefront_rate_limits CASCADE"
 );
-await prisma.merchantSubscription.deleteMany({ where: { plan: { code: "micro-test" } } });
-await prisma.plan.deleteMany({ where: { code: "micro-test" } });
+const TEST_PLANS = ["micro-test", "race-test"];
+await prisma.merchantSubscription.deleteMany({ where: { plan: { code: { in: TEST_PLANS } } } });
+await prisma.plan.deleteMany({ where: { code: { in: TEST_PLANS } } });
 
 const server = createServer(createApp());
 await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
@@ -548,10 +549,74 @@ try {
     cancelledStillRefused: true,
   };
 
+  // Review batch 4, ت-٤: one product short of his limit, five created at once. Each read the
+  // same usage before any wrote, and all five were let in — the plan meant nothing under load.
+  const liveProducts = await prisma.product.count({
+    where: { store: { merchantId }, deletedAt: null },
+  });
+  const liveStaff = await prisma.storeStaffMembership.count({
+    where: { isActive: true, store: { merchantId }, deletedAt: null },
+  });
+  await prisma.plan.create({
+    data: {
+      code: "race-test",
+      name: "خطة سباق الحدود",
+      monthlyPriceIqd: 0,
+      sortOrder: 98,
+      features: {
+        createMany: {
+          data: [
+            { featureCode: "max_stores", limitValue: 100 },
+            { featureCode: "max_products", limitValue: liveProducts + 1 },
+            { featureCode: "max_staff", limitValue: liveStaff + 1 },
+            { featureCode: "max_monthly_orders", limitValue: 100 },
+            { featureCode: "max_image_storage_mb", limitValue: 100 },
+          ],
+        },
+      },
+    },
+  });
+  await assignPlan("race-test");
+  const racers = await Promise.all(
+    [1, 2, 3, 4, 5].map((n) =>
+      request(`${catalogBase}/products`, {
+        method: "POST",
+        headers: bearer(tokenMerchant),
+        body: JSON.stringify({ sku: `P16-RACE-${n}`, name: `سباق ${n}`, priceIqd: 1000 }),
+      })
+    )
+  );
+  assert.equal(
+    racers.filter((reply) => reply.status === 201).length,
+    1,
+    `one slot, one product · ${racers.map((reply) => reply.status).join(",")}`
+  );
+  // The same race on the team: the seat was checked before the transaction that fills it.
+  const hires = await Promise.all(
+    [1, 2, 3, 4, 5].map((n) =>
+      request(teamBase, {
+        method: "POST",
+        headers: bearer(tokenMerchant),
+        body: JSON.stringify({
+          email: `staff.race${n}.phase16@codiq.test`,
+          displayName: `موظف سباق ${n}`,
+          temporaryPassword: `phase16-race-pass-${n}`,
+          roleCode: "store_staff",
+        }),
+      })
+    )
+  );
+  assert.equal(
+    hires.filter((reply) => reply.status === 201).length,
+    1,
+    `one seat, one hire · ${hires.map((reply) => reply.status).join(",")}`
+  );
+  summary.limitUnderLoad = { slots: 1, attempts: 5, features: ["max_products", "max_staff"] };
+
   console.log(JSON.stringify(summary, null, 2));
 } finally {
-  await prisma.merchantSubscription.deleteMany({ where: { plan: { code: "micro-test" } } });
-  await prisma.plan.deleteMany({ where: { code: "micro-test" } });
+  await prisma.merchantSubscription.deleteMany({ where: { plan: { code: { in: TEST_PLANS } } } });
+  await prisma.plan.deleteMany({ where: { code: { in: TEST_PLANS } } });
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await prisma.$disconnect();
 }
