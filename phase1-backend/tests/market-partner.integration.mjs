@@ -233,7 +233,7 @@ try {
           token: tokenOf(link.deepLink),
           partnerAccountId: account,
           amountIqd: 27_000,
-          paymentRef: "p-0",
+          paymentRef: `${testId}-p-0`,
         },
         "a-forged-secret-of-the-same-length-48-characters"
       )
@@ -247,7 +247,7 @@ try {
         token: tokenOf(link.deepLink),
         partnerAccountId: "someone-else",
         amountIqd: 27_000,
-        paymentRef: "p-1",
+        paymentRef: `${testId}-p-1`,
       })
     ).payload.reason,
     "ACCOUNT_MISMATCH",
@@ -260,7 +260,7 @@ try {
         token: tokenOf(link.deepLink),
         partnerAccountId: account,
         amountIqd: 1,
-        paymentRef: "p-2",
+        paymentRef: `${testId}-p-2`,
       })
     ).payload.reason,
     "AMOUNT_MISMATCH"
@@ -273,7 +273,7 @@ try {
         token: tokenOf(link.deepLink),
         partnerAccountId: account,
         amountIqd: 27_000,
-        paymentRef: "p-3",
+        paymentRef: `${testId}-p-3`,
       })
     ).payload.reason,
     "CART_CHANGED",
@@ -290,7 +290,7 @@ try {
     token: tokenOf(link.deepLink),
     partnerAccountId: account,
     amountIqd: 39_000,
-    paymentRef: "p-4",
+    paymentRef: `${testId}-p-4`,
   });
   assert.equal(short.payload.refund, true, "out of stock: the partner returns the money");
   await prisma.product.update({ where: { id: rice.id }, data: { stockQuantity: 20 } });
@@ -309,7 +309,7 @@ try {
         token: tokenOf(link.deepLink),
         partnerAccountId: account,
         amountIqd: 39_000,
-        paymentRef: "p-5",
+        paymentRef: `${testId}-p-5`,
       })
     ).payload.reason,
     "LINK_EXPIRED"
@@ -320,7 +320,7 @@ try {
     token: tokenOf(link.deepLink),
     partnerAccountId: account,
     amountIqd: 39_000,
-    paymentRef: "p-6",
+    paymentRef: `${testId}-p-6`,
   });
   assert.equal(paid.status, 200, JSON.stringify(paid.payload));
   const order = await prisma.storeOrder.findUniqueOrThrow({ where: { id: paid.payload.orderId } });
@@ -332,7 +332,7 @@ try {
     token: tokenOf(link.deepLink),
     partnerAccountId: account,
     amountIqd: 39_000,
-    paymentRef: "p-6",
+    paymentRef: `${testId}-p-6`,
   });
   assert.deepEqual(
     [replay.payload.reason, replay.payload.orderId],
@@ -348,7 +348,7 @@ try {
         token: tokenOf(twin.deepLink),
         partnerAccountId: account,
         amountIqd: twin.amountIqd,
-        paymentRef: `p-twin-${n}`,
+        paymentRef: `${testId}-p-twin-${n}`,
       })
     )
   );
