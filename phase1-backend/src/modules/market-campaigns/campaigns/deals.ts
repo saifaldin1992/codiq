@@ -74,13 +74,20 @@ export async function decideDeal(
     throw new HttpError(409, "DEAL_WITHDRAWN", "سحب المتجر هذا العرض.");
   if (!input.approve && !input.note?.trim())
     throw new HttpError(422, "DEAL_REJECTION_NOTE_REQUIRED", "اكتب سبب الرفض — يراه المتجر.");
-  const updated = await prisma.marketDeal.update({
-    where: { id: dealId },
+  // Review batch 6, ت-٥: decided on the status it was read with. Racing the store's withdrawal,
+  // an approval used to land on a withdrawn deal — or tell the owner «approved» about one.
+  const decided = await prisma.marketDeal.updateMany({
+    where: { id: dealId, status: deal.status },
     data: {
       status: input.approve ? "approved" : "rejected",
       decisionNote: input.note?.trim() || null,
       decidedAt: now,
     },
+  });
+  if (decided.count !== 1)
+    throw new HttpError(409, "DEAL_CHANGED", "تغيّر هذا العرض للتوّ — حدّث القائمة.");
+  const updated = await prisma.marketDeal.findUniqueOrThrow({
+    where: { id: dealId },
     select: { id: true, status: true, decisionNote: true, decidedAt: true },
   });
   return { deal: updated };
@@ -198,11 +205,11 @@ export async function withdrawDeal(storeId: string, dealId: string, now = new Da
   if (!deal) throw new HttpError(404, "DEAL_NOT_FOUND", "العرض غير موجود.");
   if (deal.slot.startsAt <= now)
     throw new HttpError(409, "SLOT_STARTED", "بدأت ساعة هذا العرض؛ لا يُسحب الآن.");
-  return {
-    deal: await prisma.marketDeal.update({
-      where: { id: deal.id },
-      data: { status: "withdrawn" },
-      select: { id: true, status: true },
-    }),
-  };
+  const withdrawn = await prisma.marketDeal.updateMany({
+    where: { id: deal.id, status: deal.status },
+    data: { status: "withdrawn" },
+  });
+  if (withdrawn.count !== 1)
+    throw new HttpError(409, "DEAL_CHANGED", "تغيّر هذا العرض للتوّ — حدّث القائمة.");
+  return { deal: { id: deal.id, status: "withdrawn" } };
 }

@@ -313,6 +313,46 @@ try {
   );
   summary.proposals = true;
 
+  // Review batch 6, ت-٥: the owner's decision and the store's withdrawal were both written by id
+  // alone after a read outside any transaction. Racing each other, an approval could land on a
+  // withdrawn deal — the store's discount ran in the hour it had pulled out of. (Approved THEN
+  // withdrawn is legitimate before the hour starts; the bug is the reverse order.)
+  for (let round = 0; round < 20; round += 1) {
+    const raced = (
+      await B.api.request(`/merchant/stores/${B.store.slug}/market-deals`, {
+        method: "POST",
+        body: { slotId: slotB.id, productId: other.id, percentOff: 30 },
+      })
+    ).payload.deal;
+    if (!raced) {
+      await prisma.marketDeal.updateMany({
+        where: { slotId: slotB.id, productId: other.id },
+        data: { status: "withdrawn" },
+      });
+      continue;
+    }
+    const [withdrawn, decided] = await Promise.all([
+      B.api.request(`/merchant/stores/${B.store.slug}/market-deals/${raced.id}`, {
+        method: "DELETE",
+      }),
+      owner.request(`/platform/market/deals/${raced.id}/decision`, {
+        method: "POST",
+        body: { approve: true },
+      }),
+    ]);
+    const final = await prisma.marketDeal.findUniqueOrThrow({ where: { id: raced.id } });
+    assert.ok(
+      !(withdrawn.status === 200 && final.status === "approved"),
+      `a withdrawn deal never ends approved · withdraw ${withdrawn.status}, decide ${decided.status}, now ${final.status}`
+    );
+    await prisma.marketDeal.update({ where: { id: raced.id }, data: { status: "withdrawn" } });
+  }
+  await prisma.marketDeal.updateMany({
+    where: { id: otherDeal.id },
+    data: { status: "approved" },
+  });
+  summary.decisionRace = "a withdrawal and an approval never both stand";
+
   // ── 3. before the hour ───────────────────────────────────────────────────
   const card = async () =>
     (await client().request(`/market/products?ids=${perfume.id}`)).payload.products[0];

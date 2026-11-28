@@ -8,7 +8,7 @@
 |---|---|---|---|
 | `phase1-backend/src/modules/market-wheel/wheel.service.ts` | 652 | 2026-11-28 (كاملاً) | ت-١، ت-٢ (قُسّم). اللفّة تقفل المتسوّق، والمخزون يُنقص بتحديث مشروط، والاستلام يقفل الجائزة ويفحص حالتها ومدّتها |
 | `phase1-backend/src/modules/market-orders/after-sales.service.ts` | 587 | 2026-11-28 (كاملاً) | ت-٣، ت-٤ (قُسّم). الطلب يُقرأ بملكيّة المتسوّق؛ التقييم بعد الاستلام وفي نافذته، ولمنتجات الطلب وحدها؛ الانتقالات بفحص النسخة. ملاحظة: سبب الإلغاء يُكتب بعد الإلغاء في خطوة مستقلّة |
-| `phase1-backend/src/modules/market-campaigns/campaigns.service.ts` | 529 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-campaigns/campaigns.service.ts` | 529 | 2026-11-28 (كاملاً) | ت-٥، ت-٦ (قُسّم). الساعات داخل مدّة الحملة وبلا تداخل؛ لا شيء يتحرّك بعد بدء الساعة؛ الاقتراح لمنتج المتجر وحده وبالحدّ الأدنى للخصم |
 | `phase1-backend/src/modules/market-support/tickets.service.ts` | 524 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-stores/directory.service.ts` | 505 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-home/content.service.ts` | 480 | — | لم يُقرأ |
@@ -87,6 +87,10 @@
 
 ### [ت-٤] تقسيم خدمة ما بعد البيع — تحسين
 - `after-sales.service.ts` (٥٨٧ سطراً) ← `market-orders/after-sales/{shopper,state,store}.ts`، نقلٌ حرفيّ (٢٦ جملة كلّها) قبل إصلاح ت-٣.
+
+### [ت-٥] عرضٌ سحبه المتجر يُعتمد رغم ذلك — تحسين
+- المكان: `decideDeal` و`withdrawDeal`. القراءة خارج أيّ معاملة والكتابة بالمعرّف وحده: اعتمادٌ يسابق سحب المتجر قد يكتب «معتمد» فوق «مسحوب» — فيُعرض خصم المتجر في ساعة انسحب منها.
+- الحالة: **مُصلَح** — القرار والسحب كلاهما مشروط بالحالة التي قُرئت؛ الخاسر ٤٠٩ `DEAL_CHANGED`. (اعتمادٌ ثمّ سحب قبل بدء الساعة مشروع ويبقى.) الاختبار (`market:campaigns`، ٢٠ جولة): السحب ٢٠٠ والعرض ينتهي «معتمداً» قبل (ثلاث مرّات على الكود القديم)؛ لا يحدث بعد (ثلاث مرّات).
 
 ### [ت-٦] تقسيم خدمة الحملات — تحسين
 - `campaigns.service.ts` (٥٢٩ سطراً) ← `market-campaigns/campaigns/{owner,deals,pages}.ts`، نقلٌ حرفيّ (٢٠ جملة كلّها) قبل إصلاح ت-٥.

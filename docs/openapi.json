@@ -290,6 +290,7 @@
                   "CUSTOMER_PHONE_TAKEN",
                   "CUSTOMER_PHONE_UNVERIFIED",
                   "CUSTOMER_SESSION_REQUIRED",
+                  "DEAL_CHANGED",
                   "DEAL_EXISTS",
                   "DEAL_NOT_FOUND",
                   "DEAL_PERCENT_TOO_LOW",
@@ -9559,7 +9560,7 @@
             ]
           },
           "409": {
-            "description": "`SLOT_STARTED`",
+            "description": "`DEAL_CHANGED` · `SLOT_STARTED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -9568,6 +9569,7 @@
               }
             },
             "x-codiq-error-codes": [
+              "DEAL_CHANGED",
               "SLOT_STARTED"
             ]
           },
@@ -60153,7 +60155,7 @@
             ]
           },
           "409": {
-            "description": "`DEAL_WITHDRAWN` · `SLOT_STARTED`",
+            "description": "`DEAL_CHANGED` · `DEAL_WITHDRAWN` · `SLOT_STARTED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -60162,6 +60164,7 @@
               }
             },
             "x-codiq-error-codes": [
+              "DEAL_CHANGED",
               "DEAL_WITHDRAWN",
               "SLOT_STARTED"
             ]
@@ -71179,6 +71182,14 @@
       ],
       "messages": [
         "A customer session is required."
+      ]
+    },
+    "DEAL_CHANGED": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "تغيّر هذا العرض للتوّ — حدّث القائمة."
       ]
     },
     "DEAL_EXISTS": {
