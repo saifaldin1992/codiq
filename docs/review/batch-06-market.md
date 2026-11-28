@@ -18,7 +18,7 @@
 | `phase1-backend/src/modules/market-help/help.service.ts` | 343 | 2026-11-28 (كاملاً) | ت-٨. البحث بكلمات مهرَّبة (`codiq_like_escape`)؛ «تواصل معنا» بحدّ ٥ في الساعة لكلّ عنوان؛ المعالجة مشروطة بـ«جديدة». ملاحظة: إنشاء قسمين بالمعرّف نفسه معاً يعطي ٥٠٠ بدل ٤٠٩ (المالك وحده) |
 | `phase1-backend/src/modules/market-home/routes.ts` | 339 | 2026-11-28 (كاملاً) | قراءات المالك عبر `owner()` (`brand.manage`)؛ الكتابات تفحص المصدر؛ أحداث البنر بحدّ ٣٠٠ لكلّ عنوان في ١٠ دقائق |
 | `phase1-backend/src/modules/market-help/routes.ts` | 330 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-stores/profile.service.ts` | 266 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-stores/profile.service.ts` | 266 | 2026-11-28 (كاملاً) | الإدراج طلبٌ لا مفتاح، والطلب مشروط بالحالة (نقرتان = طلب واحد)؛ الخروج متاح دائماً؛ الغلاف يُحسب في حدّ تخزين الخطّة ويُمحى ملفّه إن فشل الصفّ |
 | `phase1-backend/src/modules/market-stores/routes.ts` | 262 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-reels/routes.ts` | 255 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-home/home.service.ts` | 250 | 2026-11-28 (كاملاً) | «حيّ» بالساعة وقت القراءة؛ المول يعرض المتاجر المدرجة النشطة وحدها؛ المعرّف المشوّه يصل إلى ٤٠٠ `INVALID_IDENTIFIER` عبر `malformed-identifier` |
@@ -36,9 +36,9 @@
 | `phase1-backend/src/modules/market-stores/metrics.service.ts` | 160 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-catalog/schema.ts` | 155 | 2026-11-28 (كاملاً) | قوائم المعرّفات uuid بسقف، والوسم من قائمة مغلقة |
 | `phase1-backend/src/modules/market-orders/routes.ts` | 151 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-stores/map-tiles.service.ts` | 147 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-stores/map-tiles.service.ts` | 147 | 2026-11-28 (كاملاً) | ت-١٠. القالب من المشغّل وحده والقيم ثلاثة أعداد ضمن الشبكة (لا SSRF)؛ لا تحويل، صورة ≤ ٥١٢ ك.ب، مهلة ٦ ث؛ ذاكرة محدودة وجلب واحد لكلّ بلاطة |
 | `phase1-backend/src/modules/market-catalog/routes.ts` | 145 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-stores/schema.ts` | 130 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-stores/schema.ts` | 130 | 2026-11-28 (كاملاً) | الإحداثيّات ضمن المدى ومتلازمة؛ أيّام الدوام بلا تكرار؛ الرفض بملاحظة |
 | `phase1-backend/src/modules/market-catalog/categories.service.ts` | 121 | 2026-11-28 (كاملاً) | الشجرة في الذاكرة دقيقة، وتُنسى عند تعديل المالك |
 | `phase1-backend/src/modules/market-visual/routes.ts` | 98 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-help/schema.ts` | 97 | — | لم يُقرأ |
@@ -106,6 +106,10 @@
 ### [ت-٩] علامات «مقروء» تنمو بلا حدّ — تحسين
 - المكان: `markRead`. كلّ مفتاح بصيغة صحيحة (`o:`/`r:`/`t:` ومعرّف) كان يُخزَّن صفّاً، لإشعارٍ له أو لا: نصٌّ آليّ بجلسة متسوّق واحدة يملأ `shopper_inbox_reads` بلا نهاية.
 - الحالة: **مُصلَح** — الصفّ يُكتب فقط إن كان المفتاح إشعاراً من إشعاراته (`INSERT … WHERE EXISTS` على الاستعلام نفسه الذي يبني الصندوق)؛ غير ذلك يُتجاهل بالجواب نفسه. الاختبار (`market:help`): مفتاحان مختلَقان — كُتب صفّان قبل؛ لا شيء بعد.
+
+### [ت-١٠] بلاطات الخريطة تُنفق حصّة المزوّد بلا حدّ — تحسين
+- المكان: `GET /market/map/tiles/:z/:x/:y`. كلّ بلاطة غير مخزّنة طلبٌ مدفوع إلى مزوّد الخرائط بمفتاح المشغّل، والمسار عامّ بلا أيّ حدّ: نصٌّ يمشي بلاطات التكبير ١٩ (٢^٣٨ بلاطة) يستنفد الحصّة أو يُوقف المفتاح، فتسقط الخريطة للجميع.
+- الحالة: **مُصلَح** — الجلب من المزوّد وحده محدود: ١٠٠٠ لكلّ عنوان في ١٠ دقائق (`market_map_tile_upstream`)؛ ما في الذاكرة أو قيد الجلب مجّاني. الاختبار (`market:map`): البلاطة ١٠٠١ الجديدة جاءت ٢٠٠ قبل؛ ٤٢٩ بعد، والمخزَّنة تبقى ٢٠٠.
 
 ### ملاحظات
 - `reels.service.ts`: الفيديو (حتّى ٣٠ ميغابايت) لا يُحسب في حدّ تخزين الخطّة، والمقاطع المعتمدة بلا سقف (المعلّق عشرة فقط). مراجعة المالك لكلّ مقطع بوّابة بشريّة على النموّ؛ هل يُحسب الفيديو في «تخزين الصور» قرارٌ للمالك.

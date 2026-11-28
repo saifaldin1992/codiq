@@ -16543,7 +16543,7 @@
           "market-stores"
         ],
         "summary": "GET /market/map/tiles/{z}/{x}/{y}",
-        "description": "**الباب**: مفتوح بلا جلسة.",
+        "description": "**الباب**: مفتوح بلا جلسة.\n\n**سقف**: محكومة بعدّاد `storefront_rate_limits` — التجاوز `429 RATE_LIMITED`. المفتاح (نطاق، صاحب الطلب)، لا المسار: البادئتان تتقاسمان دلواً واحداً.",
         "parameters": [
           {
             "name": "z",
@@ -16617,6 +16617,19 @@
               "INVALID_OVERRIDE_WINDOW"
             ]
           },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "RATE_LIMITED"
+            ]
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           },
@@ -16641,6 +16654,7 @@
           "public"
         ],
         "x-codiq-source": "phase1-backend/src/modules/market-stores/routes.ts",
+        "x-codiq-rate-limited": true,
         "security": []
       }
     },

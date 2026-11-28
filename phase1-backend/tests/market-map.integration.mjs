@@ -215,6 +215,23 @@ try {
   assert.equal((await get("/market/map/tiles/23/0/0")).status, 404, "beyond the maximum zoom");
   assert.equal((await get("/market/map/tiles/3/-1/2")).status, 404);
   assert.equal(upstreamHits, 1, "none of those reached the provider");
+  // Review batch 6: every tile not yet cached is one paid request to the provider, and the route
+  // took any number from anyone — a script walking zoom 19 spent the operator's quota (and got
+  // his key suspended). Fetches from the provider are now limited per address; the cache is not.
+  await prisma.storefrontRateLimit.deleteMany({ where: { scope: "market_map_tile_upstream" } });
+  for (let start = 0; start < 1000; start += 50) {
+    const batch = await Promise.all(
+      Array.from({ length: 50 }, (_, index) => get(`/market/map/tiles/10/${start + index}/7`))
+    );
+    assert.ok(batch.every((answer) => answer.status === 200));
+  }
+  assert.equal(
+    (await get("/market/map/tiles/10/1000/7")).status,
+    429,
+    "a thousand fresh tiles in ten minutes, then the provider is spared"
+  );
+  assert.equal((await get("/market/map/tiles/3/4/2")).status, 200, "the cache still answers");
+  await prisma.storefrontRateLimit.deleteMany({ where: { scope: "market_map_tile_upstream" } });
   process.env.CODIQ_MAP_TILE_URL = `${upstreamBase}/html/{z}/{x}/{y}`;
   assert.equal(
     (await get("/market/map/tiles/2/1/1")).status,

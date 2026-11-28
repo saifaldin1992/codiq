@@ -221,14 +221,6 @@
       {
         "route": "GET /public/plans",
         "reason": "BOUNDED — the same plan catalogue, as the public pricing grid. A visitor comparing plans needs every one of them on the page."
-      },
-      {
-        "route": "GET /public/demo-status",
-        "reason": "NOT A LIST — a single boolean saying whether this deployment is the demo. Detected only through the shared config helper."
-      },
-      {
-        "route": "GET /public/unsubscribe/:token",
-        "reason": "NOT A LIST — one store name and one address, resolved from the HMAC in the link so the page can name what is being unsubscribed."
       }
     ]
   },

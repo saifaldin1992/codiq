@@ -204,8 +204,15 @@ function stripComments(source) {
  * settings routes (loyalty, integrations, abandoned-cart settings,
  * analytics/customers) look like collections the day they gained the gate.
  * The hop stops at the gate.
+ *
+ * Review batch 6: a rate limit is a gate too — `consumeStorefrontRateLimit` counts its own rows
+ * and hands nothing to the response. The map tiles route (one image) met it on its second hop.
  */
-const GATES_NOT_PRODUCERS = new Set(["assertCapabilityAvailable", "resolveAvailability"]);
+const GATES_NOT_PRODUCERS = new Set([
+  "assertCapabilityAvailable",
+  "resolveAvailability",
+  "consumeStorefrontRateLimit",
+]);
 
 function producerText(handler) {
   let text = handler;
@@ -223,7 +230,7 @@ function producerText(handler) {
     const body = bodies.get(name);
     if (!body) continue;
     for (const match of body.matchAll(/\b([a-zA-Z_$][\w$]*)\s*\(/g))
-      if (!called.has(match[1])) secondHop.add(match[1]);
+      if (!called.has(match[1]) && !GATES_NOT_PRODUCERS.has(match[1])) secondHop.add(match[1]);
   }
   for (const name of secondHop) {
     const body = bodies.get(name);

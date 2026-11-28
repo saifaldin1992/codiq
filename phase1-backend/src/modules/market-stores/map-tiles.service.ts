@@ -104,7 +104,10 @@ async function fetchTile(url: string): Promise<Tile> {
 export async function mapTile(
   rawZ: string,
   rawX: string,
-  rawY: string
+  rawY: string,
+  // Review batch 6: called before each fetch from the provider — the route limits those per
+  // address (each is a paid request); a tile from the cache, or one already in flight, is free.
+  beforeUpstream: () => Promise<void> = async () => undefined
 ): Promise<{ body: Buffer; type: string }> {
   const source = template();
   if (!source) throw new HttpError(404, "MAP_TILES_OFF", "خلفيّة الخريطة غير مفعّلة.");
@@ -126,6 +129,9 @@ export async function mapTile(
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit;
   let pending = inflight.get(key);
   if (!pending) {
+    await beforeUpstream();
+    pending = inflight.get(key);
+    if (pending) return pending;
     pending = fetchTile(
       source.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y))
     )

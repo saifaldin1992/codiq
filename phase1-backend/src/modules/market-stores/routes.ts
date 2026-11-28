@@ -15,6 +15,8 @@ import {
   uploadLimits,
 } from "../../http/shared.js";
 import { parseOrThrow } from "../../http/validate.js";
+import { clientIp } from "../../http/client-ip.js";
+import { consumeStorefrontRateLimit } from "../../services/storefront.service.js";
 import { requireStoreActor } from "../../auth/staff-permissions.js";
 import { requirePlatformActor } from "../../auth/platform-permissions.js";
 import { storeImageConstraints } from "../../services/product-image-storage.service.js";
@@ -63,6 +65,16 @@ async function guardCoverUpload(request: Request) {
 
 /** Public lists change with every order; a minute at the edge absorbs a crowd without serving stale ranks for long. */
 const SHORT_PUBLIC_CACHE = "public, max-age=60, stale-while-revalidate=300";
+
+/** Review batch 6: each tile fetched from the provider is paid — 1000 per address per 10 min. */
+function spendTileFetch(request: Request) {
+  return consumeStorefrontRateLimit({
+    scope: "market_map_tile_upstream",
+    rawKey: clientIp(request),
+    limit: 1000,
+    windowMs: 10 * 60 * 1000,
+  });
+}
 
 export function registerMarketStoreRoutes(app: Express) {
   // ── shopper ───────────────────────────────────────────────────────────────
@@ -122,7 +134,8 @@ export function registerMarketStoreRoutes(app: Express) {
       const tile = await mapTile(
         String(request.params.z),
         String(request.params.x),
-        String(request.params.y)
+        String(request.params.y),
+        () => spendTileFetch(request)
       );
       response.setHeader("content-type", tile.type);
       response.setHeader("x-content-type-options", "nosniff");
