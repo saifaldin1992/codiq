@@ -9,8 +9,8 @@
 | `phase1-backend/src/modules/market-wheel/wheel.service.ts` | 652 | 2026-11-28 (كاملاً) | ت-١، ت-٢ (قُسّم). اللفّة تقفل المتسوّق، والمخزون يُنقص بتحديث مشروط، والاستلام يقفل الجائزة ويفحص حالتها ومدّتها |
 | `phase1-backend/src/modules/market-orders/after-sales.service.ts` | 587 | 2026-11-28 (كاملاً) | ت-٣، ت-٤ (قُسّم). الطلب يُقرأ بملكيّة المتسوّق؛ التقييم بعد الاستلام وفي نافذته، ولمنتجات الطلب وحدها؛ الانتقالات بفحص النسخة. ملاحظة: سبب الإلغاء يُكتب بعد الإلغاء في خطوة مستقلّة |
 | `phase1-backend/src/modules/market-campaigns/campaigns.service.ts` | 529 | 2026-11-28 (كاملاً) | ت-٥، ت-٦ (قُسّم). الساعات داخل مدّة الحملة وبلا تداخل؛ لا شيء يتحرّك بعد بدء الساعة؛ الاقتراح لمنتج المتجر وحده وبالحدّ الأدنى للخصم |
-| `phase1-backend/src/modules/market-support/tickets.service.ts` | 524 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-stores/directory.service.ts` | 505 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-support/tickets.service.ts` | 524 | 2026-11-28 (كاملاً) | التذكرة مقيّدة بنطاقها (المتسوّق، المتجر، المنصّة)، والمرفق بتذكرته؛ تذكرة واحدة حيّة لكلّ طلب وخلال ٢٤ ساعة من التسليم، بحدّ ٥ في اليوم. ملاحظة: المرفقات المتوازية قد تتجاوز الثلاث |
+| `phase1-backend/src/modules/market-stores/directory.service.ts` | 505 | 2026-11-28 (كاملاً) | SQL مربوط القيم؛ «معروض» = مدرج ونشط والتاجر نشط — والمتجر الموقوف أو المغلق خارجٌ منه عبر `stores_status_sync` (حارس اختبار جديد في `market:stores`)؛ المؤشّر يُفحص رقماً |
 | `phase1-backend/src/modules/market-home/content.service.ts` | 480 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-reels/reels.service.ts` | 390 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-catalog/products.service.ts` | 376 | — | لم يُقرأ |

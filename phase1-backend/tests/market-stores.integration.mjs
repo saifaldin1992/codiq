@@ -521,6 +521,34 @@ try {
   );
   summary.storePage = true;
 
+  // Review batch 6 (a guard, not a fix): a store the PLATFORM suspended, or one its merchant
+  // closed, leaves the market too. The listing reads `is_active`, and the stores_status_sync
+  // trigger keeps it false for exactly those two statuses — this pins that the two stay tied.
+  // Paused and maintenance stay listed: the store is still there, and says when it is back.
+  const hidden = (
+    await prisma.store.findMany({
+      where: { marketStatus: "listed" },
+      select: { id: true, slug: true, status: true },
+      take: 1,
+    })
+  )[0];
+  for (const status of ["suspended", "closed"]) {
+    await prisma.store.update({ where: { id: hidden.id }, data: { status } });
+    assert.equal(
+      (await request(`/market/stores/${hidden.slug}`)).status,
+      404,
+      `a ${status} store has no market page`
+    );
+    const pageOfStores = (await request("/market/stores?limit=100")).payload.stores ?? [];
+    assert.ok(
+      !pageOfStores.some((card) => card.slug === hidden.slug),
+      `a ${status} store is not in the directory`
+    );
+  }
+  await prisma.store.update({ where: { id: hidden.id }, data: { status: hidden.status } });
+  assert.equal((await request(`/market/stores/${hidden.slug}`)).status, 200, "and comes back");
+  summary.suspendedUnlisted = true;
+
   console.log(JSON.stringify({ suite: "market-stores", ok: true, summary }, null, 2));
 } finally {
   if (created.length)
