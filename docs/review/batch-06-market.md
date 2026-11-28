@@ -14,61 +14,61 @@
 | `phase1-backend/src/modules/market-home/content.service.ts` | 480 | 2026-11-28 (كاملاً) | محتوى المنصّة بلا عمود مستأجر، وكلّ كتابة بـ`brand.manage`؛ الفئات مستويان فقط؛ المجموعات والمولات تُستبدل في معاملة. ملاحظة: صورتا بنرٍ رُفعتا معاً تترك إحداهما ملفّاً يتيماً في التخزين |
 | `phase1-backend/src/modules/market-reels/reels.service.ts` | 390 | 2026-11-28 (كاملاً) | ت-٧. المرئيّ معتمد ومتجره مدرج ونشط؛ المشاهدة مرّة في اليوم لكلّ زائر (مفتاح مجزّأ)؛ الإعجاب بلا تكرار؛ الرفع لمنتج المتجر وحده ويُمحى الملفّ إن فشل الصفّ. ملاحظة أدناه |
 | `phase1-backend/src/modules/market-catalog/products.service.ts` | 376 | 2026-11-28 (كاملاً) | جملة واحدة لكلّ صفحة، كلّ قيمة مربوطة، والمؤشّر يُفحص رقماً؛ «معروض» = المتجر مدرج ونشط والتاجر نشط والمنتج حيّ؛ صفحة المنتج ٤٠٤ لغير ذلك |
-| `phase1-backend/src/modules/market-support/routes.ts` | 358 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-support/routes.ts` | 358 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
 | `phase1-backend/src/modules/market-help/help.service.ts` | 343 | 2026-11-28 (كاملاً) | ت-٨. البحث بكلمات مهرَّبة (`codiq_like_escape`)؛ «تواصل معنا» بحدّ ٥ في الساعة لكلّ عنوان؛ المعالجة مشروطة بـ«جديدة». ملاحظة: إنشاء قسمين بالمعرّف نفسه معاً يعطي ٥٠٠ بدل ٤٠٩ (المالك وحده) |
 | `phase1-backend/src/modules/market-home/routes.ts` | 339 | 2026-11-28 (كاملاً) | قراءات المالك عبر `owner()` (`brand.manage`)؛ الكتابات تفحص المصدر؛ أحداث البنر بحدّ ٣٠٠ لكلّ عنوان في ١٠ دقائق |
-| `phase1-backend/src/modules/market-help/routes.ts` | 330 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-help/routes.ts` | 330 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
 | `phase1-backend/src/modules/market-stores/profile.service.ts` | 266 | 2026-11-28 (كاملاً) | الإدراج طلبٌ لا مفتاح، والطلب مشروط بالحالة (نقرتان = طلب واحد)؛ الخروج متاح دائماً؛ الغلاف يُحسب في حدّ تخزين الخطّة ويُمحى ملفّه إن فشل الصفّ |
-| `phase1-backend/src/modules/market-stores/routes.ts` | 262 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-reels/routes.ts` | 255 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-stores/routes.ts` | 262 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
+| `phase1-backend/src/modules/market-reels/routes.ts` | 255 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
 | `phase1-backend/src/modules/market-home/home.service.ts` | 250 | 2026-11-28 (كاملاً) | «حيّ» بالساعة وقت القراءة؛ المول يعرض المتاجر المدرجة النشطة وحدها؛ المعرّف المشوّه يصل إلى ٤٠٠ `INVALID_IDENTIFIER` عبر `malformed-identifier` |
-| `phase1-backend/src/modules/market-stores/presentation.ts` | 219 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-stores/presentation.ts` | 219 | 2026-11-28 (كاملاً) | دالّات نقيّة تشترك فيها الصفحات الثلاث؛ ساعات بغداد UTC+3 ثابتة |
 | `phase1-backend/src/modules/market-home/schema.ts` | 212 | 2026-11-28 (كاملاً) | الرابط slug مقيّد، ونافذة العرض مفحوصة، وأقسام الصفحة اتّحاد مميَّز صارم |
-| `phase1-backend/src/modules/core-modules.ts` | 212 | — | لم يُقرأ |
+| `phase1-backend/src/modules/core-modules.ts` | 212 | 2026-11-28 (كاملاً) | لفّ ملفّات المسارات القديمة بترتيبها الأصليّ (يثبّته `module-registry.unit.mjs`) |
 | `phase1-backend/src/modules/market-help/favourites.service.ts` | 205 | 2026-11-28 (كاملاً) | المنتج المحفوظ يُفحص معروضاً في السوق، والمتجر المتابَع مدرجاً؛ القوائم بمؤشّر. ملاحظة: سقف الـ٥٠٠ يُفحص قبل الإدراج، فطلبات متوازية تتخطّاه ببضعة صفوف (سقفٌ ليّن، لا مال فيه) |
 | `phase1-backend/src/modules/market-catalog/merchant.service.ts` | 204 | 2026-11-28 (كاملاً) | كلّ شيء بـ`storeId` أوّلاً؛ السعر قبل الخصم أعلى من السعر. ملاحظة: استبدال الإضافات يغيّر معرّفاتها فتظهر سلال المتسوّقين «إضافة غير متاحة» حتّى يعيدوا الاختيار |
-| `phase1-backend/src/modules/market-wheel/routes.ts` | 199 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-wheel/routes.ts` | 199 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
 | `phase1-backend/src/modules/market-help/inbox.service.ts` | 196 | 2026-11-28 (كاملاً) | ت-٩. الإشعارات مشتقّة من سجلّ الطلب والإرجاع والتذاكر، مقيّدة بالمتسوّق؛ أفعاله هو ليست إشعارات له |
-| `phase1-backend/src/modules/market-visual/visual.service.ts` | 187 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-stores/market-score.ts` | 183 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-campaigns/routes.ts` | 183 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-visual/visual.service.ts` | 187 | 2026-11-28 (كاملاً) | الصورة لا تُخزَّن؛ فكّ الصورة بسقف ٤٠ مليون بكسل؛ الأقرب ثمّ فلتر الظهور بعتبة ٠٫٧؛ المسار بحدّ ٣٠ لكلّ عنوان في ١٠ دقائق قبل تخزين بايت |
+| `phase1-backend/src/modules/market-stores/market-score.ts` | 183 | 2026-11-28 (كاملاً) | نقيّ ومُختبَر وحدةً؛ معيار بلا دليل محايد ٠٫٥؛ لا درجة قبل ٥ طلبات. ملاحظة أدناه (إلغاء المتسوّق) |
+| `phase1-backend/src/modules/market-campaigns/routes.ts` | 183 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
 | `phase1-backend/src/modules/market-stores/moderation.service.ts` | 173 | 2026-11-28 (كاملاً) | القرار مشروط بالحالات المسموح الانتقال منها (`ALLOWED_FROM` + `updateMany`)، والخاسر ٤٠٩ |
-| `phase1-backend/src/modules/market-stores/metrics.service.ts` | 160 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-stores/metrics.service.ts` | 160 | 2026-11-28 (كاملاً) | قراءة واحدة لكلّ ٢٠٠ متجر، بلا الكاشير؛ إعادة حساب متجر واحد إن قدُمت أرقامه ١٠ دقائق |
 | `phase1-backend/src/modules/market-catalog/schema.ts` | 155 | 2026-11-28 (كاملاً) | قوائم المعرّفات uuid بسقف، والوسم من قائمة مغلقة |
-| `phase1-backend/src/modules/market-orders/routes.ts` | 151 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-orders/routes.ts` | 151 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
 | `phase1-backend/src/modules/market-stores/map-tiles.service.ts` | 147 | 2026-11-28 (كاملاً) | ت-١٠. القالب من المشغّل وحده والقيم ثلاثة أعداد ضمن الشبكة (لا SSRF)؛ لا تحويل، صورة ≤ ٥١٢ ك.ب، مهلة ٦ ث؛ ذاكرة محدودة وجلب واحد لكلّ بلاطة |
-| `phase1-backend/src/modules/market-catalog/routes.ts` | 145 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-catalog/routes.ts` | 145 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
 | `phase1-backend/src/modules/market-stores/schema.ts` | 130 | 2026-11-28 (كاملاً) | الإحداثيّات ضمن المدى ومتلازمة؛ أيّام الدوام بلا تكرار؛ الرفض بملاحظة |
 | `phase1-backend/src/modules/market-catalog/categories.service.ts` | 121 | 2026-11-28 (كاملاً) | الشجرة في الذاكرة دقيقة، وتُنسى عند تعديل المالك |
-| `phase1-backend/src/modules/market-visual/routes.ts` | 98 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-help/schema.ts` | 97 | — | لم يُقرأ |
-| `phase1-backend/src/modules/registry.ts` | 78 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-campaigns/schema.ts` | 67 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-visual/routes.ts` | 98 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
+| `phase1-backend/src/modules/market-help/schema.ts` | 97 | 2026-11-28 (كاملاً) | أشكال zod مغلقة: نصوص بسقف، معرّفات uuid، رموز من قوائم ثابتة، نوافذ زمنيّة مفحوصة |
+| `phase1-backend/src/modules/registry.ts` | 78 | 2026-11-28 (كاملاً) | قائمة واحدة؛ تسجيلٌ مكرّر يرمي؛ الاشتراك في الأحداث مرّة لكلّ عمليّة |
+| `phase1-backend/src/modules/market-campaigns/schema.ts` | 67 | 2026-11-28 (كاملاً) | أشكال zod مغلقة: نصوص بسقف، معرّفات uuid، رموز من قوائم ثابتة، نوافذ زمنيّة مفحوصة |
 | `phase1-backend/src/modules/market-catalog/stats.service.ts` | 64 | 2026-11-28 (كاملاً) | المبيعات بلا الملغى والمرفوض والكاشير؛ التقييم بلا المسحوب (والمخفيّ نصّه يُحسب كما يقرّر النموذج) |
-| `phase1-backend/src/modules/market-wheel/schema.ts` | 61 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-wheel/schema.ts` | 61 | 2026-11-28 (كاملاً) | أشكال zod مغلقة: نصوص بسقف، معرّفات uuid، رموز من قوائم ثابتة، نوافذ زمنيّة مفحوصة |
 | `phase1-backend/src/modules/market-catalog/search.service.ts` | 61 | 2026-11-28 (كاملاً) | لا متسوّق ولا عنوان يُخزَّن؛ الأرقام وحدها لا تُعدّ. ملاحظة: «ثلاث مرّات في الأسبوع» يبلغها شخص واحد يبحث ثلاث مرّات، فالتعليق يَعِد بأكثر ممّا يضمن |
-| `phase1-backend/src/modules/platform-module.ts` | 55 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-orders/reasons.ts` | 53 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-orders/schema.ts` | 48 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-geo/service.ts` | 32 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-support/schema.ts` | 29 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-reels/schema.ts` | 26 | — | لم يُقرأ |
-| `phase1-backend/src/modules/platform-modules/routes.ts` | 20 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-geo/routes.ts` | 17 | — | لم يُقرأ |
-| `phase1-backend/src/modules/platform-modules/service.ts` | 16 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-wheel/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-visual/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-support/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-stores/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-reels/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-orders/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-home/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-help/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-geo/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-catalog/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-campaigns/index.ts` | 10 | — | لم يُقرأ |
-| `phase1-backend/src/modules/platform-modules/index.ts` | 9 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-visual/schema.ts` | 6 | — | لم يُقرأ |
+| `phase1-backend/src/modules/platform-module.ts` | 55 | 2026-11-28 (كاملاً) | المعرّف kebab-case مفحوص |
+| `phase1-backend/src/modules/market-orders/reasons.ts` | 53 | 2026-11-28 (كاملاً) | قوائم ثابتة، رموزها ما تفحصه القاعدة |
+| `phase1-backend/src/modules/market-orders/schema.ts` | 48 | 2026-11-28 (كاملاً) | أشكال zod مغلقة: نصوص بسقف، معرّفات uuid، رموز من قوائم ثابتة، نوافذ زمنيّة مفحوصة |
+| `phase1-backend/src/modules/market-geo/service.ts` | 32 | 2026-11-28 (كاملاً) | قوائم المحافظات والمناطق، قراءة فقط |
+| `phase1-backend/src/modules/market-support/schema.ts` | 29 | 2026-11-28 (كاملاً) | أشكال zod مغلقة: نصوص بسقف، معرّفات uuid، رموز من قوائم ثابتة، نوافذ زمنيّة مفحوصة |
+| `phase1-backend/src/modules/market-reels/schema.ts` | 26 | 2026-11-28 (كاملاً) | أشكال zod مغلقة: نصوص بسقف، معرّفات uuid، رموز من قوائم ثابتة، نوافذ زمنيّة مفحوصة |
+| `phase1-backend/src/modules/platform-modules/routes.ts` | 20 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
+| `phase1-backend/src/modules/market-geo/routes.ts` | 17 | 2026-11-28 (كاملاً) | كلّ مسار مدقَّق: قراءات المتسوّق/المتجر/المنصّة بحارسها (`requireShopper`/`requireStoreActor`/`requirePlatformActor`)، وكلّ كتابة تفحص المصدر في جسمها؛ الاستعلامات عبر `parseOrThrow` أو مساعدي `list-page` |
+| `phase1-backend/src/modules/platform-modules/service.ts` | 16 | 2026-11-28 (كاملاً) | محدود بالكود لا بالبيانات |
+| `phase1-backend/src/modules/market-wheel/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-visual/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-support/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-stores/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-reels/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-orders/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-home/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-help/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-geo/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-catalog/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-campaigns/index.ts` | 10 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/platform-modules/index.ts` | 9 | 2026-11-28 (كاملاً) | `defineModule` وحده |
+| `phase1-backend/src/modules/market-visual/schema.ts` | 6 | 2026-11-28 (كاملاً) | أشكال zod مغلقة: نصوص بسقف، معرّفات uuid، رموز من قوائم ثابتة، نوافذ زمنيّة مفحوصة |
 
 ## النتائج
 
@@ -112,6 +112,8 @@
 - الحالة: **مُصلَح** — الجلب من المزوّد وحده محدود: ١٠٠٠ لكلّ عنوان في ١٠ دقائق (`market_map_tile_upstream`)؛ ما في الذاكرة أو قيد الجلب مجّاني. الاختبار (`market:map`): البلاطة ١٠٠١ الجديدة جاءت ٢٠٠ قبل؛ ٤٢٩ بعد، والمخزَّنة تبقى ٢٠٠.
 
 ### ملاحظات
+- `market-score.ts`/`metrics.service.ts`: «الإلغاءات» تعدّ كلّ طلب ملغى، ومنه ما ألغاه المتسوّق نفسه قبل القبول — فينقص معيار المتجر وشارة «إلغاء قليل» (وصفها «نادراً ما يُلغي أو يرفض») بفعل الزبون. هل يُستثنى إلغاء المتسوّق؟ قرارٌ للمالك (يغيّر الدرجات المعروضة).
 - `reels.service.ts`: الفيديو (حتّى ٣٠ ميغابايت) لا يُحسب في حدّ تخزين الخطّة، والمقاطع المعتمدة بلا سقف (المعلّق عشرة فقط). مراجعة المالك لكلّ مقطع بوّابة بشريّة على النموّ؛ هل يُحسب الفيديو في «تخزين الصور» قرارٌ للمالك.
+- حارس `market:stores` الجديد (المتجر الموقوف والمغلق) كان يختار «أيّ متجر مدرج» — وقد يكون متجراً أُوقف تاجره قبله بأسطر فلا «يعود». صار يختار متجراً ظاهراً في الدليل فعلاً (ظهر في تشغيل CI الكامل، ونجح بعدها مرّتين).
 - اختبار `market:reels` يفترض قاعدة نظيفة: تشغيله مرّات على القاعدة نفسها يملأ طابور المراجعة ممّا سبق فتسقط خطوة «المقطع في الطابور». CI يشغّله على قاعدة جديدة.
 

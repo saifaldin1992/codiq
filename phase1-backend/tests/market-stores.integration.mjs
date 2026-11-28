@@ -525,13 +525,13 @@ try {
   // closed, leaves the market too. The listing reads `is_active`, and the stores_status_sync
   // trigger keeps it false for exactly those two statuses — this pins that the two stay tied.
   // Paused and maintenance stay listed: the store is still there, and says when it is back.
-  const hidden = (
-    await prisma.store.findMany({
-      where: { marketStatus: "listed" },
-      select: { id: true, slug: true, status: true },
-      take: 1,
-    })
-  )[0];
+  // A store the shopper can see right now — «listed» alone is not enough: the store above
+  // whose merchant was just switched off is still «listed», and would never come back.
+  const visibleSlug = (await request("/market/stores?limit=1")).payload.stores[0].slug;
+  const hidden = await prisma.store.findUniqueOrThrow({
+    where: { slug: visibleSlug },
+    select: { id: true, slug: true, status: true },
+  });
   for (const status of ["suspended", "closed"]) {
     await prisma.store.update({ where: { id: hidden.id }, data: { status } });
     assert.equal(
