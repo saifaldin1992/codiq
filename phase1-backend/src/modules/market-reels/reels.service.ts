@@ -312,10 +312,11 @@ export async function deleteReel(storeId: string, reelId: string) {
     select: { id: true, videoObjectKey: true, posterObjectKey: true },
   });
   if (!row) throw new HttpError(404, "REEL_NOT_FOUND", "المقطع غير موجود.");
-  await prisma.marketReel.update({
-    where: { id: row.id },
+  const removed = await prisma.marketReel.updateMany({
+    where: { id: row.id, status: { not: "removed" } },
     data: { status: "removed", publishedAt: null },
   });
+  if (removed.count !== 1) throw new HttpError(404, "REEL_NOT_FOUND", "المقطع غير موجود.");
   await deleteMarketImageObjects([
     row.videoObjectKey,
     ...(row.posterObjectKey ? [row.posterObjectKey] : []),
@@ -374,8 +375,10 @@ export async function decideReel(reelId: string, input: { approve: boolean; note
   if (!input.approve && !input.note?.trim())
     throw new HttpError(422, "REEL_REJECTION_NOTE_REQUIRED", "اكتب سبب الرفض — يراه المتجر.");
   const now = new Date();
-  const updated = await prisma.marketReel.update({
-    where: { id: row.id },
+  // Review batch 6, ت-٧: decided on the status it was read with — racing the store's deletion,
+  // an approval used to put a removed reel (its bytes already gone) back in the feed.
+  const decided = await prisma.marketReel.updateMany({
+    where: { id: row.id, status: row.status },
     data: input.approve
       ? {
           status: "approved",
@@ -384,6 +387,11 @@ export async function decideReel(reelId: string, input: { approve: boolean; note
           decisionNote: input.note?.trim() || null,
         }
       : { status: "rejected", publishedAt: null, decidedAt: now, decisionNote: input.note!.trim() },
+  });
+  if (decided.count !== 1)
+    throw new HttpError(409, "REEL_CHANGED", "تغيّر هذا المقطع للتوّ — حدّث القائمة.");
+  const updated = await prisma.marketReel.findUniqueOrThrow({
+    where: { id: row.id },
     select: { id: true, status: true, decisionNote: true, publishedAt: true },
   });
   return { reel: updated };

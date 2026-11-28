@@ -410,6 +410,27 @@ try {
     s3.send(new HeadObjectCommand({ Bucket: bucket, Key: stored.videoObjectKey })),
     "the bytes are deleted"
   );
+  // Review batch 6, ت-٧: the owner's decision wrote the status by id alone. Racing the store's
+  // deletion (which also deletes the bytes), an approval could put «removed» back to
+  // «approved» — a published reel whose video is gone.
+  for (let round = 0; round < 30; round += 1) {
+    const fresh = (await up(A, reelForm(mp4))).payload.reel.id;
+    const [deleted, decided] = await Promise.all([
+      A.api.request(`/merchant/stores/${A.store.slug}/market-reels/${fresh}`, { method: "DELETE" }),
+      owner.request(`/platform/market/reels/${fresh}/decision`, {
+        method: "POST",
+        body: { approve: true },
+      }),
+    ]);
+    const final = await prisma.marketReel.findUniqueOrThrow({ where: { id: fresh } });
+    assert.ok(
+      !(deleted.status === 200 && final.status === "approved"),
+      `a deleted reel is never published · delete ${deleted.status}, decide ${decided.status}, now ${final.status}`
+    );
+    if (final.status !== "removed")
+      await prisma.marketReel.update({ where: { id: fresh }, data: { status: "removed" } });
+  }
+  summary.decisionRace = "a deleted reel is never approved over";
   for (let i = 0; i < 10; i += 1) assert.equal((await up(A, reelForm(mp4))).status, 201);
   assert.equal(
     (await up(A, reelForm(mp4))).payload.error.code,

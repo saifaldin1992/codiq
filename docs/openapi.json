@@ -563,6 +563,7 @@
                   "PRODUCT_UNAVAILABLE",
                   "RATE_LIMITED",
                   "RATING_WINDOW_CLOSED",
+                  "REEL_CHANGED",
                   "REEL_NOT_FOUND",
                   "REEL_QUEUE_FULL",
                   "REEL_REJECTION_NOTE_REQUIRED",
@@ -60811,6 +60812,19 @@
               "REEL_NOT_FOUND"
             ]
           },
+          "409": {
+            "description": "`REEL_CHANGED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "x-codiq-error-codes": [
+              "REEL_CHANGED"
+            ]
+          },
           "413": {
             "description": "`REQUEST_BODY_TOO_LARGE`",
             "content": {
@@ -73445,6 +73459,14 @@
         422
       ],
       "messages": []
+    },
+    "REEL_CHANGED": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "تغيّر هذا المقطع للتوّ — حدّث القائمة."
+      ]
     },
     "REEL_NOT_FOUND": {
       "statuses": [
