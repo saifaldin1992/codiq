@@ -362,6 +362,25 @@ try {
     null,
     "and the shopper no longer shows a dead code"
   );
+  // Review batch 6, ت-٣: the lock counted failures AFTER the comparison, so guesses sent in
+  // parallel all read «0 failures» and were all compared — 10,000 codes are a short burst away.
+  // Now each guess first takes one of the five attempts; the rest are refused unread.
+  const burst = await buy([[perfume.id, 1]]);
+  await moveTo(burst, "processing", "preparation", "out_for_delivery");
+  const burstCode = (await view(burst)).afterSales.handoverCode;
+  const guesses = Array.from({ length: 30 }, (_, index) => String(index).padStart(4, "0")).filter(
+    (guess) => guess !== burstCode
+  );
+  const replies = await Promise.all(
+    guesses.map((code) =>
+      merchant.request(m(`${burst}/handover`), { method: "POST", body: { code } })
+    )
+  );
+  const compared = replies.filter((reply) => reply.payload?.error?.code === "HANDOVER_CODE_WRONG");
+  assert.ok(
+    compared.length <= 5,
+    `at most five guesses are ever compared · ${compared.length} of ${guesses.length}`
+  );
   summary.handover = true;
 
   // ── 5. pick-up ───────────────────────────────────────────────────────────

@@ -141,18 +141,35 @@ export async function confirmHandover(
         : "حدّث الطلب إلى «في الطريق» قبل تسليمه."
     );
 
+  // Review batch 6, ت-٣: the attempt is TAKEN before the code is compared. Counting it after
+  // let guesses sent in parallel all read «0 failures» and all be compared; now at most
+  // HANDOVER_MAX_FAILURES guesses are ever read, and the rest are refused unread.
+  const attempt = await prisma.orderHandoverCode.updateMany({
+    where: { orderId: order.id, usedAt: null, failures: { lt: HANDOVER_MAX_FAILURES } },
+    data: { failures: { increment: 1 } },
+  });
+  if (attempt.count !== 1)
+    throw new HttpError(
+      429,
+      "HANDOVER_LOCKED",
+      "أُدخل رمز خاطئ مرّات كثيرة. أكمل الطلب من قائمة الحالات."
+    );
   if (!sameCode(handover.code, code)) {
-    const updated = await prisma.orderHandoverCode.update({
+    const { failures } = await prisma.orderHandoverCode.findUniqueOrThrow({
       where: { orderId: order.id },
-      data: { failures: { increment: 1 } },
       select: { failures: true },
     });
     throw new HttpError(
       422,
       "HANDOVER_CODE_WRONG",
-      `الرمز غير صحيح. تبقّت ${Math.max(0, HANDOVER_MAX_FAILURES - updated.failures)} محاولات.`
+      `الرمز غير صحيح. تبقّت ${Math.max(0, HANDOVER_MAX_FAILURES - failures)} محاولات.`
     );
   }
+  // The right code does not spend an attempt.
+  await prisma.orderHandoverCode.update({
+    where: { orderId: order.id },
+    data: { failures: { decrement: 1 } },
+  });
 
   let version = order.version;
   if (order.status === "preparation") {
