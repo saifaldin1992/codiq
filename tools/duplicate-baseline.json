@@ -3,7 +3,7 @@
  "counts": {
   "duplicatedLines": 7950,
   "blocks": 571,
-  "percent": 5.5
+  "percent": 5.49
  },
  "files": {
   "client/src/components/AbandonedCartsPanel.tsx": 19,
@@ -113,7 +113,9 @@
   "phase1-backend/src/modules/market-catalog/schema.ts": 8,
   "phase1-backend/src/modules/market-help/help.service.ts": 8,
   "phase1-backend/src/modules/market-home/schema.ts": 8,
-  "phase1-backend/src/modules/market-orders/after-sales.service.ts": 51,
+  "phase1-backend/src/modules/market-orders/after-sales/shopper.ts": 23,
+  "phase1-backend/src/modules/market-orders/after-sales/state.ts": 18,
+  "phase1-backend/src/modules/market-orders/after-sales/store.ts": 10,
   "phase1-backend/src/modules/market-rewards/rewards/points.ts": 9,
   "phase1-backend/src/modules/market-stores/moderation.service.ts": 8,
   "phase1-backend/src/modules/market-stores/profile.service.ts": 8,

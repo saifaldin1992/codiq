@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2579,
-  "oversizeFiles": 101,
+  "oversizeFiles": 100,
   "longFunctions": 440
  },
  "files": {
@@ -421,10 +421,15 @@
    "oversize": 0,
    "longFunctions": 0
   },
-  "phase1-backend/src/modules/market-orders/after-sales.service.ts": {
+  "phase1-backend/src/modules/market-orders/after-sales/state.ts": {
    "longLines": 1,
-   "oversize": 157,
-   "longFunctions": 2
+   "oversize": 0,
+   "longFunctions": 1
+  },
+  "phase1-backend/src/modules/market-orders/after-sales/store.ts": {
+   "longLines": 0,
+   "oversize": 0,
+   "longFunctions": 1
   },
   "phase1-backend/src/modules/market-orders/index.ts": {
    "longLines": 1,

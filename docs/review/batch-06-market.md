@@ -81,5 +81,8 @@
 ### [ت-٢] تقسيم خدمة العجلة — تحسين
 - `wheel.service.ts` (٦٥٢ سطراً) ← `market-wheel/wheel/{play,wins,owner}.ts`، نقلٌ حرفيّ (٣٤ جملة كلّها) قبل إصلاح ت-١ (الملفّ فوق الحدّ ولا ينمو).
 
+### [ت-٤] تقسيم خدمة ما بعد البيع — تحسين
+- `after-sales.service.ts` (٥٨٧ سطراً) ← `market-orders/after-sales/{shopper,state,store}.ts`، نقلٌ حرفيّ (٢٦ جملة كلّها) قبل إصلاح ت-٣.
+
 ### ملاحظات
 
