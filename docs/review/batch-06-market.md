@@ -88,5 +88,8 @@
 ### [ت-٤] تقسيم خدمة ما بعد البيع — تحسين
 - `after-sales.service.ts` (٥٨٧ سطراً) ← `market-orders/after-sales/{shopper,state,store}.ts`، نقلٌ حرفيّ (٢٦ جملة كلّها) قبل إصلاح ت-٣.
 
+### [ت-٦] تقسيم خدمة الحملات — تحسين
+- `campaigns.service.ts` (٥٢٩ سطراً) ← `market-campaigns/campaigns/{owner,deals,pages}.ts`، نقلٌ حرفيّ (٢٠ جملة كلّها) قبل إصلاح ت-٥.
+
 ### ملاحظات
 

@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2579,
-  "oversizeFiles": 100,
+  "oversizeFiles": 99,
   "longFunctions": 440
  },
  "files": {
@@ -276,9 +276,14 @@
    "oversize": 0,
    "longFunctions": 0
   },
-  "phase1-backend/src/modules/market-campaigns/campaigns.service.ts": {
-   "longLines": 4,
-   "oversize": 108,
+  "phase1-backend/src/modules/market-campaigns/campaigns/deals.ts": {
+   "longLines": 1,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-campaigns/campaigns/pages.ts": {
+   "longLines": 3,
+   "oversize": 0,
    "longFunctions": 0
   },
   "phase1-backend/src/modules/market-campaigns/index.ts": {
