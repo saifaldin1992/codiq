@@ -285,24 +285,29 @@ export async function submitFeedback(
   shopperId: string,
   input: { stars: number; liked: string[]; note?: string }
 ) {
-  const recent = await prisma.marketAppFeedback.findFirst({
-    where: {
-      shopperId,
-      createdAt: { gte: new Date(Date.now() - FEEDBACK_COOLDOWN_DAYS * 86_400_000) },
-    },
-    select: { id: true },
+  // Review batch 6: the check and the write under the shopper's row lock — read apart, eight
+  // requests sent together each found no recent feedback and each wrote one.
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM shoppers WHERE id = ${shopperId}::uuid FOR UPDATE`;
+    const recent = await tx.marketAppFeedback.findFirst({
+      where: {
+        shopperId,
+        createdAt: { gte: new Date(Date.now() - FEEDBACK_COOLDOWN_DAYS * 86_400_000) },
+      },
+      select: { id: true },
+    });
+    if (recent)
+      throw new HttpError(
+        429,
+        "FEEDBACK_TOO_SOON",
+        "شكراً لك، وصلنا تقييمك مؤخّراً. يمكنك التقييم مجدّداً بعد أسبوع."
+      );
+    const feedback = await tx.marketAppFeedback.create({
+      data: { shopperId, stars: input.stars, liked: input.liked, note: input.note?.trim() || null },
+      select: { id: true, stars: true, createdAt: true },
+    });
+    return { feedback };
   });
-  if (recent)
-    throw new HttpError(
-      429,
-      "FEEDBACK_TOO_SOON",
-      "شكراً لك، وصلنا تقييمك مؤخّراً. يمكنك التقييم مجدّداً بعد أسبوع."
-    );
-  const feedback = await prisma.marketAppFeedback.create({
-    data: { shopperId, stars: input.stars, liked: input.liked, note: input.note?.trim() || null },
-    select: { id: true, stars: true, createdAt: true },
-  });
-  return { feedback };
 }
 
 const FEEDBACK_KIND = "market-app-feedback";

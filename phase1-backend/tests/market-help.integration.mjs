@@ -24,6 +24,7 @@ const { prisma } = await import("../src/db/prisma.ts");
 const { createApp } = await import("../src/http/app.ts");
 const { setOtpProviderForTests } = await import("../src/modules/market-account/otp.service.ts");
 const { transitionOrderStatus } = await import("../src/services/order-lifecycle.service.ts");
+const { submitFeedback } = await import("../src/modules/market-help/help.service.ts");
 
 const sent = [];
 setOtpProviderForTests({
@@ -564,7 +565,25 @@ try {
       .error.code,
     "FEEDBACK_TOO_SOON"
   );
-  await stranger.shopper.request("/market/feedback", { method: "POST", body: { stars: 2 } });
+  // Review batch 6: the week's cooldown held only one request at a time — eight sent together
+  // (from several signed-in devices) each found no recent feedback and each wrote one. Called
+  // at the service, where nothing else lines the eight up. Exactly one may land, every round.
+  for (let round = 0; round < 3; round++) {
+    await prisma.marketAppFeedback.deleteMany({ where: { shopperId: stranger.id } });
+    const burst = await Promise.allSettled(
+      Array.from({ length: 8 }, () => submitFeedback(stranger.id, { stars: 2, liked: [] }))
+    );
+    assert.equal(
+      burst.filter((answer) => answer.status === "fulfilled").length,
+      1,
+      "parallel feedback: one lands, the rest wait the week"
+    );
+    assert.ok(
+      burst.every(
+        (answer) => answer.status === "fulfilled" || answer.reason?.code === "FEEDBACK_TOO_SOON"
+      )
+    );
+  }
   const report = (await owner.request("/platform/market/feedback")).payload;
   assert.deepEqual(
     [report.average, report.count, report.distribution.find((d) => d.stars === 4).count],

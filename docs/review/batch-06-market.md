@@ -11,42 +11,42 @@
 | `phase1-backend/src/modules/market-campaigns/campaigns.service.ts` | 529 | 2026-11-28 (كاملاً) | ت-٥، ت-٦ (قُسّم). الساعات داخل مدّة الحملة وبلا تداخل؛ لا شيء يتحرّك بعد بدء الساعة؛ الاقتراح لمنتج المتجر وحده وبالحدّ الأدنى للخصم |
 | `phase1-backend/src/modules/market-support/tickets.service.ts` | 524 | 2026-11-28 (كاملاً) | التذكرة مقيّدة بنطاقها (المتسوّق، المتجر، المنصّة)، والمرفق بتذكرته؛ تذكرة واحدة حيّة لكلّ طلب وخلال ٢٤ ساعة من التسليم، بحدّ ٥ في اليوم. ملاحظة: المرفقات المتوازية قد تتجاوز الثلاث |
 | `phase1-backend/src/modules/market-stores/directory.service.ts` | 505 | 2026-11-28 (كاملاً) | SQL مربوط القيم؛ «معروض» = مدرج ونشط والتاجر نشط — والمتجر الموقوف أو المغلق خارجٌ منه عبر `stores_status_sync` (حارس اختبار جديد في `market:stores`)؛ المؤشّر يُفحص رقماً |
-| `phase1-backend/src/modules/market-home/content.service.ts` | 480 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-home/content.service.ts` | 480 | 2026-11-28 (كاملاً) | محتوى المنصّة بلا عمود مستأجر، وكلّ كتابة بـ`brand.manage`؛ الفئات مستويان فقط؛ المجموعات والمولات تُستبدل في معاملة. ملاحظة: صورتا بنرٍ رُفعتا معاً تترك إحداهما ملفّاً يتيماً في التخزين |
 | `phase1-backend/src/modules/market-reels/reels.service.ts` | 390 | 2026-11-28 (كاملاً) | ت-٧. المرئيّ معتمد ومتجره مدرج ونشط؛ المشاهدة مرّة في اليوم لكلّ زائر (مفتاح مجزّأ)؛ الإعجاب بلا تكرار؛ الرفع لمنتج المتجر وحده ويُمحى الملفّ إن فشل الصفّ. ملاحظة أدناه |
-| `phase1-backend/src/modules/market-catalog/products.service.ts` | 376 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-catalog/products.service.ts` | 376 | 2026-11-28 (كاملاً) | جملة واحدة لكلّ صفحة، كلّ قيمة مربوطة، والمؤشّر يُفحص رقماً؛ «معروض» = المتجر مدرج ونشط والتاجر نشط والمنتج حيّ؛ صفحة المنتج ٤٠٤ لغير ذلك |
 | `phase1-backend/src/modules/market-support/routes.ts` | 358 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-help/help.service.ts` | 343 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-home/routes.ts` | 339 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-help/help.service.ts` | 343 | 2026-11-28 (كاملاً) | ت-٨. البحث بكلمات مهرَّبة (`codiq_like_escape`)؛ «تواصل معنا» بحدّ ٥ في الساعة لكلّ عنوان؛ المعالجة مشروطة بـ«جديدة». ملاحظة: إنشاء قسمين بالمعرّف نفسه معاً يعطي ٥٠٠ بدل ٤٠٩ (المالك وحده) |
+| `phase1-backend/src/modules/market-home/routes.ts` | 339 | 2026-11-28 (كاملاً) | قراءات المالك عبر `owner()` (`brand.manage`)؛ الكتابات تفحص المصدر؛ أحداث البنر بحدّ ٣٠٠ لكلّ عنوان في ١٠ دقائق |
 | `phase1-backend/src/modules/market-help/routes.ts` | 330 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-stores/profile.service.ts` | 266 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-stores/routes.ts` | 262 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-reels/routes.ts` | 255 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-home/home.service.ts` | 250 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-home/home.service.ts` | 250 | 2026-11-28 (كاملاً) | «حيّ» بالساعة وقت القراءة؛ المول يعرض المتاجر المدرجة النشطة وحدها؛ المعرّف المشوّه يصل إلى ٤٠٠ `INVALID_IDENTIFIER` عبر `malformed-identifier` |
 | `phase1-backend/src/modules/market-stores/presentation.ts` | 219 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-home/schema.ts` | 212 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-home/schema.ts` | 212 | 2026-11-28 (كاملاً) | الرابط slug مقيّد، ونافذة العرض مفحوصة، وأقسام الصفحة اتّحاد مميَّز صارم |
 | `phase1-backend/src/modules/core-modules.ts` | 212 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-help/favourites.service.ts` | 205 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-catalog/merchant.service.ts` | 204 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-catalog/merchant.service.ts` | 204 | 2026-11-28 (كاملاً) | كلّ شيء بـ`storeId` أوّلاً؛ السعر قبل الخصم أعلى من السعر. ملاحظة: استبدال الإضافات يغيّر معرّفاتها فتظهر سلال المتسوّقين «إضافة غير متاحة» حتّى يعيدوا الاختيار |
 | `phase1-backend/src/modules/market-wheel/routes.ts` | 199 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-help/inbox.service.ts` | 196 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-visual/visual.service.ts` | 187 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-stores/market-score.ts` | 183 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-campaigns/routes.ts` | 183 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-stores/moderation.service.ts` | 173 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-stores/moderation.service.ts` | 173 | 2026-11-28 (كاملاً) | القرار مشروط بالحالات المسموح الانتقال منها (`ALLOWED_FROM` + `updateMany`)، والخاسر ٤٠٩ |
 | `phase1-backend/src/modules/market-stores/metrics.service.ts` | 160 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-catalog/schema.ts` | 155 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-catalog/schema.ts` | 155 | 2026-11-28 (كاملاً) | قوائم المعرّفات uuid بسقف، والوسم من قائمة مغلقة |
 | `phase1-backend/src/modules/market-orders/routes.ts` | 151 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-stores/map-tiles.service.ts` | 147 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-catalog/routes.ts` | 145 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-stores/schema.ts` | 130 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-catalog/categories.service.ts` | 121 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-catalog/categories.service.ts` | 121 | 2026-11-28 (كاملاً) | الشجرة في الذاكرة دقيقة، وتُنسى عند تعديل المالك |
 | `phase1-backend/src/modules/market-visual/routes.ts` | 98 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-help/schema.ts` | 97 | — | لم يُقرأ |
 | `phase1-backend/src/modules/registry.ts` | 78 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-campaigns/schema.ts` | 67 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-catalog/stats.service.ts` | 64 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-catalog/stats.service.ts` | 64 | 2026-11-28 (كاملاً) | المبيعات بلا الملغى والمرفوض والكاشير؛ التقييم بلا المسحوب (والمخفيّ نصّه يُحسب كما يقرّر النموذج) |
 | `phase1-backend/src/modules/market-wheel/schema.ts` | 61 | — | لم يُقرأ |
-| `phase1-backend/src/modules/market-catalog/search.service.ts` | 61 | — | لم يُقرأ |
+| `phase1-backend/src/modules/market-catalog/search.service.ts` | 61 | 2026-11-28 (كاملاً) | لا متسوّق ولا عنوان يُخزَّن؛ الأرقام وحدها لا تُعدّ. ملاحظة: «ثلاث مرّات في الأسبوع» يبلغها شخص واحد يبحث ثلاث مرّات، فالتعليق يَعِد بأكثر ممّا يضمن |
 | `phase1-backend/src/modules/platform-module.ts` | 55 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-orders/reasons.ts` | 53 | — | لم يُقرأ |
 | `phase1-backend/src/modules/market-orders/schema.ts` | 48 | — | لم يُقرأ |
@@ -98,6 +98,10 @@
 ### [ت-٧] مقطعٌ حذفه المتجر يعود منشوراً بلا فيديو — تحسين
 - المكان: `decideReel` و`deleteReel`. الحذف يجعل المقطع «محذوفاً» ويمحو ملفّاته؛ اعتماد المالك كان يكتب بالمعرّف وحده، فإن سابق الحذف أعاد «محذوف» إلى «معتمد» — مقطع منشور في الصفحة وملفّه غير موجود.
 - الحالة: **مُصلَح** — القرار مشروط بالحالة التي قُرئت والحذف مشروط بأنّه لم يُحذف؛ الخاسر ٤٠٩ `REEL_CHANGED` (أو ٤٠٤ للحذف المكرّر). الاختبار (`market:reels`، ٣٠ جولة): حُذف بـ٢٠٠ وانتهى «معتمداً» قبل؛ لا يحدث بعد (ثلاث مرّات).
+
+### [ت-٨] «قيّم التطبيق» يُرسل مرّات في الأسبوع — تحسين
+- المكان: `submitFeedback`. مهلة الأسبوع تُفحص ثمّ يُكتب في خطوتين بلا قفل: طلبات متوازية (من أجهزة مسجَّلة عدّة) تجد كلّها «لا تقييم حديث» فتكتب كلّها — تتضخّم أرقام المالك ويُكسر وعد «مرّة في الأسبوع».
+- الحالة: **مُصلَح** — الفحص والكتابة في معاملة تقفل صفّ المتسوّق (`FOR UPDATE`، كما في العجلة). الاختبار (`market:help`، ثلاث جولات من ثمانية استدعاءات معاً): وصل ٣ قبل؛ واحد بالضبط بعد.
 
 ### ملاحظات
 - `reels.service.ts`: الفيديو (حتّى ٣٠ ميغابايت) لا يُحسب في حدّ تخزين الخطّة، والمقاطع المعتمدة بلا سقف (المعلّق عشرة فقط). مراجعة المالك لكلّ مقطع بوّابة بشريّة على النموّ؛ هل يُحسب الفيديو في «تخزين الصور» قرارٌ للمالك.
