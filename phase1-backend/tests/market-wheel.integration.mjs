@@ -435,6 +435,63 @@ try {
   );
   summary.cancelled = true;
 
+  // Review batch 6, ت-١: the status was read outside the transaction and written by id alone.
+  // Two cancels together both passed and the stock came back twice; a cancel racing the
+  // shopper's claim could overwrite «claimed» — he kept the points and the unit was re-sold.
+  const pendingWin = async () => {
+    const spinRow = await prisma.wheelSpin.create({
+      data: {
+        wheelId: wheel.id,
+        shopperId,
+        kind: "bonus",
+        day: new Date(),
+        prizeId: pts.id,
+        prizeLabel: "نقاط",
+      },
+    });
+    await prisma.wheelPrize.update({ where: { id: pts.id }, data: { wonCount: { increment: 1 } } });
+    return prisma.wheelWin.create({
+      data: {
+        wheelId: wheel.id,
+        spinId: spinRow.id,
+        shopperId,
+        prizeId: pts.id,
+        claimBy: new Date(Date.now() + 86_400_000),
+      },
+    });
+  };
+  const cancel = (id) =>
+    owner.request(`/platform/market/wheel-wins/${id}/status`, {
+      method: "POST",
+      body: { status: "cancelled", note: "إلغاء متزامن" },
+    });
+  const twice = await pendingWin();
+  const stockBefore = (await prisma.wheelPrize.findUniqueOrThrow({ where: { id: pts.id } }))
+    .wonCount;
+  const cancels = await Promise.all([cancel(twice.id), cancel(twice.id), cancel(twice.id)]);
+  assert.equal(
+    cancels.filter((reply) => reply.status === 200).length,
+    1,
+    `one win, one cancellation · ${cancels.map((reply) => reply.status).join(",")}`
+  );
+  assert.equal(
+    (await prisma.wheelPrize.findUniqueOrThrow({ where: { id: pts.id } })).wonCount,
+    stockBefore - 1,
+    "the unit comes back once"
+  );
+  const raced = await pendingWin();
+  const [claimed, cancelled] = await Promise.all([
+    shopper.request(`/market/wheel/wins/${raced.id}/claim`, { method: "POST", body: {} }),
+    cancel(raced.id),
+  ]);
+  const final = await prisma.wheelWin.findUniqueOrThrow({ where: { id: raced.id } });
+  assert.ok(
+    !(claimed.status === 200 && cancelled.status === 200),
+    `a claimed prize is never also cancelled · claim ${claimed.status}, cancel ${cancelled.status}, now ${final.status}`
+  );
+  assert.equal(final.status, claimed.status === 200 ? "claimed" : "cancelled");
+  summary.cancelRaces = "one cancel wins; a claim and a cancel never both stand";
+
   // ── 7. a thousand spins at once ──────────────────────────────────────────
   await prisma.marketWheel.update({
     where: { id: wheel.id },

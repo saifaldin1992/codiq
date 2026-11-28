@@ -657,6 +657,7 @@
                   "WIN_NOT_CANCELLABLE",
                   "WIN_NOT_FOUND",
                   "WIN_NOT_SHIPPING",
+                  "WIN_STATUS_CHANGED",
                   "WISHLIST_FULL"
                 ],
                 "description": "رمز ثابت. المجموعة كاملة في `x-codiq-error-catalogue`."
@@ -61382,7 +61383,7 @@
             ]
           },
           "409": {
-            "description": "`WIN_NOT_CANCELLABLE` · `WIN_NOT_SHIPPING`",
+            "description": "`WIN_NOT_CANCELLABLE` · `WIN_NOT_SHIPPING` · `WIN_STATUS_CHANGED`",
             "content": {
               "application/json": {
                 "schema": {
@@ -61392,7 +61393,8 @@
             },
             "x-codiq-error-codes": [
               "WIN_NOT_CANCELLABLE",
-              "WIN_NOT_SHIPPING"
+              "WIN_NOT_SHIPPING",
+              "WIN_STATUS_CHANGED"
             ]
           },
           "413": {
@@ -74232,6 +74234,14 @@
       ],
       "messages": [
         "الجائزة ليست في الطريق."
+      ]
+    },
+    "WIN_STATUS_CHANGED": {
+      "statuses": [
+        409
+      ],
+      "messages": [
+        "تغيّرت حالة الجائزة للتوّ — حدّث الصفحة."
       ]
     },
     "WISHLIST_FULL": {

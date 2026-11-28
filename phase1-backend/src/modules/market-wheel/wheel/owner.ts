@@ -171,11 +171,16 @@ export async function setWinStatus(
   if (input.status === "cancelled" && !input.note?.trim())
     throw new HttpError(422, "WIN_CANCEL_NOTE_REQUIRED", "اكتب سبب الإلغاء — يراه المتسوّق.");
   return prisma.$transaction(async (tx) => {
-    const updated = await tx.wheelWin.update({
-      where: { id: winId },
+    // Review batch 6, ت-١: the move is CLAIMED on the status it was read with. Two cancels
+    // together, or a cancel racing the shopper's claim (which holds the row FOR UPDATE), used
+    // to both pass — the unit came back twice, or a claimed prize was cancelled under him.
+    const moved = await tx.wheelWin.updateMany({
+      where: { id: winId, status: win.status },
       data: { status: input.status, note: input.note?.trim() || null },
-      select: { id: true, status: true },
     });
+    if (moved.count !== 1)
+      throw new HttpError(409, "WIN_STATUS_CHANGED", "تغيّرت حالة الجائزة للتوّ — حدّث الصفحة.");
+    const updated = { id: winId, status: input.status };
     // A cancelled prize goes back into the wheel's stock.
     if (input.status === "cancelled")
       await tx.$executeRaw`UPDATE wheel_prizes SET won_count = won_count - 1 WHERE id = ${win.prize.id}::uuid AND won_count > 0`;
