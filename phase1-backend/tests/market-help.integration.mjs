@@ -315,6 +315,15 @@ try {
       .status,
     422
   );
+  // Review batch 6: a well-formed key that is not one of his notices stored a row anyway, so
+  // a script could grow his read marks without end. Another shopper's, or a made-up one, is
+  // now ignored: no row, the same count.
+  const marksBefore = await prisma.shopperInboxRead.count();
+  for (const key of [`o:${crypto.randomUUID()}`, `t:${crypto.randomUUID()}`]) {
+    const answer = await shopper.request("/market/inbox/read", { method: "POST", body: { key } });
+    assert.deepEqual([answer.status, answer.payload.unread], [200, 3]);
+  }
+  assert.equal(await prisma.shopperInboxRead.count(), marksBefore, "unknown keys leave no mark");
   inbox = (await shopper.request("/market/inbox?limit=2")).payload;
   assert.deepEqual(
     inbox.items.map((item) => item.read),

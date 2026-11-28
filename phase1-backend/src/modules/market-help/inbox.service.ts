@@ -173,11 +173,17 @@ export async function unreadCount(shopperId: string) {
 }
 
 export async function markRead(shopperId: string, key: string) {
-  if (!KEY.test(key)) throw new HttpError(422, "INVALID_INBOX_KEY", "إشعار غير معروف.");
-  await prisma.shopperInboxRead.createMany({
-    data: [{ shopperId, itemKey: key.toLowerCase() }],
-    skipDuplicates: true,
-  });
+  const parts = KEY.exec(key);
+  if (!parts) throw new HttpError(422, "INVALID_INBOX_KEY", "إشعار غير معروف.");
+  const itemKey = key.toLowerCase();
+  // Review batch 6: only a notice of HIS is marked — any well-formed key stored a row, so a
+  // script could grow his marks without end. Another's, or a made-up one, is ignored.
+  await prisma.$executeRaw`
+    INSERT INTO shopper_inbox_reads (shopper_id, item_key)
+    SELECT ${shopperId}::uuid, ${itemKey}
+     WHERE EXISTS (SELECT 1 FROM (${itemsSql(shopperId)}) i
+                    WHERE i.source = ${parts[1].toLowerCase()} AND i.item_id = ${parts[2]}::uuid)
+    ON CONFLICT DO NOTHING`;
   return unreadCount(shopperId);
 }
 
