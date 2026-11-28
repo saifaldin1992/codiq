@@ -7,7 +7,7 @@
  },
  "totals": {
   "longLines": 2579,
-  "oversizeFiles": 102,
+  "oversizeFiles": 101,
   "longFunctions": 440
  },
  "files": {
@@ -616,10 +616,20 @@
    "oversize": 0,
    "longFunctions": 1
   },
-  "phase1-backend/src/modules/market-wheel/wheel.service.ts": {
-   "longLines": 8,
-   "oversize": 222,
+  "phase1-backend/src/modules/market-wheel/wheel/owner.ts": {
+   "longLines": 2,
+   "oversize": 0,
+   "longFunctions": 0
+  },
+  "phase1-backend/src/modules/market-wheel/wheel/play.ts": {
+   "longLines": 2,
+   "oversize": 0,
    "longFunctions": 2
+  },
+  "phase1-backend/src/modules/market-wheel/wheel/wins.ts": {
+   "longLines": 4,
+   "oversize": 0,
+   "longFunctions": 0
   },
   "phase1-backend/src/notifications/abandoned-cart-scanner.ts": {
    "longLines": 0,
